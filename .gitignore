@@ -28,24 +28,24 @@ pnpm-debug.log*
 # Deliberately excluded so they are NOT published to the public repo.
 # See the project handover notes before changing anything below.
 # =====================================================================
-research/
-_project/
-module framework + content/
-Scripts/
-CLAUDE.md
+/research/
+/_project/
+/module framework + content/
+/Scripts/
+/CLAUDE.md
 
-design/claude-handover/
-design/logs/
-design/reviews/
-design/wireframes/
-design/prototype/*.md
-design/DESIGN-apple.md
-design/backlog.md
-design/claude-code-action-plan.md
-design/coach-portal-handover-orchestration-plan.md
-design/portal-feature-map.md
-design/user-roles.md
-design/ux-copy.md
+/design/claude-handover/
+/design/logs/
+/design/reviews/
+/design/wireframes/
+/design/prototype/*.md
+/design/DESIGN-apple.md
+/design/backlog.md
+/design/claude-code-action-plan.md
+/design/coach-portal-handover-orchestration-plan.md
+/design/portal-feature-map.md
+/design/user-roles.md
+/design/ux-copy.md
 
 # Assembled Pages output (built by build-site.sh / CI)
 _site/

@@ -1,0 +1,3452 @@
+/**
+ * Consumer record page — the drill-in behind Consumer Management.
+ *
+ * Route: `/research/consumers/:dyadId` (`App.tsx`), reached from
+ * `ConsumerManagementPage`. Five tabs: Overview, Study Progress, Sleep & Health
+ * Data, Notes, Profile details.
+ *
+ * A "consumer" is a **dyad**: a Person with Lived Experience (PLE) and their
+ * carer. `dyad.patient` is the PLE and is **optional** — carer-only enrolments
+ * are real, and every layout here has to degrade to one person. Never call the
+ * PLE a patient or a PLWD in user-facing copy, whatever the field is named.
+ *
+ * Cross-file wiring:
+ *   - It **exports `dyadHealthAlerts`** (and `hasRecentGap`), which
+ *     `components/research/ResearchNotificationHub.tsx` imports. That is the one
+ *     component -> page dependency in the package, kept deliberately so the
+ *     sync-gap rule has a single definition. It is safe because both functions
+ *     are pure, but if the graph direction ever matters, move them into
+ *     `data/spaces.ts` and import from there on both sides.
+ *   - It **imports `RecordRowDivider`** from `CoachProfilePage.tsx`; all three
+ *     record pages share that row vocabulary.
+ *   - `FitbitSyncMonitor`, `SleepDiaryFeed` and `FitbitLogTable` are exported
+ *     with no importer in this package — their other callers were the Consumer
+ *     and Coach Delivery portals, which are not part of this handover. Several
+ *     of their props are correspondingly dead; each says so.
+ *
+ * Session and module numbering is the sharpest trap on this page. Internal
+ * session keys run 1-7 where key 1 is the unnumbered "Planning" session, so the
+ * displayed number is always `n - 1` (`displaySessionNumber` / `sessionRowLabel`).
+ * Module index N is *unlocked by* internal session N and *reviewed by* internal
+ * session N + 1. Three different numbers describe one module — always route
+ * through the helpers in `data/spaces.ts` rather than doing the arithmetic
+ * inline.
+ *
+ * Everything on this page reads the store's live `sessionCompletion` /
+ * `sessionPlans` / `manualModuleUnlocks` slices. `dyad.sessionsCompleted` and
+ * `dyad.sessionPlan` are seed fields that go stale after boot — do not read them.
+ */
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import {
+  Activity,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ClipboardList,
+  Download,
+  GripVertical,
+  Minus,
+  MoreVertical,
+  NotebookPen,
+  Paperclip,
+  SlidersHorizontal,
+  TriangleAlert,
+} from 'lucide-react'
+import { ResearchShell } from '@/components/research/ResearchShell'
+import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
+import { EmptyState } from '@/components/shared/EmptyState'
+import { Chip } from '@/components/research/StatusChip'
+import { ConfirmDialog } from '@/components/research/ConfirmDialog'
+import { Card } from '@/components/ui/card'
+import { TabIntro } from '@/components/research/TabIntro'
+import { cn } from '@/lib/utils'
+import { downloadCsv } from '@/lib/csv'
+import { RecordRowDivider } from '@/pages/research/CoachProfilePage'
+import {
+  CONSUMER_MODULES,
+  SPACES_CATCHUP_COUNT,
+  catchupSessionsCompleted,
+  computeSleepDiary,
+  moduleIndex,
+  moduleUnlockState,
+  sessionRowLabel,
+  type ConsumerDyad,
+  type HealthLogEntry,
+  type NotificationPreferences,
+  type PersonProfile,
+  type SessionCompletionRecord,
+  type SessionPlan,
+  type SleepDiaryAnswers,
+} from '@/data/spaces'
+import { useResearch } from '@/data/research-context'
+import { formatDate, formatTime, TODAY } from '@/data/format'
+
+/** Tab order; also drives keyboard Home/End. There is no "Assigned Coach" tab —
+ *  the hero names the assigned coach and the coach's own record lives under
+ *  Coach Management. */
+/* Study Progress, Sleep & Health Data, Notes and Overview are all HIDDEN. All
+   four now read off the Coach Management record page, under its "Assigned
+   Consumers" tab: the timeline and study log as its "Study progress" sub-tab,
+   Fitbit + sleep diary as "Consumer sleep & health data", and this consumer's
+   contact details in its "View consumer details" slide-in panel. Showing the
+   same surfaces in two places is two renderings of one fact.
+
+   The components behind them are NOT deleted — `ModuleCompletionOverviewCard`,
+   `StudyProgressTimelineCard`, `StudyLogSection` and `HealthDataHubTab` are
+   exported and consumed by `SpacesCoachProfilePage`. `OverviewTab` and
+   `NotesTab` have no caller today and are exported rather than removed:
+   re-enabling either is one entry in this list. */
+const TABS = ['Profile details'] as const
+type Tab = (typeof TABS)[number]
+
+/** Per-tab title + sub copy (Figma `93:7`). */
+const TAB_INTRO: Record<Tab, { title: string; subtitle: string }> = {
+  'Profile details': {
+    title: 'Profile details',
+    subtitle: 'Study information and contact details for both members of this dyad',
+  },
+}
+
+/** Shared table-header cell. Every table on this record uses the `purple-50`
+ *  band with `ink` labels and no bottom rule — the tint is the boundary. */
+const SESSION_TH = 'px-4 py-4 text-caption-medium text-ink'
+
+const inputClass =
+  'h-9 w-full rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
+
+function dyadTitle(dyad: ConsumerDyad): string {
+  return dyad.patient ? `${dyad.patient.name} & ${dyad.carer.name}` : dyad.carer.name
+}
+
+function SelectChevron() {
+  return (
+    <ChevronDown
+      aria-hidden="true"
+      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
+    />
+  )
+}
+
+/**
+ * The study's ">48 hours without data" rule, as implemented.
+ *
+ * ⚠️ THE IMPLEMENTATION DOES NOT MATCH THE RULE. It checks the last two
+ * **array entries**, with no reference to their dates or to today. Two
+ * consequences a backend must fix rather than port:
+ *   1. If a log simply stops (device returned, participant withdrew), the last
+ *      two entries may both be `synced: true` and NO alert fires — which is
+ *      exactly the case the check exists for.
+ *   2. It cannot tell a gap two days ago from one two months ago.
+ * Re-implement it as a real date difference against the current date.
+ */
+export function hasRecentGap(log: HealthLogEntry[], failing: (e: HealthLogEntry) => boolean): boolean {
+  if (log.length < 2) return false
+  return log.slice(-2).every(failing)
+}
+
+/**
+ * ⚠️ THE SINGLE SOURCE OF TRUTH for Fitbit and sleep-diary gap alerts,
+ * study-wide. `components/research/ResearchNotificationHub.tsx` imports it from
+ * here, which is the one component -> page dependency in the package. That is
+ * deliberate: duplicating gap detection is how two surfaces start disagreeing
+ * about the same participant. It is safe because this function is pure, but the
+ * right home for it is `data/spaces.ts`.
+ *
+ * Both dyad members are checked independently — a carer not syncing and the PLE
+ * not syncing are different findings and must not be collapsed.
+ *
+ * There is no Fitbit client anywhere in this package. All of this reads seeded
+ * `HealthLogEntry[]` arrays on the dyad; that array is the boundary a nightly
+ * sync job would populate.
+ */
+export function dyadHealthAlerts(dyad: ConsumerDyad): string[] {
+  const members: { label: string; log: HealthLogEntry[] }[] = []
+  if (dyad.patient) members.push({ label: dyad.patient.name, log: dyad.patientLog })
+  members.push({ label: dyad.carer.name, log: dyad.carerLog })
+
+  const alerts: string[] = []
+  for (const m of members) {
+    if (hasRecentGap(m.log, (e) => !e.synced)) {
+      alerts.push(`${m.label}’s Fitbit hasn’t synced in over 48 hours.`)
+    }
+    if (hasRecentGap(m.log, (e) => !e.diaryEntry)) {
+      alerts.push(`${m.label}’s sleep-diary entries have stopped for over 48 hours.`)
+    }
+  }
+  return alerts
+}
+
+/* ------------------------------------------------------------------------ */
+/* Overview                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * One dyad member's contact card. Same chassis as the trainee record page's own
+ * details card — a `yellow-100` -> white gradient, and three grid tracks
+ * (110px label / 24px colon / value) with the colon as its own `aria-hidden`
+ * span outside both `dt` and `dd`, so it never joins either accessible name.
+ *
+ * Rows are Email / Phone / Background. **Consumers are not issued a participant
+ * ID**, so there is no equivalent of the trainee card's ID row — do not add one.
+ *
+ * The Background row is clamped to three lines with a "Show more" toggle,
+ * because a clinical note can be long and truncating it silently loses the rest.
+ * The toggle renders only when the text genuinely overflows, and that is
+ * **measured, not guessed from a character count** — whether three lines are
+ * enough depends entirely on the card's width, which is why the `ResizeObserver`
+ * is there. Do not replace it with a length heuristic.
+ */
+/** Exported for the Coach Management record page's "View consumer details"
+ *  slide-in panel, which shows the same contact card per dyad member rather
+ *  than a second identity treatment of its own. */
+export function ContactDetailsCard({
+  role,
+  person,
+}: {
+  role: 'PLE' | 'Carer'
+  person: PersonProfile
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [overflows, setOverflows] = useState(false)
+  const bgRef = useRef<HTMLDivElement | null>(null)
+  const background = person.background?.trim()
+
+  useEffect(() => {
+    const el = bgRef.current
+    if (!el || !background || expanded) return
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1)
+    measure()
+    // Re-measure on resize. A one-shot check on mount strands the toggle in
+    // whichever state the first paint happened to produce.
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [background, expanded])
+
+  const rows: { label: string; value: string | undefined; clamp?: boolean }[] = [
+    { label: 'Email', value: person.email },
+    { label: 'Phone', value: person.phone },
+    { label: 'Background', value: background, clamp: true },
+  ]
+
+  return (
+    <Card className="gap-0 rounded-lg border border-parchment bg-gradient-to-b from-yellow-100 to-white py-0 shadow-card">
+      <div className="flex h-full flex-col gap-2 p-6">
+        {/* `px-2` matches the rows block below, so the name's left edge lines up
+            with the "Email" label under it. */}
+        <div className="flex items-center gap-2 px-2">
+          <p className="min-w-0 flex-1 truncate text-title text-ink">{person.name}</p>
+          {/* Deliberately NOT a `<Chip>`. PLE and Carer are identity labels, not
+              status, so they use the brand's two hues rather than borrowing one
+              of the six status tones. Contrast measured from the painted fills:
+              white on `purple-500` 4.85:1, `ink` on `yellow-400` 9.90:1. */}
+          <span
+            className={cn(
+              'inline-flex h-6 shrink-0 items-center rounded-full px-2 text-caption-medium',
+              role === 'PLE' ? 'bg-purple-500 text-white' : 'bg-yellow-400 text-ink',
+            )}
+          >
+            {role}
+          </span>
+        </div>
+        <dl className="grid grid-cols-1 gap-x-0 gap-y-4 p-2 sm:grid-cols-[110px_24px_1fr]">
+          {rows.map((f) => (
+            <Fragment key={f.label}>
+              <dt className={cn('text-caption-medium text-ink', !f.clamp && 'sm:self-center')}>
+                {f.label}
+              </dt>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'hidden text-body-md text-ink sm:block',
+                  !f.clamp && 'sm:self-center',
+                )}
+              >
+                :
+              </span>
+              <dd className="min-w-0 text-caption text-ink">
+                {f.value ? (
+                  f.clamp ? (
+                    <>
+                      <div ref={bgRef} className={cn(!expanded && 'line-clamp-3')}>
+                        {f.value}
+                      </div>
+                      {/* Inside the value column, not at the card's left edge —
+                          a toggle out there reads as belonging to the card
+                          rather than to the text it expands. `-ml-2` cancels the
+                          button's own padding so its label starts exactly on the
+                          value column's x. */}
+                      {overflows && (
+                        <button
+                          type="button"
+                          onClick={() => setExpanded((v) => !v)}
+                          aria-expanded={expanded}
+                          className="-ml-2 inline-flex min-h-9 items-center gap-1 rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {expanded ? 'Show less' : 'Show more'}
+                          {expanded ? (
+                            <ChevronUp aria-hidden="true" className="size-4" />
+                          ) : (
+                            <ChevronDown aria-hidden="true" className="size-4" />
+                          )}
+                          <span className="sr-only"> of {person.name}&rsquo;s background</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="block truncate">{f.value}</span>
+                  )
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </Fragment>
+          ))}
+        </dl>
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * The "Key updates" list on the Overview tab. Every row is derived from the
+ * record — nothing is seeded or hardcoded.
+ *
+ * Rows that report an absent state (no coach, no plan, nothing scheduled) carry
+ * a `destructive` tone, so the things a researcher needs to chase are
+ * distinguishable from routine facts at a glance. A row with no session date is
+ * NOT "next" — it is unscheduled, and the plan row below reports that instead.
+ *
+ * The trainee record page has its own near-identical version
+ * (`overviewKeyUpdates`). They are separate on purpose — the two records carry
+ * different facts — but keep their shape and tone conventions in step.
+ */
+function consumerKeyUpdates({
+  dyad,
+  inProgressTitle,
+  modulesDone,
+  totalModules,
+  coachName,
+  plan,
+  completed,
+}: {
+  dyad: ConsumerDyad
+  inProgressTitle: string | undefined
+  modulesDone: number
+  totalModules: number
+  coachName: string | undefined
+  plan: SessionPlan | undefined
+  completed: SessionCompletionRecord[]
+}): { label: string; value: string; tone?: string }[] {
+  const rows: { label: string; value: string; tone?: string }[] = []
+
+  rows.push({
+    label: 'Ongoing module',
+    value:
+      inProgressTitle ??
+      (modulesDone === totalModules ? 'All modules completed' : 'None in progress'),
+  })
+
+  rows.push({
+    label: 'Assigned coach',
+    value: coachName ?? 'Not assigned',
+    ...(coachName ? {} : { tone: 'text-destructive' }),
+  })
+
+  const lastDone = dyad.moduleEngagement
+    .filter((r) => r.status === 'completed' && r.lastActivityDate)
+    .sort((a, b) => (a.lastActivityDate ?? '').localeCompare(b.lastActivityDate ?? ''))
+    .at(-1)
+  if (lastDone) {
+    const title = CONSUMER_MODULES[moduleIndex(lastDone.moduleId)]?.title ?? lastDone.moduleId
+    rows.push({
+      label: 'Last completed module',
+      value: `${title} · ${formatDate(lastDone.lastActivityDate!)}`,
+    })
+  }
+
+  // `sessionRowLabel`, not raw arithmetic: internal session 1 is the unnumbered
+  // "Planning" session and every other key is one higher than its display
+  // number.
+  const next = plan?.sessions.find((s) => s.date && !completed.some((c) => c.session === s.session))
+  rows.push(
+    next?.date
+      ? {
+          label: 'Next session',
+          value: `${sessionRowLabel(next.session)} · ${formatDate(next.date)}`,
+        }
+      : { label: 'Next session', value: 'Not yet scheduled', tone: 'text-destructive' },
+  )
+
+  const planned = plan?.sessions.every((s) => !!s.date) ?? false
+  rows.push({
+    label: 'Session plan',
+    value: planned ? 'Created' : 'Not created yet',
+    ...(planned ? {} : { tone: 'text-destructive' }),
+  })
+
+  return rows
+}
+
+/**
+ * Overview — the tab a researcher lands on. Read-only; its only control is the
+ * link across to Study Progress.
+ *
+ * One contact card per dyad member (one card for a carer-only enrolment), then
+ * a learning-progress card carrying the derived Key updates list. Deliberately
+ * mirrors the trainee record page's own Overview so the two read as one system.
+ */
+/** NO CALLER — the Overview tab is hidden. Exported rather than deleted;
+ *  re-enabling it is one entry in `TABS`. */
+export function OverviewTab({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion, sessionPlans, coaches } = useResearch()
+  const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+  const completed = sessionCompletion[dyad.id] ?? []
+  const plan = sessionPlans[dyad.id]
+
+  const modulesDone = dyad.moduleEngagement.filter((r) => r.status === 'completed').length
+  const totalModules = CONSUMER_MODULES.length
+  const inProgress = dyad.moduleEngagement.find((r) => r.status === 'in-progress')
+  const inProgressTitle = inProgress
+    ? (CONSUMER_MODULES[moduleIndex(inProgress.moduleId)]?.title ?? inProgress.moduleId)
+    : undefined
+  const lastActivity = dyad.moduleEngagement
+    .map((r) => r.lastActivityDate)
+    .filter((d): d is string => !!d)
+    .sort()
+    .at(-1)
+
+  const people = [
+    ...(dyad.patient ? [{ role: 'PLE' as const, person: dyad.patient }] : []),
+    { role: 'Carer' as const, person: dyad.carer },
+  ]
+
+  const keyUpdates = consumerKeyUpdates({
+    dyad,
+    inProgressTitle,
+    modulesDone,
+    totalModules,
+    coachName: coach?.fullName,
+    plan,
+    completed,
+  })
+  // `catchupSessionsCompleted` counts only the 6 numbered catch-ups, excluding
+  // the unnumbered Planning session. Every "N of 6" figure in the app goes
+  // through it — counting raw records here once produced a dyad reading
+  // "1 of 7" directly beside "Next session: Session 1".
+  const sessionsDone = catchupSessionsCompleted(completed)
+  // A row with no date is not "next" — it is unscheduled, which the pill says.
+  const nextPlannedDate = plan?.sessions.find(
+    (r) => r.date && !completed.some((c) => c.session === r.session),
+  )?.date
+
+  return (
+    // 40px between sections, matching the trainee Overview.
+    <div className="flex flex-col gap-10">
+      {/* One card per dyad member, equal width. A carer-only enrolment renders
+          one card and the grid collapses — `dyad.patient` is optional, so this
+          must never assume two. The role badge is what distinguishes PLE from
+          Carer; each card leads with the person's own name. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {people.map(({ role, person }) => (
+          <ContactDetailsCard key={role} role={role} person={person} />
+        ))}
+      </div>
+
+      {/* Full-width card holding two panels: a flex-1 "Progress:" panel and a
+          fixed 640px "Key updates" panel. The trainee Overview carries the same
+          pair — keep them in step. */}
+      <section>
+        <Card className="gap-0 rounded-lg border border-parchment bg-card py-0 shadow-card">
+          <div className="flex flex-col gap-6 p-6">
+            {/* The "View more" CTA went with the Study Progress tab it pointed
+                at. That detail now lives on the Coach Management record page,
+                which this page deliberately does not deep-link into from here —
+                the hero's "View study progress" CTA does that job. */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="min-w-0 flex-1 text-title text-ink">
+                Consumer&rsquo;s learning journey progress
+              </h2>
+            </div>
+
+            {/* Splits at `xl`, not `lg`: the right panel is a fixed 640px and
+                the left needs ~409px beside it. */}
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
+              <div className="flex min-w-0 flex-1 flex-col gap-6 rounded-sm bg-parchment p-4">
+                <p className="flex h-6 items-center text-body-md text-ink">Progress:</p>
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    {/* Fixed-height row with `justify-between` on both columns:
+                        labels pinned top, values bottom, which puts a large
+                        count and a small date on a shared baseline without
+                        either column knowing the other's type size. */}
+                    <div className="flex h-16 items-start justify-between gap-4">
+                      <div className="flex h-full flex-col justify-between">
+                        <p className="text-caption text-ink-muted">Modules completed:</p>
+                        <p className="text-display-md whitespace-nowrap text-ink">
+                          {modulesDone} of {totalModules}
+                        </p>
+                      </div>
+                      <div className="flex h-full flex-col items-start justify-between">
+                        <p className="text-caption whitespace-nowrap text-ink-muted">Last active:</p>
+                        <p className="text-body-md whitespace-nowrap text-ink">
+                          {lastActivity ? formatDate(lastActivity) : 'Not started'}
+                        </p>
+                      </div>
+                    </div>
+                    <div
+                      className="h-1.5 w-full overflow-hidden rounded-full bg-purple-200"
+                      role="img"
+                      aria-label={`${modulesDone} of ${totalModules} modules completed`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${(modulesDone / totalModules) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  {/* The white sub-panel occupies the trainee card's "Current
+                      Stage" slot. A consumer has no COACH stage, so it carries
+                      the two facts that do apply: sessions completed and the
+                      next scheduled date. No fixed height — it was sized for
+                      one row and clips the second. */}
+                  <div className="flex flex-col justify-center gap-2 rounded-sm bg-card p-3">
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 flex-1 text-caption-medium text-ink">
+                        Total sessions completed:
+                      </p>
+                      {/* Denominator is `SPACES_CATCHUP_COUNT`, matching the
+                          "Sessions held" KPI on Study Progress and every other
+                          surface that shows this figure. */}
+                      <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-purple-50 px-3 text-caption-medium text-ink">
+                        {sessionsDone}/{SPACES_CATCHUP_COUNT}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 flex-1 text-caption-medium text-ink">
+                        Next scheduled session:
+                      </p>
+                      <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-purple-50 px-3 text-caption-medium whitespace-nowrap text-ink">
+                        {nextPlannedDate ? formatDate(nextPlannedDate) : 'Not scheduled'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key updates panel. Rows come from `consumerKeyUpdates` — read
+                  its doc before adding one. */}
+              <div className="flex flex-col gap-6 overflow-hidden rounded-sm bg-parchment p-4 xl:w-[640px] xl:shrink-0">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="text-body-md whitespace-nowrap text-ink">Key updates</p>
+                    {/* White on `purple-500` measures 4.85:1 — clears AA with
+                        little margin. Do not lighten the fill. */}
+                    <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-purple-500 px-2 text-caption-medium text-white">
+                      {keyUpdates.length} {keyUpdates.length === 1 ? 'update' : 'updates'}
+                    </span>
+                  </div>
+                  {/* UNWIRED — needs a per-user notification read-state store.
+                      The trainee record page's Key updates panel carries an
+                      identical copy-pasted control, not a shared component;
+                      wire both together or neither. */}
+                  <button
+                    type="button"
+                    aria-disabled="true"
+                    className="-my-3 shrink-0 rounded-sm py-3 text-caption-medium text-primary underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Mark all as read
+                    <span className="sr-only"> (coming soon)</span>
+                  </button>
+                </div>
+                <ul className="flex max-h-[174px] min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xs bg-card p-3">
+                  {keyUpdates.map((u) => (
+                    <li
+                      key={u.label}
+                      className="flex shrink-0 items-center justify-between gap-4 border-b border-purple-200 px-px py-3"
+                    >
+                      <p className="min-w-0 flex-1 text-body text-ink">
+                        {u.label}: <span className={u.tone ?? 'text-primary'}>{u.value}</span>
+                      </p>
+                      {/* UNWIRED, and no menu contents have been specified.
+                          `-my-2.5` is load-bearing: it keeps a real 36x36 hit
+                          target (the app's control floor) while contributing
+                          only 16px to the row height, so one more update fits in
+                          the scroller. */}
+                      <button
+                        type="button"
+                        aria-disabled="true"
+                        className="-my-2.5 flex size-9 shrink-0 items-center justify-center rounded-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <MoreVertical aria-hidden="true" className="size-4" />
+                        <span className="sr-only">More options for {u.label} (coming soon)</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+    </div>
+  )
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Profile details                                                          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * One dyad member's editable identity record — the only editable identity card
+ * in the package. Writes through `updateDyadPerson`.
+ *
+ * Card vocabulary shared with the trainee record page: a `purple-50` header
+ * band (title + "Edit details" pinned right, and no `border-t` seam under it —
+ * the band is its own boundary) over 40px rows separated by `RecordRowDivider`.
+ *
+ * `showRelationship` exists because "Relationship to PLE" is meaningless for a
+ * carer-only enrolment where there is no PLE. Pass it off in that case.
+ */
+function PersonRecordCard({
+  title,
+  person,
+  showRelationship,
+  onSave,
+}: {
+  title: string
+  person: PersonProfile
+  showRelationship: boolean
+  onSave: (patch: Partial<PersonProfile>) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(person.name)
+  const [age, setAge] = useState(String(person.age))
+  const [relationship, setRelationship] = useState(person.relationship ?? '')
+  const [email, setEmail] = useState(person.email ?? '')
+  const [phone, setPhone] = useState(person.phone ?? '')
+  const [background, setBackground] = useState(person.background)
+
+  // DO NOT REMOVE. Both Save and Cancel unmount the instant `editing` flips
+  // back — the card swaps to its `dl` and remounts "Edit details" in the same
+  // spot — so without this, focus drops to `<body>`. `wasEditing` distinguishes
+  // "just left edit mode" from first mount, so it does not steal focus on load.
+  // The trainee record page's `PersonalDetails` carries the identical fix.
+  const editButtonRef = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+  useEffect(() => {
+    if (editing) {
+      wasEditing.current = true
+    } else if (wasEditing.current) {
+      wasEditing.current = false
+      editButtonRef.current?.focus()
+    }
+  }, [editing])
+
+  const resetFields = () => {
+    setName(person.name)
+    setAge(String(person.age))
+    setRelationship(person.relationship ?? '')
+    setEmail(person.email ?? '')
+    setPhone(person.phone ?? '')
+    setBackground(person.background)
+  }
+
+  const idFor = (field: string) => `${title}-${field}`
+
+  const fields: { label: string; value: string; breakAll?: boolean; multiline?: boolean }[] = [
+    { label: 'Name', value: person.name },
+    { label: 'Age', value: String(person.age) },
+    ...(showRelationship ? [{ label: 'Relationship to PLE', value: person.relationship ?? '—' }] : []),
+    { label: 'Email', value: person.email || '—', breakAll: true },
+    { label: 'Phone', value: person.phone || '—' },
+    { label: 'Background', value: person.background, multiline: true },
+  ]
+
+  return (
+    <Card className="gap-0 overflow-hidden rounded-lg border border-parchment bg-card py-0 shadow-card">
+      <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
+        <h2 className="font-display text-title text-ink">{title}</h2>
+        {!editing && (
+          <button
+            ref={editButtonRef}
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex h-9 shrink-0 items-center rounded-sm bg-card px-4 text-caption-medium text-primary outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+          >
+            Edit details
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <form
+          className="flex flex-col gap-4 p-6"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onSave({
+              name,
+              age: Number(age) || person.age,
+              ...(showRelationship ? { relationship } : {}),
+              email: email.trim() || undefined,
+              phone: phone.trim() || undefined,
+              background,
+            })
+            setEditing(false)
+          }}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idFor('name')} className="text-caption-medium text-ink-faint">
+                Name
+              </label>
+              <input
+                id={idFor('name')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idFor('age')} className="text-caption-medium text-ink-faint">
+                Age
+              </label>
+              <input
+                id={idFor('age')}
+                type="number"
+                min={0}
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          {showRelationship && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idFor('relationship')} className="text-caption-medium text-ink-faint">
+                Relationship to PLE
+              </label>
+              <input
+                id={idFor('relationship')}
+                value={relationship}
+                onChange={(e) => setRelationship(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idFor('email')} className="text-caption-medium text-ink-faint">
+                Email <span className="font-normal text-ink-faint">(optional)</span>
+              </label>
+              <input
+                id={idFor('email')}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idFor('phone')} className="text-caption-medium text-ink-faint">
+                Phone <span className="font-normal text-ink-faint">(optional)</span>
+              </label>
+              <input
+                id={idFor('phone')}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor={idFor('background')} className="text-caption-medium text-ink-faint">
+              Background
+            </label>
+            <textarea
+              id={idFor('background')}
+              value={background}
+              onChange={(e) => setBackground(e.target.value)}
+              rows={4}
+              className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+            >
+              Save changes
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetFields()
+                setEditing(false)
+              }}
+              className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <dl className="flex flex-col py-4">
+          {fields.map((f, i) => (
+            <Fragment key={f.label}>
+              {i > 0 && <RecordRowDivider />}
+              <div
+                className={cn(
+                  'flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:gap-0',
+                  f.multiline ? 'sm:items-start' : 'sm:items-center sm:py-0',
+                )}
+              >
+                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
+                <dd className={cn('min-w-0 text-caption text-ink', f.breakAll && 'break-all')}>
+                  {f.value}
+                </dd>
+              </div>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+    </Card>
+  )
+}
+
+/** Notification preferences for a dyad, on this tab's `purple-50` header-card
+ *  vocabulary. A local variant rather than the shared
+ *  `components/account/NotificationPreferencesCard.tsx`, which uses the plain
+ *  `bg-card-header` band and is depended on by the account pages — restyling it
+ *  there would change those too. The SPACES coach page has its own third copy;
+ *  if you unify them, unify all three. */
+function DyadNotificationPreferencesCard({
+  dyad,
+  onSave,
+}: {
+  dyad: ConsumerDyad
+  onSave: (prefs: NotificationPreferences) => void
+}) {
+  const preferences = dyad.notificationPreferences ?? { email: true, sms: false }
+  const [email, setEmail] = useState(preferences.email)
+  const [sms, setSms] = useState(preferences.sms)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setEmail(preferences.email)
+    setSms(preferences.sms)
+  }, [preferences.email, preferences.sms])
+
+  const dirty = email !== preferences.email || sms !== preferences.sms
+
+  // A styled checkbox that is still a REAL `<input type="checkbox">`:
+  // `appearance-none` on the genuine control, with the check glyph as a
+  // `peer-checked` sibling. Do not replace it with a hidden input under a fake
+  // element — the real one is what keeps it keyboard- and AT-operable.
+  const checkboxClass =
+    'peer size-7 shrink-0 cursor-pointer appearance-none rounded-[6px] border border-hairline bg-card outline-none transition-colors checked:border-purple-500 checked:bg-purple-500 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+
+  return (
+    <Card className="gap-0 overflow-hidden rounded-lg border border-parchment bg-card py-0 shadow-card">
+      <div className="flex min-h-16 items-center bg-purple-50 px-6 py-3">
+        <h2 className="font-display text-title text-ink">Notification preferences</h2>
+      </div>
+      <div className="p-6">
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onSave({ email, sms })
+            setSaved(true)
+          }}
+        >
+          <label className="flex cursor-pointer items-center gap-3 text-caption text-ink">
+            <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
+              <input
+                type="checkbox"
+                checked={email}
+                onChange={(e) => {
+                  setEmail(e.target.checked)
+                  setSaved(false)
+                }}
+                className={checkboxClass}
+              />
+              <Check
+                aria-hidden="true"
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
+              />
+            </span>
+            Email
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 text-caption text-ink">
+            <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
+              <input
+                type="checkbox"
+                checked={sms}
+                onChange={(e) => {
+                  setSms(e.target.checked)
+                  setSaved(false)
+                }}
+                className={checkboxClass}
+              />
+              <Check
+                aria-hidden="true"
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
+              />
+            </span>
+            SMS
+          </label>
+
+          {dirty && (
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+            >
+              Save changes
+            </button>
+          )}
+          {saved && !dirty && (
+            <p role="status" className="text-fine font-semibold text-success">
+              Saved.
+            </p>
+          )}
+        </form>
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * Profile details — Study information, one editable identity card per dyad
+ * member, and notification preferences.
+ *
+ * ⚠️ "Join date" is DERIVED, not a stored field. `ConsumerDyad` has no
+ * enrolment date, so this reads the earliest consent document's upload date as
+ * the closest record that proves onboarding happened. A backend should add a
+ * real enrolment date rather than inherit this stand-in.
+ *
+ * "Withdraw from study" is soft: it sets `optedOut` with a reason and date, and
+ * there is no un-withdraw. Nothing in this package deletes a record.
+ *
+ * There is no consent-records section on this tab. Consent documents still
+ * exist on the dyad and are read for their dates, but their add/remove UI was
+ * removed — consent evidence is display-only here.
+ */
+function ProfileDetailsTab({ dyad }: { dyad: ConsumerDyad }) {
+  const { updateDyadPerson, setDyadOptOut, updateDyadNotificationPreferences, coaches, spacesCoaches } =
+    useResearch()
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const joinDate = dyad.consentDocuments[0]?.uploadedDate
+  /* The assigned coach belongs in Study information: who this consumer is
+     paired with, and since when, is study record rather than personal detail.
+     ALWAYS derived from `dyad.coachId` — never a second stored copy of the
+     name, or this page and the coach record page can disagree about a pairing.
+     Every row degrades to a visible "not assigned"/"—" rather than being
+     omitted: absence is a real state a researcher acts on. */
+  const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+  /* Only LINK to the coach record when there is one. `spacesCoaches` holds
+     onboarded coaches; a certified-but-not-yet-onboarded candidate has a
+     `Coach` record and no SPACES record, so `/research/spaces-coaches/:id`
+     redirects straight back to the roster for them. A link that silently
+     dead-ends is worse than plain text.
+     ⚠️ Reachable today: `dyad-012` is assigned to `mei-ling-chen`, who sits in
+     the "Waiting to be onboarded" list. A consumer assigned to a coach who has
+     not been onboarded is a seed-data contradiction, flagged not papered over. */
+  const coachRecordExists = !!coach && spacesCoaches.some((sc) => sc.coachId === coach.id)
+
+  return (
+    // 40px stack, all cards vertical — same rhythm as the other tabs.
+    <div className="flex flex-col gap-10">
+      <Card className="gap-0 overflow-hidden rounded-lg border border-parchment bg-card py-0 shadow-card">
+        <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
+          <h2 className="font-display text-title text-ink">Study information</h2>
+          {!dyad.optedOut && (
+            /* KEEP THE FILL OPAQUE (`bg-card`). A translucent `destructive/8`
+               tint on the `purple-50` band composites to a pinkish surface where
+               `destructive` measures 4.15:1 and fails AA; on white it is 5.38:1.
+               Same call as the trainee record page's withdraw button. */
+            <button
+              type="button"
+              onClick={() => setWithdrawOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center rounded-sm border border-destructive bg-card px-4 text-caption-medium text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            >
+              Withdraw from study
+            </button>
+          )}
+        </div>
+        <dl className="flex flex-col py-4">
+          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
+            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Join date</dt>
+            <dd className="text-caption text-ink">{joinDate ? formatDate(joinDate) : '—'}</dd>
+          </div>
+          <RecordRowDivider />
+          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
+            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Assigned coach</dt>
+            <dd className="text-caption text-ink">
+              {coachRecordExists && coach ? (
+                <Link
+                  to={`/research/spaces-coaches/${coach.id}`}
+                  className="rounded-sm text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {coach.fullName}
+                </Link>
+              ) : coach ? (
+                <span>{coach.fullName}</span>
+              ) : (
+                <span className="text-destructive">Not assigned</span>
+              )}
+            </dd>
+          </div>
+          <RecordRowDivider />
+          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
+            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Coach email</dt>
+            <dd className="text-caption break-all text-ink">{coach?.email || '\u2014'}</dd>
+          </div>
+          <RecordRowDivider />
+          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
+            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Assigned on</dt>
+            <dd className="text-caption text-ink">
+              {dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : '\u2014'}
+            </dd>
+          </div>
+          {dyad.optedOut && (
+            <>
+              <RecordRowDivider />
+              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
+                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Status</dt>
+                <dd className="text-caption text-destructive">
+                  Withdrawn on {formatDate(dyad.optedOut.date)}
+                </dd>
+              </div>
+            </>
+          )}
+        </dl>
+      </Card>
+
+      <div className={cn('grid grid-cols-1 gap-6', dyad.patient && 'lg:grid-cols-2')}>
+        {dyad.patient && (
+          <PersonRecordCard
+            title="PLE personal details"
+            person={dyad.patient}
+            showRelationship={false}
+            onSave={(patch) => updateDyadPerson(dyad.id, 'patient', patch)}
+          />
+        )}
+        <PersonRecordCard
+          title="Carer personal details"
+          person={dyad.carer}
+          showRelationship={!!dyad.patient}
+          onSave={(patch) => updateDyadPerson(dyad.id, 'carer', patch)}
+        />
+      </div>
+
+      <DyadNotificationPreferencesCard
+        dyad={dyad}
+        onSave={(prefs) => updateDyadNotificationPreferences(dyad.id, prefs)}
+      />
+
+      <ConfirmDialog
+        open={withdrawOpen}
+        title={`Withdraw ${dyadTitle(dyad)} from the study?`}
+        body="Their status changes to withdrawn and their records are kept per their consent. They'll lose access to Zoom session links. This is reversible in the prototype only."
+        confirmLabel="Withdraw from study"
+        cancelLabel="Keep active"
+        destructive
+        onConfirm={() => {
+          setDyadOptOut(dyad.id, 'Withdrawn by the research team')
+          setWithdrawOpen(false)
+        }}
+        onClose={() => setWithdrawOpen(false)}
+      />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------------ */
+/* Study Progress tab                                                        */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The researcher's Study Progress tab: KPI row, module-completion and
+ * needs-attention cards, a horizontal study timeline, and a paginated study log.
+ *
+ * Every figure is derived from records that already exist — session plan dates,
+ * session-completion records and module engagement.
+ *
+ * **Access rule, not a gap:** nothing here reads a coach's session notes or
+ * recordings. Researchers do not have access to those for coach-consumer
+ * delivery. Do not surface them on this page.
+ *
+ * ⚠️ "Avg. time to complete" is measured in **days from a module becoming
+ * available to being completed**, not hours on content. `ConsumerModuleRecord`
+ * carries only status, `slidesCompleted` and `lastActivityDate`, so
+ * time-on-content cannot be computed without inventing it. Adding that metric
+ * requires a new field captured before enrolment starts.
+ */
+
+/**
+ * One cycle of the study arc: a module and the catch-up session that reviews it.
+ *
+ * Note the three numbers that describe a single module, all present on this
+ * type: `session` is what the consumer sees (1-6), `internal` is the plan and
+ * completion key (2-7), and `moduleIndex` indexes `CONSUMER_MODULES` (where 0 is
+ * the always-available pre-module, which has no cycle of its own). Never derive
+ * one from another by hand outside `learningCycles`.
+ */
+interface LearningCycle {
+  /** Displayed session number, 1-6. */
+  session: number
+  /** Internal plan/completion key, 2-7. */
+  internal: number
+  moduleIndex: number
+  moduleTitle: string
+  moduleStatus: 'complete' | 'in-progress' | 'incomplete' | 'locked' | 'not-started'
+  completedOn?: string
+  sessionDate?: string
+  sessionTime?: string
+  sessionHeld: boolean
+  rescheduled: boolean
+  /** Which of the four card treatments this cycle takes. */
+  tone: 'complete' | 'attention' | 'ongoing' | 'upcoming'
+}
+
+function learningCycles(
+  dyad: ConsumerDyad,
+  plan: SessionPlan | undefined,
+  completed: SessionCompletionRecord[],
+  unlocks: number[],
+): LearningCycle[] {
+  return CONSUMER_MODULES.slice(1).map((mod, i) => {
+    const modIdx = i + 1
+    const internal = modIdx + 1
+    const row = plan?.sessions.find((s) => s.session === internal)
+    const sessionHeld = completed.some((c) => c.session === internal)
+    const rec = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
+    const locked = moduleUnlockState(modIdx, completed, unlocks) === 'locked'
+    const done = rec?.status === 'completed'
+
+    // LOAD-BEARING RULE: a module reads "in progress" only BEFORE its own
+    // catch-up. Once that session has been held it is either complete or
+    // incomplete — there is no third outcome. The seed data enforces this and
+    // both other render sites guard it; breaking it here makes this page
+    // disagree with the coach's own caseload view about the same module.
+    let moduleStatus: LearningCycle['moduleStatus']
+    if (done) moduleStatus = 'complete'
+    else if (locked) moduleStatus = 'locked'
+    else if (sessionHeld) moduleStatus = 'incomplete'
+    else if (rec && rec.status !== 'not-started') moduleStatus = 'in-progress'
+    else moduleStatus = 'not-started'
+
+    // Attention OUTRANKS everything, and the order of these branches is why. A
+    // module left incomplete or a session moved is exactly what a researcher is
+    // scanning for; it must not be hidden behind a "done" card just because the
+    // session went ahead.
+    let tone: LearningCycle['tone']
+    if (moduleStatus === 'incomplete' || row?.rescheduled) tone = 'attention'
+    else if (done && sessionHeld) tone = 'complete'
+    else if (moduleStatus === 'in-progress') tone = 'ongoing'
+    else tone = 'upcoming'
+
+    return {
+      session: modIdx,
+      internal,
+      moduleIndex: modIdx,
+      moduleTitle: mod.title,
+      moduleStatus,
+      completedOn: done ? rec?.lastActivityDate : undefined,
+      sessionDate: row?.date,
+      sessionTime: row?.time,
+      sessionHeld,
+      rescheduled: !!row?.rescheduled,
+      tone,
+    }
+  })
+}
+
+/**
+ * Per-cycle card surface and timeline marker.
+ *
+ * Three conventions to preserve:
+ *  - Colours come from the app's own tokens (`success`, `destructive`,
+ *    `primary`), never raw hexes. Tints are the same 8% mix `Chip` uses, so a
+ *    tinted card and a chip of the same meaning agree.
+ *  - **Every card's stroke is `parchment`; only the fill carries state.** A
+ *    tinted border does the fill's job twice over.
+ *  - **Green lives only at status-badge level, never as a surface.** The card
+ *    tint groups "on track" (purple) against "needs attention" (red) and "not
+ *    reached" (neutral); the badge inside is what marks a cycle Complete. Status
+ *    labels sit on white, never on the card's own tint — green-on-green and
+ *    red-on-red are unreadable.
+ */
+type ToneKey = LearningCycle['tone'] | 'milestone'
+
+const CYCLE_TONE: Record<ToneKey, { card: string; marker: string; ring: string }> = {
+  /* Milestones are yellow because they are structural markers, not outcomes —
+     a green "Consumer onboarded" reads as a completed status competing with the
+     session cards, when all it says is where the arc begins.
+     ⚠️ ACCEPTED CONTRAST EXCEPTION: the `yellow-400` marker measures 1.76:1
+     against the page, below WCAG 1.4.11's 3:1 for a graphical object, and
+     `yellow-400` is the darkest step this ramp has. Accepted only because the
+     marker is `aria-hidden` decorative reinforcement and the card beside it
+     carries the whole meaning in text. Do not extend this exception to a marker
+     that carries meaning on its own. */
+  milestone: {
+    card: 'border-parchment bg-yellow-100',
+    marker: 'bg-yellow-400',
+    ring: 'border-yellow-400',
+  },
+  complete: {
+    card: 'border-parchment bg-primary/8',
+    marker: 'bg-primary',
+    ring: 'border-primary',
+  },
+  attention: {
+    card: 'border-parchment bg-destructive/8',
+    marker: 'bg-destructive',
+    ring: 'border-destructive',
+  },
+  ongoing: {
+    card: 'border-parchment bg-primary/8',
+    marker: 'bg-primary',
+    ring: 'border-primary',
+  },
+  /* `hairline`, not white: an unplanned session's dot and connector on a white
+     page are invisible, and the column reads as broken beside the others. This
+     keeps the node present and aligned, just quiet. */
+  upcoming: {
+    card: 'border-parchment bg-parchment',
+    marker: 'bg-hairline',
+    ring: 'border-hairline',
+  },
+}
+
+/** Status labels for a module inside a timeline card. Five distinct states —
+ *  keep them distinct. "Locked" and "Not started" both render 0% progress but
+ *  mean different things, and "Incomplete" (catch-up went ahead without it) is
+ *  the one worth chasing.
+ *  Measured on white: `success` 5.19:1, `destructive` 5.38:1, `primary` 10.58:1. */
+const MODULE_STATUS_LABEL: Record<LearningCycle['moduleStatus'], string> = {
+  complete: 'Complete',
+  'in-progress': 'In progress',
+  incomplete: 'Incomplete',
+  locked: 'Locked',
+  'not-started': 'Not started',
+}
+
+/** Maps a module status onto the shared `Chip`'s tone set. Always use `Chip`,
+ *  never a local pill — this app has exactly one status-chip shape. `'next'` is
+ *  the same tone `SessionsPlanOverview` and the trainee record page use for
+ *  "in progress" / "ready now", so all three describe that state identically. */
+function moduleBadgeTone(s: LearningCycle['moduleStatus']): 'success' | 'destructive' | 'next' | 'muted' {
+  if (s === 'complete') return 'success'
+  if (s === 'incomplete') return 'destructive'
+  if (s === 'in-progress') return 'next'
+  return 'muted'
+}
+
+/** One event in the study log. `flag` is set for exactly two cases — a
+ *  rescheduled session and an incomplete module — and must stay that way, or
+ *  the Flag column decorates every row and stops being scannable. */
+interface LogEvent {
+  date: string
+  actor: 'Consumer' | 'Coach' | 'System' | 'Researcher'
+  event: string
+  detail: string
+  flag?: 'Rescheduled' | 'Incomplete'
+}
+
+/** `Module 3 — Managing nighttime waking`, or just the title for the
+ *  always-available pre-module, which has no number. Keeps every log detail in
+ *  the same shape as the timeline's own "Module 3" rows. */
+function logModuleLabel(idx: number, title: string): string {
+  return idx === 0 ? title : `Module ${idx} — ${title}`
+}
+
+function studyLogEvents(
+  dyad: ConsumerDyad,
+  cycles: LearningCycle[],
+  completed: SessionCompletionRecord[],
+  plan: SessionPlan | undefined,
+  coachName: string | undefined,
+): LogEvent[] {
+  const out: LogEvent[] = []
+
+  /* Every `detail` must read as a SYSTEM LOG ENTRY, not prose: an identifier,
+     then ` · ` separated qualifiers. No verbs, no sentences, no explanation. The
+     `event` column already says what happened, so `detail` only says which
+     thing. The coach record page's "Latest updates" card follows the same rule. */
+  dyad.moduleEngagement.forEach((rec) => {
+    const idx = moduleIndex(rec.moduleId)
+    const label = logModuleLabel(idx, CONSUMER_MODULES[idx]?.title ?? rec.moduleId)
+    if (!rec.lastActivityDate) return
+    if (rec.status === 'completed') {
+      out.push({
+        date: rec.lastActivityDate,
+        actor: 'Consumer',
+        event: 'Module completed',
+        detail: label,
+      })
+    } else if (rec.status === 'in-progress') {
+      out.push({
+        date: rec.lastActivityDate,
+        actor: 'Consumer',
+        event: 'Module opened',
+        detail: label,
+      })
+    }
+  })
+
+  cycles.forEach((c) => {
+    // A module unlocks when the PREVIOUS session is held, so that session's own
+    // completion date IS the availability date. Derived, never stored. Skipped
+    // while locked, because it has not happened yet.
+    if (c.moduleStatus !== 'locked') {
+      const trigger = completed.find((r) => r.session === c.internal - 1)
+      const target = plan?.sessions.find((s) => s.session === c.internal)?.moduleTargetDate
+      if (trigger) {
+        out.push({
+          date: trigger.completedDate,
+          actor: 'System',
+          event: 'Module available',
+          detail: target
+            ? `${logModuleLabel(c.moduleIndex, c.moduleTitle)} · due ${formatDate(target)}`
+            : logModuleLabel(c.moduleIndex, c.moduleTitle),
+        })
+      }
+    }
+    if (c.sessionHeld) {
+      const rec = completed.find((r) => r.session === c.internal)
+      out.push({
+        date: rec?.completedDate ?? c.sessionDate ?? '',
+        actor: 'Coach',
+        event: 'Session held',
+        detail: `Session ${c.session} · Module ${c.moduleIndex}`,
+      })
+    }
+    if (c.rescheduled && c.sessionDate) {
+      out.push({
+        date: c.sessionDate,
+        actor: 'Coach',
+        event: 'Session rescheduled',
+        detail: `Session ${c.session} · moved to ${formatDate(c.sessionDate)}`,
+        flag: 'Rescheduled',
+      })
+    }
+    if (c.moduleStatus === 'incomplete') {
+      const rec = completed.find((r) => r.session === c.internal)
+      out.push({
+        date: rec?.completedDate ?? c.sessionDate ?? '',
+        actor: 'System',
+        event: 'Module incomplete',
+        detail: `${logModuleLabel(c.moduleIndex, c.moduleTitle)} · Session ${c.session} held`,
+        flag: 'Incomplete',
+      })
+    }
+  })
+
+  if (coachName) {
+    out.push({ date: '', actor: 'Researcher', event: 'Coach assigned', detail: coachName })
+  }
+  dyad.consentDocuments.forEach((d) => {
+    out.push({
+      date: d.uploadedDate,
+      actor: 'System',
+      event: 'Consent recorded',
+      detail: d.filename,
+    })
+  })
+
+  return out
+    .filter((e) => e.date)
+    .sort((a, b) => b.date.localeCompare(a.date))
+}
+
+type LogColKey = 'date' | 'actor' | 'event' | 'detail' | 'flag'
+
+/** ⚠️ THE SINGLE ORDERED SOURCE for the study log. The table body, the
+ *  `<colgroup>` and the CSV export all read from this one list, so they cannot
+ *  drift apart. Adding a column is one entry here and nothing else. Order and
+ *  visibility are user state (the Columns dialog); width, alignment, cell
+ *  rendering and CSV serialisation all live here. */
+const LOG_COLUMNS: {
+  key: LogColKey
+  label: string
+  width: string
+  align?: 'right'
+  cellClassName?: string
+  cell: (e: LogEvent) => React.ReactNode
+  csv: (e: LogEvent) => string
+}[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    width: 'w-[11%]',
+    cellClassName: 'text-caption-medium whitespace-nowrap text-ink',
+    cell: (e) => formatDate(e.date),
+    csv: (e) => formatDate(e.date),
+  },
+  {
+    key: 'actor',
+    label: 'Who',
+    width: 'w-[13%]',
+    cellClassName: 'text-caption whitespace-nowrap text-ink-muted',
+    cell: (e) => e.actor,
+    csv: (e) => e.actor,
+  },
+  {
+    key: 'event',
+    label: 'Event',
+    width: 'w-[21%]',
+    // Deliberately lighter than Date: at semi-bold this column competes with it
+    // for the row's emphasis.
+    cellClassName: 'text-caption text-ink',
+    cell: (e) => e.event,
+    csv: (e) => e.event,
+  },
+  {
+    key: 'detail',
+    label: 'Detail',
+    width: '',
+    cellClassName: 'text-caption text-ink-muted',
+    cell: (e) => e.detail,
+    csv: (e) => e.detail,
+  },
+  {
+    key: 'flag',
+    label: 'Flag',
+    width: 'w-[13%]',
+    align: 'right',
+    cell: (e) =>
+      e.flag ? (
+        <Chip tone={e.flag === 'Rescheduled' ? 'warning' : 'destructive'} label={e.flag} />
+      ) : (
+        <span className="sr-only">No flag</span>
+      ),
+    csv: (e) => e.flag ?? '',
+  },
+]
+
+const LOG_PAGE = 10
+
+/** Study-log pager and export control. Both stay mounted and go `disabled` at
+ *  the ends of the range rather than unmounting, so the row's geometry never
+ *  shifts. Note `disabled` here is what forces the focus-rescue effect below —
+ *  a disabled control cannot hold focus. */
+const PAGER_BTN =
+  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100'
+
+/** Renders the Study Progress tab. See the block comment above `LearningCycle`
+ *  for what each section derives from. */
+/**
+ * "Consumer module completion overview" — the overall completion rate plus
+ * every module with its own state. Extracted from the consumer record page's
+ * former Study Progress tab so the **Coach Management** record page can show it
+ * under its Assigned Consumers tab; that tab is hidden here, so this is the
+ * component's only caller today.
+ */
+export function ModuleCompletionOverviewCard({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion, sessionPlans, manualModuleUnlocks } = useResearch()
+  const completed = sessionCompletion[dyad.id] ?? []
+  const plan = sessionPlans[dyad.id]
+  const unlocks = manualModuleUnlocks[dyad.id] ?? []
+  const cycles = learningCycles(dyad, plan, completed, unlocks)
+  const totalModules = CONSUMER_MODULES.length
+  const counts = {
+    complete: Math.min(
+      dyad.moduleEngagement.filter((r) => r.status === 'completed').length,
+      totalModules,
+    ),
+  }
+  const completionRate = Math.round((counts.complete / totalModules) * 100)
+  /* All seven modules in study order. Index 0 is the always-available
+     pre-module — it has NO catch-up session of its own, so its state comes
+     straight from the engagement record rather than from a cycle, and it is
+     labelled by name because it has no number. */
+  const moduleBreakdown = CONSUMER_MODULES.map((mod, idx) => {
+    if (idx === 0) {
+      const rec = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
+      const status: LearningCycle['moduleStatus'] =
+        rec?.status === 'completed'
+          ? 'complete'
+          : rec?.status === 'in-progress'
+            ? 'in-progress'
+            : 'not-started'
+      return { id: mod.id, label: 'Getting started', status }
+    }
+    const cycle = cycles.find((c) => c.moduleIndex === idx)
+    return {
+      // Number only, no title: real module titles are long enough to truncate
+      // these rows at a third of their width.
+      label: `Module ${idx}`,
+      id: mod.id,
+      status: cycle?.moduleStatus ?? 'not-started',
+    }
+  })
+
+  return (
+        <Card className="gap-0 rounded-lg py-0">
+          <div className="bg-purple-50 p-6">
+            <h3 className="text-body-md text-ink">Module completion overview</h3>
+            <p className="mt-1 text-caption text-ink-muted">
+              Every module, with its completion rate
+            </p>
+          </div>
+          <div className="flex h-full flex-1 flex-col gap-4 border-t border-hairline p-6 pt-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-display-md text-ink">{completionRate}%</p>
+                <p className="text-caption text-ink-muted">
+                  {counts.complete} of {totalModules} complete
+                </p>
+              </div>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-purple-100"
+                role="img"
+                aria-label={`${completionRate}% of modules complete`}
+              >
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+            </div>
+
+            <span aria-hidden="true" className="block h-px bg-hairline" />
+
+            <dl className="flex flex-1 flex-col gap-3">
+              {moduleBreakdown.map((m) => (
+                /* Label, bar and percentage on one row. The label takes the
+                   slack so the bars and percentages stay in their own aligned
+                   columns down the list. */
+                <div key={m.id} className="flex items-center gap-4">
+                  <dt className="min-w-0 flex-1 truncate text-caption text-ink">{m.label}</dt>
+                  <div
+                    aria-hidden="true"
+                    className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-parchment"
+                  >
+                    <div
+                      className={cn(
+                        'h-full rounded-full',
+                        m.status === 'complete' ? 'bg-primary' : 'bg-transparent',
+                      )}
+                      style={{ width: m.status === 'complete' ? '100%' : '0%' }}
+                    />
+                  </div>
+                  {/* The visible value is a percentage, and the only honest ones
+                      are 100% and 0%. Colour separates a red "catch-up went
+                      ahead without it" 0% from a quiet not-yet-available 0% —
+                      but colour alone is not enough, so the `sr-only` text
+                      spells the state out. Keep both. */}
+                  <dd
+                    className={cn(
+                      'w-10 shrink-0 text-right text-fine tabular-nums whitespace-nowrap',
+                      m.status === 'complete'
+                        ? 'text-success'
+                        : m.status === 'incomplete'
+                          ? 'text-destructive'
+                          : m.status === 'in-progress'
+                            ? 'text-primary'
+                            : 'text-ink-faint',
+                    )}
+                  >
+                    <span aria-hidden="true">{m.status === 'complete' ? '100%' : '0%'}</span>
+                    <span className="sr-only">
+                      {m.status === 'complete'
+                        ? '100% complete'
+                        : `0% complete, ${MODULE_STATUS_LABEL[m.status]}`}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </Card>
+  )
+}
+
+/**
+ * The study-progress timeline card, extracted from the consumer record page's
+ * former "Study Progress" tab so the **Coach Management** record page can show
+ * it under its Assigned Consumers tab. It replaces `SessionsPlanOverview`'s
+ * table there: same facts per session, read as a journey rather than as rows.
+ */
+export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion, sessionPlans, manualModuleUnlocks, coaches } = useResearch()
+  const completed = sessionCompletion[dyad.id] ?? []
+  const plan = sessionPlans[dyad.id]
+  const unlocks = manualModuleUnlocks[dyad.id] ?? []
+  const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+  const cycles = learningCycles(dyad, plan, completed, unlocks)
+  /* The timeline is bookended by milestones — onboarding, coach assignment,
+     session planning, then the six catch-ups, then study end. Milestones render
+     a lighter two-row card rather than a fake session card with empty status
+     rows. Every date is a real record: the earliest consent upload, the planning
+     session's own date, and the last planned catch-up. */
+  const consentDate = [...dyad.consentDocuments]
+    .map((d) => d.uploadedDate)
+    .sort()
+    .at(0)
+  const planningRow = plan?.sessions.find((s) => s.session === 1)
+  const lastSessionDate = [...cycles].reverse().find((c) => c.sessionDate)?.sessionDate
+  const allHeld = cycles.length > 0 && cycles.every((c) => c.sessionHeld)
+
+  type TimelineNode =
+    | { kind: 'cycle'; key: string; cycle: LearningCycle }
+    | {
+        kind: 'milestone'
+        key: string
+        title: string
+        date?: string
+        time?: string
+        tone: ToneKey
+        /** A bare value under the title, for a milestone that is only a date
+         *  (the frame draws no label beside it). */
+        lead?: string
+        /** The one step the consumer hasn't reached yet — labelled "Next"
+         *  above its marker, in the slot the session columns use for their
+         *  date. */
+        isNext?: boolean
+        rows: { label: string; value: string }[]
+      }
+
+  /* THE TIMELINE TRUNCATES AT THE NEXT STEP. It shows everything reached plus
+     the one step that comes next, and stops — an onboarded consumer with no
+     coach sees exactly two cards. Only once a session plan exists is the whole
+     arc determined, so only then are the session cards and study-end drawn.
+     The next step takes the neutral `upcoming` treatment, never the yellow
+     milestone one: a yellow "done"-looking card reading "Coach: Not assigned"
+     says two contradictory things at once. */
+  const isOnboarded = !!consentDate
+  const isCoachAssigned = !!coach
+  const isPlanned = !!planningRow?.date
+
+  const nodes: TimelineNode[] = [
+    {
+      kind: 'milestone',
+      key: 'onboarded',
+      title: 'Consumer onboarded',
+      tone: isOnboarded ? 'milestone' : 'upcoming',
+      isNext: !isOnboarded,
+      rows: [
+        // Derived from the earliest consent document. `ConsumerDyad` has no
+        // enrolment date; consent is the record that proves onboarding happened.
+        { label: 'Onboarded on', value: consentDate ? formatDate(consentDate) : 'Not recorded' },
+      ],
+    },
+    {
+      kind: 'milestone',
+      key: 'coach',
+      title: 'Coach assigned',
+      tone: isCoachAssigned ? 'milestone' : 'upcoming',
+      isNext: isOnboarded && !isCoachAssigned,
+      rows: [
+        { label: 'Coach', value: coach?.fullName ?? 'Not assigned' },
+        {
+          label: 'Assigned on',
+          value: dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : 'Not recorded',
+        },
+      ],
+    },
+    // Only once there is a coach — otherwise this is two steps ahead.
+    ...(isCoachAssigned
+      ? [
+          {
+            kind: 'milestone' as const,
+            key: 'planned',
+            title: 'Sessions planned',
+            tone: (isPlanned ? 'milestone' : 'upcoming') as ToneKey,
+            isNext: !isPlanned,
+            rows: [
+              {
+                label: 'Planned on',
+                // Derived from the planning session (internal key 1), which is
+                // where the coach and consumer set the whole arc up. There is no
+                // stored "plan created" date.
+                value: planningRow?.date ? formatDate(planningRow.date) : 'Not planned yet',
+              },
+            ],
+          },
+        ]
+      : []),
+    // From the plan onwards the whole arc is known, so it is all drawn.
+    ...(isPlanned
+      ? [
+          ...cycles.map((c) => ({ kind: 'cycle' as const, key: `c${c.session}`, cycle: c })),
+          {
+            kind: 'milestone' as const,
+            key: 'end',
+            title: 'Study end',
+            tone: (allHeld ? 'milestone' : 'upcoming') as ToneKey,
+            // A completion date only exists once every catch-up has been held.
+            // Until then the label says "Projected" rather than claiming a
+            // completion date the record cannot know.
+            rows: [
+              {
+                label: allHeld ? 'Completed on' : 'Projected',
+                value: lastSessionDate ? formatDate(lastSessionDate) : '\u2014',
+              },
+            ],
+          },
+        ]
+      : []),
+  ]
+  return (
+      <Card className="gap-0 rounded-lg py-0">
+        <div className="bg-purple-50 p-6">
+          <h3 className="text-title text-ink">Study progress timeline</h3>
+          {/* This copy must hold in EVERY state. The timeline truncates at the
+              next step, so it cannot promise "every session through to study
+              end" — that is only true once a plan exists. */}
+          <p className="mt-1 text-caption text-ink-muted">
+            Everything this consumer has reached, plus the step that comes next
+          </p>
+        </div>
+        <div className="flex flex-col gap-6 border-t border-hairline p-6 pt-4">
+          {/* DO NOT REMOVE `min-w-0`. Without it the card row sizes this
+              container and forces the WHOLE PAGE into horizontal scroll. Same
+              bug class as the trainee page's pathway timeline; invisible in a
+              screenshot. */}
+          <div className="min-w-0 overflow-x-auto pb-2">
+            {/* `min-w-full` alongside `w-max` makes the row max(content,
+                container), so the spine always runs the full width of the card
+                even when the timeline is truncated to two cards, while a full arc
+                still overflows and scrolls. */}
+            <div className="relative flex w-max min-w-full gap-6 pt-1">
+              {/* Spine, behind the markers. Its `top` is the date block's height
+                  plus half the marker — recompute it if either changes. */}
+              <span
+                aria-hidden="true"
+                className="absolute top-[71px] right-0 left-0 h-0.5 rounded-full bg-purple-100"
+              />
+              {nodes.map((n) => {
+                const t = CYCLE_TONE[n.kind === 'cycle' ? n.cycle.tone : n.tone];
+                const date = n.kind === 'cycle' ? n.cycle.sessionDate : n.date;
+                const time = n.kind === 'cycle' ? n.cycle.sessionTime : n.time;
+                return (
+                  <div key={n.key} className="relative flex w-[240px] shrink-0 flex-col items-center">
+                    {/* Milestones carry their date inside the card, not above
+                        the marker — but this block KEEPS ITS FIXED HEIGHT even
+                        when empty, or their markers stop landing on the spine.
+                        The next step uses the slot for a "Next" label. */}
+                    <div className="flex h-14 flex-col items-center justify-start">
+                      <p
+                        className={cn(
+                          'text-caption-medium',
+                          n.kind === 'milestone' && n.isNext ? 'text-primary' : 'text-ink',
+                        )}
+                      >
+                        {n.kind === 'milestone'
+                          ? n.isNext
+                            ? 'Next'
+                            : ''
+                          : date
+                            ? formatDate(date)
+                            : 'Not scheduled'}
+                      </p>
+                      {/* Never call `formatTime` on a milestone: consent has a
+                          date but no time, and `formatTime('00:00')` prints a
+                          fabricated "12:00 AM". */}
+                      <p className="text-fine text-ink-muted">
+                        {n.kind === 'milestone' ? '' : date ? (time ? formatTime(time) : '') : '—'}
+                      </p>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex size-[30px] items-center justify-center rounded-full border-2 bg-card',
+                        t.ring,
+                      )}
+                    >
+                      <span className={cn('size-3.5 rounded-full', t.marker)} />
+                    </span>
+                    <span aria-hidden="true" className={cn('h-6 w-0.5', t.marker)} />
+                    {n.kind === 'milestone' ? (
+                      /* No `flex-1` on a milestone: it carries two rows and
+                         should hug its content rather than stretch to the
+                         session cards' height. The session cards keep `flex-1`
+                         so they still equalise against each other. */
+                      <div className={cn('flex w-full flex-col self-start rounded-lg border p-4', t.card)}>
+                        <p className="text-body-md text-ink">{n.title}</p>
+                        <span aria-hidden="true" className="mt-3 mb-3 block h-px bg-ink/10" />
+                        {n.lead && <p className="text-caption-medium text-ink">{n.lead}</p>}
+                        <dl className="flex flex-col gap-2.5">
+                          {n.rows.map((r) => (
+                            <div key={r.label} className="flex items-center justify-between gap-2">
+                              <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
+                                {r.label}
+                              </dt>
+                              <dd className="min-w-0 truncate text-caption-medium text-ink">
+                                {r.value}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    ) : (
+                      <div className={cn('flex w-full flex-1 flex-col rounded-lg border p-4', t.card)}>
+                        <p className="text-body-md text-ink">Session {n.cycle.session}</p>
+                        <span aria-hidden="true" className="mt-3 mb-3 block h-px bg-ink/10" />
+                        <dl className="flex flex-1 flex-col justify-between gap-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">Module</dt>
+                            <dd className="text-caption-medium whitespace-nowrap text-ink">
+                              Module {n.cycle.moduleIndex}
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
+                              Module status
+                            </dt>
+                            <dd>
+                              <Chip
+                                label={MODULE_STATUS_LABEL[n.cycle.moduleStatus]}
+                                tone={moduleBadgeTone(n.cycle.moduleStatus)}
+                              />
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
+                              Completed on
+                            </dt>
+                            <dd className="text-caption-medium whitespace-nowrap text-ink">
+                              {n.cycle.completedOn ? formatDate(n.cycle.completedOn) : '—'}
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
+                              Session status
+                            </dt>
+                            <dd>
+                              <Chip
+                                label={
+                                  n.cycle.rescheduled
+                                    ? 'Rescheduled'
+                                    : n.cycle.sessionHeld
+                                      ? 'Complete'
+                                      : 'To be held'
+                                }
+                                tone={
+                                  n.cycle.rescheduled
+                                    ? 'destructive'
+                                    : n.cycle.sessionHeld
+                                      ? 'success'
+                                      : 'muted'
+                                }
+                              />
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Card>
+  )
+}
+
+/**
+ * The study log — every recorded event for one dyad, newest first, paginated 10
+ * at a time, with show/hide/reorder column settings and a CSV export. Extracted
+ * alongside `StudyProgressTimelineCard` and always shown with it.
+ */
+export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion, sessionPlans, manualModuleUnlocks, coaches } = useResearch()
+  const completed = sessionCompletion[dyad.id] ?? []
+  const plan = sessionPlans[dyad.id]
+  const unlocks = manualModuleUnlocks[dyad.id] ?? []
+  const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+  const [logPage, setLogPage] = useState(0)
+  const [colsOpen, setColsOpen] = useState(false)
+  const newerBtnRef = useRef<HTMLButtonElement | null>(null)
+  const olderBtnRef = useRef<HTMLButtonElement | null>(null)
+  /** Which pager the user last activated, so the effect below knows whether to
+   *  rescue focus and where to. */
+  const pagedRef = useRef<'newer' | 'older' | null>(null)
+  const [dragCol, setDragCol] = useState<LogColKey | null>(null)
+  const [logColumns, setLogColumns] = useState(() =>
+    LOG_COLUMNS.map((c) => ({ ...c, visible: true })),
+  )
+  const visibleLogColumns = logColumns.filter((c) => c.visible)
+
+  const setLogColumnVisible = (key: LogColKey | null, visible: boolean) =>
+    setLogColumns((cols) => {
+      if (!key) return cols
+      const col = cols.find((c) => c.key === key)
+      if (!col || col.visible === visible) return cols
+      // Never let the last visible column be hidden — an empty table is not a
+      // view, and there would be no way back from it.
+      if (!visible && cols.filter((c) => c.visible).length === 1) return cols
+      return cols.map((c) => (c.key === key ? { ...c, visible } : c))
+    })
+
+  const moveLogColumn = (key: LogColKey | null, to: number) =>
+    setLogColumns((cols) => {
+      if (!key) return cols
+      const from = cols.findIndex((c) => c.key === key)
+      if (from === -1 || from === to) return cols
+      const next = [...cols]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+
+  const cycles = learningCycles(dyad, plan, completed, unlocks)
+  const events = studyLogEvents(dyad, cycles, completed, plan, coach?.fullName)
+  /* `logPage` is CLAMPED, not reset, so switching to a dyad with fewer events
+     can never leave the table rendering an empty page. */
+  const pageCount = Math.max(1, Math.ceil(events.length / LOG_PAGE))
+  const page = Math.min(logPage, pageCount - 1)
+  const pageStart = page * LOG_PAGE
+  const shown = events.slice(pageStart, pageStart + LOG_PAGE)
+  const remaining = Math.max(0, events.length - (pageStart + shown.length))
+
+  /* DO NOT REMOVE, AND DO NOT MOVE INTO THE CLICK HANDLER.
+   *
+   * Paging to either end of the range disables the very button just pressed,
+   * and a `disabled` control cannot hold focus — the browser drops it to
+   * `<body>`. This must run in an effect: inside the click handler the sibling
+   * is still disabled from the previous render, so focusing it silently does
+   * nothing. `SleepDiaryFeed`'s date stepper carries the identical rescue. */
+  useEffect(() => {
+    const pressed = pagedRef.current
+    if (!pressed) return
+    pagedRef.current = null
+    const stillUsable = pressed === 'newer' ? page > 0 : remaining > 0
+    if (stillUsable) return
+    const sibling = pressed === 'newer' ? olderBtnRef.current : newerBtnRef.current
+    sibling?.focus()
+  }, [page, remaining])
+  return (
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-title text-ink">Study log</h3>
+            <p className="mt-1 text-caption text-ink-muted">
+              Every recorded event for this dyad. Dates, actors and outcomes only.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The primary-outline pill, not the quiet `bg-pearl` utility
+                chrome. `ink-muted` on `pearl` passes contrast at 4.83:1 but
+                reads as disabled beside a real control, which is the
+                accessibility problem that actually matters here.
+                The CSV columns follow the table's own visible columns, so an
+                export always matches what is on screen. */}
+            <button
+              type="button"
+              onClick={() =>
+                downloadCsv(
+                  `${dyadTitle(dyad).toLowerCase().replace(/\s+/g, '-')}-study-log.csv`,
+                  [
+                    visibleLogColumns.map((c) => c.label),
+                    ...events.map((e) => visibleLogColumns.map((c) => c.csv(e))),
+                  ],
+                )
+              }
+              className={PAGER_BTN}
+            >
+              <Download aria-hidden="true" className="size-4" />
+              Export
+            </button>
+            {/* Column settings. Opens a dialog of draggable chips so a
+                researcher can hide columns they don't read and reorder the
+                ones they do. State is in-memory only — nothing persists. */}
+            <button
+              type="button"
+              onClick={() => setColsOpen((v) => !v)}
+              aria-expanded={colsOpen}
+              aria-label="Table columns"
+              className={cn(PAGER_BTN, 'w-9 justify-center px-0')}
+            >
+              <SlidersHorizontal aria-hidden="true" className="size-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Built on the shared `ConfirmDialog` in `singleAction` mode rather
+            than a local popover, and that matters: reusing it inherits the
+            app's focus trap, Escape handling and the chassis-level
+            focus-restore fixes. A hand-rolled popover would have none of them.
+            `singleAction` exists for exactly this shape — a list whose rows
+            each carry their own action, with nothing for a Cancel/Confirm pair
+            to confirm. */}
+        <ConfirmDialog
+          open={colsOpen}
+          title="Table columns"
+          body="Click a chip to show or hide that column. Drag a chip, or use the arrow keys, to reorder."
+          singleAction
+          confirmLabel="Done"
+          cancelLabel="Close"
+          onConfirm={() => setColsOpen(false)}
+          onClose={() => setColsOpen(false)}
+        >
+          {/* Two sections: hidden columns left, the current view right. Native
+              HTML5 drag-and-drop, no library.
+              ⚠️ POINTER DRAG IS UNUSABLE BY KEYBOARD, so every drag has a
+              non-drag equivalent and all three must be kept: clicking a chip
+              moves it between sections, ArrowLeft/ArrowRight reorders a focused
+              chip within the current view, and the live region at the end
+              announces every change. Remove any of them and this becomes
+              mouse-only. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {[
+              { id: 'available' as const, title: 'Available', hint: 'Not shown in the table' },
+              { id: 'current' as const, title: 'Current view', hint: 'Shown, in this order' },
+            ].map((panel) => {
+              const inPanel = logColumns.filter((c) =>
+                panel.id === 'current' ? c.visible : !c.visible,
+              )
+              return (
+                <div
+                  key={panel.id}
+                  onDragOver={(ev) => ev.preventDefault()}
+                  onDrop={() => setLogColumnVisible(dragCol, panel.id === 'current')}
+                  className={cn(
+                    'flex min-h-[132px] flex-col gap-3 rounded-sm border border-hairline p-3',
+                    // "Current view" carries the same tint the table's own
+                    // header band does, so the panel representing the live table
+                    // is visually tied to it.
+                    panel.id === 'current' ? 'bg-purple-50' : 'bg-parchment',
+                  )}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-caption-medium text-ink">{panel.title}</p>
+                    <p className="text-fine text-ink-faint">{panel.hint}</p>
+                  </div>
+                  {inPanel.length === 0 ? (
+                    <p className="text-fine text-ink-faint">
+                      {panel.id === 'current' ? 'No columns selected' : 'Every column is shown'}
+                    </p>
+                  ) : (
+                    <ul className="flex flex-wrap content-start gap-2">
+                      {inPanel.map((c, i) => (
+                        <li key={c.key}>
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={() => setDragCol(c.key)}
+                            onDragOver={(ev) => ev.preventDefault()}
+                            onDrop={(ev) => {
+                              ev.stopPropagation()
+                              if (panel.id === 'current') {
+                                moveLogColumn(dragCol, logColumns.indexOf(c))
+                              } else {
+                                setLogColumnVisible(dragCol, false)
+                              }
+                            }}
+                            onDragEnd={() => setDragCol(null)}
+                            onClick={() => setLogColumnVisible(c.key, panel.id !== 'current')}
+                            onKeyDown={(ev) => {
+                              if (panel.id !== 'current') return
+                              const prev = inPanel[i - 1]
+                              const next = inPanel[i + 1]
+                              if (ev.key === 'ArrowLeft' && prev) {
+                                ev.preventDefault()
+                                moveLogColumn(c.key, logColumns.indexOf(prev))
+                              } else if (ev.key === 'ArrowRight' && next) {
+                                ev.preventDefault()
+                                moveLogColumn(c.key, logColumns.indexOf(next))
+                              }
+                            }}
+                            className={cn(
+                              'inline-flex min-h-9 cursor-grab items-center gap-2 rounded-full border bg-card px-3 text-caption-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:cursor-grabbing',
+                              panel.id === 'current'
+                                ? 'border-primary text-primary'
+                                : 'border-hairline text-ink-muted',
+                              dragCol === c.key && 'opacity-50',
+                            )}
+                          >
+                            <GripVertical aria-hidden="true" className="size-3.5" />
+                            {c.label}
+                            {/* No +/- glyph: the chip's panel already says
+                                whether the column is shown, so an add/remove
+                                icon describes the action rather than the state
+                                and reads as contradictory. The grip stays — it
+                                is the drag affordance. */}
+                            <span className="sr-only">
+                              {panel.id === 'current'
+                                ? `shown, position ${i + 1} of ${inPanel.length}. Activate to hide.`
+                                : 'hidden. Activate to show.'}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <p role="status" aria-live="polite" className="sr-only">
+            Showing {visibleLogColumns.map((c) => c.label).join(', ')}
+          </p>
+        </ConfirmDialog>
+
+        <Card className="gap-0 overflow-hidden rounded-lg py-0">
+          {/* A lone header row over nothing reads as a broken table, not an
+              empty one — hence a real empty state rather than rendering the
+              `<thead>` regardless. */}
+          {events.length === 0 ? (
+            <EmptyState icon={ClipboardList} copy="No recorded events yet" />
+          ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left">
+              <colgroup>
+                {visibleLogColumns.map((c) => (
+                  <col key={c.key} className={c.width} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr className="bg-purple-50">
+                  {visibleLogColumns.map((c, i) => (
+                    <th
+                      key={c.key}
+                      scope="col"
+                      className={cn(
+                        SESSION_TH,
+                        i === 0 && 'px-6',
+                        i === visibleLogColumns.length - 1 && 'px-6',
+                        c.align === 'right' && 'text-right',
+                      )}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((e, i) => (
+                  <tr
+                    key={`${e.date}-${e.event}-${e.detail}`}
+                    className={cn(i > 0 && 'border-t border-parchment')}
+                  >
+                    {visibleLogColumns.map((c, ci) => (
+                      <td
+                        key={c.key}
+                        className={cn(
+                          'py-4',
+                          ci === 0 || ci === visibleLogColumns.length - 1 ? 'px-6' : 'px-4',
+                          c.align === 'right' && 'text-right',
+                          c.cellClassName,
+                        )}
+                      >
+                        {c.cell(e)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          )}
+        </Card>
+
+        {events.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-fine text-ink-faint">
+            Showing {events.length === 0 ? 0 : pageStart + 1}
+            {shown.length > 1 ? `\u2013${pageStart + shown.length}` : ''} of {events.length} events
+          </p>
+          {/* ⚠️ THE LABELS RUN BACKWARDS IN TIME, BECAUSE THE LOG DOES. Page 1
+              is the 10 most recent events, so paging forward shows OLDER ones —
+              hence "Previous 10" forward and "Newer" back. Renaming them
+              "Next"/"Previous" would name the opposite of the direction the
+              table actually moves.
+              Both controls clear the app's 36px control floor; a pagination hit
+              area under it has been shipped here once already. */}
+          {pageCount > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                ref={newerBtnRef}
+                onClick={() => {
+                  pagedRef.current = 'newer'
+                  setLogPage(page - 1)
+                }}
+                disabled={page === 0}
+                className={PAGER_BTN}
+              >
+                <ChevronLeft aria-hidden="true" className="size-4" />
+                Newer
+              </button>
+              <button
+                type="button"
+                ref={olderBtnRef}
+                onClick={() => {
+                  pagedRef.current = 'older'
+                  setLogPage(page + 1)
+                }}
+                disabled={remaining === 0}
+                className={PAGER_BTN}
+              >
+                Previous {remaining > 0 ? Math.min(LOG_PAGE, remaining) : LOG_PAGE}
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
+        )}
+      </section>
+  )
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sleep & Health Data                                                       */
+/*                                                                           */
+/* Everything below reads seeded `HealthLogEntry[]` arrays on the dyad        */
+/* (`patientLog` / `carerLog`). There is NO Fitbit client anywhere in this    */
+/* package — that array is the boundary a nightly sync job would populate.    */
+/* ------------------------------------------------------------------------ */
+
+/** Direction-of-change glyph. Decorative, with the direction spelled out in
+ *  `sr-only` text — a bare arrow tells a screen reader nothing. */
+function Trend({ current, previous }: { current?: number; previous?: number }) {
+  if (current === undefined || previous === undefined) return null
+  if (current === previous) {
+    return (
+      <>
+        <Minus aria-hidden="true" className="inline size-3 text-ink-faint" />
+        <span className="sr-only">, no change from previous day</span>
+      </>
+    )
+  }
+  return current > previous ? (
+    <>
+      <ChevronUp aria-hidden="true" className="inline size-3 text-ink-faint" />
+      <span className="sr-only">, higher than previous day</span>
+    </>
+  ) : (
+    <>
+      <ChevronDown aria-hidden="true" className="inline size-3 text-ink-faint" />
+      <span className="sr-only">, lower than previous day</span>
+    </>
+  )
+}
+
+/** One member's nightly Fitbit log. Exported, but no importer in this package —
+ *  its other caller was the Consumer Portal, which is not part of this handover.
+ *
+ *  Absent metrics render an em dash, never a zero: `synced === false` means the
+ *  fields are missing, not that the values were zero. */
+export function FitbitLogTable({
+  log,
+  emptyMessage = 'No Fitbit data synced yet for this consumer.',
+}: {
+  log: HealthLogEntry[]
+  /** Overridable because the default is third-person phrasing written for a
+   *  researcher reading about someone else's record. No caller here. */
+  emptyMessage?: string
+}) {
+  if (log.length === 0) {
+    return <p className="p-6 text-caption text-ink-faint">{emptyMessage}</p>
+  }
+  return (
+    <table className="w-full min-w-[760px] border-collapse text-left">
+      <thead>
+        <tr className="bg-purple-50">
+          <th scope="col" className="px-6 py-4 text-caption-medium text-ink">Date</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Sync status</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">REM %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Deep %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Light %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Duration</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Disturbances</th>
+        </tr>
+      </thead>
+      <tbody>
+        {log.map((entry, i) => {
+          const prev = log[i - 1]
+          return (
+            <tr key={entry.date} className={cn(i > 0 && 'border-t border-parchment')}>
+              <td className="px-6 py-3 text-caption whitespace-nowrap text-ink">{formatDate(entry.date)}</td>
+              <td className="px-4 py-3">
+                {/* The shared `Chip`, never a hand-rolled pill. This table and
+                    `ComparativeFitbitTable` show the identical status and had
+                    previously drifted onto two different fills. */}
+                <Chip tone={entry.synced ? 'success' : 'muted'} label={entry.synced ? 'Synced' : 'Not synced'} />
+              </td>
+              <td className="px-4 py-3 text-caption text-ink-muted">
+                {entry.remPercent !== undefined ? (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    {entry.remPercent}%
+                    <Trend current={entry.remPercent} previous={prev?.remPercent} />
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+                {entry.deepPercent !== undefined ? `${entry.deepPercent}%` : '—'}
+              </td>
+              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+                {entry.lightPercent !== undefined ? `${entry.lightPercent}%` : '—'}
+              </td>
+              <td className="px-4 py-3 text-caption text-ink-muted">
+                {entry.durationMin !== undefined ? (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    {Math.floor(entry.durationMin / 60)}h {entry.durationMin % 60}m
+                    <Trend current={entry.durationMin} previous={prev?.durationMin} />
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+                {entry.disturbances ?? '—'}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+/** One log entry as CSV cell strings. Shared by both tables' exports so a CSV
+ *  always matches what is on screen — do not format these values a second time
+ *  at a call site. */
+function fitbitEntryCsvRow(entry: HealthLogEntry | undefined): string[] {
+  return [
+    entry ? (entry.synced ? 'Synced' : 'Not synced') : '—',
+    entry?.remPercent !== undefined ? `${entry.remPercent}%` : '—',
+    entry?.deepPercent !== undefined ? `${entry.deepPercent}%` : '—',
+    entry?.lightPercent !== undefined ? `${entry.lightPercent}%` : '—',
+    entry?.durationMin !== undefined
+      ? `${Math.floor(entry.durationMin / 60)}h ${entry.durationMin % 60}m`
+      : '—',
+    entry?.disturbances !== undefined ? String(entry.disturbances) : '—',
+  ]
+}
+
+type FitbitTab = 'comparative' | 'patient' | 'carer'
+
+/** DISPLAY-ONLY date-range filter. It never touches the underlying logs, and
+ *  `SleepDiaryFeed` does not read it at all — that card keeps its own full
+ *  range regardless of what is selected here. Defaults to the shortest option
+ *  so a dyad with a long log does not open on a huge table; harmless on a short
+ *  log, where slicing the last 7 or 14 of 5 entries just returns all 5. */
+type FitbitDateRange = '7' | '14' | 'all'
+
+const FITBIT_DATE_RANGE_OPTIONS: { value: FitbitDateRange; label: string }[] = [
+  { value: '7', label: 'Last 7 days' },
+  { value: '14', label: 'Last 14 days' },
+  { value: 'all', label: 'All' },
+]
+
+/** Keeps only the most recent `range` entries of a (chronologically
+ *  ascending) health log, or all of them for `'all'`. */
+function filterLogToRange(log: HealthLogEntry[], range: FitbitDateRange): HealthLogEntry[] {
+  if (range === 'all') return log
+  const days = Number(range)
+  return log.slice(-days)
+}
+
+/** Same idea as `filterLogToRange`, applied to an already-sorted list of
+ *  union dates (the comparative table's own axis). */
+function filterDatesToRange(dates: string[], range: FitbitDateRange): string[] {
+  if (range === 'all') return dates
+  const days = Number(range)
+  return dates.slice(-days)
+}
+
+/**
+ * Comparative view — both dyad members' nights side by side, default-selected
+ * whenever the dyad has a PLE.
+ *
+ * This is a real research question, not a convenience view: how the person with
+ * lived experience's sleep relates to their carer's ON THE SAME NIGHTS is
+ * exactly what this study is looking at, which is why the default pairs them
+ * rather than switching between them.
+ *
+ * Same column shape as `FitbitLogTable`, so the two read as one table. Rows are
+ * grouped by a merged (`rowSpan`) date cell with alternating shading — chosen
+ * over cramming two values into one cell (which breaks for a status chip and a
+ * formatted duration) and over doubling the column count (13 columns for two
+ * people).
+ */
+function ComparativeFitbitTable({ dyad, dateRange }: { dyad: ConsumerDyad; dateRange: FitbitDateRange }) {
+  const dates = filterDatesToRange(
+    [...new Set([...dyad.patientLog, ...dyad.carerLog].map((e) => e.date))].sort(),
+    dateRange,
+  )
+
+  if (dates.length === 0) {
+    return <EmptyState icon={Activity} copy="No Fitbit data synced yet" />
+  }
+
+  const entryFor = (log: HealthLogEntry[], date: string) => log.find((e) => e.date === date)
+
+  return (
+    <table className="w-full min-w-[820px] border-collapse text-left">
+      <thead>
+        <tr className="bg-purple-50">
+          <th scope="col" className="px-6 py-4 text-caption-medium text-ink">Date</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Member</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Sync status</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">REM %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Deep %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Light %</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Duration</th>
+          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Disturbances</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dates.map((date, groupIndex) =>
+          ([
+            { label: 'PLE', entry: entryFor(dyad.patientLog, date) },
+            { label: 'Carer', entry: entryFor(dyad.carerLog, date) },
+          ] as const).map((row, i) => (
+            <tr
+              key={`${date}-${row.label}`}
+              className={cn(
+                groupIndex > 0 && i === 0 && 'border-t border-parchment',
+                groupIndex % 2 === 1 && 'bg-pearl',
+              )}
+            >
+              {i === 0 && (
+                <td rowSpan={2} className="px-6 py-3 align-top text-caption whitespace-nowrap text-ink">
+                  {formatDate(date)}
+                </td>
+              )}
+              <td className="px-4 py-3 align-top text-caption font-semibold text-ink-muted">{row.label}</td>
+              <td className="px-4 py-3 align-top">
+                {row.entry ? (
+                  <Chip tone={row.entry.synced ? 'success' : 'muted'} label={row.entry.synced ? 'Synced' : 'Not synced'} />
+                ) : (
+                  <span className="text-caption text-ink-faint">—</span>
+                )}
+              </td>
+              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
+                {row.entry?.remPercent !== undefined ? `${row.entry.remPercent}%` : '—'}
+              </td>
+              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
+                {row.entry?.deepPercent !== undefined ? `${row.entry.deepPercent}%` : '—'}
+              </td>
+              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
+                {row.entry?.lightPercent !== undefined ? `${row.entry.lightPercent}%` : '—'}
+              </td>
+              <td className="px-4 py-3 align-top text-caption text-ink-muted">
+                {row.entry?.durationMin !== undefined
+                  ? `${Math.floor(row.entry.durationMin / 60)}h ${row.entry.durationMin % 60}m`
+                  : '—'}
+              </td>
+              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
+                {row.entry?.disturbances ?? '—'}
+              </td>
+            </tr>
+          )),
+        )}
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * Fitbit sleep data — a per-member tabbed table plus a comparative view, with
+ * per-member sync/diary gap alerts.
+ *
+ * ⚠️ MOST OF THIS PROP LIST HAS NO CALLER IN THIS PACKAGE. There is exactly one
+ * call site: `<FitbitSyncMonitor dyad={dyad} showAlerts={false} />` on the Sleep
+ * & Health Data tab. `member`, `onMemberChange`, `memberLabels`, `description`,
+ * `emptyMessage` and `showComparative` all exist for the Consumer and Coach
+ * Delivery portals, neither of which is part of this handover, so their per-prop
+ * notes below describe callers you will not find.
+ *
+ * In particular the controlled/uncontrolled `member` dance is vestigial:
+ * nothing passes `member`, so this always runs uncontrolled. The props were
+ * left in rather than unwound because removing branching state and layout from a
+ * component this size fails as a layout regression no typecheck will catch.
+ * Unwind them deliberately, with the page open, or not at all.
+ */
+export function FitbitSyncMonitor({
+  dyad,
+  member: controlledMember,
+  onMemberChange,
+  description = 'Objective sleep data synced via the Fitbit API.',
+  emptyMessage,
+  memberLabels,
+  showAlerts = true,
+  showComparative = true,
+}: {
+  dyad: ConsumerDyad
+  member?: 'patient' | 'carer'
+  onMemberChange?: (member: 'patient' | 'carer') => void
+  description?: string
+  emptyMessage?: string
+  memberLabels?: { patient?: string; carer?: string }
+  /** Per-member gap alerts inside the card. This page's call site turns them
+   *  OFF because it once carried a page-level banner showing the same signal.
+   *  That banner has since been removed, so this is now the only place the
+   *  gap alert would appear on this page — worth revisiting. */
+  showAlerts?: boolean
+  /** Adds the default-selected Comparative tab. Off for a consumer-facing
+   *  caller, whose `member` type has no 'comparative' state to switch to. */
+  showComparative?: boolean
+}) {
+  const [uncontrolledMember, setUncontrolledMember] = useState<FitbitTab>(
+    showComparative && dyad.patient ? 'comparative' : dyad.patient ? 'patient' : 'carer',
+  )
+  const [dateRange, setDateRange] = useState<FitbitDateRange>('7')
+  const member: FitbitTab = controlledMember ?? uncontrolledMember
+  // `onMemberChange` is only ever supplied where `showComparative` is false, so
+  // `m` can never be 'comparative' when it fires. Routing 'comparative' through
+  // the internal setter regardless keeps that guarantee explicit rather than
+  // relying on an unsound cast.
+  const setMember = useCallback(
+    (m: FitbitTab) => {
+      if (m !== 'comparative' && onMemberChange) onMemberChange(m)
+      else setUncontrolledMember(m)
+    },
+    [onMemberChange],
+  )
+  const tabs =
+    showComparative && dyad.patient
+      ? (['comparative', 'patient', 'carer'] as const)
+      : dyad.patient
+        ? (['patient', 'carer'] as const)
+        : (['carer'] as const)
+  const tabLabel = (m: FitbitTab) =>
+    m === 'comparative' ? 'Comparative' : (memberLabels?.[m] ?? (m === 'patient' ? 'PLE' : 'Carer'))
+
+  useEffect(() => {
+    if (!dyad.patient && member !== 'carer') setMember('carer')
+  }, [dyad, member, setMember])
+
+  const log = member === 'patient' ? dyad.patientLog : member === 'carer' ? dyad.carerLog : []
+  const rangedLog = filterLogToRange(log, dateRange)
+  const memberLabel =
+    memberLabels?.[member as 'patient' | 'carer'] ??
+    (member === 'patient' ? (dyad.patient?.name ?? 'PLE') : dyad.carer.name)
+  // The comparative tab MUST carry alerts too, each labelled with the person's
+  // own name. It is the default-selected tab whenever the dyad has a PLE, so
+  // leaving it empty means a caller with `showAlerts` on shows no gap warning at
+  // all on first load.
+  const alertsForMember: { label: string; text: string }[] =
+    member === 'comparative'
+      ? (
+          [
+            dyad.patient && hasRecentGap(dyad.patientLog, (e) => !e.synced)
+              ? { label: dyad.patient.name, text: 'Fitbit hasn’t synced in over 48 hours.' }
+              : null,
+            dyad.patient && hasRecentGap(dyad.patientLog, (e) => !e.diaryEntry)
+              ? { label: dyad.patient.name, text: 'Sleep-diary entries have stopped for over 48 hours.' }
+              : null,
+            hasRecentGap(dyad.carerLog, (e) => !e.synced)
+              ? { label: dyad.carer.name, text: 'Fitbit hasn’t synced in over 48 hours.' }
+              : null,
+            hasRecentGap(dyad.carerLog, (e) => !e.diaryEntry)
+              ? { label: dyad.carer.name, text: 'Sleep-diary entries have stopped for over 48 hours.' }
+              : null,
+          ] as const
+        ).filter((a): a is { label: string; text: string } => Boolean(a))
+      : [
+          hasRecentGap(log, (e) => !e.synced) ? 'Fitbit hasn’t synced in over 48 hours.' : null,
+          hasRecentGap(log, (e) => !e.diaryEntry) ? 'Sleep-diary entries have stopped for over 48 hours.' : null,
+        ]
+          .filter((a): a is string => Boolean(a))
+          .map((text) => ({ label: memberLabel, text }))
+
+  const exportRows: string[][] =
+    member === 'comparative'
+      ? (() => {
+          const dates = filterDatesToRange(
+            [...new Set([...dyad.patientLog, ...dyad.carerLog].map((e) => e.date))].sort(),
+            dateRange,
+          )
+          return [
+            ['Date', 'Member', 'Sync status', 'REM %', 'Deep %', 'Light %', 'Duration', 'Disturbances'],
+            ...dates.flatMap((date) => [
+              [formatDate(date), 'PLE', ...fitbitEntryCsvRow(dyad.patientLog.find((e) => e.date === date))],
+              [formatDate(date), 'Carer', ...fitbitEntryCsvRow(dyad.carerLog.find((e) => e.date === date))],
+            ]),
+          ]
+        })()
+      : [
+          ['Date', 'Sync status', 'REM %', 'Deep %', 'Light %', 'Duration', 'Disturbances'],
+          ...rangedLog.map((entry) => [formatDate(entry.date), ...fitbitEntryCsvRow(entry)]),
+        ]
+
+  const handleExport = () => {
+    const nameSlug = dyadTitle(dyad).toLowerCase().replace(/\s+/g, '-')
+    const viewSlug = member === 'comparative' ? 'comparative' : (memberLabel || tabLabel(member)).toLowerCase()
+    downloadCsv(`${nameSlug}-fitbit-sleep-data-${viewSlug}.csv`, exportRows)
+  }
+
+  return (
+    // Title and controls sit on the page canvas, outside the card — the same
+    // shape `SleepDiaryFeed` below uses, so the two tables on this tab read as
+    // one system.
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-title text-ink">Fitbit sleep data</h3>
+          <p className="mt-1 text-caption text-ink-muted">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative">
+            <label htmlFor="fitbit-date-range" className="sr-only">
+              Date range
+            </label>
+            <select
+              id="fitbit-date-range"
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as FitbitDateRange)}
+              className="h-9 appearance-none rounded-sm border border-hairline bg-card py-0 pr-8 pl-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {FITBIT_DATE_RANGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
+          {/* Primary-outline pill, matching `SleepDiaryFeed`'s Export below.
+              Exports whatever the current tab and date range show. */}
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exportRows.length <= 1}
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100"
+          >
+            <Download aria-hidden="true" className="size-4" />
+            Export
+          </button>
+        </div>
+      </div>
+
+      {tabs.length > 1 && (
+        <UnderlineTabs
+          tabs={tabs.map((m) => ({ id: m, label: tabLabel(m) }))}
+          active={member}
+          onChange={setMember}
+          ariaLabel="Dyad member"
+          layoutId="consumer-health-data-hub-member-underline"
+          idPrefix="fitbit-member-tab"
+          panelId="fitbit-table-panel"
+        />
+      )}
+
+      {showAlerts && alertsForMember.length > 0 && (
+        <div className="flex items-start gap-2 rounded-sm border border-hairline bg-pearl p-3">
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <div className="space-y-0.5">
+            {alertsForMember.map((a) => (
+              <p key={`${a.label}-${a.text}`} className="text-caption text-ink-muted">
+                {a.label}: {a.text}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        id="fitbit-table-panel"
+        role="tabpanel"
+        aria-labelledby={`fitbit-member-tab-${member}`}
+      >
+        <Card className="gap-0 overflow-hidden rounded-lg py-0">
+          <div className="overflow-x-auto">
+            {member === 'comparative' ? (
+              <ComparativeFitbitTable dyad={dyad} dateRange={dateRange} />
+            ) : (
+              <FitbitLogTable log={rangedLog} emptyMessage={emptyMessage} />
+            )}
+          </div>
+        </Card>
+      </div>
+    </section>
+  )
+}
+
+/** The 13 standard Consensus Sleep Diary questions, in order. This is a
+ *  published instrument — do not reword, reorder or abridge it.
+ *
+ *  Questions 1-9 are directly answered (`SleepDiaryAnswers`). **Questions 10-13
+ *  are ALWAYS derived at render time** via `computeSleepDiary` and never
+ *  stored; they carry an "Auto-calculated" badge for that reason. Storing them
+ *  would create a second source of truth that can disagree with its own inputs. */
+const SLEEP_DIARY_QUESTIONS: { label: string; computed?: boolean }[] = [
+  { label: 'How long did you nap yesterday? (minutes)' },
+  { label: 'How many minutes outside your sleep window were spent in bed doing something other than sleep?' },
+  { label: 'What time did you close your eyes with the intention of falling asleep last night?' },
+  { label: 'How long did it take you to fall asleep last night? (minutes)' },
+  { label: 'How many times did you wake up during the night, not including the last time?' },
+  { label: 'How many minutes total were you awake during the times reported in #5?' },
+  { label: 'How many minutes were you out of bed during the times reported in #5?' },
+  { label: 'What time did you wake up this morning (for the last time)?' },
+  { label: 'What time did you get out of bed for the last time this morning?' },
+  { label: 'How many minutes were you awake in bed between #8 and #9?', computed: true },
+  { label: 'In total, how long was your Sleep Opportunity, in minutes? (time between #3 and #9)', computed: true },
+  { label: 'Overall, how much Total Sleep Time did you get, in minutes? (#11 − #4 − #6 − #10)', computed: true },
+  { label: 'Sleep Efficiency = Total Sleep Time (#12) / Sleep Opportunity (#11), as a percentage', computed: true },
+]
+
+/** Reads one question's value for a night. Questions 10-13 route through
+ *  `computeSleepDiary` rather than any stored field. Returns an em dash when
+ *  the night has no answers at all. */
+function sleepDiaryCellValue(questionIndex: number, answers: SleepDiaryAnswers | undefined): string {
+  if (!answers) return '—'
+  switch (questionIndex) {
+    case 0:
+      return `${answers.napMin}`
+    case 1:
+      return `${answers.outOfSleepWindowMin}`
+    case 2:
+      return answers.bedtime
+    case 3:
+      return `${answers.sleepLatencyMin}`
+    case 4:
+      return `${answers.wakeCount}`
+    case 5:
+      return `${answers.awakeDuringNightMin}`
+    case 6:
+      return `${answers.outOfBedDuringNightMin}`
+    case 7:
+      return answers.wakeTime
+    case 8:
+      return answers.outOfBedTime
+    case 9:
+      return `${computeSleepDiary(answers).minutesAwakeInBed}`
+    case 10:
+      return `${computeSleepDiary(answers).sleepOpportunityMin}`
+    case 11:
+      return `${computeSleepDiary(answers).totalSleepTimeMin}`
+    case 12:
+      return `${computeSleepDiary(answers).sleepEfficiencyPercent.toFixed(0)}%`
+    default:
+      return '—'
+  }
+}
+
+/**
+ * Consensus Sleep Diary — **one night at a time**, with a date stepper.
+ *
+ * The single-night view is deliberate and worth keeping. An earlier version was
+ * a wide date-column grid you scrolled sideways, which is not how the diary is
+ * read (a researcher opens the most recent night, not eighteen at once) and
+ * which was also a real WCAG 2.1.1 failure: a wide scroll container with no
+ * focusable content inside it is keyboard-unreachable. There is nothing to
+ * scroll now, so that problem is gone rather than worked around.
+ *
+ * Rows are the 13 Consensus questions in order; 10-13 are derived at render.
+ *
+ * Exported, though no other file in this package imports it — its other caller
+ * was the Coach Delivery Portal, which is not part of this handover.
+ */
+export function SleepDiaryFeed({ dyad }: { dyad: ConsumerDyad }) {
+  const dates = [...new Set([...dyad.patientLog, ...dyad.carerLog].map((e) => e.date))].sort()
+  const entryFor = (log: HealthLogEntry[], date: string) => log.find((e) => e.date === date)
+
+  /* Opens on the most recent night — a diary is filled in the morning after, so
+     that is the entry someone came to read. Clamped rather than reset, so
+     switching to a dyad with a shorter log can never index past its end. */
+  const [dateIndex, setDateIndex] = useState(() => Math.max(0, dates.length - 1))
+  const index = Math.min(dateIndex, Math.max(0, dates.length - 1))
+  const date = dates[index]
+  const canGoEarlier = index > 0
+  const canGoLater = index < dates.length - 1
+
+  const prevBtnRef = useRef<HTMLButtonElement | null>(null)
+  const nextBtnRef = useRef<HTMLButtonElement | null>(null)
+  const steppedRef = useRef<'earlier' | 'later' | null>(null)
+
+  /* DO NOT REMOVE, AND DO NOT MOVE INTO THE CLICK HANDLER. Stepping to either
+     end disables the button just pressed, and a `disabled` control cannot hold
+     focus. In the click handler the sibling is still disabled from the previous
+     render, so focusing it silently does nothing — it must be an effect. Same
+     rescue as the study log's pager above. */
+  useEffect(() => {
+    const pressed = steppedRef.current
+    if (!pressed) return
+    steppedRef.current = null
+    const stillUsable = pressed === 'earlier' ? canGoEarlier : canGoLater
+    if (stillUsable) return
+    const sibling = pressed === 'earlier' ? nextBtnRef.current : prevBtnRef.current
+    sibling?.focus()
+  }, [index, canGoEarlier, canGoLater])
+
+  const people = [
+    ...(dyad.patient
+      ? [{ key: 'PLE' as const, name: dyad.patient.name, log: dyad.patientLog }]
+      : []),
+    { key: 'Carer' as const, name: dyad.carer.name, log: dyad.carerLog },
+  ]
+
+  /* Exports the night ON SCREEN, not the whole log: a single-night card quietly
+     producing weeks of CSV is a surprise. The date goes in the filename so a
+     folder of these stays legible. */
+  const handleDownload = () => {
+    if (!date) return
+    const csvRows = [
+      ['Question', ...people.map((p) => `${p.key} (${p.name})`)],
+      ...SLEEP_DIARY_QUESTIONS.map((q, qi) => [
+        `${qi + 1}. ${q.label}`,
+        ...people.map((p) => sleepDiaryCellValue(qi, entryFor(p.log, date)?.diary)),
+      ]),
+    ]
+    downloadCsv(
+      `${dyadTitle(dyad).toLowerCase().replace(/\s+/g, '-')}-sleep-diary-${date}.csv`,
+      csvRows,
+    )
+  }
+
+  const stepBtn =
+    'inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-hairline bg-card text-ink outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-card'
+
+  return (
+    <section className="flex flex-col gap-4">
+      {/* Title and sub copy left, date stepper and Export right. Card titles are
+          sentence case app-wide. */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-title text-ink">Sleep diary notes</h3>
+          <p className="mt-1 text-caption text-ink-muted">
+            The diary as filled in by this consumer, one night at a time.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-4">
+          {dates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                ref={prevBtnRef}
+                onClick={() => {
+                  steppedRef.current = 'earlier'
+                  setDateIndex(index - 1)
+                }}
+                disabled={!canGoEarlier}
+                aria-label="Earlier night"
+                className={stepBtn}
+              >
+                <ChevronLeft aria-hidden="true" className="size-4" />
+              </button>
+              {/* The date is the anchor of the whole card, so it carries the one
+                  filled surface in the row. White on `primary` is 10.62:1. */}
+              <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-sm bg-primary px-4 text-caption-medium whitespace-nowrap text-white">
+                <CalendarDays aria-hidden="true" className="size-4" />
+                {formatDate(date)}
+              </span>
+              <button
+                type="button"
+                ref={nextBtnRef}
+                onClick={() => {
+                  steppedRef.current = 'later'
+                  setDateIndex(index + 1)
+                }}
+                disabled={!canGoLater}
+                aria-label="Later night"
+                className={stepBtn}
+              >
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={dates.length === 0}
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100"
+          >
+            <Download aria-hidden="true" className="size-4" />
+            Export
+          </button>
+        </div>
+      </div>
+
+      <Card className="gap-0 overflow-hidden rounded-lg py-0">
+        {dates.length === 0 ? (
+          <EmptyState icon={NotebookPen} copy="No diary entries logged yet" />
+        ) : (
+          <table className="w-full border-collapse text-left">
+            <colgroup>
+              <col />
+              {people.map((p) => (
+                <col key={p.key} className="w-[160px]" />
+              ))}
+            </colgroup>
+            <thead>
+              <tr className="bg-purple-50">
+                <th scope="col" className="px-6 py-4 text-caption-medium text-ink">
+                  Sleep diary question
+                </th>
+                {people.map((p) => (
+                  <th
+                    key={p.key}
+                    scope="col"
+                    className="px-4 py-4 text-center text-caption-medium text-ink"
+                  >
+                    {p.key} answer
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SLEEP_DIARY_QUESTIONS.map((q, qi) => (
+                <tr key={q.label} className={cn(qi > 0 && 'border-t border-parchment')}>
+                  <td className="px-6 py-[18px]">
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0 text-caption-medium text-primary">{qi + 1}.</span>
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <p className="text-caption text-ink">{q.label}</p>
+                        {/* The "Auto-calculated" badge marks the four questions
+                            derived at render (see `SLEEP_DIARY_QUESTIONS`).
+                            `primary` on `purple-50` is 10.62:1 and ties it to
+                            the question number, which is already `primary`. */}
+                        {q.computed && (
+                          <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-2 py-0.5 text-fine text-primary">
+                            Auto-calculated
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  {people.map((p) => {
+                    const value = sleepDiaryCellValue(qi, entryFor(p.log, date)?.diary)
+                    return (
+                      <td key={p.key} className="px-4 py-[18px] text-center">
+                        {/* A missing answer stays a bare em dash rather than a
+                            filled pill around nothing. */}
+                        {value === '—' ? (
+                          <span className="text-caption text-ink-faint">{value}</span>
+                        ) : (
+                          <span className="inline-flex min-w-[120px] items-center justify-center rounded-sm bg-parchment px-4 py-2 text-caption-medium whitespace-nowrap text-ink">
+                            {value}
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      {dates.length > 0 && (
+        <p className="text-fine text-ink-faint">
+          Night {index + 1} of {dates.length} on record
+        </p>
+      )}
+    </section>
+  )
+}
+
+/** Sleep & Health Data tab. Renders no `TabIntro` — its first card already
+ *  carries a title and sub copy immediately below where the intro would sit. */
+/** Fitbit sleep data + sleep diary notes for one dyad. Exported so the Coach
+ *  Management record page can render it as its own "Consumer sleep & health
+ *  data" sub-tab. This page no longer shows it. */
+export function HealthDataHubTab({ dyad }: { dyad: ConsumerDyad }) {
+  return (
+    // Same 40px section rhythm as every other tab on this page.
+    <div className="flex flex-col gap-10">
+      <FitbitSyncMonitor dyad={dyad} showAlerts={false} />
+      <SleepDiaryFeed dyad={dyad} />
+    </div>
+  )
+}
+
+/**
+ * The researcher's own notes about one dyad.
+ *
+ * ⚠️ DELIBERATELY NOT the shared `SupervisionRecords` from
+ * `SpacesCoachProfilePage.tsx`, despite looking identical. That component's
+ * notes are always keyed by `coachId`, and a researcher writing about a
+ * consumer who has no coach assigned yet has no such id. Making
+ * `SupervisionNote.coachId` optional would push that case onto every other
+ * reader of that array. So this reads and writes the separate `researchNotes` /
+ * `addResearchNote` slice, keyed only by `dyadId`: same form, different owner.
+ *
+ * The visual chassis intentionally matches `SupervisionRecords`' `fullWidthStack`
+ * layout — if you restyle one, restyle both.
+ *
+ * ⚠️ ATTACHMENTS ARE NOT STORED. "Attach File" keeps only `f.name`; the `File`
+ * object is discarded. The UI then lists the filename, which reads exactly like
+ * a successful upload. Notes also record no author — there is no user identity
+ * in this package to supply one, which a real study record would need.
+ */
+function ResearchNotesCard({ dyadId }: { dyadId: string }) {
+  const { researchNotes, addResearchNote } = useResearch()
+  const notes = researchNotes
+    .filter((n) => n.dyadId === dyadId)
+    .sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1))
+
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState(TODAY)
+  const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5))
+  const [notesBody, setNotesBody] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null)
+
+  const fieldLabel = 'text-caption-medium text-ink-faint'
+  const fieldInput =
+    'h-11 w-full rounded-sm border border-hairline bg-card px-4 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
+
+  return (
+    <div className="space-y-6">
+      <Card className="gap-0 self-start rounded-lg border border-parchment bg-card py-0 shadow-card">
+        <div className="p-8">
+          <form
+            className="flex flex-col gap-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!title.trim() || !notesBody.trim()) return
+              addResearchNote(dyadId, { title, date, time, notes: notesBody, attachments })
+              setTitle('')
+              setNotesBody('')
+              setAttachments([])
+            }}
+          >
+            <div className="flex flex-col gap-2">
+              <label htmlFor="research-note-title" className={fieldLabel}>
+                Title
+              </label>
+              <input
+                id="research-note-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className={fieldInput}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="research-note-date" className={fieldLabel}>
+                  Date
+                </label>
+                <input
+                  id="research-note-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={fieldInput}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="research-note-time" className={fieldLabel}>
+                  Time
+                </label>
+                <input
+                  id="research-note-time"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className={fieldInput}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="research-note-notes" className={fieldLabel}>
+                Notes
+              </label>
+              <textarea
+                id="research-note-notes"
+                value={notesBody}
+                onChange={(e) => setNotesBody(e.target.value)}
+                required
+                className="h-40 w-full resize-y rounded-sm border border-hairline bg-parchment p-4 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex flex-wrap items-center gap-3">
+                <label
+                  htmlFor="research-note-attachments"
+                  className="inline-flex h-9 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring active:scale-[0.97]"
+                >
+                  Attach File
+                  <input
+                    id="research-note-attachments"
+                    type="file"
+                    multiple
+                    onChange={(e) =>
+                      setAttachments(e.target.files ? Array.from(e.target.files).map((f) => f.name) : [])
+                    }
+                    className="sr-only"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                >
+                  Save note
+                </button>
+              </div>
+              <p className="mt-6 border-t border-hairline pt-6 text-caption-medium text-ink-faint">
+                {attachments.length > 0 ? attachments.join(', ') : 'No files attached'}
+              </p>
+            </div>
+          </form>
+        </div>
+      </Card>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-body-md text-ink">Previous notes</h2>
+        <Card className="gap-0 overflow-hidden rounded-lg border-0 bg-yellow-50 py-0 shadow-card">
+          {notes.length === 0 ? (
+            <p className="bg-card px-8 py-6 text-caption text-ink-muted">
+              No notes yet. The first one you add appears here.
+            </p>
+          ) : (
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse text-left">
+                <colgroup>
+                  <col />
+                  <col className="w-[200px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[60px]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-purple-50">
+                    <th scope="col" className="py-4 pl-8 text-caption-medium text-ink-muted">
+                      Title
+                    </th>
+                    <th scope="col" className="py-4 text-caption-medium text-ink-muted">
+                      Date
+                    </th>
+                    <th scope="col" className="py-4 text-caption-medium text-ink-muted">
+                      Time
+                    </th>
+                    <th scope="col" className="py-4 text-caption-medium text-ink-muted">
+                      Attachments
+                    </th>
+                    <th scope="col" className="py-4 pr-8">
+                      <span className="sr-only">Download</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notes.map((n) => (
+                    <tr key={n.id} className="border-b border-hairline bg-card">
+                      <td className="py-4 pl-8 text-caption-medium text-ink">
+                        <span className="line-clamp-2" title={n.title}>
+                          {n.title}
+                        </span>
+                      </td>
+                      <td className="py-4 text-caption whitespace-nowrap text-ink">
+                        {formatDate(n.date)}
+                      </td>
+                      <td className="py-4 text-caption whitespace-nowrap text-ink">{n.time}</td>
+                      <td className="py-4 text-caption text-ink">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Paperclip aria-hidden="true" className="size-4 text-ink-faint" />
+                          {n.attachments.length}
+                        </span>
+                      </td>
+                      <td className="py-4 pr-8 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setDownloadMsg(`${n.title} downloaded (prototype).`)}
+                          aria-label={`Download ${n.title}`}
+                          className="inline-flex size-9 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                        >
+                          <Download aria-hidden="true" className="size-[18px]" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {downloadMsg && (
+            <p role="status" className="bg-card px-8 pb-6 text-caption font-semibold text-success">
+              {downloadMsg}
+            </p>
+          )}
+        </Card>
+      </section>
+    </div>
+  )
+}
+
+/**
+ * Notes — the researcher's own notes on this dyad, independent of whether a
+ * coach is assigned. See `ResearchNotesCard` for why this is not the shared
+ * `SupervisionRecords` component.
+ */
+/** Researcher notes for one dyad. NO CALLER — the Notes tab is hidden.
+ *  Exported rather than deleted; the `researchNotes`/`addResearchNote` store
+ *  slice is still live and re-enabling it is one entry in `TABS`. */
+export function NotesTab({ dyad }: { dyad: ConsumerDyad }) {
+  return (
+    // Closes most of the tabpanel wrapper's section gap below `TabIntro`. The
+    // value is tuned to THIS page's wrapper gap — the trainee page's equivalent
+    // tab uses a larger pull-up for the same visible result, because its wrapper
+    // gap differs. Do not copy either number across.
+    <div className="-mt-4">
+      <ResearchNotesCard dyadId={dyad.id} />
+    </div>
+  )
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Page                                                                      */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The page shell: hero band, tab row, and the tab-panel switch. An unknown
+ * `:dyadId` redirects to Consumer Management.
+ */
+export function ConsumerDetailPage() {
+  const { dyadId } = useParams()
+  const { consumerDyads, coaches, spacesCoaches } = useResearch()
+  /* `?tab=Profile details` deep-links straight to that tab, for the Coach
+     Management panel's "Go to consumer profile details" link. Lazy initialiser,
+     not an effect: the tab is correct on first paint. The param is a starting
+     point — changing tabs afterwards does not rewrite the URL. */
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = searchParams.get('tab')
+    return (TABS as readonly string[]).includes(requested ?? '') ? (requested as Tab) : TABS[0]
+  })
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const dyad = consumerDyads.find((d) => d.id === dyadId)
+
+  /* The hero CTA only has somewhere to go when the assigned coach has been
+     ONBOARDED — same guard as the Assigned-coach row in Study information. */
+  const coachRecordForCta =
+    dyad?.coachId && spacesCoaches.some((sc) => sc.coachId === dyad.coachId)
+      ? coaches.find((c) => c.id === dyad.coachId)
+      : undefined
+
+  if (!dyad) return <Navigate to="/research/consumers" replace />
+
+  const assignedCoach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+
+  const onTabKeyDown = (e: React.KeyboardEvent, i: number) => {
+    let next: number
+    if (e.key === 'ArrowRight') next = (i + 1) % TABS.length
+    else if (e.key === 'ArrowLeft') next = (i - 1 + TABS.length) % TABS.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = TABS.length - 1
+    else return
+    e.preventDefault()
+    setTab(TABS[next])
+    tabRefs.current[next]?.focus()
+  }
+
+  return (
+    <ResearchShell
+      /* Solid `purple-700` record-page hero, shared by all three researcher
+         record pages. `CoachProfilePage` carries the measured derivation of
+         `pt-10` and the tab row's `mt-[33px]`.
+         Note this page's names are `text-title`, NOT the trainee page's
+         `display-lg` — a two-name PLE/Carer row needs the smaller step to keep
+         both names on one line. */
+      heroClassName="bg-purple-700 px-6 pt-10 md:px-20 md:pt-10"
+      /* The band used to be closed by the tab row's own `pb-3`; with the row
+         hidden it ended flush against its last line and the coach pill sat on
+         the band's bottom edge. `heroNoSeam` restores a plain hero's 40px
+         bottom padding; `heroFlushBelow` then tightens the content inset that
+         follows from 80px to 48px, because the 80px default assumes a hero that
+         ends on a heading and the two stacked to 120px. Both conditional, so
+         they disappear again if a tab row comes back. */
+      heroNoSeam={TABS.length === 1}
+      heroFlushBelow={TABS.length === 1}
+      hero={
+        <>
+          <Link
+            to="/research/consumers"
+            // Geometry matches `CoachProfilePage`'s back link exactly, including
+            // the `-my-3 py-3` trick that gives a 41px pointer target without
+            // changing the band's height. See that file for the derivation.
+            className="-my-3 flex w-fit items-center gap-2 rounded-sm py-3 text-caption-medium text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <ChevronLeft aria-hidden="true" className="size-3" />
+            Back to Consumer Management
+          </Link>
+
+          {/* 48px below the back link, matching the trainee page. Two columns:
+              identity left, the study-progress CTA right. */}
+          <div className="mt-12 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            {/* ⚠️ THE `aria-label` IS REQUIRED. Every visible span inside this
+                `<h1>` is `aria-hidden`, and without the explicit label the
+                default accessible-name computation concatenates the text nodes
+                with no whitespace ("…WhitfieldCarer:…"), which a screen reader
+                reads as one run-on word. Keep the label in sync with the spans.
+
+                PLE and Carer names are equal weight — both are the dyad's real
+                identity, neither subordinate. The labels are distinguished by
+                colour and weight, not size: smaller steps were tried twice and
+                are uncomfortable to read beside a full-size name. `parchment`
+                measures 9.75:1 on this band.
+                Each line is an `items-center` flex row so the label's smaller
+                line-height does not ride up against the taller name, and the
+                divider hides below `sm`, where the two lines wrap and a vertical
+                rule would sit in the wrong place. */}
+            <h1
+              className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-white"
+              aria-label={
+                dyad.patient
+                  ? `PLE: ${dyad.patient.name} Carer: ${dyad.carer.name}`
+                  : `Carer: ${dyad.carer.name}`
+              }
+            >
+              {dyad.patient && (
+                <>
+                  <span className="flex items-center gap-2" aria-hidden="true">
+                    <span className="text-body-md text-parchment">PLE:</span>
+                    <span className="font-display text-title">{dyad.patient.name}</span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="hidden h-7 w-px shrink-0 self-stretch bg-white/40 sm:block"
+                  />
+                </>
+              )}
+              <span className="flex items-center gap-2" aria-hidden="true">
+                <span className="text-body-md text-parchment">Carer:</span>
+                <span className="font-display text-title">{dyad.carer.name}</span>
+              </span>
+            </h1>
+            {/* Assigned coach. The unassigned pill is a translucent white, NOT
+                `destructive` — red is unreadable on a purple band. Contrast was
+                computed from the COMPOSITED painted values, not the authored
+                hexes: `ink` on `purple-200` 12.74:1, `parchment` on the
+                translucent white 6.37:1. A translucent fill has no meaningful
+                background colour of its own; composite before measuring. */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <p className="text-caption-medium text-parchment">Assigned coach:</p>
+              {assignedCoach ? (
+                <span className="inline-flex h-8 shrink-0 items-center rounded-full bg-purple-200 px-4 text-caption-medium text-ink">
+                  {assignedCoach.fullName}
+                </span>
+              ) : (
+                <span className="inline-flex h-8 shrink-0 items-center rounded-full bg-white/15 px-4 text-caption-medium text-parchment">
+                  Not assigned
+                </span>
+              )}
+            </div>
+            {/* Deliberately no sub copy, unlike the other two record pages: this
+                header already carries two identity lines plus the coach pill,
+                and a fourth line reads as clutter rather than orientation. */}
+          </div>
+            {/* This page no longer owns a study-progress view — it lives on the
+                COACH record page, under Assigned Consumers — so this CTA
+                deep-links there with the consumer already selected and the
+                Study progress sub-tab open (`?tab=&dyad=&sub=`), rather than
+                dropping the researcher on that coach's Overview to find the
+                same consumer again.
+
+                With no ONBOARDED coach there is no such view to open, so the
+                control renders `aria-disabled` with an `sr-only` reason rather
+                than disappearing: a control that comes and goes between records
+                is harder to trust than one that is always there and says why it
+                cannot act. */}
+            {coachRecordForCta ? (
+              <Link
+                to={`/research/spaces-coaches/${coachRecordForCta.id}?tab=${encodeURIComponent(
+                  'Assigned Consumers',
+                )}&dyad=${dyad.id}&sub=progress`}
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+              >
+                View study progress
+              </Link>
+            ) : (
+              <button
+                type="button"
+                aria-disabled="true"
+                className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-white/40 px-[18px] text-caption-medium text-white/60 outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                View study progress
+                <span className="sr-only"> (unavailable until a coach is assigned)</span>
+              </button>
+            )}
+          </div>
+
+          {/* A tablist with one tab is not a tab row — it is a heading that
+              looks clickable. Hidden while `TABS` is down to a single entry, and
+              it returns on its own if a tab is restored. */}
+          {TABS.length > 1 && (
+          <div role="tablist" aria-label="Consumer profile sections" className="mt-[33px] flex items-end gap-8 overflow-x-auto">
+            {TABS.map((t, i) => {
+              const active = t === tab
+              return (
+                <button
+                  key={t}
+                  ref={(el) => {
+                    tabRefs.current[i] = el
+                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={`consumer-tabpanel-${i}`}
+                  id={`consumer-tab-${i}`}
+                  tabIndex={active ? 0 : -1}
+                  onClick={() => setTab(t)}
+                  onKeyDown={(e) => onTabKeyDown(e, i)}
+                  className={cn(
+                    'relative flex min-h-11 shrink-0 items-end pb-3 whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white',
+                    active
+                      ? 'text-caption-medium text-white'
+                      : 'text-caption text-on-purple-muted hover:text-white',
+                  )}
+                >
+                  {t}
+                  {active && (
+                    <motion.span
+                      layoutId="consumer-detail-tab-underline"
+                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-300"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+          )}
+        </>
+      }
+    >
+      {/* There is deliberately no page-level Fitbit sync banner here: the same
+          signal lives inside the Fitbit card's own sync monitor, and a banner
+          would be a second voice for one fact. `dyadHealthAlerts` is still
+          exported — Research Home's attention section reads it. */}
+      <div
+        /* No tab row means no tab panel: `role="tabpanel"` pointing at an
+           `aria-labelledby` target that does not exist is worse than plain
+           markup — a screen reader announces a panel and then finds nothing
+           naming it. Both come back with the row. */
+        {...(TABS.length > 1
+          ? {
+              role: 'tabpanel' as const,
+              id: `consumer-tabpanel-${TABS.indexOf(tab)}`,
+              'aria-labelledby': `consumer-tab-${TABS.indexOf(tab)}`,
+            }
+          : {})}
+        // All three record pages use this same 40px section rhythm.
+        /* `mt-16` exists to separate this panel from the hero's own tab row.
+           With the row hidden it double-counts against the shell's content
+           inset — 128px from the band to the first heading, where the
+           convention is 48 + `TabIntro`'s own 16. Dropped to 0 in that case. */
+        className={cn('flex flex-col gap-10', TABS.length > 1 && 'mt-16')}
+      >
+        {/* Sleep & Health Data renders no tab-level intro: its first card
+            already carries a title and sub copy immediately below where this
+            block would sit, and a second one saying much the same thing reads as
+            repetition. */}
+        <TabIntro {...TAB_INTRO[tab]} />
+        {tab === 'Profile details' && <ProfileDetailsTab dyad={dyad} />}
+      </div>
+
+    </ResearchShell>
+  )
+}
