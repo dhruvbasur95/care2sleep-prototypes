@@ -4,121 +4,26 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Care2Sleep prototypes</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<title>Care2Sleep prototype</title>
+<!-- The prototype is served from /prototype/. Anyone landing on the bare
+     site root is sent straight there, so both links work. -->
+<meta http-equiv="refresh" content="0; url=./prototype/#/" />
+<link rel="canonical" href="./prototype/#/" />
 <style>
-  :root {
-    --purple-700: #4a278f;
-    --purple-50: #f5f1fd;
-    --yellow-50: #fdf8ec;
-    --yellow-200: #f7e3b0;
-    --canvas: #fffcfa;
-    --ink: #1a1a1a;
-    --ink-muted: #4a4a4a;
-    --ink-faint: #6d6d6d;
-    --parchment: #ece7e1;
-    --card-shadow: 2px 4px 16px rgba(230, 194, 127, 0.2);
-  }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--canvas);
-    color: var(--ink);
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #fffcfa; color: #4a4a4a;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    -webkit-font-smoothing: antialiased;
+    font-size: 15px; text-align: center; padding: 24px;
   }
-  .band {
-    background: var(--purple-700);
-    color: #fff;
-    padding: 56px 24px 64px;
-  }
-  .wrap { max-width: 1000px; margin: 0 auto; }
-  .eyebrow {
-    font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: #c4b5fc; margin: 0 0 12px;
-  }
-  h1 { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 12px; text-wrap: balance; }
-  .band p { font-size: 16px; line-height: 1.6; color: #e4dcf7; margin: 0; max-width: 60ch; text-wrap: balance; }
-  main { padding: 48px 24px 72px; }
-  .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-  .card {
-    display: flex; flex-direction: column;
-    background: #fff; border: 1px solid var(--parchment); border-radius: 16px;
-    box-shadow: var(--card-shadow); padding: 24px; text-decoration: none; color: inherit;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .card:hover, .card:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 2px 8px 22px rgba(230, 194, 127, 0.32);
-  }
-  .card:focus-visible { outline: 3px solid var(--purple-700); outline-offset: 3px; }
-  .tag {
-    align-self: flex-start; font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
-    text-transform: uppercase; color: var(--purple-700); background: var(--purple-50);
-    border-radius: 999px; padding: 5px 12px; margin-bottom: 14px;
-  }
-  .card h2 { font-size: 20px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
-  .card p { font-size: 14px; line-height: 1.55; color: var(--ink-muted); margin: 0 0 18px; flex: 1; }
-  .go { font-size: 14px; font-weight: 500; color: var(--purple-700); }
-  .go::after { content: ' \2192'; }
-  .note {
-    margin-top: 40px; background: var(--yellow-50); border: 1px solid var(--yellow-200);
-    border-radius: 16px; padding: 20px 24px;
-  }
-  .note h3 { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
-  .note p { font-size: 14px; line-height: 1.6; color: var(--ink-muted); margin: 0; max-width: 72ch; }
-  footer { font-size: 13px; color: var(--ink-faint); padding: 0 24px 48px; }
-  @media (max-width: 600px) { h1 { font-size: 30px; } .band { padding: 40px 20px 48px; } }
+  a { color: #4a278f; }
 </style>
 </head>
 <body>
-  <div class="band">
-    <div class="wrap">
-      <p class="eyebrow">Care2Sleep &middot; COACH Framework</p>
-      <h1>Design prototypes</h1>
-      <p>Clickable prototypes for the Care2Sleep sleep-coaching platform. These are design demonstrations built with seeded example data &mdash; no real participant information, and nothing you do here is saved.</p>
-    </div>
-  </div>
-
-  <main class="wrap">
-    <div class="grid">
-      <a class="card" href="./prototype/">
-        <span class="tag">Main prototype</span>
-        <h2>Full platform prototype</h2>
-        <p>The complete, actively-developed prototype covering the research dashboard, coach delivery portal, coach training and the consumer portal.</p>
-        <span class="go">Open</span>
-      </a>
-
-      <a class="card" href="./trainee-coach-portal/">
-        <span class="tag">Handover</span>
-        <h2>Trainee &amp; coach portal</h2>
-        <p>The packaged trainee and coach experience prepared for engineering handover, including the onboarding flow and module player.</p>
-        <span class="go">Open</span>
-      </a>
-
-      <a class="card" href="./researcher-dashboard-v2/">
-        <span class="tag">Handover &middot; latest</span>
-        <h2>Researcher dashboard (V2)</h2>
-        <p>The later researcher dashboard package, dated 27 August. Trainee, consumer and coach management views.</p>
-        <span class="go">Open</span>
-      </a>
-
-      <a class="card" href="./researcher-dashboard-v1/">
-        <span class="tag">Handover &middot; earlier</span>
-        <h2>Researcher dashboard (V1)</h2>
-        <p>The earlier researcher dashboard package, kept for comparison against V2.</p>
-        <span class="go">Open</span>
-      </a>
-    </div>
-
-    <div class="note">
-      <h3>A note on the links</h3>
-      <p>Addresses inside each prototype contain a <strong>#</strong>, for example <em>/prototype/#/research/schedule</em>. That is deliberate &mdash; it is what lets you refresh a page or share a link to a specific screen without hitting an error.</p>
-    </div>
-  </main>
-
-  <footer class="wrap">Care2Sleep &middot; Monash University &middot; Prototypes only, not a live system.</footer>
+  <p>
+    Opening the Care2Sleep prototype&hellip;<br />
+    <a href="./prototype/#/">Continue to the prototype</a>
+  </p>
+  <script>location.replace('./prototype/#/');</script>
 </body>
 </html>
