@@ -1,0 +1,51 @@
+# --- Dependencies and build output (never commit these) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# --- macOS ---
+.DS_Store
+
+# --- Logs ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# --- Editors ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# --- Local tooling / agent config ---
+.claude/
+
+# =====================================================================
+# PRIVATE: research material and internal process docs.
+# Deliberately excluded so they are NOT published to the public repo.
+# See the project handover notes before changing anything below.
+# =====================================================================
+research/
+_project/
+module framework + content/
+Scripts/
+CLAUDE.md
+
+design/claude-handover/
+design/logs/
+design/reviews/
+design/wireframes/
+design/prototype/*.md
+design/DESIGN-apple.md
+design/backlog.md
+design/claude-code-action-plan.md
+design/coach-portal-handover-orchestration-plan.md
+design/portal-feature-map.md
+design/user-roles.md
+design/ux-copy.md
+
+# Assembled Pages output (built by build-site.sh / CI)
+_site/

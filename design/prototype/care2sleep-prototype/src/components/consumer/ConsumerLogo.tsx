@@ -1,0 +1,67 @@
+/**
+ * The Consumer Portal wordmark — Figma node `787:1755` (desktop) / `787:1642`
+ * (mobile), a **single flattened export** at 210.89 x 52.2682.
+ *
+ * ── What changed, and what it cost ────────────────────────────────────────
+ *
+ * This replaces a four-piece composition: a pillow mark, three separate
+ * crescent-moon vectors, and the word "Care2Sleep" as **live text** in Atkinson
+ * Hyperlegible Next, with the accent hand-positioned over the final "p" from
+ * measured frame offsets.
+ *
+ * The frame now exports the whole lockup as one vector, so the wordmark is
+ * outlines rather than text. That is a real trade and it is worth naming:
+ *
+ *   - **Lost:** the word is no longer selectable, searchable, or present in the
+ *     DOM as text. It also no longer re-renders in the reader's own font.
+ *   - **Gained:** the accent can no longer drift. The old version's position
+ *     assumed the text rendered at exactly 171px, so any change to the family,
+ *     size or fallback silently moved the moon off the "p" — a standing hazard
+ *     documented in `design-tokens.md` §81 that simply does not exist now.
+ *
+ * The accessible name is unaffected: every call site wraps this in a link
+ * carrying `aria-label="Care2Sleep home"`, so the name was never coming from
+ * the glyphs. That is why the swap is safe rather than merely acceptable.
+ *
+ * Rendered from the committed export, never hand-written as `<path>` — this
+ * project's standing rule, and doubly so for a brand mark.
+ *
+ * ── Sizing ────────────────────────────────────────────────────────────────
+ *
+ * The frames draw it at two sizes with an identical aspect ratio
+ * (210.89/52.268 = 4.0348; 178.619/44.27 = 4.0347), so this is one asset
+ * scaled, not two exports. Width is set and height follows from the SVG's own
+ * `viewBox` — no second number to keep in step.
+ *
+ * The four pieces this replaced (`logo-mark.svg` and the three
+ * `wordmark-moon-*.svg`) are **deleted**, not left committed — grep confirmed
+ * zero readers. An earlier draft of this note claimed `ConsumerWelcome` still
+ * animated the pillow mark; it does not, it uses its own `pillow-*` exports.
+ */
+
+/** Frame `787:1755` (desktop) and `787:1642` (mobile). */
+const WIDTH_DESKTOP = 210.89
+const WIDTH_MOBILE = 178.619
+
+export function ConsumerLogo({ className }: { className?: string }) {
+  return (
+    <img
+      src="/illustrations/consumer-welcome/care2sleep-logo.svg"
+      alt=""
+      aria-hidden="true"
+      width={WIDTH_DESKTOP}
+      height={WIDTH_DESKTOP / 4.0348}
+      className={className}
+      style={{
+        // `clamp()` rather than a breakpoint: the lockup is a fixed-aspect
+        // vector and the only thing that ever squeezes it is a narrow screen,
+        // so it tracks the viewport directly instead of stepping at an
+        // arbitrary width. 47.6vw is the mobile frame's own 178.619 at 375px,
+        // reaching the desktop 210.89 at ~443px and holding there.
+        width: `clamp(${WIDTH_MOBILE}px, 47.6vw, ${WIDTH_DESKTOP}px)`,
+        height: 'auto',
+        display: 'block',
+      }}
+    />
+  )
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36.18" height="38.081" viewBox="0 118 36.18 38.081" fill="none">
+  <!-- Care2Sleep onboarding doodle "star-left". Path data verbatim from Doodles.tsx.
+       viewBox is the doodle's own getBBox() inside the 700.023 x 251.081 doodle
+       artboard, so x/y are its ORIGINAL artboard coordinates - see ANCHORING.md. -->
+  <path d="M24.055 143.011L17.257 156.081L12.467 143.02L0 140.617L7.57 131.697L6.431 118.552L16.823 124.628L29.277 118L25.691 132.189L36.18 140.112L24.055 143.011Z" fill="#D9B321"/>
+</svg>

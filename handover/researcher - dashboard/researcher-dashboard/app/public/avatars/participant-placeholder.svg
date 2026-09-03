@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 104" width="104" height="104" role="presentation">
+  <!-- Neutral participant portrait placeholder.
+       Deliberately abstract: this package must not ship any real person's
+       likeness. Replace with a real per-person image once `Coach` carries an
+       image field. -->
+  <rect width="104" height="104" fill="#e4d6ff"/>
+  <circle cx="52" cy="40" r="17" fill="#4A278F" opacity="0.35"/>
+  <path d="M52 62c-16.6 0-30 10.7-30 24v18h60V86c0-13.3-13.4-24-30-24z" fill="#4A278F" opacity="0.35"/>
+</svg>
