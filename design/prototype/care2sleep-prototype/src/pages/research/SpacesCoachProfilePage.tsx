@@ -801,6 +801,416 @@ function CoachNotificationPreferencesCard({
   )
 }
 
+/* ------------------------------------------------------------------------ */
+/* Withdraw coach                                                            */
+/* ------------------------------------------------------------------------ */
+
+/** The reasons a research coordinator withdraws a SPACES coach. Modelled on
+ *  the Consumer Portal's own `OPT_OUT_REASONS` (which the consumer picks for
+ *  themselves) but written from the coordinator's side, since this is a
+ *  record *about* the coach rather than a statement *by* them. "Other" is
+ *  what the free-text detail box is for. */
+const WITHDRAWAL_REASONS = [
+  'Left their aged care employer',
+  'No longer has capacity to deliver sessions',
+  'Health or personal circumstances have changed',
+  'Withdrew from the study at their own request',
+  'Research team decision',
+  'Other',
+]
+
+/** All three steps of the withdrawal share one panel size, wider and roomier
+ *  than the 440px / `p-6` confirm-dialog default. The first pass used the
+ *  default and it did not survive its own worst case: a caseload is a *list*,
+ *  and a 440px column of one dropdown per consumer is unreadable well before
+ *  a coach with ten of them. The size is on the flow, not on one step, so the
+ *  three do not resize under the researcher as they move through.
+ *
+ *  `p-8` overrides the chassis' own `p-6` — `cn()` merges `panelClassName`
+ *  last, so a padding passed here wins rather than fighting it. */
+const WITHDRAW_PANEL = 'max-h-[85vh] min-h-[min(620px,85vh)] w-full max-w-[820px] p-8'
+/** Lets the content area absorb the height `min-h` adds, so the footer stays
+ *  pinned to the bottom instead of floating with white space beneath it. */
+const WITHDRAW_CONTENT = 'flex-1'
+/** Re-bleeds the pearl footer to the edges of a `p-8` panel — see
+ *  `ConfirmDialog.footerClassName`. */
+const WITHDRAW_FOOTER = '-mx-8 -mb-8 px-8'
+
+/**
+ * The withdraw-a-coach flow (Round 46, direct instruction). Three steps on
+ * the shared `ConfirmDialog` chassis, the same sequential-dialog pattern
+ * `OnboardCoachDialog` and this page's own `TransferConsumerDialog` use:
+ *
+ *   1. **Transfer consumers** — the caseload as one table, a coach dropdown
+ *      per row. This restores the rule that used to sit on the button as a
+ *      hard `disabled` (with a "transfer them first" hint underneath), which
+ *      told the researcher what was wrong but gave them no way to fix it from
+ *      here. It is now a step in the flow rather than a wall in front of it.
+ *      Skipped entirely for a coach with an empty caseload — a step with
+ *      nothing in it is not a step.
+ *
+ *      An earlier pass offered a "move them all to the same coach" shortcut
+ *      behind a radio group; it was removed on direct instruction. The
+ *      shortcut saved clicks on a large caseload but made the researcher
+ *      answer a question about *how* to assign before they could assign
+ *      anything, which is the opposite of simple on the common case of two
+ *      or three consumers.
+ *   2. **Reason** — a required reason plus optional detail, written into the
+ *      coach's `withdrawalNote` and rendered back on the Study details card.
+ *   3. **Confirm** — the reason directly under the title, then the same
+ *      caseload table again with each consumer's new coach in place of the
+ *      picker. Direct instruction, and it replaced a version grouped by
+ *      receiving coach: confirming against the shape you just filled in beats
+ *      confirming against a recap worded differently from the screen that
+ *      produced it.
+ *
+ * The transfers commit at the same moment the withdrawal does, on the final
+ * confirm — cancelling at step 2 or 3 must leave the caseload untouched, and
+ * a flow that moved consumers as you clicked through would half-apply itself.
+ */
+function WithdrawCoachDialog({
+  open,
+  onClose,
+  onWithdrawn,
+  coach,
+  dyads,
+}: {
+  open: boolean
+  onClose: () => void
+  /** Confirming unmounts the "Withdraw coach" button that opened this flow —
+   *  the card swaps it for a "Withdrawn" chip — so `ConfirmDialog`'s own
+   *  focus-restore has nothing left to return to and focus lands on `<body>`.
+   *  Measured, not assumed: this project's most-repeated defect class. The
+   *  caller moves focus somewhere deliberate instead. */
+  onWithdrawn: () => void
+  coach: Coach
+  dyads: ConsumerDyad[]
+}) {
+  const { coaches, spacesCoaches, transferDyad, withdrawCoach } = useResearch()
+
+  /** Same pool as this page's Transfer consumer action: joined SPACES coaches
+   *  who are not this coach and have not themselves withdrawn. Derived from
+   *  the same two collections, so the two surfaces cannot offer different
+   *  candidates for the same move. */
+  const transferTargets = spacesCoaches
+    .filter((sc) => sc.coachId !== coach.id && sc.joinedStatus === 'joined')
+    .map((sc) => coaches.find((c) => c.id === sc.coachId))
+    .filter((c): c is Coach => !!c && c.status !== 'withdrawn')
+
+  const needsTransfer = dyads.length > 0
+  const [step, setStep] = useState<'transfer' | 'reason' | 'confirm'>(
+    needsTransfer ? 'transfer' : 'reason',
+  )
+  /** dyad id -> receiving coach id. Deliberately starts empty rather than
+   *  defaulting every consumer to the first candidate: a pre-filled
+   *  destination on a screen this consequential is a choice nobody made. */
+  const [targets, setTargets] = useState<Record<string, string>>({})
+  const [reason, setReason] = useState('')
+  const [detail, setDetail] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setStep(needsTransfer ? 'transfer' : 'reason')
+    setTargets({})
+    setReason('')
+    setDetail('')
+    // re-seed only when the dialog opens, not on every roster change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const placed = dyads.filter((d) => targets[d.id]).length
+  const targetName = (id: string) => transferTargets.find((c) => c.id === id)?.fullName ?? ''
+
+  /** The stacked PLE/Carer cell, shared by step 1's picker table and step 3's
+   *  summary table so the two cannot describe the same dyad differently. */
+  const consumerCell = (d: ConsumerDyad) => (
+    <div className="flex flex-col gap-0.5 text-caption">
+      {d.patient && (
+        <span className="text-ink">
+          <span className="text-ink-faint">PLE:</span> {d.patient.name}
+        </span>
+      )}
+      <span className="text-ink">
+        <span className="text-ink-faint">Carer:</span> {d.carer.name}
+      </span>
+    </div>
+  )
+  const canTransfer = transferTargets.length > 0
+  const allPlaced = placed === dyads.length
+
+  /* "Other" means the free-text box *is* the reason, so it stands alone;
+     any other reason keeps the box as a separate "Additional comments" note
+     rather than being glued onto the end of the reason with a dash. Both the
+     confirm screen's bullets and the stored `withdrawalNote` are built from
+     this one pair, so the record cannot say something the researcher did not
+     see before confirming. */
+  const trimmedDetail = detail.trim()
+  const reasonPrimary = reason === 'Other' ? trimmedDetail : reason
+  const extraComments = reason === 'Other' ? '' : trimmedDetail
+  const reasonNote = extraComments
+    ? `${reasonPrimary}. Additional comments: ${extraComments}`
+    : reasonPrimary
+
+  const commit = () => {
+    dyads.forEach((d) => {
+      const to = targets[d.id]
+      if (to) transferDyad(d.id, to)
+    })
+    withdrawCoach(coach.id, reasonNote || reason)
+    onClose()
+    onWithdrawn()
+  }
+
+  return (
+    <>
+      {/* Step 1 — transfer the caseload */}
+      <ConfirmDialog
+        open={open && step === 'transfer'}
+        title={`Move ${coach.fullName.split(' ')[0]}'s consumers to another coach`}
+        body={
+          canTransfer
+            ? `${dyads.length === 1 ? 'This consumer needs' : `All ${dyads.length} consumers need`} a new coach before the withdrawal can go ahead. Session history, health data, and reflections stay with the consumer.`
+            : 'This caseload has to move to another coach first, and no other joined coach is available right now.'
+        }
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+        confirmDisabled={!canTransfer || !allPlaced}
+        panelClassName={WITHDRAW_PANEL}
+        footerClassName={WITHDRAW_FOOTER}
+        contentClassName={WITHDRAW_CONTENT}
+        onConfirm={() => setStep('reason')}
+        onClose={onClose}
+      >
+        {!canTransfer ? (
+          <p className="text-caption text-ink-faint">
+            Onboard another coach into SPACES delivery, then come back to this.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3 py-2">
+            {/* Direct instruction: the caseload is the whole step. One table,
+                one dropdown per consumer, no mode choice — the "move them all
+                to the same coach" shortcut and its radio group are gone, so
+                there is nothing to decide before the researcher can start
+                assigning. Capped and scrolled so a large caseload cannot push
+                the footer off-screen.
+                The Consumer cell uses the page's own stacked PLE/Carer
+                grammar rather than a flattened "A & B" string, so a dyad
+                reads the same here as it does everywhere else.
+                A Sessions-completed column was built here and removed on
+                direct instruction: this step is about where a consumer goes
+                next, and their session count does not bear on that choice. */}
+            <p id="withdraw-caseload-heading" className="text-fine text-ink-faint">
+              {dyads.length === 1
+                ? 'Consumer assigned to this coach'
+                : 'Consumers assigned to this coach'}
+            </p>
+            <div className="max-h-[300px] overflow-auto rounded-lg border border-parchment shadow-card">
+              <table
+                aria-labelledby="withdraw-caseload-heading"
+                /* Width floor + a scrolling container. Without it the panel's
+                   327px at 375px viewport left the Consumer column at 101px
+                   and every name wrapped across three lines — caught by
+                   `layout-audit.js`, invisible at desktop width. Scrolling a
+                   narrow table beats crushing it, and matches how every other
+                   table in this dashboard behaves below desktop. */
+                className="w-full min-w-[440px] border-collapse text-left"
+              >
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-purple-50">
+                    <th scope="col" className="px-4 py-3 text-caption-medium text-ink">
+                      Consumer
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-caption-medium text-ink">
+                      New assigned coach
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dyads.map((d) => (
+                    <tr key={d.id} className="border-t border-hairline align-middle">
+                      <th scope="row" className="px-4 py-3 text-left font-normal">
+                        {consumerCell(d)}
+                      </th>
+                      <td className="px-4 py-3">
+                        <label htmlFor={`withdraw-transfer-${d.id}`} className="sr-only">
+                          New assigned coach for {dyadTitle(d)}
+                        </label>
+                        <div className="relative">
+                          <select
+                            id={`withdraw-transfer-${d.id}`}
+                            value={targets[d.id] ?? ''}
+                            onChange={(e) =>
+                              setTargets((prev) => ({ ...prev, [d.id]: e.target.value }))
+                            }
+                            className={selectClass}
+                          >
+                            <option value="">Choose a coach…</option>
+                            {transferTargets.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.fullName}
+                              </option>
+                            ))}
+                          </select>
+                          <SelectChevron />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {dyads.length > 1 && (
+              // A live count, because with a scrolling table the un-placed
+              // consumer holding Continue disabled can be off-screen.
+              <p role="status" className="text-fine text-ink-faint">
+                {placed} of {dyads.length} placed
+              </p>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
+
+      {/* Step 2 — why */}
+      <ConfirmDialog
+        open={open && step === 'reason'}
+        title="Why is this coach withdrawing?"
+        body="This is kept on their record and shown on their profile."
+        confirmLabel="Continue"
+        cancelLabel={needsTransfer ? 'Go back' : 'Cancel'}
+        confirmDisabled={!reason || (reason === 'Other' && !detail.trim())}
+        panelClassName={WITHDRAW_PANEL}
+        footerClassName={WITHDRAW_FOOTER}
+        contentClassName={WITHDRAW_CONTENT}
+        onConfirm={() => setStep('confirm')}
+        onClose={() => (needsTransfer ? setStep('transfer') : onClose())}
+      >
+        <div className="flex flex-col gap-6 py-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="withdraw-reason" className="text-fine text-ink-faint">
+              Reason
+            </label>
+            <div className="relative">
+              <select
+                id="withdraw-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select a reason…</option>
+                {WITHDRAWAL_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="withdraw-detail" className="text-fine text-ink-faint">
+              {reason === 'Other' ? 'What happened?' : 'Anything to add? (optional)'}
+            </label>
+            <textarea
+              id="withdraw-detail"
+              rows={3}
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+      </ConfirmDialog>
+
+      {/* Step 3 — the point of no return */}
+      <ConfirmDialog
+        open={open && step === 'confirm'}
+        /* Direct instruction: generic review copy — no personal name, and no
+           "SPACES", which is internal framework vocabulary rather than
+           something the sentence needs. The coach's name is already the page
+           heading behind this dialog, and the rows below name everyone the
+           action touches, so repeating it in the title added nothing. */
+        title="Review and confirm"
+        body="Check the details below before withdrawing this coach. Their status changes to no longer participating, and their records are kept per their consent."
+        confirmLabel="Withdraw coach"
+        cancelLabel="Go back"
+        destructive
+        /* Belt and braces on the flow's own invariant. Step 1's Continue is
+           already gated on every consumer being placed, so this should never
+           bite through the UI — but `commit` skips an unplaced consumer, and
+           the state that would produce (a withdrawn coach still holding a
+           consumer) is precisely what this step exists to prevent. Cheaper to
+           make it unreachable than to detect it later. */
+        confirmDisabled={!allPlaced}
+        panelClassName={WITHDRAW_PANEL}
+        footerClassName={WITHDRAW_FOOTER}
+        contentClassName={WITHDRAW_CONTENT}
+        onConfirm={commit}
+        onClose={() => setStep('reason')}
+      >
+        {/* Direct instruction: the reason sits directly under the title, as a
+            bulleted point, and the caseload table follows a clear gap below —
+            the withdrawal is what this screen confirms, and where the
+            consumers land is the consequence of it, so that is the order they
+            read in. The table is the same one step 1 filled in, with each
+            consumer's new coach in place of the picker: confirming against
+            the shape you just completed beats confirming against a recap
+            worded differently. Both tables render the consumer through
+            `consumerCell`, so they cannot drift. */}
+        <div className="flex flex-col gap-6 py-2">
+          <div className="flex flex-col gap-2">
+            <p className="text-fine text-ink-faint">Reason for withdrawal</p>
+            <ul className="flex list-disc flex-col gap-1 pl-5">
+              <li className="text-caption text-ink">{reasonPrimary || reason}</li>
+              {extraComments && (
+                <li className="text-caption text-ink">
+                  <span className="text-ink-faint">Additional comments:</span> {extraComments}
+                </li>
+              )}
+            </ul>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p id="withdraw-summary-heading" className="text-fine text-ink-faint">
+              Where each consumer goes
+            </p>
+            <div className="max-h-[300px] overflow-auto rounded-lg border border-parchment shadow-card">
+              <table
+                aria-labelledby="withdraw-summary-heading"
+                className="w-full min-w-[440px] border-collapse text-left"
+              >
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-purple-50">
+                    <th scope="col" className="px-4 py-3 text-caption-medium text-ink">
+                      Consumer
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-caption-medium text-ink">
+                      New assigned coach
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dyads.map((d) => (
+                    <tr key={d.id} className="border-t border-hairline align-middle">
+                      <th scope="row" className="px-4 py-3 text-left font-normal">
+                        {consumerCell(d)}
+                      </th>
+                      <td className="px-4 py-3 text-caption text-ink">
+                        {targetName(targets[d.id])}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </ConfirmDialog>
+    </>
+  )
+}
+
 /** The complete coach record, four stacked `purple-50`-header cards with
  *  `RecordRowDivider` rows — **Study details** (the study-participation
  *  facts: Coach ID, enrolment date, certification, plus the Withdraw coach
@@ -813,10 +1223,14 @@ function CoachNotificationPreferencesCard({
  *  here — that framing only applied while the coach was being onboarded
  *  into SPACES. */
 function ProfileDetailsTab({ coach }: { coach: Coach }) {
-  const { consumerDyads, updateContact, updateCoachNotificationPreferences, withdrawCoach } =
-    useResearch()
+  const { consumerDyads, updateContact, updateCoachNotificationPreferences } = useResearch()
   const dyads = consumerDyads.filter((d) => d.coachId === coach.id)
 
+  /** Focus target after a withdrawal — see `WithdrawCoachDialog.onWithdrawn`.
+   *  The Study details heading is the right landing place: it is the card
+   *  whose contents just changed, and unlike the trigger it survives the
+   *  change. */
+  const studyHeadingRef = useRef<HTMLHeadingElement>(null)
   const [editingContact, setEditingContact] = useState(false)
   const [email, setEmail] = useState(coach.email)
   const [phone, setPhone] = useState(coach.phone)
@@ -884,26 +1298,31 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
   // Withdraw button classes match the trainee/consumer record pages' own
   // withdraw button exactly (`bg-card` so the pill reads white against the
   // `purple-50` band — the class that was missing here before, which is why
-  // it didn't match) — plus a disabled variant neither reference needs,
-  // since only a SPACES coach can be blocked by an active caseload.
+  // it didn't match).
+  //
+  // The active-caseload gate that used to *disable* this button is gone: it
+  // told the researcher what was wrong and gave them no way to fix it from
+  // here. The rule itself survives as step 1 of `WithdrawCoachDialog`, which
+  // makes them place every consumer with another coach before it will let the
+  // withdrawal through — so the button is always live, and the constraint is
+  // enforced inside the flow rather than in front of it.
   const withdrawButtonClass = cn(
     'inline-flex h-9 shrink-0 items-center rounded-sm border bg-card px-4 text-caption-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]',
-    dyads.length > 0
-      ? 'cursor-not-allowed border-hairline text-ink-faint'
-      : 'border-destructive text-destructive hover:bg-destructive/8',
+    'border-destructive text-destructive hover:bg-destructive/8',
   )
 
   return (
     <div className="flex flex-col gap-10">
       <Card className="gap-0 overflow-hidden rounded-lg py-0">
         <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
-          <h2 className="font-display text-title text-ink">Study details</h2>
+          <h2 ref={studyHeadingRef} tabIndex={-1} className="font-display text-title text-ink outline-none">
+            Study details
+          </h2>
           {withdrawn ? (
             <CoachStatusChip status={coach.status} />
           ) : (
             <button
               type="button"
-              disabled={dyads.length > 0}
               onClick={() => setWithdrawOpen(true)}
               className={withdrawButtonClass}
             >
@@ -927,15 +1346,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             {firstName} is no longer participating in the study
             {coach.withdrawalNote ? `. ${coach.withdrawalNote}` : '.'}
           </p>
-        ) : (
-          dyads.length > 0 && (
-            <p className="px-6 pb-4 text-fine text-ink-faint">
-              Can't withdraw {firstName} yet. Transfer{' '}
-              {dyads.length === 1 ? 'the 1 consumer' : `all ${dyads.length} consumers`} on their
-              caseload to another coach first.
-            </p>
-          )
-        )}
+        ) : null}
       </Card>
 
       <Card className="gap-0 overflow-hidden rounded-lg py-0">
@@ -1046,18 +1457,12 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
         onSave={(prefs) => updateCoachNotificationPreferences(coach.id, prefs)}
       />
 
-      <ConfirmDialog
+      <WithdrawCoachDialog
         open={withdrawOpen}
-        title={`Withdraw ${coach.fullName} as a coach?`}
-        body="Their SPACES status changes to no longer participating and their records are kept per their consent."
-        confirmLabel="Withdraw coach"
-        cancelLabel="Cancel"
-        destructive
-        onConfirm={() => {
-          withdrawCoach(coach.id)
-          setWithdrawOpen(false)
-        }}
         onClose={() => setWithdrawOpen(false)}
+        onWithdrawn={() => studyHeadingRef.current?.focus()}
+        coach={coach}
+        dyads={dyads}
       />
     </div>
   )

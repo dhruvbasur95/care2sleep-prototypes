@@ -82,7 +82,18 @@ function layoutAudit(rootSelector) {
    *    the whole label row. A 28px checkbox beside its own label text is the
    *    correct, Figma-specified shape, not a missed width. Left reporting
    *    rather than special-casing "wrapper is a `<label>`", which would also
-   *    hide a real case of the same bug on a checkbox/radio row. */
+   *    hide a real case of the same bug on a checkbox/radio row.
+   *
+   *    KNOWN FALSE POSITIVE (withdraw-a-coach flow, Round 46) — a `<select>`
+   *    inside a padded table cell reports here. `wrap` is deliberately the
+   *    control's *grandparent* so the check can see past a `relative`
+   *    positioning div; in a table that grandparent is the `<td>`, and the
+   *    reported shortfall is exactly the cell's own horizontal padding
+   *    (32px against a `px-4` cell). The control does fill its own wrapper.
+   *    Left reporting rather than special-casing "wrapper is a `<td>`", for
+   *    the same reason as above: that would hide a genuine missed width on
+   *    any control that really is meant to fill a cell. Recognise it by the
+   *    shortfall matching the cell padding exactly. */
   root.querySelectorAll('input, select, textarea').forEach((c) => {
     if (!visible(c)) return
     const wrap = c.parentElement?.parentElement

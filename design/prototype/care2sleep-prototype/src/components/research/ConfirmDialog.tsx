@@ -31,6 +31,8 @@ export function ConfirmDialog({
   onClose,
   children,
   panelClassName,
+  footerClassName,
+  contentClassName,
 }: {
   open: boolean
   title: string
@@ -52,6 +54,18 @@ export function ConfirmDialog({
    *  passes a wider, taller one — it is showing a document, not asking a
    *  question, and 440px made a paragraph into a ribbon. */
   panelClassName?: string
+  /** Footer bleed override, needed only by a caller that also overrides the
+   *  panel's padding. `MODAL_FOOTER_SURFACE_COMPACT`'s negative margins are
+   *  calibrated to this chassis' own `p-6`; a panel passing `p-8` leaves an
+   *  8px white gutter either side of the pearl band, which is exactly the
+   *  kind of thing that looks fine in a screenshot and shows up in a measure.
+   *  Optional, so every existing caller renders byte-identically. */
+  footerClassName?: string
+  /** Children-wrapper override. Needed by a caller that gives the panel a
+   *  `min-h`: without a `flex-1` here nothing grows, so the content and the
+   *  pearl footer both stack at the top and the extra height falls below the
+   *  footer as bare white. Optional, so every existing caller is unchanged. */
+  contentClassName?: string
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
@@ -168,7 +182,11 @@ export function ConfirmDialog({
                 {body}
               </p>
 
-              {children && <div className="mt-4 min-h-0 overflow-y-auto">{children}</div>}
+              {children && (
+                <div className={cn('mt-4 min-h-0 overflow-y-auto', contentClassName)}>
+                  {children}
+                </div>
+              )}
 
               {/*
                 Below `sm` the buttons go FULL WIDTH and stack; from `sm` this
@@ -185,6 +203,7 @@ export function ConfirmDialog({
                 className={cn(
                   MODAL_FOOTER_SURFACE_COMPACT,
                   'mt-6 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end',
+                  footerClassName,
                 )}
               >
                 {singleAction ? (

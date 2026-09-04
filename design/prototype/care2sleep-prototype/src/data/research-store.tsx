@@ -71,7 +71,11 @@ export interface ResearchStore {
   /** Direct-onboarding "Add coach trainee" wizard — replaces the old EOI
    *  approve/decline flow. Returns the new coach's id. */
   addCoachTrainee: (input: CoachTraineeInput) => string
-  withdrawCoach: (coachId: string) => void
+  /** Round 46 — the reason is captured by the withdrawal flow's own step and
+   *  written into the coach's `withdrawalNote`, which the profile card renders
+   *  back. Optional so the trainee record page's own withdraw action (which
+   *  has no reason step) keeps working unchanged. */
+  withdrawCoach: (coachId: string, reason?: string) => void
   updateContact: (coachId: string, patch: { email: string; phone: string }) => void
   /** Completed COACH phase numbers per coach id (Round 2.2 phase pipeline). */
   phaseCompletion: Record<string, number[]>
@@ -344,11 +348,17 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   )
 
   const withdrawCoach = useCallback(
-    (coachId: string) => {
+    (coachId: string, reason?: string) => {
       patchCoach(coachId, (c) => ({
         ...c,
         status: 'withdrawn',
-        withdrawalNote: `Withdrawn by the research coordinator on ${formatDate(TODAY)} (prototype demo action). Records retained per consent.`,
+        withdrawalNote: [
+          `Withdrawn by the research coordinator on ${formatDate(TODAY)} (prototype demo action).`,
+          reason ? `Reason: ${reason.replace(/\.$/, '')}.` : null,
+          'Records retained per consent.',
+        ]
+          .filter(Boolean)
+          .join(' '),
       }))
     },
     [patchCoach],
