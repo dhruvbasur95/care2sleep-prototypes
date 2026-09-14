@@ -1,6 +1,12 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { NotebookPen, Video } from 'lucide-react'
+import { useState } from 'react'
+import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { CoachCard } from '@/components/consumer/CoachCard'
+import { SessionFeedbackBanner } from '@/components/consumer/SessionFeedbackBanner'
+import { SessionFeedbackModal } from '@/components/consumer/SessionFeedbackModal'
+import { CARD_HAIRLINE, CARD_PAD, CardIcon } from '@/components/consumer/ConsumerCard'
+import { SessionPlanStrip } from '@/components/consumer/SessionPlanStrip'
 import { ConsumerShell } from '@/components/consumer/ConsumerShell'
 import { LearningTaskCard } from '@/components/consumer/LearningTaskCard'
 import {
@@ -13,7 +19,9 @@ import {
 import {
   SPACES_CATCHUP_COUNT,
   displaySessionNumber,
+  dyadFirstNames,
   type ConsumerDyad,
+  nextPlannedSession,
 } from '@/data/spaces'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
@@ -77,7 +85,6 @@ const CARD = 'overflow-hidden rounded-lg border border-parchment shadow-card'
  * template strings, not `cn()`, so two competing `border-*` classes would be
  * resolved by stylesheet order rather than by intent.
  */
-const CARD_HAIRLINE = 'overflow-hidden rounded-lg border border-hairline shadow-card'
 
 /**
  * ── The paired type constants are gone ────────────────────────────────────
@@ -101,30 +108,6 @@ const CARD_HAIRLINE = 'overflow-hidden rounded-lg border border-hairline shadow-
  *  `px-8 pt-8 pb-10` (frames `787:1524`/`787:1537` vs `761:3379`/`761:3447`).
  *  One constant, because three cards share it and they drifted apart once
  *  already when each carried its own copy. */
-const CARD_PAD = 'px-4 pt-6 pb-6 sm:px-8 sm:pt-8 sm:pb-10'
-
-/**
- * The 52px icon slot the frame added to the sleep-diary and next-session cards
- * (direct instruction: "I have also added icon provision for sleep diary, and
- * session card. add icon use blue color as used for buttons").
- *
- * The frame draws each as a bare `#d9d9d9` square — a placeholder, not a
- * treatment — so the square is not reproduced. What ships is a lucide glyph in
- * `consumer-primary`, which is the "blue" the instruction means: it is the fill
- * on every CTA on this page. Glyphs are chosen to match how this app already
- * uses them — `NotebookPen` is the reflection/notes mark, `Video` is the mark on
- * every Zoom session row in all four portals.
- */
-function CardIcon({ icon: Icon }: { icon: typeof Video }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-[52px] shrink-0 items-center justify-center text-consumer-primary"
-    >
-      <Icon className="size-10" strokeWidth={1.75} />
-    </span>
-  )
-}
 
 const CTA =
   'flex h-12 items-center justify-center gap-4 rounded-3xl px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2'
@@ -177,12 +160,9 @@ function addOneHour(time: string): string {
 function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
   const { weekday, date } = todayParts()
   // Both dyad members, carer first, matching the frame's two-name greeting.
-  // A carer-only dyad has no PLE, so it greets one person rather than printing
-  // a dangling ampersand — the frame has no carer-only state to copy.
-  const names = [dyad.carer, dyad.patient]
-    .filter(Boolean)
-    .map((p) => p!.name.split(' ')[0])
-    .join(' & ')
+  // Shared with the onboarding tour's own greeting via `dyadFirstNames` — two
+  // surfaces greeting the same two people must not hold two copies of the rule.
+  const names = dyadFirstNames(dyad)
 
   return (
     // The whole block — mascot, alignment, gaps and both type steps — is
@@ -330,18 +310,47 @@ function DiaryTaskCard({ dyadId }: { dyadId: string }) {
 /* Your next session                                                         */
 /* ------------------------------------------------------------------------ */
 
-function NextSessionCard({ dyad }: { dyad: ConsumerDyad }) {
-  const upcoming = dyad.upcomingSession
+function NextSessionCard({
+  dyad,
+  onToggleSessionFeedback,
+}: {
+  dyad: ConsumerDyad
+  onToggleSessionFeedback: () => void
+}) {
+  const { sessionPlans, sessionCompletion } = useResearch()
+
+  /*
+    ⚠️ **Derived from the live plan + completion, not `dyad.upcomingSession`.**
+    That seed field is frozen: it still names internal session 2 (22 July) on
+    this portal's own demo dyad, whose completion record has sessions 1-4 done.
+    Nobody could see that until Round 48 put the whole plan on screen directly
+    below this card — at which point this one said "Coaching session: 1 of 6,
+    Wed 22 July" while the strip marked that exact session Completed and pointed
+    at Session 04. One fact, two fields, two answers, eight inches apart.
+
+    `nextPlannedSession` already existed and already excluded the Planning row;
+    it is what the strip reads too, so the two cannot drift again.
+
+    Scope note: `upcomingSession` is still read by the Coach Delivery and
+    Research portals. Those are stale in the same way and are deliberately left
+    alone — this fixes the contradiction that is actually on screen together.
+  */
+  const upcoming = nextPlannedSession(sessionPlans[dyad.id], sessionCompletion[dyad.id] ?? [])
   // The frame draws only the booked state. A dyad with nothing scheduled is a
   // real case in this app (`dyad-014` has no plan at all), so it gets a plain
   // line rather than a card promising a call that does not exist.
-  if (!upcoming || dyad.optedOut) {
+  /* ⚠️ **Opting out is deliberately NOT a condition here** — direct
+     correction: "optingout for consumer does noting on their end". This branch
+     used to also fire on `dyad.optedOut` and tell the consumer their session
+     links were no longer available, which is a consequence this platform does
+     not actually deliver: opting out records the request and the research team
+     follows it up off-platform. Withholding a booked call's link on the
+     strength of it made the page contradict the opt-out card beside it. */
+  if (!upcoming?.date || !upcoming.time) {
     return (
       <div className={`${CARD_HAIRLINE} ${CARD_PAD} bg-white`}>
         <p className="text-consumer-eyebrow text-ink-muted">
-          {dyad.optedOut
-            ? 'You have opted out of Care2Sleep, so session links are no longer available here.'
-            : 'Nothing booked yet. Your coach will schedule your next call with you.'}
+          Nothing booked yet. Your coach will schedule your next call with you.
         </p>
       </div>
     )
@@ -361,6 +370,9 @@ function NextSessionCard({ dyad }: { dyad: ConsumerDyad }) {
 
   // Internal session 1 is "Planning", which has no number — `displaySessionNumber`
   // would render it as "0 of 6". The 6 numbered catch-ups are internal 2-7.
+  // `nextPlannedSession` already filters the planning row out, so this guard is
+  // belt-and-braces rather than a reachable state; it is kept because the card
+  // renders `upcoming.session` directly and a future caller might not.
   const isPlanning = upcoming.session === 1
   const shownNumber = displaySessionNumber(upcoming.session)
 
@@ -422,14 +434,29 @@ function NextSessionCard({ dyad }: { dyad: ConsumerDyad }) {
           </div>
         </div>
 
-        <a
-          href={upcoming.zoomLink}
-          target="_blank"
-          rel="noreferrer"
+        {/*
+          ⚠️ **A demo switch, not the real Join.** Direct instruction: "to show
+          this trigger, just use the session detail card join video call button
+          as a switch, show and hide" — pressing it toggles the post-session
+          feedback banner above the tasks, standing in for the session-finished
+          signal the platform does not have yet.
+
+          It is a `<button>` rather than the `<a href={upcoming.zoomLink}>` it
+          replaces, because a control that opens Zoom in a new tab *and* toggles
+          a banner would be two actions wearing one label. The Zoom link is
+          still on the record and this reverts to an anchor in one line.
+
+          This is a review tool in the same category as `CoachStageSwitcher`:
+          delete it the moment a real "session complete" signal exists, rather
+          than building on it.
+        */}
+        <button
+          type="button"
+          onClick={onToggleSessionFeedback}
           className={`${CTA} mt-auto w-full bg-consumer-primary text-white min-[1281px]:w-64`}
         >
           Join video call
-        </a>
+        </button>
       </div>
     </div>
   )
@@ -439,10 +466,49 @@ function NextSessionCard({ dyad }: { dyad: ConsumerDyad }) {
 /* Page                                                                      */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * "4th", not "fourth" — direct instruction. Digits are quicker to read than
+ * number words, which matters more than usual for this portal's readers, and
+ * the sentence around it is already plain.
+ *
+ * The planning session never reaches here: it has no number and is described by
+ * its own name, the same rule the rest of the app follows.
+ */
+function ordinal(n: number): string {
+  const rem100 = n % 100
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+}
+
 export function ConsumerHomePage() {
   const { dyadId } = useParams()
-  const { consumerDyads } = useResearch()
+  const { consumerDyads, sessionPlans, sessionCompletion } = useResearch()
   const dyad = consumerDyads.find((d) => d.id === dyadId)
+  /** Toggled by the session card's Join control — a demo switch standing in for
+   *  the "session finished" signal the platform does not have yet. */
+  const [showSessionFeedback, setShowSessionFeedback] = useState(false)
+  /** Skip asks first — direct instruction. */
+  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false)
+  /** The two-step feedback flow, frames `951:6673` / `951:6776` / `951:6954`. */
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+
+  /* Which session the banner says was finished. Derived from the same plan the
+     card below it reads, so the two cannot name different sessions — and it
+     goes through `sessionRowLabel`, never a raw number, because internal
+     session 1 is "Planning" and has no number at all. */
+  const nextSession = dyad
+    ? nextPlannedSession(sessionPlans[dyad.id], sessionCompletion[dyad.id] ?? [])
+    : undefined
+  /* The supplied sentence is "You finished your <> session", so the placeholder
+     has to read as an ordinal — "your fourth session" — and the planning session
+     fills it as the word "planning", which is what it is called everywhere else
+     in this app. Never a raw number: internal session 1 is Planning and has no
+     number at all. */
+  const finishedSessionOrdinal = !nextSession
+    ? 'latest'
+    : nextSession.session === 1
+      ? 'planning'
+      : ordinal(displaySessionNumber(nextSession.session))
 
   if (!dyad) return <Navigate to="/consumer" replace />
 
@@ -457,22 +523,34 @@ export function ConsumerHomePage() {
       // this project keeps having to unpick.
       contentClassName="bg-consumer-canvas relative overflow-clip px-6 pt-8 pb-20 md:px-20"
       optedOut={dyad.optedOut}
+      showFooter
     >
       <ConsumerCanvasWave />
 
       {/*
         The viewport-derived top margin — direct instruction: "for desktop just
         move the avatar + hello section and everything below that down, so that
-        avatar sits properly, without touching background wavy position."
+        avatar sits properly, without touching background wavy position.", then
+        again with the remaining gap drawn over the live page: "move the avatar
+        and all content below it down, so that it sits on the line."
 
-        The mascot is already at the frame's exact position (measured 144 -> 234
-        against `761:3269`'s own 144 -> 234); what moves past 1281px is the wave.
-        Shared with the in-progress pages so one hero cannot track the crest
-        while another does not — see `CONSUMER_CREST_TRACKING` for the derivation.
+        ⚠️ This block used to note that "the mascot is already at the frame's
+        exact position (measured 144 -> 234 against `761:3269`'s own 144 -> 234)"
+        and that only the wave moves past 1281px. The first half is true and is
+        exactly the problem: at the frame's own position the mascot hangs 20.6px
+        clear of the crest it is drawn resting on, so matching the frame is what
+        made it float. Do not restore the frame value on the strength of that
+        measurement — see `CONSUMER_CREST_TRACKING` for the derivation.
+
+        Shared with My Modules and the in-progress pages so one hero cannot sit
+        on the crest while another does not.
       */}
       <div
-        className={cn('relative flex flex-col items-center pt-4 pb-16', CONSUMER_HERO_TO_CONTENT)}
-        style={CONSUMER_CREST_TRACKING}
+        className={cn(
+          'relative flex flex-col items-center pt-4 pb-16',
+          CONSUMER_HERO_TO_CONTENT,
+          CONSUMER_CREST_TRACKING,
+        )}
       >
         <WelcomeHeader dyad={dyad} />
 
@@ -481,6 +559,19 @@ export function ConsumerHomePage() {
         <ConsumerContentReveal className="flex w-full flex-col gap-14">
           <section className="flex flex-col gap-6">
             <h2 className="text-consumer-heading text-ink">Your tasks for today</h2>
+
+            {/* Frames `930:5484` / `930:5313`. **Inside** the tasks section,
+                under its heading — direct instruction, reversing an earlier
+                placement above the title. `mb-4` on top of the section's own
+                24px gap makes the space between this and the cards the frame's
+                own 40px, while the heading keeps the section's normal rhythm. */}
+            {showSessionFeedback && (
+              <SessionFeedbackBanner
+                sessionOrdinal={finishedSessionOrdinal}
+                onShare={() => setFeedbackOpen(true)}
+                onSkip={() => setSkipConfirmOpen(true)}
+              />
+            )}
             {/* **No fixed row height.** The original frame pinned this row at
                 420px and that number was transcribed; the streamlined frame
                 (`761:3442`) dropped it, and keeping it was what pushed the
@@ -488,7 +579,15 @@ export function ConsumerHomePage() {
                 `overflow-hidden` edge — measured, after `mt-auto` alone did not
                 fix it. The row grows to its tallest card and `items-stretch`
                 brings the other up to match. */}
-            <div className="grid grid-cols-1 gap-6 sm:gap-10 md:items-stretch min-[768px]:grid-cols-2 min-[1281px]:grid-cols-[744px_1fr]">
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-6 sm:gap-10 min-[1024px]:items-stretch min-[1024px]:grid-cols-2 min-[1281px]:grid-cols-[744px_1fr]',
+                // The frame puts 40px between the banner and the cards; the
+                // section's own gap is 24, so the row makes up the difference
+                // only while the banner is there.
+                showSessionFeedback && 'mt-4',
+              )}
+            >
               <LearningTaskCard dyad={dyad} />
               <DiaryTaskCard dyadId={dyad.id} />
             </div>
@@ -503,13 +602,32 @@ export function ConsumerHomePage() {
               `min-w-0` on the cells is not optional: a grid item defaults to
               `min-width: auto`, and this project has shipped a real horizontal
               page scroll from exactly that omission three times. */}
-          <div className="grid grid-cols-1 gap-6 sm:gap-10 md:grid-cols-2">
+          {/*
+            ── Where this page goes two-up ──────────────────────────────────
+            Direct instruction: "in tablet view, for the smallest tablet i.e.
+            ipad air, can the cards be stacked vertically ... Bigger the tablet
+            gets more aligned it gets with desktop view."
+
+            Both of this page's rows moved from `md` (768) to **1024**, so the
+            portrait tablets stack into one column — iPad Air is 820 and iPad
+            Pro 11" is 834, and at 768 each of these cards was getting roughly
+            330px of usable width — while iPad Pro 12.9" portrait (1024) and
+            every landscape tablet get the desktop pairing. 1281 then adds the
+            desktop-only `744px` first column above.
+
+            Stacked order is the DOM order and is what the instruction asked
+            for: module, sleep diary, session details, coach, coaching plan.
+          */}
+          <div className="grid grid-cols-1 gap-6 sm:gap-10 min-[1024px]:grid-cols-2">
             <section className="flex min-w-0 flex-col gap-6">
               {/* Frame `761:3445`: "Your next session details", where it read
                   "Your next session" — the card under it now carries the
                   session number, status, date and time rather than one line. */}
               <h2 className="text-consumer-heading text-ink">Your next session details</h2>
-              <NextSessionCard dyad={dyad} />
+              <NextSessionCard
+                dyad={dyad}
+                onToggleSessionFeedback={() => setShowSessionFeedback((v) => !v)}
+              />
             </section>
 
             <section className="flex min-w-0 flex-col gap-6">
@@ -517,7 +635,128 @@ export function ConsumerHomePage() {
               <CoachCard dyad={dyad} />
             </section>
           </div>
+
+          {/* Frame `930:5195` — the whole coaching arc, below the next-session
+              and coach pair (direct instruction: "add a card below the your next
+              session, meet your coach section ... where the users can see their
+              scheduled plan").
+
+              No `<h2>` above it: unlike the four sections before it, the frame
+              gives this card its own intro paragraph and icon instead of a
+              section heading, and adding one would say the same thing twice. */}
+          <SessionPlanStrip dyad={dyad} />
+
+          {/*
+            The page's closing help affordance, after the last card (direct
+            instruction). Two treatments, one destination:
+
+              • **1024+** — a single red underlined ghost link, as asked for.
+              • **below 1024** — the copy as its own line with a secondary
+                outline pill beneath it, which is the same width rule as every
+                other CTA on this page.
+
+            The copy is an invitation rather than an instruction (chosen from
+            four options): "Having trouble with something? We can help". It
+            reads as an offer, so someone who does not need help can pass over
+            it.
+
+            ⚠️ **Only the trailing phrase is the link, not the sentence**
+            (direct instruction). The phrase is "Click here to get help" —
+            asked for over "We can help" — and the trailing "to get help" is
+            what keeps it usable: a screen-reader user can list a page's links
+            with no surrounding copy, so a bare "Click here" would say nothing,
+            while this one names its destination.
+
+            ⚠️ On the small layout the copy is the **question only** and the
+            button reads "Get help". Repeating "Click here to get help" as copy
+            there would point at nothing — the thing to press is the button
+            beneath it, and a sentence telling someone to click while a labelled
+            button sits below is two instructions for one action.
+
+            ⚠️ **Red on both treatments, on instruction** — "for tablets, and
+            mobile, both button needs to use red error state UI, no background".
+            So the button is a `destructive` outline on a **transparent** fill
+            rather than the `consumer-primary` outline pill this portal uses
+            elsewhere, which keeps it matching the desktop link rather than the
+            page's other CTAs.
+
+            Worth recording that this project otherwise reserves red for the
+            irreversible — Log out, Opt out of the study, Leave without saving.
+            The one thing that keeps those apart from this is fill: My Profile's
+            "Opt out of the study" is a **filled** red pill, and this is an
+            outline on nothing, so they do not read as the same control.
+
+            The breakpoint is 1024 — the same line this page's own task-card
+            grid switches on, rather than the header's 1200.
+          */}
+          <div className="flex flex-col items-center gap-4 min-[1024px]:gap-0">
+            {/* Desktop: the question is plain copy and only "We can help" is
+                the link — direct instruction, "I do not want the whole
+                sentence ot be CTA". It also leaves the link text meaningful on
+                its own, which a leading "Having trouble with something?" would
+                not be. */}
+            <p className="text-consumer-eyebrow hidden text-ink min-[1024px]:block">
+              Having trouble with something?{' '}
+              <Link
+                to={`/consumer/${dyad.id}/help`}
+                className="text-destructive underline underline-offset-4 outline-none transition-colors hover:no-underline focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+              >
+                Click here to get help
+              </Link>
+            </p>
+
+            {/* Tablet and mobile: the question as copy, the action as a
+                button — a long underlined sentence is a poor touch target, and
+                this audience is the one with the explicit big-targets note. */}
+            <p className="text-consumer-eyebrow text-center text-ink min-[1024px]:hidden">
+              Having trouble with something?
+            </p>
+            <Link
+              to={`/consumer/${dyad.id}/help`}
+              className="text-body-md flex h-12 w-full items-center justify-center rounded-[28px] border border-destructive bg-transparent px-5 text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 min-[1024px]:hidden"
+            >
+              Get help
+            </Link>
+          </div>
         </ConsumerContentReveal>
+
+        {/*
+          Skip asks before it acts — direct instruction. The same
+          `ConfirmDialog` the sleep diary and the account page already use, so
+          this portal has one confirmation shape rather than a third.
+
+          Copy follows the diary's own pattern: name the action in the title,
+          state the consequence plainly, and label both buttons with what they
+          do rather than Yes/No.
+
+          `destructive` — direct instruction to use the error token here. It is
+          the same treatment the diary's "Leave without saving" carries, and it
+          does the same job: the red is what separates the consequential choice
+          from the quiet outline "Go back" beside it at a glance. Worth noting
+          the reasoning it overrides, since nothing is actually lost by skipping:
+          the second sentence carries that, saying the prompt returns after the
+          next session.
+        */}
+        <SessionFeedbackModal
+          open={feedbackOpen}
+          sessionOrdinal={finishedSessionOrdinal}
+          onClose={() => setFeedbackOpen(false)}
+        />
+
+        <ConfirmDialog
+        variant="consumer"
+          open={skipConfirmOpen}
+          title="Skip this feedback?"
+          body="We will not ask about this session again. We will still ask after your next session."
+          confirmLabel="Skip this feedback"
+          cancelLabel="Go back"
+          destructive
+          onConfirm={() => {
+            setSkipConfirmOpen(false)
+            setShowSessionFeedback(false)
+          }}
+          onClose={() => setSkipConfirmOpen(false)}
+        />
       </div>
     </ConsumerShell>
   )

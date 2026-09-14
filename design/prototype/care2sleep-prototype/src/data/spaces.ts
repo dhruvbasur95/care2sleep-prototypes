@@ -160,6 +160,15 @@ export interface SessionPlanRow {
    *  "Rescheduled" indicator. Rescheduling is manual, single-row, no cascade
    *  to later rows. */
   rescheduled?: boolean
+  /** The date this row held before it was last moved — what the consumer's
+   *  session-plan strip renders as "was Wed 22 Oct" (frame `930:5248`).
+   *
+   *  Additive and optional for the same reason `endTime` is: every surface
+   *  built before this renders `rescheduled` as a bare flag and is unaffected
+   *  when it is absent. It exists because `rescheduled: boolean` records *that*
+   *  a row moved but not *from when*, and the frame draws the old date — a
+   *  strikethrough with nothing struck through is not a state. */
+  previousDate?: string
   /** Generated once the row is first dated (mirrors `AdHocMeeting`'s
    *  placeholder pattern — no real Zoom API in this prototype). */
   meetingId?: string
@@ -749,6 +758,26 @@ export interface SpacesSessionRecording {
   /** "HH:MM" — optional since older seed rows predate this field. */
   time?: string
   durationMin: number
+}
+
+/**
+ * Both dyad members' first names, carer first — "Joan & Bruce".
+ *
+ * Extracted at its second caller: the Consumer Portal's Home greeting built
+ * this inline, and the first-run onboarding tour's own greeting (frame
+ * `991:9446`, authored as the placeholder "Hello <> & <>") needs the identical
+ * string. Two surfaces greeting the same two people from two copies of the same
+ * expression is precisely the drift this project keeps having to unpick, and
+ * the ordering — carer first — is a real decision worth holding in one place.
+ *
+ * A carer-only dyad has no PLE, so this greets one person rather than printing
+ * a dangling ampersand. Neither frame has a carer-only state to copy.
+ */
+export function dyadFirstNames(dyad: ConsumerDyad) {
+  return [dyad.carer, dyad.patient]
+    .filter(Boolean)
+    .map((p) => p!.name.split(' ')[0])
+    .join(' & ')
 }
 
 export interface ConsumerDyad {
@@ -1351,8 +1380,15 @@ export const consumerDyads: ConsumerDyad[] = [
           zoomLink: 'https://zoom.us/j/8796203345',
         },
         {
+          // The one moved row in this dyad's plan, so the consumer plan strip's
+          // "Rescheduled" state (frame `930:5239`) is reachable from a fresh
+          // load rather than only after someone edits a date by hand. Moved two
+          // days later, off the fixed weekly Wednesday cadence every other row
+          // sits on — which is what makes it read as a real reschedule.
           session: 6,
-          date: '2026-09-16',
+          date: '2026-09-18',
+          previousDate: '2026-09-16',
+          rescheduled: true,
           time: '10:00',
           moduleTargetDate: '2026-09-08',
           meetingId: '891 2287 6631',

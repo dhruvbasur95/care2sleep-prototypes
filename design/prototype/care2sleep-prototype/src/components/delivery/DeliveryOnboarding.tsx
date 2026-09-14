@@ -361,6 +361,18 @@ const textRise = {
  */
 const EXIT_MS = 820
 
+/**
+ * The same handoff for a coach who has asked for reduced motion. It is short
+ * and it is a pure crossfade — no scale on the artwork, no travel — but it is
+ * deliberately **not zero**. Returning immediately swapped the welcome flow for
+ * the dashboard inside a single frame, which reads as a page blink rather than
+ * a transition and was reported as the dashboard showing up "almost instantly".
+ * `prefers-reduced-motion` asks for movement to go away, not for state changes
+ * to become instantaneous; an opacity fade carries no motion vector, so this
+ * keeps the changeover legible while still honouring the preference.
+ */
+const EXIT_REDUCED_MS = 180
+
 export function DeliveryOnboarding({
   onComplete,
 }: {
@@ -376,12 +388,10 @@ export function DeliveryOnboarding({
 
   const leave = useCallback(
     (to?: string) => {
-      if (reduceMotion) {
-        onComplete(to)
-        return
-      }
+      // Both paths play an exit; only its length and character differ. The
+      // reduced-motion one fades, the full one is choreographed.
       setExiting(true)
-      window.setTimeout(() => onComplete(to), EXIT_MS)
+      window.setTimeout(() => onComplete(to), reduceMotion ? EXIT_REDUCED_MS : EXIT_MS)
     },
     [onComplete, reduceMotion],
   )
@@ -443,8 +453,13 @@ export function DeliveryOnboarding({
       <motion.div
         className="relative flex shrink-0 items-center justify-center"
         style={{ height: ART_BLOCK_H }}
-        animate={{ scale: exiting ? 0.78 : 1, opacity: exiting ? 0 : 1 }}
-        transition={{ duration: exiting ? EXIT_MS / 1000 : 0.3, ease: [0.4, 0, 0.2, 1] }}
+        // The shrink is the one part that is real motion, so reduced motion
+        // drops it entirely and leaves the fade behind.
+        animate={{ scale: exiting && !reduceMotion ? 0.78 : 1, opacity: exiting ? 0 : 1 }}
+        transition={{
+          duration: exiting ? (reduceMotion ? EXIT_REDUCED_MS / 1000 : EXIT_MS / 1000) : 0.3,
+          ease: [0.4, 0, 0.2, 1],
+        }}
       >
         {screen.cards.map((state, i) => (
           <PhotoCard
@@ -483,7 +498,11 @@ export function DeliveryOnboarding({
       <motion.div
         className="grid w-full shrink-0 justify-items-center pb-10"
         animate={{ opacity: exiting ? 0 : 1 }}
-        transition={{ duration: exiting ? 0.34 : 0.3, delay: exiting ? 0.06 : 0, ease: 'easeOut' }}
+        transition={
+          reduceMotion
+            ? { duration: exiting ? EXIT_REDUCED_MS / 1000 : 0 }
+            : { duration: exiting ? 0.34 : 0.3, delay: exiting ? 0.06 : 0, ease: 'easeOut' }
+        }
       >
         {SCREENS.map((s, i) => (
           <div
@@ -554,7 +573,11 @@ export function DeliveryOnboarding({
         <motion.div
           className="flex shrink-0 items-center gap-6"
           animate={{ opacity: exiting ? 0 : 1 }}
-          transition={{ duration: exiting ? 0.2 : 0.3, ease: 'easeOut' }}
+          transition={
+            reduceMotion
+              ? { duration: exiting ? EXIT_REDUCED_MS / 1000 : 0 }
+              : { duration: exiting ? 0.2 : 0.3, ease: 'easeOut' }
+          }
         >
           {!isFirst && (
             <button

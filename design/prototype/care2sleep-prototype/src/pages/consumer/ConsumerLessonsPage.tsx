@@ -10,6 +10,7 @@ import {
 import { ConsumerWaveRule } from '@/components/consumer/ConsumerWaveRule'
 import { FeaturedLessonCard, PreviousLessonCard } from '@/components/consumer/LessonCards'
 import { NUMBERED_LESSON_COUNT, releasedLessons } from '@/components/consumer/lessons'
+import { moduleLesson } from '@/data/consumerLessonContent'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 
@@ -34,6 +35,23 @@ import { useResearch } from '@/data/research-context'
  * `NUMBERED_LESSON_COUNT`, so it cannot drift from the curriculum the way the
  * coach portal's "five stages" did over a six-stage rail three separate times.
  */
+/**
+ * Round 46 — where a card's Play control goes. `undefined` for a module with no
+ * content built yet, which leaves that card's CTA a plain button that does
+ * nothing rather than a link into an empty player. Only Module 4 is populated
+ * today, so five of the six cards are deliberately still inert; that is honest
+ * about the state of the content and is not a wiring bug.
+ */
+function moduleHref(dyadId: string, moduleId: string): string | undefined {
+  // `?from=modules` — Round 48, direct instruction. The module's own exit reads
+  // this to decide where leaving it goes and what the control says; see
+  // `moduleExit` in `ConsumerModulePage`. Home's `LearningTaskCard` stamps
+  // nothing, because Home is that function's default.
+  return moduleLesson(moduleId)
+    ? `/consumer/${dyadId}/module/${moduleId}?from=modules`
+    : undefined
+}
+
 export function ConsumerLessonsPage() {
   const { dyadId } = useParams()
   const { consumerDyads } = useResearch()
@@ -53,22 +71,26 @@ export function ConsumerLessonsPage() {
       // width by design; the clip is what makes that safe.
       contentClassName="bg-consumer-canvas relative overflow-clip px-6 pt-8 pb-24 md:px-20"
       optedOut={dyad.optedOut}
+      showFooter
     >
       <ConsumerCanvasWave />
 
       {/* The hero is Home's own component, and the crest tracking with it — see
           `ConsumerPageHero` and `CONSUMER_CREST_TRACKING`. */}
       <div
-        className={cn('relative flex flex-col items-center pt-4 pb-16', CONSUMER_HERO_TO_CONTENT)}
-        style={CONSUMER_CREST_TRACKING}
+        className={cn(
+          'relative flex flex-col items-center pt-4 pb-16',
+          CONSUMER_HERO_TO_CONTENT,
+          CONSUMER_CREST_TRACKING,
+        )}
       >
         <ConsumerPageHero
           withPencil
-          title="My Lessons"
+          title="My Modules"
           sub={
             <>
               <strong className="font-semibold">
-                {NUMBERED_LESSON_COUNT} lessons in total
+                {NUMBERED_LESSON_COUNT} modules in total
               </strong>
               , one released each week
             </>
@@ -87,8 +109,8 @@ export function ConsumerLessonsPage() {
         <ConsumerContentReveal className="flex w-full max-w-[1121px] flex-col gap-14">
           {featured && (
             <section className="flex flex-col gap-4 lg:gap-6">
-              <h2 className="text-consumer-heading text-ink">Lesson of the week</h2>
-              <FeaturedLessonCard view={featured} />
+              <h2 className="text-consumer-heading text-ink">Module of the week</h2>
+              <FeaturedLessonCard view={featured} to={moduleHref(dyad.id, featured.id)} />
             </section>
           )}
 
@@ -107,7 +129,7 @@ export function ConsumerLessonsPage() {
                       to the weeks that have passed, so the apostrophe goes
                       after the s. */}
                   <h2 className="text-consumer-heading whitespace-nowrap text-ink">
-                    Previous weeks&rsquo; lessons
+                    Previous weeks&rsquo; modules
                   </h2>
                   {/* `min-w-0` on the flex child, or the 920px export sizes the
                       row and pushes the page into horizontal scroll — the
@@ -125,7 +147,7 @@ export function ConsumerLessonsPage() {
                 <ul className="flex flex-col gap-6 lg:gap-16">
                   {previous.map((view) => (
                     <li key={view.id}>
-                      <PreviousLessonCard view={view} />
+                      <PreviousLessonCard view={view} to={moduleHref(dyad.id, view.id)} />
                     </li>
                   ))}
                 </ul>
@@ -138,8 +160,8 @@ export function ConsumerLessonsPage() {
               that reads as a failed load. */}
           {!featured && (
             <p className="text-consumer-lead text-ink-muted">
-              Your first lesson has not been released yet. Your coach will let you know when it is
-              ready.
+              Your first module has not been released yet. Your coach will let you know when it
+              is ready.
             </p>
           )}
         </ConsumerContentReveal>

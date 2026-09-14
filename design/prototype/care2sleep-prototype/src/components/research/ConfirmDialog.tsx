@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MODAL_FOOTER_SURFACE_COMPACT } from '@/components/shared/modalFooter'
+import { MODAL_FOOTER_SURFACE, MODAL_FOOTER_SURFACE_COMPACT } from '@/components/shared/modalFooter'
 import { cn } from '@/lib/utils'
 
 /**
@@ -33,6 +33,9 @@ export function ConfirmDialog({
   panelClassName,
   footerClassName,
   contentClassName,
+  variant = 'app',
+  hideHeader = false,
+  hideFooter = false,
 }: {
   open: boolean
   title: string
@@ -66,11 +69,59 @@ export function ConfirmDialog({
    *  pearl footer both stack at the top and the extra height falls below the
    *  footer as bare white. Optional, so every existing caller is unchanged. */
   contentClassName?: string
+  /**
+   * `'consumer'` scales the whole dialog up for the Consumer Portal.
+   *
+   * Direct instruction: "improve the pop-up modal dimensions, its too small for
+   * someone with pood digital literacy, and accessibility isues", then "make
+   * sure it is responsive also". The 440px panel, 14px buttons and `ink-muted`
+   * sub-line are the researcher's dialog, and this portal's audience is
+   * explicitly people who are not digitally literate — its own scale starts at
+   * 16px and puts every control on 48px.
+   *
+   * A prop rather than a second component, per this project's standing rule for
+   * a component shared with the Consumer Portal, and rather than a new default,
+   * which would resize every dialog in the other three portals. `'app'` is
+   * byte-identical to before.
+   *
+   * Responsive by construction: the width is `min(92vw, 640px)`, so the panel
+   * is capped by the viewport rather than by a breakpoint and cannot overflow a
+   * 375px phone; padding steps 24 -> 32 at `sm`; and the footer's existing
+   * stack-below-`sm` behaviour is untouched.
+   */
+  variant?: 'app' | 'consumer'
+  /**
+   * Skip the visible title and sub-line, for a dialog whose `children` carry
+   * their own heading.
+   *
+   * The consumer portal's coach profile is the case: it is a designed card with
+   * a purple hero and the coach's name inside it (frame `979:8284`), so this
+   * chassis' own title would be a second, competing one. `title` is still
+   * **required and still used** — it becomes the dialog's `aria-label`, because
+   * a dialog with no accessible name is a worse trade than a duplicated
+   * heading. Passing an empty string to fake this would have produced exactly
+   * that: an `aria-labelledby` pointing at an empty element.
+   */
+  hideHeader?: boolean
+  /**
+   * Drop the footer bar entirely, for a dialog that carries its own dismiss
+   * control.
+   *
+   * The consumer portal's coach profile is the case (direct instruction: "no
+   * footer for this one, add close button top right") — it is a designed card,
+   * and a grey chassis footer under it read as a second, competing surface. Its
+   * close control is a 44px button over the card's own purple hero instead.
+   *
+   * A dialog using this **must** provide its own way out, since Escape and the
+   * backdrop are otherwise the only ones.
+   */
+  hideFooter?: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const titleId = useId()
   const bodyId = useId()
+  const consumer = variant === 'consumer'
 
   useEffect(() => {
     if (open) {
@@ -160,16 +211,25 @@ export function ConfirmDialog({
               transition={{ duration: 0.2, ease: 'easeOut' }}
               role="dialog"
               aria-modal="true"
-              aria-labelledby={titleId}
-              aria-describedby={bodyId}
+              {...(hideHeader
+                ? { 'aria-label': title }
+                : { 'aria-labelledby': titleId, 'aria-describedby': bodyId })}
               className={cn(
                 'pointer-events-auto flex flex-col overflow-hidden rounded-lg bg-card p-6 outline-none ring-1 ring-hairline',
-                panelClassName ?? 'max-h-[85vh] w-full max-w-[440px]',
+                panelClassName ??
+                  (consumer
+                    ? 'max-h-[90vh] w-[min(92vw,640px)] p-6 md:p-8'
+                    : 'max-h-[85vh] w-full max-w-[440px]'),
               )}
             >
+              {!hideHeader && (
+              <>
               <h2
                 id={titleId}
-                className="shrink-0 font-display text-title text-ink"
+                className={cn(
+                  'shrink-0 text-ink',
+                  consumer ? 'text-consumer-heading' : 'font-display text-title',
+                )}
               >
                 {title}
               </h2>
@@ -178,9 +238,20 @@ export function ConfirmDialog({
                   the shared chassis rather than one dialog, so every modal in
                   the app keeps one title/sub-line treatment — the alternative
                   is the drift this component exists to prevent. */}
-              <p id={bodyId} className="mt-1 shrink-0 text-body text-ink-muted">
+              <p
+                id={bodyId}
+                className={cn(
+                  'mt-1 shrink-0 text-body',
+                  /* `ink` not `ink-muted`: this is the sentence that explains
+                     what is about to happen, and muted grey on a consumer
+                     surface is the wrong place to save contrast. */
+                  consumer ? 'text-ink' : 'text-ink-muted',
+                )}
+              >
                 {body}
               </p>
+              </>
+              )}
 
               {children && (
                 <div className={cn('mt-4 min-h-0 overflow-y-auto', contentClassName)}>
@@ -199,9 +270,21 @@ export function ConfirmDialog({
                 also gives the biggest possible target, which matters for the
                 Consumer Portal's audience.
               */}
+              {!hideFooter && (
               <div
                 className={cn(
-                  MODAL_FOOTER_SURFACE_COMPACT,
+                  /* ⚠️ The footer's bleed is negative margins sized to the
+                     PANEL's padding, so the two cannot be chosen
+                     independently. `modalFooter.ts` documents the pairing:
+                     `_COMPACT` (-mx-6) belongs to a `p-6`-only panel, the wide
+                     constant (-mx-6 md:-mx-8) to a `p-6 md:p-8` one. The
+                     consumer variant's larger panel therefore takes the wide
+                     footer; giving it the compact one left the grey bar 8px
+                     short of the panel edge on three sides — reported from the
+                     live page, and invisible in any measurement of the footer
+                     alone, because the footer was exactly as wide as it asked
+                     to be. */
+                  consumer ? MODAL_FOOTER_SURFACE : MODAL_FOOTER_SURFACE_COMPACT,
                   'mt-6 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end',
                   footerClassName,
                 )}
@@ -213,7 +296,16 @@ export function ConfirmDialog({
                     // `self-end` keeps this one right-aligned in the stacked
                     // column — it is a text link, not a button, so stretching
                     // it full width would put its underline across the panel.
-                    className="inline-flex min-h-11 items-center self-end rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring sm:self-auto"
+                    className={cn(
+                      'inline-flex min-h-11 items-center self-end rounded-sm outline-none hover:underline sm:self-auto',
+                      /* The app styling here is 14px `caption-medium` in
+                         `--primary` with `ring-ring` — three things the
+                         Consumer Portal's standing no-leakage rule forbids on
+                         its own surfaces. */
+                      consumer
+                        ? 'px-2 text-body-md text-consumer-primary focus-visible:ring-2 focus-visible:ring-consumer-primary'
+                        : 'text-caption-medium text-primary focus-visible:ring-2 focus-visible:ring-ring',
+                    )}
                   >
                     {confirmLabel}
                   </button>
@@ -222,7 +314,12 @@ export function ConfirmDialog({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="inline-flex h-9 w-full items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] sm:w-auto"
+                      className={cn(
+                        'inline-flex w-full items-center justify-center rounded-full border outline-none transition-all active:scale-[0.97] sm:w-auto',
+                        consumer
+                          ? 'h-12 border-consumer-primary px-6 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary'
+                          : 'h-9 border-primary px-[18px] text-caption-medium text-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
                     >
                       {cancelLabel}
                     </button>
@@ -231,7 +328,10 @@ export function ConfirmDialog({
                       onClick={onConfirm}
                       disabled={confirmDisabled}
                       className={cn(
-                        'inline-flex h-9 w-full items-center justify-center rounded-full px-[18px] text-caption-medium text-white outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] sm:w-auto',
+                        'inline-flex w-full items-center justify-center rounded-full text-white outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.97] sm:w-auto',
+                        consumer
+                          ? 'h-12 px-6 text-body-md focus-visible:ring-consumer-primary'
+                          : 'h-9 px-[18px] text-caption-medium focus-visible:ring-ring',
                         confirmDisabled
                           ? 'cursor-not-allowed bg-primary/40 hover:bg-primary/40'
                           : destructive
@@ -244,6 +344,7 @@ export function ConfirmDialog({
                   </>
                 )}
               </div>
+              )}
             </motion.div>
           </div>
         </>

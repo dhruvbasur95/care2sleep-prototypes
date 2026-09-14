@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
 import { Check, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { LessonState, LessonView } from './lessons'
@@ -65,41 +66,75 @@ const LESSON_COVER = '/illustrations/consumer-home/lesson-cover.jpg'
  * again"), applied to Home in the same round.
  */
 const CTA_LABEL: Record<LessonState, string> = {
-  start: 'Play lesson',
-  resume: 'Resume lesson',
+  start: 'Play module',
+  resume: 'Resume module',
   complete: 'Play again',
 }
 
-/** The frames' pill: 56 tall, 28 radius, a 16px play glyph and a 16/600 label.
- *  56 clears the app's 36px control floor, which is a floor and not a cap. */
+/**
+ * The play pill: **48** tall, 28 radius, a 16px play glyph and a 16/600 label.
+ *
+ * ⚠️ 48, not the 56 these cards' own frames draw — Round 46, direct
+ * instruction: "i can see button height variation in home page play lesson
+ * looks taller than fill sleep diary. make sure the button heights are
+ * consistent." Measured on Home, the three task-card CTAs were 56 / 48 / 48
+ * ("Resume module", "Fill in sleep diary", "Join video call") sitting in a row
+ * of identical cards, which reads as a mistake rather than as emphasis.
+ *
+ * 48 is the value everything else in this portal already uses, including both
+ * module inner-page frames, so the outlier moved rather than the majority. A
+ * deliberate divergence from frames `792:2310`/`786:4179` and their siblings,
+ * recorded here so it is not "corrected" back on the next transcription pass.
+ */
 export function LessonPlayCta({
   state,
   className,
   title,
-  onClick,
+  to,
 }: {
   state: LessonState
   className?: string
   /** Named in the accessible label so a screen-reader user hears which lesson
    *  a "Play again" button belongs to — there are up to seven on this page. */
   title: string
-  /** Home's card uses this button as its demo state trigger. Left optional
-   *  rather than required so the My Lessons cards, which have nothing to open
-   *  until a consumer module player exists, stay honest about that. */
-  onClick?: () => void
+  /**
+   * Where the module's inner pages live. When set, the control renders as a
+   * real `<Link>` rather than a button, because it navigates: middle-click,
+   * right-click-open-in-new-tab and the browser's own status bar all stop
+   * working on a button that calls `navigate()`.
+   *
+   * Optional, and a card with no destination stays a plain button that does
+   * nothing, which is honest for the five modules whose content is not built.
+   *
+   * An `onClick` prop lived here until Round 46's close-out. Its only caller
+   * was Home's demo state cycler, which the same round replaced with a real
+   * link, so it went rather than remain a second unused way to wire one
+   * control.
+   */
+  to?: string
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`${CTA_LABEL[state]}: ${title}`}
-      className={cn(
-        'flex h-14 items-center justify-center gap-2 rounded-[28px] px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2',
-        className,
-      )}
-    >
+  const inner = (
+    <>
       <Play aria-hidden="true" className="size-4 fill-current" />
       {CTA_LABEL[state]}
+    </>
+  )
+  const shared = cn(
+    'flex h-12 items-center justify-center gap-2 rounded-[28px] px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2',
+    className,
+  )
+  const label = `${CTA_LABEL[state]}: ${title}`
+
+  if (to) {
+    return (
+      <Link to={to} aria-label={label} className={shared}>
+        {inner}
+      </Link>
+    )
+  }
+  return (
+    <button type="button" aria-label={label} className={shared}>
+      {inner}
     </button>
   )
 }
@@ -231,7 +266,7 @@ export function LessonCompleteChip({
 function LessonCompleteLine() {
   return (
     <LessonCompleteChip
-      label="Lesson complete"
+      label="Module complete"
       pillClassName="bg-yellow-200"
       discClassName="size-[30px] bg-consumer-primary"
       checkClassName="text-white"
@@ -252,7 +287,7 @@ function LessonCompleteLine() {
  * edge; desktop splits into a bordered photo tile and a text column on the page
  * canvas, which is why every colour here is a responsive pair.
  */
-export function FeaturedLessonCard({ view }: { view: LessonView }) {
+export function FeaturedLessonCard({ view, to }: { view: LessonView; to?: string }) {
   return (
     <div
       className={cn(
@@ -335,6 +370,7 @@ export function FeaturedLessonCard({ view }: { view: LessonView }) {
         <LessonPlayCta
           state={view.state}
           title={view.title}
+          to={to}
           className="w-full bg-white text-consumer-primary focus-visible:ring-white focus-visible:ring-offset-consumer-primary lg:w-auto lg:self-start lg:bg-ink lg:text-white lg:focus-visible:ring-ink lg:focus-visible:ring-offset-consumer-canvas"
         />
       </div>
@@ -365,7 +401,7 @@ const PROGRESS_FILL =
  * as a bordered tile on desktop. It is `hidden lg:block` rather than omitted so
  * the desktop tree needs no second component.
  */
-export function PreviousLessonCard({ view }: { view: LessonView }) {
+export function PreviousLessonCard({ view, to }: { view: LessonView; to?: string }) {
   return (
     <div
       className={cn(
@@ -465,6 +501,7 @@ export function PreviousLessonCard({ view }: { view: LessonView }) {
         <LessonPlayCta
           state={view.state}
           title={view.title}
+          to={to}
           className="w-full bg-consumer-primary text-white focus-visible:ring-consumer-primary focus-visible:ring-offset-purple-200 lg:w-auto lg:self-start lg:bg-ink lg:text-white lg:focus-visible:ring-ink lg:focus-visible:ring-offset-consumer-canvas"
         />
       </div>

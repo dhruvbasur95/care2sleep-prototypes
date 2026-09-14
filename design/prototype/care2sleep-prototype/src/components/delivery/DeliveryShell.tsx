@@ -36,6 +36,8 @@ let onboardingDismissed = false
  * screen fading out.
  */
 const PAGE_REVEAL_DELAY_S = 0.3
+/** Reduced motion's equivalent: just past the 0.18s wrapper fade above. */
+const REDUCED_REVEAL_DELAY_S = 0.12
 const SIDEBAR_REVEAL_DELAY_S = PAGE_REVEAL_DELAY_S
 
 /**
@@ -153,11 +155,22 @@ export function DeliveryShell({
   // itself off screen — `DeliveryOnboarding` scales its artwork down and fades
   // its copy and buttons before calling back. This is just the empty wrapper
   // leaving; a long fade here would be a second, invisible wait on top.
-  const dismiss = reduceMotion ? { duration: 0 } : { duration: 0.25, ease: 'easeInOut' as const }
+  // Reduced motion still gets a fade here, just a short one. At `duration: 0`
+  // the wrapper vanished in the same frame the dashboard mounted, so the whole
+  // handoff was a single-frame swap — see `EXIT_REDUCED_MS` in
+  // `DeliveryOnboarding` for why that is the wrong reading of the preference.
+  const dismiss = reduceMotion
+    ? { duration: 0.18, ease: 'easeInOut' as const }
+    : { duration: 0.25, ease: 'easeInOut' as const }
   // The hero and body each rise as they fade in. Small travel, symmetric curve —
   // the same pair the onboarding copy and Round 32's tour both settled on.
-  const pageRise = { out: { opacity: 0, y: 12 }, in: { opacity: 1, y: 0 } }
-  const reveal = reduceMotion ? { duration: 0 } : { duration: 0.85, ease: [0.16, 1, 0.3, 1] as const }
+  // The 12px rise is motion, so reduced motion fades in place instead.
+  const pageRise = reduceMotion
+    ? { out: { opacity: 0, y: 0 }, in: { opacity: 1, y: 0 } }
+    : { out: { opacity: 0, y: 12 }, in: { opacity: 1, y: 0 } }
+  const reveal = reduceMotion
+    ? { duration: 0.22, ease: 'easeOut' as const }
+    : { duration: 0.85, ease: [0.16, 1, 0.3, 1] as const }
 
   // The welcome flow belongs to the trainee stage only (direct instruction): a
   // certified coach has long since been through it, so showing it on the coach
@@ -232,13 +245,17 @@ export function DeliveryShell({
             <motion.div
               key="delivery-sidebar"
               className="shrink-0"
-              initial={{ opacity: 0, x: -8 }}
+              // The 8px slide is motion; reduced motion fades in place.
+              initial={{ opacity: 0, x: reduceMotion ? 0 : -8 }}
               animate={{ opacity: 1, x: 0 }}
               // Held back so the nav does not pop in while the welcome flow is
               // still fading out — it was arriving the instant the flag flipped,
               // which put a new element on screen underneath a screen that had
               // not left yet. Arrives with the hero instead.
-              transition={{ ...reveal, delay: reduceMotion ? 0 : SIDEBAR_REVEAL_DELAY_S }}
+              transition={{
+                ...reveal,
+                delay: reduceMotion ? REDUCED_REVEAL_DELAY_S : SIDEBAR_REVEAL_DELAY_S,
+              }}
             >
               <DeliverySidebar />
             </motion.div>
@@ -299,7 +316,10 @@ export function DeliveryShell({
                 variants={{
                   in: {
                     transition: reduceMotion
-                      ? { duration: 0 }
+                      ? // No stagger — the hero and body arriving in sequence is
+                        // choreography. They fade together, held just long
+                        // enough for the welcome flow above to have gone.
+                        { delayChildren: REDUCED_REVEAL_DELAY_S }
                       : { staggerChildren: 0.16, delayChildren: PAGE_REVEAL_DELAY_S },
                   },
                 }}

@@ -57,11 +57,18 @@ const twMerge = extendTailwindMerge({
         "text-consumer-lesson",
         "text-consumer-eyebrow",
         "text-consumer-chip",
+        // Round 48 — the flat 16/600 emphasis line under a card intro.
+        "text-consumer-body-strong",
         // Round 44 — the sleep diary flow's own steps. See `consumer-tokens.css`.
         "text-consumer-question",
         "text-consumer-answer-name",
         "text-consumer-progress",
         "text-consumer-unit",
+        // Round 49 — Need Help's own steps. See `consumer-tokens.css`.
+        "text-consumer-section",
+        "text-consumer-body",
+        "text-consumer-faq",
+        "text-consumer-crisis",
       ],
     },
   },

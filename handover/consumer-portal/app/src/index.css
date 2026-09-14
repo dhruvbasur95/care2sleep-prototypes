@@ -1,0 +1,747 @@
+@import "tailwindcss";
+/* ⚠️ `tw-animate-css` and `shadcn/tailwind.css` were imported here and are
+   gone. Both were dead weight in this package, verified rather than assumed:
+   there are ZERO `animate-*` classes in any `.tsx`, and none of the 9 custom
+   variants or 24 utilities the shadcn stylesheet provides is referenced
+   anywhere. The shadcn sheet also re-declared `--border`/`--input`/`--accent`
+   and friends, which is why deleting those from `:root` below appeared to
+   change nothing — the import was still supplying them to no one.
+   If you later add shadcn components with `npx shadcn add`, put its import
+   back at the top, above this file's own `:root`. */
+/* Round 21 — Inter, self-hosted via `@fontsource-variable/inter` rather than
+   a Google Fonts CDN link: no runtime network dependency, no layout shift
+   waiting on a third party, and the whole weight range (100-900) comes from
+   one variable font file. See the `--font-sans`/`--font-display` note below
+   for why the typeface changed. */
+@import "@fontsource-variable/inter";
+/* Round 41, direct instruction — the Consumer Portal's own Figma-first font
+   and colour tokens live in their own file, deliberately NOT merged into the
+   scale below. Read `consumer-tokens.css`'s header for the side-by-side table
+   of what diverges from this file and why. */
+@import "./consumer-tokens.css";
+
+/*
+ * Care2Sleep design tokens. **In this package the source of truth is this
+ * file plus `consumer-tokens.css`** — see `docs/design-tokens.md` for the
+ * documented system. (The full prototype this was cut from keeps a longer
+ * design record outside the package; it is not shipped here and you do not
+ * need it.)
+ * Adapted from DESIGN-apple.md at the token level only.
+ */
+
+@theme inline {
+    /* Round 21, direct instruction — **Inter app-wide, all 4 portals.**
+       Replaces "SF Pro Text"/"SF Pro Display", which had been the type family
+       since Round 1 (inherited from this project's DESIGN-apple.md origins).
+       Two reasons this is a single app-wide swap rather than a per-page one:
+       SF Pro only ever actually rendered on Apple hardware (everywhere else
+       the stack silently fell through to `system-ui`, so the design was never
+       really seeing one typeface), and every Figma frame this project is now
+       being built from is drawn in Inter.
+
+       `--font-sans` and `--font-display` deliberately resolve to the *same*
+       family now. They stayed separate tokens rather than being collapsed into
+       one because ~200 `font-display` usages across the app mark real
+       heading-vs-body intent, which is worth keeping expressed even while both
+       point at Inter — and it leaves the door open to a distinct display face
+       later without touching a single component. */
+    --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "Inter Variable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: var(--font-display);
+
+    --color-ring: var(--ring);
+    --color-destructive: var(--destructive);
+    --color-primary: var(--primary);
+    --color-card: var(--card);
+    --color-background: var(--background);
+
+    /* ------------------------------------------------------------------
+       BRAND RAMPS — purple + yellow.
+
+       **Round 21.3: renamed to Tailwind's numeric convention** (direct
+       instruction) and re-synced against the Figma file's own published
+       `Purple/*` and `Yellow/*` paint styles, read via
+       `getLocalPaintStylesAsync`. The old `l6/l5/.../d1/d2` names are gone.
+
+       Why numeric is a real improvement here, not just a convention change:
+       the old names had drifted into being actively misleading. Figma's own
+       labels were `Lighter 5` = #f3efff and `Lighter 6` = #e4d6ff — i.e. the
+       "6" was *darker* than the "5" — while this file mapped them the other
+       way round (`l6` = #f4efff, `l5` = #e4d6ff). Neither ordering was
+       reliable, and nothing about "Lighter 4" told you where it sat relative
+       to `primary`. A number does.
+
+       Step numbers are assigned monotonically by measured relative luminance,
+       using Tailwind's own violet/amber ramps as the reference for what each
+       step "means". Gaps (no purple-100/600/800) are deliberate and honest:
+       this is an 8-step brand ramp, not a synthesised 11-step one. No step is
+       invented or interpolated — every value below is a real Figma swatch.
+
+       **Three values were corrected in this sync**, all 1-hex-step drifts
+       where the app had diverged from the Figma style:
+         purple-50   #f4efff -> #f3efff   (was `--color-purple-l6`)
+         yellow-100  #fff1cc -> #fff0cc   (was `--color-yellow-l1`)
+         yellow-400  #ffb700 -> #ffb600   (was `--color-yellow-d2`)
+
+       **`--color-purple-l1` (#5300fa) was deleted.** It had no Figma style
+       backing it and zero call sites in the app — an orphan that would have
+       become `purple-600`. Removed rather than carried forward as an
+       unexplained step nobody uses.
+
+       `--primary` (#3a00ad) and `--color-primary-hover` (#200061) stay as
+       semantic tokens rather than being replaced by the numeric names; they
+       are exactly `purple-700` and `purple-900` respectively. Keeping both
+       spellings is deliberate — a button says `bg-primary` because it is the
+       brand action colour, not because it is the 700 step.
+       ------------------------------------------------------------------ */
+    --color-purple-50: #f3efff;
+    --color-purple-200: #e4d6ff;
+    --color-purple-300: #c2a3ff;
+    --color-purple-400: #a070ff;
+    --color-purple-500: #8447ff;
+    --color-purple-700: #4A278F;
+    --color-purple-900: #200061;
+    --color-purple-950: #08001a;
+
+    /* Round 23, frame `152:176` (trainee record page). The muted tab label on
+       the new purple hero band — the frame's own `#c4b5fc`, which is NOT on the
+       published Purple ramp (its nearest step, `purple-300` #c2a3ff, is a
+       different hue) and has no Figma paint style behind it, so it becomes a
+       named token rather than a literal.
+       Named for the surface it paints ON, not for its hue, because that is the
+       only thing a call site needs to know: this is the quiet text colour when
+       the background is `purple-700`. Measured against that background:
+       **5.75:1**, clears AA for normal text. (White on the same band is
+       10.62:1, `parchment` 9.75:1.) */
+    --color-on-purple-muted: #c4b5fc;
+
+    --color-yellow-50: #fff8e5;
+    --color-yellow-100: #fff0cc;
+    --color-yellow-200: #ffe299;
+    --color-yellow-300: #ffcc4d;
+    --color-yellow-400: #ffb600;
+
+    /* Round 21, direct instruction ("for red, use a more pastel colour to
+       share alerts") — the softer alert red for the Research Dashboard Home
+       page's attention section: the alert-circle icons and the "N alerts"
+       count badge. This is the Home frame's own `#e45f5b`, the one hex in that
+       frame with no equivalent on the purple/yellow ramps, so it becomes a
+       named token rather than staying a literal. Replaces `destructive`
+       (`#d70015`) on those two elements only — `destructive` keeps every other
+       job it has app-wide (error text, destructive confirm buttons, the
+       "Not assigned" state), because those genuinely are errors and shouldn't
+       soften.
+
+       **The count badge uses white text on direct instruction, and that is a
+       known AA failure at 3.45:1** — see `NotificationHub.tsx`'s own note at
+       the call site for the two available fixes. The paragraph below records
+       why `ink` was the original choice and still applies anywhere else this
+       token carries text.
+
+       Paired with dark `ink` text, not white — measured, not assumed:
+       white on #e45f5b is only **3.45:1** and fails AA, while `ink` (#1a1a1a)
+       clears it at **5.04:1** (recomputed for ink #1a1a1a; was 4.88:1 at the old #1d1d1f). This is the exact same trade
+       `--color-plan-module`/`--color-plan-catchup` above already document: a
+       bright pastel is too light to carry white text, so the text goes dark
+       instead of the fill going darker and stopping being pastel. It is a
+       deliberate divergence from the frame, which draws white-on-#e45f5b.
+
+       As an icon stroke the same hex clears WCAG 1.4.11's 3:1 graphical floor
+       on both surfaces it appears on: 3.45:1 on the white alert card and
+       3.17:1 on the `parchment` panel behind it. The parchment figure has
+       little headroom — re-measure if either hex moves. */
+    --color-alert-pastel: #e45f5b;
+
+    /* Care2Sleep semantic extensions */
+    /* Was #0055ab (a darker step of the old blue `primary`). Now the palette's
+       own Purple Darker 1 — still "one step darker than primary," which is
+       what every hover state and the `next` chip tone rely on, and still a
+       real swatch rather than a computed shade. 15.8:1 on white. */
+    --color-primary-hover: var(--color-purple-900);
+    /* NEUTRALS — Round 21.3, aligned to the Figma file's own published
+       `neutral/*` paint styles (`getLocalPaintStylesAsync`, file
+       `s6OLTSd4nc9V9W9lT1oBTO`). Six styles; the app's semantic names are
+       kept rather than renamed to `neutral/*`, because `ink`/`ink-muted`/
+       `hairline` say what the colour is *for*, which is the thing a call site
+       needs to know. The mapping is 1:1 and exact:
+
+         neutral/white        #ffffff -> --background, --card   (already exact)
+         neutral/off-white    #f5f5f7 -> --color-parchment, --accent (already exact)
+         neutral/black        #1a1a1a -> --color-ink            (was #1d1d1f)
+         neutral/dark-grey    #333333 -> --color-ink-muted      (already exact)
+         neutral/light-grey   #6d6d6d -> --color-ink-faint      (was #6e6e73)
+         neutral/lighter-grey #e0e0e0 -> --color-hairline, --border (already exact)
+
+       Four of the six were already byte-identical, which says the Figma ramp
+       was largely derived from this app rather than the other way round.
+
+       The app previously carried two extra light greys with no Figma
+       equivalent — `--color-pearl` #fafafc and `--color-divider-soft`/`--muted`
+       #f0f0f0. On direct instruction both were moved to **the closest
+       available grey in the ramp**, which for surfaces is `neutral/off-white`
+       #f5f5f7. So `parchment`, `pearl`, `divider-soft`, `--muted`, `--secondary`
+       and `--accent` now all resolve to one value: there is exactly **one
+       off-white** in the app, matching the ramp.
+
+       The token names are kept as aliases rather than deleted, because
+       collapsing ~200 call sites onto a single name is churn with no visual
+       benefit — but they are no longer distinct colours. Do not reintroduce a
+       different hex behind one of them.
+
+       Mapped by ROLE, not by raw distance, and that mattered twice:
+         - `pearl`'s nearest step is actually plain **white** (distance 7.68 vs
+           off-white's 8.66 — near-tied). White was rejected: 107 `bg-pearl`
+           panels sit *on* white cards and would have become invisible.
+         - `divider-soft`'s 29 border/rule/ring uses could not follow its 85
+           fill uses to off-white — #f5f5f7 on white is 1.06:1, an invisible
+           rule. Those call sites were migrated to `hairline` (#e0e0e0, the
+           ramp's `neutral/lighter-grey`), which is the step that exists for
+           exactly this job. `bg-divider-soft` fills stayed.
+
+       ⚠️ `neutral/black` was briefly taken as **#000000** here, because that
+       was the style's *fill*. Its own description, however, read `#1a1a1a`,
+       and the description turned out to be the intent — confirmed directly.
+       Both sides now hold #1a1a1a and the Figma fill has been corrected too,
+       so the disagreement is resolved rather than papered over. Worth knowing
+       that a Figma style's fill and its description can disagree: check both. */
+    --color-ink: #1a1a1a;
+    --color-ink-muted: #333333;
+    /* `neutral/light-grey`. **The Figma style was #999999 and was changed to
+       this value in Figma itself** — the app did not silently diverge; both
+       sides now hold #6d6d6d.
+
+       Why #999999 could not be used: `ink-faint` is the app's most-used
+       secondary *text* colour (meta lines, card sub-copy, table meta cells,
+       timestamps) at ~322 call sites. Measured, #999999 fails AA for text on
+       every surface it paints on, and fails even the 3:1 graphical floor:
+       2.85:1 on white, 2.73 pearl, 2.62 parchment, 2.25 yellow, 2.08
+       card-header.
+
+       #6d6d6d is the **lightest neutral grey that clears 4.5:1 on all four
+       core light surfaces** — found by search, not by estimate:
+
+         surface        #6e6e73 (old)   #6d6d6d (now)
+         white               5.07:1         5.17:1
+         pearl               4.86:1         4.96:1
+         parchment           4.66:1         4.75:1
+         divider-soft        4.45:1 *       4.54:1  <- now passes
+         yellow              4.01:1 *       4.09:1 *
+         card-header         3.71:1 *       3.78:1 *
+
+       It is also a *true* neutral (equal R/G/B), where the old #6e6e73 carried
+       a slight blue cast (0x73 blue vs 0x6e red/green) — which matters for a
+       ramp whose whole point is being neutral.
+
+       (* Starred rows still fail AA and are pre-existing, already-tracked
+       conditions, each improved slightly here but not resolved by this change.
+       `card-header` is why card-header subtitles must use `ink-muted`, per the
+       note on that token. `divider-soft`'s long-standing 4.45:1 near-miss —
+       documented in `ModuleTimeline.tsx` — is genuinely fixed by this change.)
+
+       ⚠️ A first attempt at this value was **#767676, and it was wrong**: it
+       was checked against white only (4.54:1) and fails on pearl 4.36,
+       parchment 4.17, divider-soft 3.99. Recorded because this file already
+       carries three other notes about "verified" contrast numbers that did not
+       survive an independent recompute, and this is a fourth. Check every
+       surface a token actually paints on, not just white. */
+    --color-ink-faint: #6d6d6d;
+    --color-parchment: #f5f5f7;
+    --color-hairline: #e0e0e0;
+    --color-header: #000000;
+    --color-on-dark-muted: #cccccc;
+    /* Was #2997ff. Purple Lighter 3 — the lightest ramp step that still
+       reads as the brand hue against the black header (8.0:1 on #000). */
+    /* Round 1.1 — full-bleed backdrop for the Coach Training Portal's
+       mocked Okta Verify sign-in screen only. A deep navy in the same
+       hue family as `primary`, pushed dark enough to read as a backdrop
+       rather than a second accent; `primary` stays the only accent. */
+    --color-signin-backdrop: #0a1a3a;
+    /* Darkened from #248a3d (4.40:1 on white — failed AA) in the Round 2
+       accessibility review; #1f7d37 clears 4.5:1 on white/pearl/parchment. */
+    --color-success: #1f7d37;
+    /* Round 5.1 — Consumer Portal Home, Learning Dashboard card only. A
+       deliberate one-off "stand out" surface tint, not a second interactive
+       accent (nothing on this card is a CTA/status signal) — scoped to this
+       single incomplete-and-not-yet-available feature card, same exception
+       pattern as `signin-backdrop`. `primary` remains the only accent. */
+    --color-highlight: #fdf6e0;
+    /* Round 9.1, direct instruction — Coach Training Portal Option B home
+       timeline, Baseline Reflection badge only. A second deliberate one-off accent
+       (alongside `state-warning`/amber for the Research Dashboard's
+       "Pending" invite chip), scoped to this single non-module milestone
+       badge so it reads as visually distinct from every numbered "MODULE N"
+       pill. 7.1:1 contrast with white text (AAA). `primary` remains the
+       system's only *interactive* accent. */
+    --color-badge-purple: #6d28d9;
+    /* Round 15, direct instruction — Plan Sessions wizard only. Two
+       dedicated, lively/pastel step-topic accents, replacing an earlier
+       reuse of `success` (green) and raw Tailwind amber that both borrowed
+       meanings already claimed elsewhere (`success` = "completed" app-wide;
+       amber = the Research Dashboard's "Pending" invite chip). Deliberately
+       paired with dark `ink` text, not white — both are bright enough that
+       white text fails contrast (green-400 clears only ~3:1, yellow-400
+       ~2:1), while `ink` clears 9.6:1+ on either. `plan-module` = every
+       "Module availability" field; `plan-catchup` = every "Session
+       Catch-up" field — colored by step topic, never by who answered. */
+    --color-plan-module: #4ade80;
+    --color-plan-catchup: #facc15;
+    /* `--color-tier-foundational` / `--color-tier-sleep` (a blue/green
+       categorical pair, #eff6ff / #f0fdf4) were removed in Round 29. The module
+       carousel canvases they backed now use `purple-50` / `yellow-50` from the
+       real brand ramps, matching each tier's own letter badge, on direct
+       instruction. Zero readers remained; grep-confirmed before deleting. */
+
+    /* Direct instruction — Coach Delivery Portal Learning tab,
+       `AiReflectionPanel`'s baseline-reflection card background *only*,
+       active state. Not a reuse of `badge-purple` itself as a raw
+       background fill — that token's own doc comment above scopes it to
+       "the milestone badge only," and #6d28d9 is far too saturated for a
+       full card wash. Following the exact `tier-foundational`/`tier-sleep`
+       precedent instead: a pale tint in the same lightness family as
+       Tailwind's own violet-50, paired with `badge-purple` for the icon/
+       ring accent rather than standing alone. Computed contrast against it:
+       `ink` 15.34:1, `ink-muted` 11.52:1 (both AAA); the icon badge circle
+       (`bg-badge-purple/10` composited over this background, not the plain-
+       white blend the component's original placeholder version measured)
+       is 5.53:1 — still clear AA. Inactive state deliberately does NOT use
+       this token — it stays on the plain card background with a muted icon,
+       matching this app's existing locked/unlocked visual language, so the
+       arrival of this purple wash is itself the "it activated" signal, not
+       just decoration on an otherwise-identical card. */
+    --color-reflection-panel: #f5f3ff;
+
+    /* Round 21.2 added `--color-key-update-panel` (#fef7f7, a pale warm pink)
+       for the "Learning journey" card's "Key updates" panel. **Deleted in
+       Round 21.3**: frame `45:161` repaints that panel `#f5f5f7`, the same
+       off-white as the stats panel above it, so both Overview tabs now use
+       `bg-parchment` and the token had zero readers. Removed rather than kept
+       "in case" — a named colour scoped by its own comment to one component
+       that no longer uses it is just an unexplained hex for the next round. */
+
+    /* Direct instruction — app-wide, cross-portal, every `card-header-divider`
+       (§35a) card header block (the title/subtitle/action-row region above
+       the `border-t border-hairline` divider, never the content section
+       below it). A pale blue tint distinguishing the header band from the
+       plain-white content below, following the exact `tier-foundational`/
+       `tier-sleep`/`reflection-panel` precedent (a named token, not a raw
+       Tailwind utility). Deliberately a different hex from `tier-foundational`
+       (#eff6ff, Coach Training Portal Learning-tab tier canvases only) so the
+       two don't read as the same token reused for two purposes, even though
+       both sit in the same pale-blue family. Computed (WCAG relative-luminance
+       formula, not eyeballed) against it: `ink` (titles) 15.01:1, `ink-muted`
+       11.27:1, `success` (status text) 4.63:1, `destructive` 4.80:1 — all
+       clear AA (4.5:1) with real margin. `ink-faint` (subtitles/meta text,
+       the app's most-used low-contrast token) is 4.52:1 — still clears AA
+       but only barely, the same order of near-miss margin this file's
+       `tier-foundational`/`tier-sleep` comment above already flags for the
+       same token; call out for a future re-check if this token's hex ever
+       shifts. Does not override
+       any of this file's other one-off accents (`badge-purple`,
+       `plan-module`/`plan-catchup`, `highlight`, `session-next-indigo`,
+       `diary-green`/`diary-yellow`, `notification-hub-green`) — none of
+       those live in a card-header-divider header block.
+
+       **Round 21:** renamed `--color-card-header-blue` -> `--color-card-header`
+       and repointed from the pale blue #eaf3fc to the new palette's Purple
+       Lighter 5. The name had to change with the value: a token called
+       "card-header-blue" holding a purple is exactly the kind of lie that
+       makes the next round re-derive what it's for. All 20 call sites were
+       renamed mechanically in the same pass. The contrast note above is
+       recomputed against the new value: `ink` (now #1a1a1a) is 12.73:1 and
+       `ink-muted` (#333333) 10.4:1 — both still clear AAA. `ink-faint`
+       (#6d6d6d) is now **4.16:1 and no longer clears AA** on this surface
+       (it was a marginal 4.52:1 on the old blue, already flagged above as
+       one to re-check if the hex ever shifted — it has). Card-header
+       subtitles must therefore use `text-ink-muted`, not `text-ink-faint`.
+
+       CORRECTION, measured rather than calculated: the 4.16:1 figure above was
+       my own arithmetic and it was wrong. Read back from the real painted
+       pixels in the browser (`getComputedStyle` on a live band + the WCAG
+       relative-luminance formula), `ink-faint` on this band is **3.71:1** — a
+       wider AA failure than the estimate suggested. `ink` measures 12.31:1 and
+       `ink-muted` 9.24:1, both confirmed live. This file already carries two
+       older notes about "verified" contrast numbers that didn't survive an
+       independent recompute; this is a third, left in place rather than
+       quietly overwritten, because the pattern is the point: compute these
+       from what the browser paints, not from the authored hex. */
+    --color-card-header: var(--color-purple-200);
+
+    /* Round 21 removed `--color-schedule-group`/`-placement`/`-supervision`
+       (Round 20's per-column tints for the Research Dashboard home page's 3
+       "Your schedule" Kanban columns). That whole board was replaced by the
+       supplied Figma frame's tabbed, day-grouped meetings table, which has no
+       per-section tint at all, leaving the 3 tokens with zero readers
+       anywhere in `src/`. Deleted rather than kept "for future reuse" — a
+       named token scoped by its own doc comment to one deleted component
+       isn't reusable, it's just an unexplained colour the next round has to
+       re-derive the purpose of. */
+
+    /* Round 20 fix pass — `CoachProfilePage.tsx`'s `AccuracyByModuleChart`
+       only. A categorical (identity, not status) palette for coloring one
+       bar per completed module and its paired progress-bar row — this is
+       the first per-datapoint categorical series in the app, distinct from
+       every prior one-off *status/accent* exception this file documents
+       above (those mark a single meaning; this marks "which module," with
+       no ranking or sentiment implied). Values are the dataviz skill's own
+       validated reference categorical palette (`references/palette.md`),
+       used unmodified rather than inventing a new 7-hue set: its fixed
+       order clears the CVD/normal-vision adjacent-pair floors this project
+       has no independent way to re-validate. Cycled via `i % 7` for any
+       module count past 7, matching this file's existing `AVATAR_COLORS`
+       modulo precedent (`ResearchHomePage.tsx`) rather than folding extra
+       series into "Other" — acceptable here since color is a secondary,
+       redundant encoding (title + bar length + % text all already carry
+       the same information without it). */
+    --color-chart-cat-1: #eb6834;
+    --color-chart-cat-2: #0aa79e;
+    --color-chart-cat-3: #008300;
+    --color-chart-cat-4: #e87ba4;
+    --color-chart-cat-5: #a66a00;
+    --color-chart-cat-6: #8a3b5c;
+    --color-chart-cat-7: #e34948;
+
+    /* Round 20.1 fix pass: `AccuracyByModuleChart` (CoachProfilePage.tsx) was
+       reworked from a 7-color-per-module palette (`--color-chart-cat-*`
+       above, now unused by that component but kept defined for future reuse)
+       to one uniform blue hue family, since a bar chart with only one
+       series doesn't need per-item identity color. The darker shade reuses
+       `--color-primary` directly. No matching *lighter* blue already existed
+       at a usable contrast step, so one is added here rather than reusing
+       `--color-primary-hover` (`#0055ab`), which sits too close to
+       `--color-primary` (`#0066cc`) to read as a visually distinct pair.
+
+       **Round 21:** repointed #a8cdf0 -> Purple Lighter 4. This chart pairs
+       its light shade directly against `--color-primary`, which is now
+       purple, so a light *blue* would have left the one two-tone chart in the
+       app off-palette. Lighter 4 against the new primary (#3a00ad) is a
+       clearly distinct pair, same as before. */
+
+    /* Radius grammar: sm=utility, md=capsule, lg=cards, pill via rounded-full.
+       Round 22 direct edit: card radius 18px -> 16px on direct instruction,
+       plus a new standing rule — a card's own nested rounded component takes
+       *half* its parent card's radius, so 16px cards pair with `rounded-sm`
+       (8px), already exactly half by coincidence of the existing scale, not
+       a new token. Applies going forward to any nested rounded element
+       inside a card; a mechanical audit of existing nested radii app-wide
+       is a separate, larger pass (see handover.md). */
+    /* Round 23, frame `152:176`: the Key-updates list container inside the
+       Learning-progress card's `rounded-sm` (8px) panel is drawn at 4px —
+       the same half-of-my-parent rule one level deeper. Added as a real step
+       rather than a literal so the third level of nesting has a name too. */
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 11px;
+    --radius-lg: 16px;
+    --radius-xl: 16px;
+    --radius-2xl: 24px;
+    --radius-3xl: 28px;
+    --radius-4xl: 32px;
+
+    /* Type scale (design-tokens.md §2).
+
+       **Round 21.3 — transcribed verbatim from the Figma file's own published
+       local text styles** (`getLocalTextStylesAsync` on file
+       `s6OLTSd4nc9V9W9lT1oBTO`), not from a frame. Nine styles, and these nine
+       are now the whole scale: display-xl/lg/md, title, body-md, body,
+       caption-medium, caption, fine. Every value below — size, weight,
+       letter-spacing — is what that API returned. Line heights are the one
+       exception: Figma reports `AUTO` for all nine, so the app keeps its own
+       ratios rather than inheriting a browser default that differs from
+       Figma's own auto-height calculation.
+
+       **Five steps were REMOVED** (`heading` 24/500, `subtitle` 20/400,
+       `lead` 18/700, `md` 16/600, `label` 13/400) — they have no equivalent in
+       the Figma styles. Per direct instruction, each call site moved to the
+       closest surviving class *matching its weight*, not merely its size:
+         heading  24/500 -> `text-title font-medium`  (same 24px; title's own
+                            default is 400, so the 500 is kept explicitly —
+                            this is also the app-wide card-title treatment
+                            asked for directly: "24px, medium Inter")
+         subtitle 20/400 -> `text-title`              (weight matches exactly)
+         lead     18/700 -> `text-body-md`            (600 is the nearest
+                            available weight; 16px the nearest size)
+         md       16/600 -> `text-body-md`            (exact match, 1:1)
+         label    13/400 -> `text-caption`            (weight matches exactly;
+                            14px chosen over `fine`'s 12px — both are 1px
+                            away, and rounding small meta text *up* is the
+                            safer call for legibility)
+
+       **`body` and `body-md` are a deliberate regular/semi-bold pair at one
+       size** (16px), same as `caption`/`caption-medium`. The Figma file
+       initially reported both `body` and `body-md` as 16 Semi Bold, which was
+       confirmed directly as not the intent ("I want two body - regular and
+       semi-bold"), so `body` was built at 400 here.
+
+       **RESOLVED — the Figma style has since been corrected too**, so both
+       sides now read `body` 16/Regular and `body-md` 16/Semi Bold. An earlier
+       version of this note warned "do not fix it by re-reading the Figma
+       style, the style is what's out of date"; that warning no longer applies
+       and re-reading Figma is now safe. Left in place rather than deleted so
+       the sequence is legible.
+
+       Note `body` moved 17px -> 16px and lost its -0.374px tracking, and
+       `title` moved 21/600 -> 24/400. Both are used in the hundreds across all
+       four portals, so this is the widest-reaching typographic change the
+       project has made. It is intentional.
+
+       15px is deliberately NOT a step: buttons and tabs use the app-wide
+       `text-[15px]` convention, which matches Figma exactly.
+
+       ------------------------------------------------------------------
+       **Round 23 — every line height below is now `normal`, and the note
+       above about keeping the app's own ratios is WITHDRAWN as factually
+       wrong.**
+
+       That note said Figma reports `AUTO` for all nine steps, so the app kept
+       its own ratios rather than "inheriting a browser default that differs
+       from Figma's own auto-height calculation." Measured against frame
+       `152:176`, the two do not differ — they are the same Inter metrics:
+
+         step         Figma node height   old ratio gave   normal gives
+         display-lg   48px  (40px text)   44.0  (1.1)      48px
+         display-md   39px  (32px text)   38.4  (1.2)      39px
+         title        27px  (22px text)   26.4  (1.2)      27px
+         body-md      19px  (16px text)   22.4  (1.4)      19px
+         body         19px  (16px text)   22.4  (1.4)      19px
+         caption      17px  (14px text)   20.0  (1.43)     17px
+         fine         15px  (12px text)   15.6  (1.3)      15px
+
+       So the ratios were not a considered divergence, they were drift — and
+       they were the single systematic source of vertical mismatch on the
+       trainee record page. With `normal`, that page's hero band measures the
+       frame's own 257px exactly rather than 264px, and every stacked block
+       inside the cards lands on the frame's y positions without any
+       compensating magic numbers.
+
+       ⚠️ This is a sweeping change: `body` and `caption` are used in the
+       hundreds across all four portals, and multi-line copy is now ~15%
+       tighter (1.21 rather than 1.4). It is deliberate and it is what the
+       design specifies, but it is also the one change here most likely to be
+       felt outside the trainee page. It reverts to the old behaviour by
+       restoring the ratios in the table above — nothing else depends on it.
+
+       `display-xl` (56px) keeps its explicit `1.05`: it is not exercised by
+       this frame, and a tight ratio on a 56px display line is a real
+       typographic choice rather than drift. Revisit when a frame covers it.
+       ------------------------------------------------------------------ */
+    --text-display-xl: 56px;
+    --text-display-xl--line-height: 1.05;
+    --text-display-xl--letter-spacing: -1px;
+    /* Round 21, direct instruction ("all page titles, change to medium"):
+       500, not the frame's own 700. Applies to every page title in the app —
+       `display-xl` here, plus `display-lg`/`display-md` below — so the four
+       portals stay consistent rather than Home alone going lighter. */
+    --text-display-xl--font-weight: 500;
+    --text-display-lg: 40px;
+    --text-display-lg--line-height: normal;
+    --text-display-lg--letter-spacing: 0;
+    --text-display-lg--font-weight: 500;
+    --text-display-md: 32px;
+    --text-display-md--line-height: normal;
+    --text-display-md--letter-spacing: -0.374px;
+    --text-display-md--font-weight: 500;
+    /* Added to the Figma styles after the Round 21.3 migration had already
+       run, and it is effectively the removed `subtitle` step (20/400)
+       returning under a name that says what it is for: the sub-line under a
+       page's greeting/title in a hero band. The five ex-`subtitle` call sites
+       were mapped to `title` during the migration and are moved here, which
+       restores their original 20px — so the round nets out as a rename, not a
+       resize, for those. Use it ONLY for hero sub-copy; a card's sub-line is
+       `caption`.
+       Round 28: 20px -> 18px, matching the Figma style's own edit. */
+    --text-sub-greeting: 18px;
+    --text-sub-greeting--line-height: normal;
+    --text-sub-greeting--letter-spacing: 0;
+    --text-sub-greeting--font-weight: 400;
+
+    /* Round 38: the semibold partner to `sub-greeting`, added for the Plan
+       Sessions wizard's step heading, which moved off `display-md` (32px) on
+       direct instruction. Named on the same precedent as
+       `caption`/`caption-medium` — one size, two weights, two steps — rather
+       than leaving a call site to bolt `font-semibold` onto `sub-greeting`,
+       which is how a scale quietly stops describing what is on screen. */
+    --text-sub-greeting-semibold: 18px;
+    --text-sub-greeting-semibold--line-height: normal;
+    --text-sub-greeting-semibold--letter-spacing: 0;
+    --text-sub-greeting-semibold--font-weight: 600;
+    /* Round 40, direct instruction: 22px -> 20px, weight unchanged at 500.
+       Figma's own `title` style moved; this follows it rather than diverging.
+       No other step in the scale is 20px, so nothing collides and the token
+       keeps its name. `title` is used in the hundreds across all 4 portals. */
+    --text-title: 20px;
+    --text-title--line-height: normal;
+    --text-title--letter-spacing: 0;
+    --text-title--font-weight: 500;
+    --text-body-md: 16px;
+    --text-body-md--line-height: normal;
+    --text-body-md--letter-spacing: 0;
+    --text-body-md--font-weight: 600;
+    --text-body: 16px;
+    /* 140%, matching the Figma style's own edit (Round 38, direct
+       instruction). A deliberate, sanctioned exception to Round 23's
+       "every step is `normal`" rule — the same way `caption` went back to
+       130% in Round 24 — not a drift back to the pre-Round-23 ratios. Wide
+       reach: `body` is used in the hundreds across all four portals, so
+       multi-line copy everywhere gets looser. */
+    --text-body--line-height: 1.4;
+    --text-body--letter-spacing: 0;
+    --text-body--font-weight: 400;
+    /* Round 28, direct instruction: Figma's own style moved from Semi Bold
+       (600) to Medium (500), and this token was renamed from
+       `caption-semibold` to match. The rename is not cosmetic — a step still
+       spelled "semibold" while rendering 500 is exactly the actively
+       misleading name the purple ramp was renamed to escape in Round 21.3.
+
+       This is ALSO the app-wide button type step, as of the same instruction:
+       primary, secondary and ghost buttons in all 4 portals resolve here, so
+       a change to this size or weight moves every button in the app. It
+       replaced the old `text-[15px] tracking-[-0.24px]` button convention. */
+    --text-caption-medium: 14px;
+    --text-caption-medium--line-height: normal;
+    --text-caption-medium--letter-spacing: -0.224px;
+    --text-caption-medium--font-weight: 500;
+    --text-caption: 14px;
+    /* Round 24, direct instruction: Figma's own `caption` style moved from
+       AUTO to 130%, so this one step is now an explicit ratio again while
+       every other step stays on `normal` (Round 23, §67). 14 x 1.3 = 18.2px
+       against `normal`'s ~17px, so multi-line `caption` copy gains ~1px per
+       line — deliberate, and the only step that does. `caption-medium` is a
+       separate Figma style and is NOT included; it still reports AUTO. */
+    --text-caption--line-height: 130%;
+    --text-caption--letter-spacing: -0.224px;
+    --text-caption--font-weight: 400;
+    /* Round 23, frame `152:176`: **600, not 400** — direct instruction
+       ("update the font globally").
+
+       Figma's own published `fine` style now reads `Semi Bold / 12 / 600 /
+       -0.12`; it was 400 at the Round 21.3 sync, so the style itself changed.
+       This is applied to the base token rather than added as a second
+       `fine`/`fine-semibold` pair (which a first pass did, by analogy with
+       `caption`/`caption-medium`) — Figma has exactly one `fine` step, and
+       carrying a second one here would have meant the app claiming a
+       distinction the design system doesn't make.
+
+       It reaches ~175 call sites across all four portals: chips and status
+       badges, table meta cells, timestamps, "· Last active" lines, counts.
+       That is the intended scope, not collateral. Nothing about it is
+       load-bearing for layout — 12px at `normal` leading is 15px tall at
+       either weight. */
+    --text-fine: 12px;
+    --text-fine--line-height: normal;
+    --text-fine--letter-spacing: -0.12px;
+    --text-fine--font-weight: 600;
+
+    /* **Round 23 — repointed to Figma's own published `Card shadow` effect
+       style**, read via `get_variable_defs` on frame `152:176`:
+       `DROP_SHADOW, color #E6C27F33, offset (2, 4), radius 16, spread 0`.
+       That is a warm gold at 20% alpha, offset down-and-right — not the
+       symmetric neutral-black whisper this token held from v4 until now.
+
+       Two things worth recording, because both are easy to get wrong:
+       - **Figma's `radius` maps 1:1 to CSS `box-shadow` blur, not to half of
+         it.** The Figma MCP's own generated code emitted `drop-shadow(2px 4px
+         8px …)` — halved, because CSS `filter: drop-shadow()` takes a standard
+         deviation rather than a blur length. This token is a `box-shadow`, so
+         it takes 16px. Verified by measurement, not assumed: the rendered
+         frame's shadow reaches ~23px below a card's bottom edge, consistent
+         with offset 4 + blur 16 (20px) and nowhere near offset 4 + blur 8
+         (12px).
+       - The colour is deliberately warm, not neutral. The revamp's page
+         surface is a warm off-white (`--background` below) and its hero cards
+         are yellow; a grey shadow on those reads as dirt. Same reasoning
+         already recorded for the avatar shadow in Round 22.
+
+       This is a global item and it propagates: every `shadow-card` surface in
+       all four portals picks up the warm shadow, which is the intent. */
+    --shadow-card: 2px 4px 16px 0 rgba(230, 194, 127, 0.2);
+
+    /* Deep floating shadow (design-tokens.md §5, "Imagery shadow" — this is
+       that exact value, which the doc has carried since v4 but which had
+       never actually been added here as a token). Round 17 extends its use
+       from imagery-only to the onboarding tour tooltip: a card genuinely
+       hovering above a dimmed page is the one other thing in this app that
+       rests *above* a surface rather than sitting on it, so it earns the
+       imagery treatment rather than the flat `shadow-card` whisper. Still
+       never on buttons or text. */
+    --shadow-float: 3px 5px 30px rgba(0, 0, 0, 0.22);
+
+    /* Round 21 — the Research Dashboard Home Figma frame's `alert-card`
+       (`1:1316`) shadow, transcribed exactly: `4px 4px 12px rgba(0,0,0,0.06)`.
+       This is the ONLY element carrying a shadow anywhere in that frame, which
+       is why it gets its own token rather than borrowing `--shadow-card`: that
+       one is a symmetric `0 1px 2px / 0 2px 8px` whisper, whereas this is
+       offset down-and-right, a visibly different direction of light. Added so
+       the frame is reproduced as drawn rather than approximated. */
+    --shadow-notice-card: 4px 4px 12px 0 rgba(0, 0, 0, 0.06);
+}
+
+:root {
+    /* Round 23, frame `152:176`: the page canvas behind the cards is a warm
+       off-white, sampled from the rendered frame at **#fffcfa** (modal value
+       across a 65×150 clean region, so this is the fill and not shadow bleed).
+       It has no Figma paint style of its own — `get_variable_defs` on the
+       Content frame returns no background style — so it is a literal in the
+       frame and a named value here.
+       Was #ffffff (Round 19.1). The sidebar stays pure white (`bg-card`) and
+       so does every card, which is what makes the tint legible at all: it is
+       the *difference* between canvas and card that the frame is drawing,
+       replacing the border/ring that used to do that job alone. */
+    --background: #fffcfa;
+    --card: #ffffff;
+    /* Round 21 set this to the palette frame's own Purple "Primary" #3a00ad,
+       noting it was "exactly `purple-700`". It stopped being that when
+       Round 21.3 re-synced the ramp from Figma's published styles and
+       `--color-purple-700` moved to #4A278F — leaving two nearly-identical
+       purples with no rule for which to use, an open question the Round 22
+       handover explicitly left undecided.
+
+       **Round 23 decides it in the frame's direction: `--primary` is now
+       `purple-700` #4A278F again.** Frame `152:176` uses `Purple/700` for
+       every single brand-coloured thing on the page — the hero band, both
+       outline-pill CTAs, the progress-bar fill, the "Mark all as read" link —
+       and nothing on it uses #3a00ad. Keeping a separate `--primary` would
+       mean every one of those call sites had to opt out of the app's own brand
+       token to match the design, which is backwards.
+
+       Contrast recomputed from the real hex, not carried over: white on
+       #4A278F is **10.62:1** (was 11.8:1 on #3a00ad) — a small loss, still
+       comfortably AAA for normal text, so no filled control regresses below
+       any threshold. `--ring` (#5300fa) stays brighter than this, and
+       `--color-primary-hover` (#200061, purple-900) stays darker, so the
+       focus-ring-on-primary and hover relationships both still hold. */
+    --primary: var(--color-purple-700);
+    --destructive: #d70015;
+    /* Round 21: Purple Lighter 1 — brighter than `--primary` on purpose, so
+       a focus ring stays visible where it sits directly on a filled primary
+       button. */
+    --ring: #5300fa;
+    --radius: 18px;
+}
+
+@layer base {
+  * {
+    /* ⚠️ `border-hairline`, not `border-border`. `--border` was one of eleven
+       tokens re-declaring a hex that already had a name (`--color-hairline`,
+       #e0e0e0) and was deleted in the colour dedupe — at which point this line
+       threw `Cannot apply unknown utility class 'border-border'` and the WHOLE
+       stylesheet failed to compile. The dev server kept serving its last good
+       build, so the app looked fine while `npm run build` was broken. If you
+       delete a token, grep `@apply` as well as the `.tsx` files. */
+    @apply border-hairline outline-ring/50;
+    }
+  body {
+    /* `text-ink` rather than `text-foreground`: same colour, one name. */
+    @apply bg-background text-ink font-sans;
+    }
+}
+
+/* Motion: respect reduced-motion preferences (design-tokens.md §6) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

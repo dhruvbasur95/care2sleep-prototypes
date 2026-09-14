@@ -1,0 +1,675 @@
+/*
+ * ============================================================================
+ * CONSUMER PORTAL TOKENS — Figma-first, deliberately separate from index.css
+ * ============================================================================
+ *
+ * Round 41, direct instruction: "there is some changes to colour + font, so
+ * instead of following design tokens, follow Figma, create a new font + colour
+ * token file, keep documenting side by side."
+ *
+ * Source: Figma file `s6OLTSd4nc9V9W9lT1oBTO`, frame `748:878`
+ * ("Home_trainee_1" — the Consumer Portal's first-run welcome screen).
+ *
+ * WHY A SEPARATE FILE, AND WHAT THAT COSTS
+ * ----------------------------------------
+ * Every value below has an app-wide equivalent in `index.css` that it does NOT
+ * match. Overwriting the app token would repaint all four portals; adding an
+ * unnamed literal at the call site would hide the divergence. So each one is a
+ * named `--color-consumer-*` / `--font-consumer-*` token, scoped by name to
+ * this portal, sitting next to the app value it diverges from.
+ *
+ * The cost is real and worth stating plainly: the Consumer Portal is now on a
+ * second, parallel brand. Two purples and two canvases exist in one codebase.
+ * That is the intended state for now (Figma wins for this portal), but it is a
+ * divergence to be reconciled — not a permanent second design system — and it
+ * should be resolved in one of two directions once the rest of the consumer
+ * frames land: either the app moves to these values, or these move back.
+ *
+ * SIDE-BY-SIDE
+ * ------------
+ *   token                            this file (Figma)   index.css (app-wide)
+ *   ------------------------------   -----------------   --------------------
+ *   brand action colour              #3a00ad             --primary   #4a278f
+ *   destructive / sign-out           #f55b42             --destructive #d70015
+ *   page canvas                      radial #fffdfa      --background #fffcfa
+ *                                    -> #fff9f0          (flat)
+ *   wordmark family                  Atkinson Hyperlegible Next
+ *                                                        --font-display Inter
+ *   lead paragraph                   20px / 400 / 1.3    --text-sub-greeting
+ *                                                        18px / 400 / normal
+ *
+ * NOTE ON #3a00ad: this is not a new hex to this repo — it is exactly the
+ * `--primary` this app used before Round 23 moved it to `purple-700` #4a278f
+ * to match the researcher/coach frames. The consumer frames were drawn against
+ * the older value. Both are "the brand purple" depending on which frame you are
+ * reading, which is precisely why it needs a name rather than a literal.
+ * Contrast, rasterised from painted pixels (not calculated from the hex):
+ * white on #3a00ad = 12.85:1, AAA. White on #f55b42 = 3.44:1 — see the token
+ * below for why that is still shipped and what it means.
+ */
+
+/* Atkinson Hyperlegible Next — self-hosted, same reasoning as Inter in
+   `index.css`: no runtime network dependency, no layout shift waiting on a
+   third party. Chosen by the designer, not by us, but worth recording that it
+   is a legibility-first typeface (developed for the Braille Institute, drawn
+   so that commonly-confused letterforms stay distinct at small sizes), which
+   is a defensible choice for this portal's audience specifically — people
+   living with dementia and their carers. */
+@import "@fontsource-variable/atkinson-hyperlegible-next";
+
+@theme inline {
+    /* ------------------------------------------------------------------
+       FONT
+       ------------------------------------------------------------------ */
+    /* Frame `748:1334` — the header wordmark, "Atkinson Hyperlegible Next
+       Bold" at 31.838px, #3a00ad.
+
+       ⚠️ Scope is deliberately narrow and is an OPEN QUESTION: in frame
+       `748:878` this family appears on the wordmark and nowhere else — the
+       greeting, the lead paragraph and both buttons are all still Inter (the
+       frame's own published `display-lg` and `body-md` styles). So it is
+       registered as a wordmark token rather than as this portal's body face.
+       If the intent is Atkinson for all consumer-facing copy, this token gets
+       renamed `--font-consumer-sans` and applied at the shell; that is a
+       one-line change here and a `font-consumer-*` swap in three components,
+       not a rebuild. Do not widen it on a guess. */
+    --font-consumer-wordmark: "Atkinson Hyperlegible Next Variable",
+        "Atkinson Hyperlegible Next", "Inter Variable", system-ui, sans-serif;
+
+    /* ------------------------------------------------------------------
+       COLOUR
+       ------------------------------------------------------------------ */
+
+    /* The consumer brand purple. Frame `748:1334` (wordmark), `748:971`
+       (Continue CTA), and the pillow mascot's own line work all use it.
+       Diverges from app `--primary` (#4a278f) — see the header note. */
+    --color-consumer-primary: #3a00ad;
+
+    /* Frame `761:3167` — the header's Sign Out pill.
+       This is the frame's own `#f55b42` and it has no equivalent anywhere on
+       the app's purple/yellow ramps or in its semantic set: `--destructive`
+       (#d70015) is a true red, this is a warm coral.
+
+       ⚠️ **White on this fill measures 3.44:1 and fails WCAG AA for normal
+       text** (4.5:1). It is shipped as drawn because the frame is explicit
+       about both the fill and the white label, and because this project has
+       one prior accepted exception of exactly this shape (the Research Home
+       "N alerts" badge, 3.45:1 on `alert-pastel`, Round 21). It is recorded
+       here rather than silently "fixed" by darkening the label, and it does
+       clear the 3:1 large-text threshold only if the label moves to 18.66px
+       bold — it is currently 16/600, so it does not.
+       Two fixes are available when someone wants one: darken the fill to
+       ~#d63f26 (white reaches 4.6:1), or keep the fill and use
+       `--color-consumer-primary` text on it (7.0:1). */
+    --color-consumer-accent: #f55b42;
+
+    /* Frame `748:878`'s page fill is a radial gradient, not a flat colour:
+       two stops, warm off-white at the centre easing to a warmer cream at the
+       edges. Both stops are named so the gradient can be written once (see
+       `--gradient-consumer-canvas` below) and so a flat fallback has something
+       to point at. The app's own `--background` (#fffcfa) sits between them. */
+    --color-consumer-canvas: #fffdfa;
+    --color-consumer-canvas-edge: #fff9f0;
+
+    /* The full-screen hamburger drawer's own ground, given directly as
+       `#FFFCF6`.
+
+       Named rather than left a literal because it matches **neither** canvas
+       token above — it sits between `consumer-canvas` #fffdfa and
+       `consumer-canvas-edge` #fff9f0 — so there was nothing to reuse, and an
+       unexplained hex at a call site is what this file exists to avoid. The
+       drawer covers the viewport, so this is a real surface rather than a tint
+       over the page it hides. */
+    --color-consumer-menu: #fffcf6;
+
+    /* The portal header's height, in one place because four other surfaces
+       measure against it: the module page's viewport-height column, the
+       welcome screen's, and `ConsumerCanvasWave`'s crest offset. It was a
+       hardcoded 96 in each of them, and Round 47 halved the logo — which is
+       what a reader sees, but the bar is a fixed height, so the logo alone
+       changes nothing. Now the bar reads this and so does everything that has
+       to sit under it. 72 = the halved 26px lockup plus the frame's own
+       vertical breathing room. */
+    --consumer-header-h: 72px;
+
+    /* The purple wave header behind the mascot (frame `761:3137`). The shape
+       itself is a committed Figma export — `/illustrations/consumer-welcome/
+       wave.svg` — so these three are NOT applied anywhere in CSS; they are
+       recorded so the asset's palette is legible in the token file rather than
+       only inside an SVG nobody opens, and so a future non-asset use of the
+       same ramp has a name to reach for.
+         top / lightest   #d0bdf6
+         middle           #3a00ad  (== --color-consumer-primary)
+         deepest          #2a0379 */
+    --color-consumer-wave-light: #d0bdf6;
+    --color-consumer-wave-deep: #2a0379;
+
+    /* ------------------------------------------------------------------
+       TYPE STEP
+       ------------------------------------------------------------------ */
+    /* Frame `748:970` — the welcome screen's lead paragraph: Inter Regular
+       20px, line-height 1.3 (measured 26px against a 20px size, which is what
+       the frame's own 26px text box height reports).
+
+       Added as a new step rather than mapped onto the nearest existing one,
+       per this project's standing rule: the closest app steps are
+       `sub-greeting` (18/400/normal) and `title` (20/500/normal) — one is the
+       wrong size, the other the wrong weight, and 1.3 is not `normal` for
+       either. Round 21 measured what "nearest step" mapping costs: 5 of 16
+       elements landed 1-3px off with several weights outright wrong, which
+       reads as a different typographic system rather than a near-miss.
+
+       ⚠️ Registered in `lib/utils.ts`'s `font-size` class group in the same
+       commit. A `--text-*` token missing from that list is silently dropped by
+       tailwind-merge at any `cn()` site that also passes a text colour. */
+    /* ⚠️ Reweighted 400 -> **500** when the frame's type was streamlined: the
+       greeting's "Today is ..." line is now the frame's published `Title` style
+       (Inter Medium 20 at 1.3), where it used to be Regular. Same size, same
+       ratio, one step heavier. */
+    /* ==================================================================
+       FLUID TYPE — mobile -> tablet -> desktop, in one class per call site
+       ==================================================================
+
+       Two frames define this portal's type, and they disagree on almost
+       every step: `787:1286` (Home, iPhone SE, 375px) and `761:3170`
+       (Home, desktop, 1281px). Nothing defines tablet.
+
+       The old approach paired two classes at each call site
+       (`text-consumer-card-title md:text-consumer-card-title-lg`). Three
+       problems with it, all of which this replaces:
+
+         1. It had **two** steps, not three — `md:` and up were identical,
+            so "tablet" never existed. The ask was mobile -> tablet ->
+            desktop.
+         2. A call site that forgot the second half silently kept the
+            mobile size forever, and nothing catches that.
+         3. It switched at `md` (768px) while this portal's own layout
+            switches at 1200 (see `ConsumerHeader`), so type and layout
+            changed at different widths.
+
+       **Every step below is a `clamp()` that interpolates continuously
+       between the two frames' own values.** Tablet is not a guess dropped
+       in the middle — it is where the line between the two real anchors
+       passes. One class, correct at every width, and there is no second
+       half to forget.
+
+       THE FORMULA, so a new step can be added without re-deriving it.
+       For a step that is `M`px at 375 and `X`px at 1200:
+
+           slope   = (X - M) / (1200 - 375) * 100   -> vw
+           interce = M - (X - M) * 375 / 825        -> px, then / 16 -> rem
+           clamp( M/16 rem , interce + slope vw , X/16 rem )
+
+       The intercept is expressed in **rem, not px, deliberately**: a
+       clamp whose preferred value is pure `vw` ignores the reader's own
+       font-size setting, which fails WCAG 1.4.4 (Resize Text). Keeping a
+       rem term means browser zoom and a larger default font still move
+       the type. This portal's audience is the one this project has an
+       explicit note about, so that is not a theoretical concern.
+
+       Anchors are 375 (the iPhone SE frame) and 1200 (this portal's own
+       desktop breakpoint). Below 375 and above 1200 the clamp holds flat
+       at the frame's own value, which is what `clamp` is for.
+
+       ⚠️ Every `--text-*` here must ALSO be listed in `lib/utils.ts`'s
+       `font-size` class group. A token missing from that list is silently
+       dropped by tailwind-merge at any `cn()` site that also passes a
+       text colour — Round 21.3 lost a whole step to exactly this. */
+
+    /* The greeting's "Today is ..." line. 16 -> 20.
+       Frame `787:1394` (mobile) / `761:3287` (desktop). Weight 500 is the
+       frames' own: both draw the line inside an `Inter:Medium` parent, with
+       the date itself a semibold span on top. */
+    /* ⚠️ CHANGED for scale coherence — 16->20 became 18->20: it rendered identical to `body` (16) on a phone, and
+       crossed `faq` (flat 18) between 375 and 1200.
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-lead: clamp(1.125rem, 1.0682rem + 0.2424vw, 1.25rem);
+    --text-consumer-lead--line-height: 1.3;
+    --text-consumer-lead--letter-spacing: 0;
+    --text-consumer-lead--font-weight: 500;
+
+    /* The page greeting. 28 -> 40. Frame `787:1393` / `761:3286`.
+       Replaces `text-display-lg` on this page: that token is a flat
+       app-wide 40px, which is 12px too big on a 375px screen. */
+    --text-consumer-display: clamp(1.75rem, 1.4091rem + 1.4545vw, 2.5rem);
+    --text-consumer-display--line-height: normal;
+    --text-consumer-display--letter-spacing: 0;
+    --text-consumer-display--font-weight: 500;
+
+    /* "Lesson 1" — the lesson number above a card title. 18 -> 20.
+       Frame `787:1518` / `787:1451`. Its own step rather than sharing
+       `consumer-lead`: the two land on the same 20px desktop value but
+       start 2px apart on mobile, so one token cannot serve both. */
+    --text-consumer-lesson: clamp(1.125rem, 1.0682rem + 0.2424vw, 1.25rem);
+    --text-consumer-lesson--line-height: 1.3;
+    --text-consumer-lesson--letter-spacing: 0;
+    --text-consumer-lesson--font-weight: 500;
+
+    /* Card eyebrows ("This week's lesson", "Sleep Diary", "Scheduled",
+       "Meet your coach") and the diary's body copy. 16 -> 18.
+       Frame `787:1510`/`787:1528`/`787:1544` / `761:3383`/`787:1121`.
+       This is the frames' published `sub-greeting` at desktop; named here
+       because it needs a mobile value and `sub-greeting` is app-wide. */
+    --text-consumer-eyebrow: clamp(1rem, 0.9432rem + 0.2424vw, 1.125rem);
+    --text-consumer-eyebrow--line-height: 1.4;
+    --text-consumer-eyebrow--letter-spacing: 0;
+    --text-consumer-eyebrow--font-weight: 400;
+
+    /* The "Module complete" chip label. **16 -> 18**, from the frames' own
+       14 -> 18 (`787:1516` / `787:1449`).
+
+       ⚠️ The lower anchor was raised in Round 46's type sweep. This portal's
+       scale, taken from Home, has a hard floor of **16px** — nothing on any
+       other consumer surface goes below it — and a clamp bottoming out at 14
+       put this chip under that floor on a 375px screen while every label
+       around it stayed at 16. It was the last sub-16 text in the portal.
+
+       The frame's 14 loses to the floor deliberately: this portal's audience
+       note (plain language, big targets) is the reason the floor exists, and a
+       2px divergence on one chip is a better answer than a scale with a hole in
+       it. Recomputed with §85.1's own formula for anchors 375 and 1200. */
+    /* ⚠️ CHANGED for scale coherence — endpoints unchanged (16->18); it was interpolating 375->891, finishing its
+       growth 309px early. Re-ranged to the portal rule. Only widths BETWEEN the
+       endpoints move (768: 17.52 -> 16.95).
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-chip: clamp(1rem, 0.9432rem + 0.2424vw, 1.125rem);
+    --text-consumer-chip--line-height: 1.4;
+    --text-consumer-chip--letter-spacing: 0;
+    --text-consumer-chip--font-weight: 600;
+
+    /* Frame `761:3170` (Home) — the section headings ("Your tasks for today",
+       "Your next session") and each task card's own eyebrow line ("This week's
+       learning", "Sleep Diary"). Inter Medium 22px at 1.3.
+
+       Added for the same reason as `consumer-lead`: the nearest app steps are
+       `title` (20/500/normal) and `display-md` (32/500), so this is neither a
+       size nor a line-height match, and 22px used ~8 times on one page is a
+       real step rather than a one-off literal. It is also the step this frame
+       family leans on hardest. */
+    /* The mobile step for every 32px card title on Home (direct instruction:
+       "in mobile view we need to reduce font. what is 32 becomes 24px").
+       Same weight and tracking as `display-md`, which it swaps in for below
+       `md` — a named step rather than an inline `text-[24px]` at three call
+       sites, because the tracking has to come with it or the type reads wrong
+       at the smaller size. Paired as `text-consumer-card-title
+       md:text-display-md`. */
+    /* The card titles — "Understanding Your Sleep Patterns", "How did you sleep
+       last night?", the session date. Two steps, paired as
+       `text-consumer-card-title md:text-consumer-card-title-lg`.
+
+       ⚠️ The desktop step moved **32 -> 28** and **lost its letter spacing** in
+       the streamlining pass, so it is no longer the app's `display-md` (32/500/
+       -0.374) and has its own name now. The 24px mobile step is unchanged
+       (direct instruction, earlier: "what is 32 becomes 24px" on mobile) but
+       likewise drops the tracking, so the pair is one type idea at two sizes
+       rather than two different treatments. */
+    /* The card titles — the lesson title, "How did you sleep last night?",
+       "Coaching session: 1 of 6", and the For:/At: rows. 24 -> 28.
+       Frame `787:1519`/`787:1530`/`787:1541` / `787:1452`/`761:3384`.
+
+       ⚠️ **`--text-consumer-card-title-lg` was deleted here.** It existed
+       only as the desktop half of the old two-class pair, and the clamp
+       above now covers both ends. Grep before reintroducing anything by
+       that name — a second token is how the pair drifts back in. */
+    /* ⚠️ The mobile anchor is **22, not the frame's 24** (direct instruction:
+       "reduce font size in mobile view for any font that is 24px to 22px,
+       maintain same weight"). Weight and line height are untouched; only the
+       lower end of the ramp moved, so desktop still lands on the frame's 28.
+       This is the only step where the two ends do not both come from a frame. */
+    --text-consumer-card-title: clamp(1.375rem, 1.2045rem + 0.7273vw, 1.75rem);
+    --text-consumer-card-title--line-height: normal;
+    --text-consumer-card-title--letter-spacing: 0;
+    --text-consumer-card-title--font-weight: 500;
+
+    /* The emphasis line under a card's intro paragraph — frame `930:5270`
+       ("If you can't make it to a session..."), the frames' published
+       `body-md` at Inter Semi Bold 16 / 1.4.
+
+       **Flat, like `card-title-sm`, and that is the honest value rather than a
+       clamp that had nowhere to go.** The frame is desktop-only (`930:5195`,
+       1121px) so there is no second anchor to interpolate toward, and 16 is
+       already this portal's hard floor — a clamp would have to run 16 -> 16.
+       Written as a flat step so the next reader is not left wondering which
+       mobile frame the lower bound came from.
+
+       It sits one size below the intro paragraph (`consumer-eyebrow`, 16 -> 18)
+       and one weight above it, which is the frame's own relationship between
+       the two lines: 18/400 over 16/600.
+
+       ⚠️ Registered in `lib/utils.ts`'s `font-size` class group in the same
+       commit — a `--text-*` token missing from that list is silently dropped by
+       tailwind-merge wherever `cn()` also passes a text colour (Round 21.3). */
+    --text-consumer-body-strong: 1rem;
+    --text-consumer-body-strong--line-height: 1.4;
+    --text-consumer-body-strong--letter-spacing: 0;
+    --text-consumer-body-strong--font-weight: 600;
+
+    /* A **flat 22** card title, and the only consumer step that does not
+       interpolate — Round 43, frames `786:4179`/`787:1053`/`787:1082` and the
+       mobile states `792:2344`/`792:2461`/`792:2369`, which all draw a previous
+       lesson's title at 22 at BOTH widths.
+
+       It exists because the distinction is real in the frames rather than
+       drift: the week's lesson grows 22 -> 28 (`consumer-card-title`) and a
+       previous lesson stays at 22, which is what makes the featured card read
+       as the louder of the two on a wide screen. Borrowing the clamp would have
+       set every previous title at 28 on desktop and flattened that hierarchy.
+
+       ⚠️ Registered in `lib/utils.ts`'s `font-size` group in the same commit.
+       A `--text-*` token missing from that list is silently dropped by
+       `tailwind-merge` wherever `cn()` also passes a text colour — which this
+       call site does (`text-ink lg:text-consumer-primary`). Round 21.3. */
+    /* ⚠️ CHANGED for scale coherence — 22 flat became 20->22. It was the only flat token in a fluid scale, it
+       rendered IDENTICALLY to `card-title` (22) at 375 — so My Modules lost the
+       distinction between its featured and previous module cards on a phone —
+       and being flat it crossed `answer-name`, `question` and `progress`.
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-card-title-sm: clamp(1.25rem, 1.1932rem + 0.2424vw, 1.375rem);
+    --text-consumer-card-title-sm--line-height: normal;
+    --text-consumer-card-title-sm--letter-spacing: 0;
+    --text-consumer-card-title-sm--font-weight: 500;
+
+    /* Section headings — "Your tasks for today", "Your next session
+       details", "Meet your coach". 20 -> 22.
+
+       ⚠️ The mobile frame gives these three headings **three different
+       sizes** — 20 (`787:1503`), 18 (`787:1536`) and 22 (`787:1551`) — for
+       what is one repeated element. That is frame drift, not intent: the
+       desktop frame draws all three at a single 22. Normalised to one step
+       anchored at the mobile frame's own first and largest-in-context
+       value, 20. */
+    --text-consumer-heading: clamp(1.25rem, 1.1932rem + 0.2424vw, 1.375rem);
+    --text-consumer-heading--line-height: 1.3;
+    --text-consumer-heading--letter-spacing: 0;
+    --text-consumer-heading--font-weight: 500;
+
+    /* ── Sleep diary flow (Round 44) ─────────────────────────────────────
+       Four steps transcribed from the diary question frames (`811:10747`
+       desktop / `805:9508` mobile), each a single clamp per §85.1's rule —
+       anchors 375 and 1200, intercept in rem so reader font-size settings
+       still scale it (WCAG 1.4.4). All registered in `lib/utils.ts`'s
+       font-size group in the same commit (Round 21.3's lesson). */
+
+    /* The question itself — mobile 20/1.4, desktop 40/normal. Line height
+       held at the mobile frame's 1.4: the desktop frame's `normal` is the
+       same Inter metric within 2px on a one-line question, and a two-line
+       desktop question at `normal` reads cramped at 40px. */
+    /* ⚠️ CHANGED for scale coherence — 20->40 became 24->40. A 2x ratio is the steepest in the scale and it crossed
+       `section`, `card-title` and `card-title-sm`. 24 also suits the surface: on
+       a diary screen the question is the only thing being read.
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-question: clamp(1.5rem, 1.0455rem + 1.9394vw, 2.5rem);
+    --text-consumer-question--line-height: 1.4;
+    --text-consumer-question--letter-spacing: 0;
+    --text-consumer-question--font-weight: 500;
+
+    /* The per-person answer-row name ("Helen:") — 20 -> 28, medium. */
+    --text-consumer-answer-name: clamp(1.25rem, 1.0227rem + 0.9697vw, 1.75rem);
+    --text-consumer-answer-name--line-height: 1.4;
+    --text-consumer-answer-name--letter-spacing: 0;
+    --text-consumer-answer-name--font-weight: 500;
+
+    /* The progress counter ("2 / 9") — 18 -> 28, semibold. */
+    /* ⚠️ CHANGED for scale coherence — 18->28 became 20->28: it crossed `heading` and `card-title-sm`.
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-progress: clamp(1.25rem, 1.0227rem + 0.9697vw, 1.75rem);
+    --text-consumer-progress--line-height: 1.3;
+    --text-consumer-progress--letter-spacing: 0;
+    --text-consumer-progress--font-weight: 600;
+
+    /* The site footer's dark band — frame `988:9113`, the published
+       `neutral/dark-grey` #333333.
+
+       Named rather than reached for as `ink-muted`, which carries the identical
+       hex app-wide. That token is a **text** colour, and this project has been
+       here before: Round 20 found `bg-hairline`, a *border* token, doing duty
+       as a 584x978 canvas fill and flagged it precisely because the name stops
+       describing the job. A dark surface is a new role in this portal — nothing
+       else in it has one — so it gets a name that says so. Same value, honest
+       label, and it can move independently if the footer ever restyles. */
+    --color-consumer-footer: var(--color-ink-muted);
+
+    /* The footer's rule and its copy — `Neutrals/Light grey` #F1F1F1. The rule
+       draws it at 50% opacity, the text at full. */
+    --color-consumer-footer-ink: #f1f1f1;
+
+    /* ── Need Help (Round 49) ─────────────────────────────────────────────
+       Four steps from frame `982:8558`. Each is here rather than mapped onto a
+       near neighbour because the standing rule is "add the Figma value as a new
+       named step when none genuinely matches" — Round 21 lost 5 of 16 elements
+       to rounding onto the nearest step and it read as a different typographic
+       system rather than a near miss. All four are registered in
+       `lib/utils.ts`'s font-size group in the same commit (Round 21.3). */
+
+    /* An FAQ section's title — "Common questions", "Troubleshooting".
+       Desktop is the frames' published `display-md` (32/500/-0.374), which sits
+       between `consumer-card-title` (-> 28) and `consumer-display` (-> 40) and
+       is genuinely a new size for this portal. No mobile frame was supplied for
+       this page, so the lower anchor is derived, not transcribed: 24 keeps the
+       same 4px step below `consumer-display`'s own 28 mobile value that the
+       desktop pair holds at 40/32. Anchors 375 and 1200, per §85.1. */
+    --text-consumer-section: clamp(1.5rem, 1.2727rem + 0.9697vw, 2rem);
+    --text-consumer-section--line-height: normal;
+    --text-consumer-section--letter-spacing: -0.374px;
+    --text-consumer-section--font-weight: 500;
+
+    /* An FAQ section's sub copy, and any flat body line on this page.
+       A **flat 16**, which is why `consumer-eyebrow` could not serve it: that
+       step grows to 18 on desktop and the frame draws this at 16 at its own
+       1281. It is also the portal's floor, so there is nothing to interpolate
+       down to. The app-wide `--text-body` is the same 16/400 but is an
+       index.css token, and this portal does not read those. */
+    --text-consumer-body: 1rem;
+    --text-consumer-body--line-height: 1.4;
+    --text-consumer-body--letter-spacing: 0;
+    --text-consumer-body--font-weight: 400;
+
+    /* An FAQ row's question. A **flat 18/1.4/500** (`988:8945`).
+       `consumer-lesson` is the near miss and is wrong twice over: it grows to 20
+       on desktop where this holds 18, and it runs 1.3 where this runs 1.4. */
+    /* The episode transcript — the longest continuous reading surface in the
+       portal, and until now the only one sized in raw px (`text-[24px]`),
+       which meant it sat outside the scale entirely and did not respond to
+       anything. 20->24 keeps the desktop size it already had and brings the
+       phone down one step; a flat 24 on a 375px column set body copy larger
+       than the page's own headings. Weight 400, because it is prose. */
+    --text-consumer-transcript: clamp(1.25rem, 1.1364rem + 0.4848vw, 1.5rem);
+    --text-consumer-transcript--line-height: 1.5;
+    --text-consumer-transcript--letter-spacing: 0;
+    --text-consumer-transcript--font-weight: 400;
+
+    --text-consumer-faq: 1.125rem;
+    --text-consumer-faq--line-height: 1.4;
+    --text-consumer-faq--letter-spacing: 0;
+    --text-consumer-faq--font-weight: 500;
+
+    /* The crisis numbers — "Call 000", "Call 1300 22 4636" (`982:8887`).
+       18 -> 20.
+
+       ⚠️ **Weight 600, where the frame draws 700.** This portal's scale has a
+       documented ceiling of 600 (CLAUDE.md: "nothing below 16px and nothing
+       heavier than 600") and nothing anywhere else in it is bolder. A single
+       700 on one line would be the only one in the portal, so the ceiling wins
+       and the divergence is recorded here rather than left looking like a
+       transcription slip. The line still reads as the loudest thing in its own
+       block: it is the only 600 among 400s. */
+    /* ⚠️ CHANGED for scale coherence — endpoints unchanged (18->20); it was interpolating 375->787, finishing its
+       growth 413px early. Re-ranged to the portal rule (768: 19.91 -> 18.95).
+       The portal rule: every fluid consumer token interpolates 375->1200px,
+       and no two tokens may reverse rank between those widths. */
+    --text-consumer-crisis: clamp(1.125rem, 1.0682rem + 0.2424vw, 1.25rem);
+    --text-consumer-crisis--line-height: 1.3;
+    --text-consumer-crisis--letter-spacing: 0;
+    --text-consumer-crisis--font-weight: 600;
+
+    /* The unit label beside a numeric answer ("min") — 18 -> 22, medium. */
+    --text-consumer-unit: clamp(1.125rem, 1.0114rem + 0.4848vw, 1.375rem);
+    --text-consumer-unit--line-height: normal;
+    --text-consumer-unit--letter-spacing: 0;
+    --text-consumer-unit--font-weight: 500;
+}
+
+@theme inline {
+    /* Frame `761:3448` — the pale purple panel that filled the left third of
+       the "Your next session" card, where the frame reserved space for imagery
+       that never arrived. Not on the published Purple ramp (its nearest step,
+       `purple-50` #f3efff, is lighter and cooler) and it has no paint style
+       behind it, which is why it was named rather than left a literal.
+
+       ⚠️ **Zero call sites since the frame was revised** — `761:3449` dropped
+       the panel and the card is body only now. Kept rather than deleted because
+       the value is still the one thing that would be needed to put it back, and
+       an unexplained hex is worse than a documented orphan. Delete it if the
+       panel has not returned by the time this portal's frames settle. */
+    --color-consumer-panel: #ece9f7;
+
+    /* Frame `787:1444` — the "Lesson complete" chip's bright green fill.
+       Not on either published ramp (the palette has no green at all), and it
+       is the only green in this portal, so it is named rather than left a
+       literal at its one call site.
+
+       This is a **sixth deliberate exception** to this project's standing
+       "quiet, no rival accents" rule, alongside `diary-green`, `badge-purple`,
+       the Round 9 amber, `notification-hub-green` and the plan tokens. It earns
+       it the same way they did: it marks one specific, celebratory state change
+       rather than decorating a surface.
+
+       Pairs with `consumer-primary` text, **measured at 9.83:1** on the painted
+       pixels — the frames' own combination, and it clears AAA. (An earlier note
+       here claimed 12.35:1; that figure was asserted rather than measured and
+       was wrong. It passes either way, but the number is the measured one.) */
+    --color-consumer-lesson-complete: #bcfbab;
+}
+
+/* The canvas gradient, transcribed from frame `748:878`'s own radial:
+   centre (641, 345) in a 1281x982 frame -> 50% / 35.1%; radii 1094.5 x 935px
+   -> 85.4% x 95.2%; first stop at 10.13%. Written as a utility rather than a
+   `@theme` entry because Tailwind's `--color-*` namespace holds colours, not
+   gradients, and a call site wants one class rather than a hand-assembled
+   `bg-[radial-gradient(...)]` repeated per screen. */
+@utility bg-consumer-canvas {
+    background-color: var(--color-consumer-canvas-edge);
+    background-image: radial-gradient(
+        85.4% 95.2% at 50% 35.1%,
+        var(--color-consumer-canvas) 10.13%,
+        var(--color-consumer-canvas-edge) 100%
+    );
+}
+
+/* ── Sticky chrome height ───────────────────────────────────────────────────
+   How far down the page the portal's fixed chrome actually reaches, for
+   anything that has to stick *below* it.
+
+   ⚠️ **`--consumer-header-h` is the BAR only, not the header.** The Home / My
+   Modules tab row lives inside the same `sticky top-0 z-30` `<header>`, so on
+   a page that shows it the header is 133px tall (72 + 61) while
+   `--consumer-header-h` still reads 72. Every sticky element offset by the bar
+   alone slid its top 61px underneath an opaque white tab row and appeared
+   half-cut — reported on the opted-out banner, and measured: the banner stuck
+   at 72px with `z-20` against the header's `z-30`.
+
+   Raising the banner's z-index would have been the wrong fix: it would have put
+   the banner *over* the tab row rather than under it. The offset was wrong, not
+   the stacking.
+
+   ⚠️ **This is written by `ConsumerHeader` from a `ResizeObserver`, and it has
+   to be.** The obvious version of this fix is a media query — 61px below
+   1200px, 0 above, since the tab row is `min-[1200px]:hidden`. That is wrong,
+   and measuring caught it: the tab row's presence is decided **per page**
+   (`showNav`), not per viewport. The module player hides it, so at 375px its
+   header is 72px, and a viewport-based 133px pushed its own sticky bar 61px
+   below the chrome it was supposed to sit against. The row is also animated in
+   and out by `AnimatePresence`, so its height is not a constant even on one
+   page. Measuring the real header is the only thing that is correct on every
+   page and mid-animation.
+
+   The declaration below is the fallback used before the observer's first
+   callback, and it deliberately equals the bar alone: erring 61px high for one
+   frame tucks a banner slightly under the row, where erring low would jump it
+   down and back. */
+:root {
+    --consumer-chrome-h: var(--consumer-header-h);
+}
+
+/* ── Feedback pillow idle beats ──────────────────────────────────────────────
+   The five mood pillows on the session-feedback modal each perform one small
+   move and settle back, on a loop: "just one change and then move to default,
+   and this loops". The emotion itself never changes — each pillow stays in its
+   own default face, and the beat is a movement in the spirit of that face, so a
+   pillow reads as alive without ever misreporting the feeling it stands for.
+
+   One keyframe set per mood rather than one parameterised set, because CSS
+   cannot interpolate an unregistered custom property inside `@keyframes`, and
+   registering five transform variables to avoid five short rules would be the
+   more obscure of the two.
+
+   The long rest (0-62%) is what makes it read as a beat rather than a
+   wobble, and each mood carries its own duration so five pillows on one row
+   never move in lockstep. `prefers-reduced-motion` stops all of them. */
+@keyframes consumer-pillow-verygood {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-9%) rotate(-2.5deg) scale(0.98, 1.03); }
+}
+@keyframes consumer-pillow-good {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-6%) rotate(1.5deg) scale(0.99, 1.02); }
+}
+@keyframes consumer-pillow-okay {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-2%) rotate(2.5deg) scale(1, 1); }
+}
+@keyframes consumer-pillow-notgreat {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(3%) rotate(-2deg) scale(1.02, 0.97); }
+}
+@keyframes consumer-pillow-verybad {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(4%) rotate(-3.5deg) scale(1.03, 0.95); }
+}
+
+/* The brows and the features, on the same clock as the body above so the whole
+   pillow reads as one gesture. One keyframe set serves all five moods and both
+   layers: the peak is a `var()`, which resolves at computed-value time and is
+   therefore free to differ per layer, while the *interpolation* still happens
+   between the two resolved transforms. That is the way around CSS's inability
+   to interpolate an unregistered custom property directly.
+
+   `translateY` in per cent is relative to the element's own box, so one value
+   holds from a 56px pillow on a phone to a 110px one on a desktop.
+
+   ⚠️ This started as framer-motion `y` keyframes and was moved here after
+   measurement: framer wrote `transform: none` and left it there, having never
+   parsed the percentage keyframe array — the body's CSS beat was running at the
+   same moment, which is what made the failure visible rather than plausible. */
+@keyframes consumer-pillow-feature {
+    0%, 62%, 100% { transform: translateY(0); }
+    76% { transform: translateY(var(--feature-y, 0)); }
+}
+
+/* The body's animation name is set per mood from the call site (one keyframe set
+   each); the feature layers all share one, so it is named here. */
+.consumer-pillow-feature {
+    animation-name: consumer-pillow-feature;
+}
+
+.consumer-pillow-beat,
+.consumer-pillow-feature {
+    animation-duration: var(--beat-duration, 3.6s);
+    animation-delay: var(--beat-delay, 0s);
+    animation-iteration-count: infinite;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: 50% 100%;
+    will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .consumer-pillow-beat,
+    .consumer-pillow-feature {
+        animation: none !important;
+    }
+}

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mail } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-
-const inputClass =
-  'h-9 w-full rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
+import { cn } from '@/lib/utils'
 
 /** Shared across all 3 new Account tabs (Round 6.2.1). Industry-standard
  *  pattern, matching this app's own `SignInPage` forgot-password flow: never
@@ -19,7 +17,67 @@ const inputClass =
  *  Round 6.2 annotation wizard's accessibility report. Fixed here with two
  *  focus moves: into the current-password input on open, and onto the
  *  "Check your email" heading once sent. */
-export function PasswordChangeCard({ email }: { email: string }) {
+/**
+ * ── `variant` ──────────────────────────────────────────────────────────────
+ *
+ * Round 46. The Consumer Portal runs its own type scale and brand purple
+ * (`consumer-tokens.css`), and this card was one of the last places the app
+ * scale leaked into it — 14px text, `bg-primary` #4a278f, 36px controls against
+ * that portal's 48. Direct instruction: "make consumer portal consistent,
+ * regardless of what has been extracted from researcher portal."
+ *
+ * Two portals genuinely render this card, so it takes a prop rather than
+ * moving — the same pattern as `viewerRole` on `SessionTracker`. Defaults to
+ * `app`, so the researcher page is byte-identical.
+ */
+const TONE = {
+  app: {
+    title: 'font-display text-title',
+    body: 'text-caption',
+    label: 'text-fine',
+    field:
+      'h-9 text-caption focus-visible:border-ring focus-visible:ring-ring',
+    ghost:
+      'h-9 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted hover:bg-divider-soft focus-visible:ring-ring',
+    filled:
+      'h-9 rounded-full bg-primary px-[18px] text-caption-medium text-white hover:bg-primary-hover focus-visible:ring-ring',
+    outline:
+      'h-9 rounded-full border border-primary px-[18px] text-caption-medium text-primary hover:bg-primary/5 focus-visible:ring-ring',
+    link: 'text-caption-medium text-primary focus-visible:ring-ring',
+    accent: 'text-primary',
+    accentBg: 'bg-primary/10',
+  },
+  consumer: {
+    title: 'text-consumer-heading text-ink',
+    body: 'text-body',
+    label: 'text-body',
+    field:
+      'h-12 text-body focus-visible:border-consumer-primary focus-visible:ring-consumer-primary',
+    ghost:
+      'h-12 rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-consumer-primary',
+    filled:
+      'h-12 rounded-3xl bg-consumer-primary px-5 text-body-md text-white hover:opacity-90 focus-visible:ring-consumer-primary',
+    outline:
+      'h-12 rounded-3xl border border-consumer-primary px-5 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-consumer-primary',
+    link: 'text-body-md text-consumer-primary focus-visible:ring-consumer-primary',
+    accent: 'text-consumer-primary',
+    accentBg: 'bg-consumer-primary/10',
+  },
+} as const
+
+export function PasswordChangeCard({
+  email,
+  variant = 'app',
+}: {
+  email: string
+  /** `consumer` swaps type, brand purple and control height — see above. */
+  variant?: 'app' | 'consumer'
+}) {
+  const t = TONE[variant]
+  const inputClass = cn(
+    'w-full rounded-sm border border-hairline bg-card px-3 text-ink outline-none transition-colors focus-visible:ring-2',
+    t.field,
+  )
   const [open, setOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [sent, setSent] = useState(false)
@@ -37,15 +95,15 @@ export function PasswordChangeCard({ email }: { email: string }) {
   return (
     <Card className="gap-0 rounded-lg py-0">
       <div className={open ? 'bg-card-header p-6' : 'p-6'}>
-        <h2 className="font-display text-title">Password</h2>
+        <h2 className={t.title}>Password</h2>
 
         {!open && (
           <div className="mt-4 flex items-center justify-between gap-4">
-            <p className="text-caption text-ink-muted">••••••••</p>
+            <p className={cn('text-ink-muted', t.body)}>••••••••</p>
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={cn('inline-flex items-center outline-none transition-all focus-visible:ring-2 active:scale-[0.97]', t.ghost)}
             >
               Change password
             </button>
@@ -63,15 +121,15 @@ export function PasswordChangeCard({ email }: { email: string }) {
             <div className="flex flex-col items-start gap-3">
               <span
                 aria-hidden="true"
-                className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10"
+                className={cn('flex size-10 shrink-0 items-center justify-center rounded-full', t.accentBg)}
               >
-                <Mail className="size-5 text-primary" strokeWidth={1.75} />
+                <Mail className={cn('size-5', t.accent)} strokeWidth={1.75} />
               </span>
               <div>
-                <p ref={confirmationRef} tabIndex={-1} role="status" className="text-caption font-semibold text-ink outline-none">
+                <p ref={confirmationRef} tabIndex={-1} role="status" className={cn('font-semibold text-ink outline-none', t.body)}>
                   Check your email
                 </p>
-                <p className="mt-1 text-caption text-ink-faint">
+                <p className={cn('mt-1 text-ink-faint', t.body)}>
                   We've sent a link to {email} to finish changing your password.
                 </p>
               </div>
@@ -82,7 +140,7 @@ export function PasswordChangeCard({ email }: { email: string }) {
                   setSent(false)
                   setCurrentPassword('')
                 }}
-                className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn('inline-flex min-h-11 items-center rounded-sm outline-none hover:underline focus-visible:ring-2', t.link)}
               >
                 Done
               </button>
@@ -95,12 +153,12 @@ export function PasswordChangeCard({ email }: { email: string }) {
                 setSent(true)
               }}
             >
-              <p className="text-caption text-ink-faint">
+              <p className={cn('text-ink-faint', t.body)}>
                 Enter your current password to request a change. We'll email a link to{' '}
                 {email} to set a new one.
               </p>
               <div className="flex flex-col gap-1">
-                <label htmlFor="account-current-password" className="text-fine text-ink-faint">
+                <label htmlFor="account-current-password" className={cn('text-ink-faint', t.label)}>
                   Current password
                 </label>
                 <input
@@ -118,7 +176,7 @@ export function PasswordChangeCard({ email }: { email: string }) {
                 <button
                   type="submit"
                   disabled={!currentPassword.trim()}
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-divider-soft disabled:text-ink-faint"
+                  className={cn('inline-flex items-center justify-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-divider-soft disabled:text-ink-faint', t.filled)}
                 >
                   Request password change
                 </button>
@@ -128,7 +186,7 @@ export function PasswordChangeCard({ email }: { email: string }) {
                     setOpen(false)
                     setCurrentPassword('')
                   }}
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                  className={cn('inline-flex items-center justify-center outline-none transition-all focus-visible:ring-2 active:scale-[0.97]', t.outline)}
                 >
                   Cancel
                 </button>

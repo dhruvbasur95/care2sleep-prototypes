@@ -10,6 +10,11 @@ import {
   type SleepDiaryAnswers,
   type SleepDiaryQuestion,
 } from '@/data/spaces'
+import {
+  CompletionHero,
+} from '@/components/consumer/ConsumerCompletionHero'
+import { ConsumerFlowFooter } from '@/components/consumer/ConsumerFlowFooter'
+import { ConsumerContentReveal } from '@/components/consumer/ConsumerCanvasWave'
 import { ConsumerShell } from '@/components/consumer/ConsumerShell'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 
@@ -98,154 +103,6 @@ type Stage = 'welcome' | 'questions' | 'done'
 type Who = 'patient' | 'carer'
 type Draft = Record<Who, Partial<Record<keyof SleepDiaryAnswers, string>>>
 
-/* ------------------------------------------------------------------------ */
-/* Wave band + mascot (welcome and thank-you screens)                        */
-/* ------------------------------------------------------------------------ */
-
-/**
- * The deep-purple gradient band that opens the welcome and thank-you screens.
- *
- * Two purpose-drawn exports, one per breakpoint, each rendered at its own
- * aspect ratio with the viewport cropping rather than the box stretching —
- * §85.2's "clip, never squash" rule, which is the fix for the sheared-wave
- * bug this portal shipped twice ("the background weavy issue"). Desktop is
- * floored at its drawn 1281 so a tablet crops it instead of shrinking the
- * band to a sliver; mobile swaps in below `sm`.
- *
- * Both frames position the band against the whole page (y 0, running behind
- * the white header), and this renders inside a content column that starts
- * below the 96px header — so the offset loses that 96, the same correction
- * `ConsumerCanvasWave` documents.
- */
-function DiaryWaveBand() {
-  return (
-    <>
-      <img
-        src="/illustrations/consumer-diary/diary-wave-mobile.svg"
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none block sm:hidden"
-        style={{
-          height: 'auto',
-          // Tailwind preflight's `img { max-width: 100% }` clamps a full-bleed
-          // export to its parent's padded width — §84.2's finding.
-          maxWidth: 'none',
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100vw',
-          top: -96,
-        }}
-      />
-      {/*
-        Desktop — frames `811:10934` / `816:12478`.
-
-        FIXED HEIGHT, FLUID WIDTH. This is `ConsumerWelcome`'s own anchoring
-        ("Horizontal is percentage-based so the wave widens with the viewport,
-        which is what a wave should do"), and adopting it here is the fix for
-        the band ballooning on a wide screen.
-
-        The previous pass scaled the whole export with the viewport
-        (`width: max(100vw, 1281px)`, `height: auto`), so its depth grew with
-        width: 469px at 1281, **703px at 1920** — measured, and at that depth
-        the band swallowed the title, leaving "Sleep Diary" and the date as
-        dark ink on deep purple. Holding the height constant keeps the crest a
-        fixed distance below the header at every width.
-
-        The export is the frame's own untrimmed artwork (1869.39 x 1296.05,
-        node `811:10936`) rather than the old 1281 x 469 crop, and it carries
-        `preserveAspectRatio="none"` — which is what lets it stretch to a wider
-        box instead of letterboxing. Same shape either way: the two exports'
-        path data differ by exactly the filter-box origin (289.746, 828.018).
-
-        Geometry is the frame's own, flattened from its two levels of insets:
-          band   1281 x 368 at page y -64  (`811:10935`)
-          image  left -22.63%, width 145.96%   (-289.9 .. 1579.8 of 1281)
-                 top -827px, height 1295px     (its own px, since h is fixed)
-        `top: -160` is that page -64 less the 96px header this renders below.
-        At 1281 it reproduces the frame 1:1; wider, only the width grows.
-      */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute hidden overflow-hidden sm:block"
-        // 470, not the frame's own 368: the band is only a CLIP WINDOW, and the
-        // image inside is pinned in px, so a taller window moves nothing — it
-        // just leaves the wave's soft drop shadow the ~106px of room the old
-        // 1281 x 469 crop gave it. At 368 the clip lands 4px under the deepest
-        // trough and cuts that shadow off square.
-        style={{ left: '50%', transform: 'translateX(-50%)', width: '100vw', height: 470, top: -160 }}
-      >
-        <img
-          src="/illustrations/consumer-diary/diary-wave-desktop.svg"
-          alt=""
-          style={{
-            position: 'absolute',
-            left: '-22.63%',
-            width: '145.96%',
-            top: -827,
-            height: 1295,
-            maxWidth: 'none',
-            display: 'block',
-          }}
-        />
-      </div>
-    </>
-  )
-}
-
-/**
- * The pillow-with-mug-and-books mascot. One flattened export (`812:11516`,
- * the thank-you frame's own, the largest of the six draws) rather than five
- * positioned layers — a mask/outline pair transcribed separately has drifted
- * apart three times in this project (§78.1), and nothing here animates
- * per-layer, so there is nothing a flat file gives up.
- *
- * `size` is the rendered width: the welcome screens draw it smaller than the
- * thank-you screen ("Desktop thank you screen avatar is a little bigger" —
- * direct instruction), and mobile smaller than desktop.
- */
-/**
- * Layer boxes, as PERCENTAGES of the frames' own 263 x 145.5 mascot box
- * (`812:11398` / `816:12506`). Percentages rather than px so the whole
- * assembly scales with the container width and nothing has to be re-derived
- * per breakpoint.
- *
- * The pillow's box is the interesting one. The frame's pillow export is this
- * project's existing `pillow-mascot.svg` — proven, not assumed: its path data
- * maps onto the frame's by a single transform, verified on three independent
- * paths to +/-0.01px:
- *
- *     frame_x = 1.1694 * pillow_x + 9.711
- *     frame_y = 1.1694 * pillow_y - 38.82
- *
- * which, once the frame's own -13.22 / -32.38 layer offset is folded in, puts
- * the export's 210.646 x 188 box at container (-3.509, -71.20) scaled 1.1694.
- * So the diary pillow renders the SAME three animated layers the welcome
- * screen uses (direct instruction: "re-use the face features in pillow here"),
- * rather than a second flat copy that would drift from it.
- */
-const M = {
-  ground: { left: '-1.270%', top: '73.155%', width: '102.547%', height: '28.899%' },
-  pillow: { left: '-1.334%', top: '-48.935%', width: '93.662%', height: '151.100%' },
-  books: { left: '56.989%', top: '31.299%', width: '41.763%', height: '68.705%' },
-  booksTexture: { left: '68.589%', top: '36.790%', width: '13.457%', height: '23.292%' },
-  /** Group 26's box — the mug, and the steam that was split out of it. */
-  mug: { left: '57.422%', top: '8.399%', width: '40.932%', height: '91.603%' },
-} as const
-
-const LAYER = { position: 'absolute' as const, maxWidth: 'none' as const, display: 'block' as const }
-
-/**
- * The answer box belonging to whoever is being asked right now grows slightly
- * (direct instruction: "by default we show PLE name first then carer, so make
- * the white box bigger for PLE, and when answered, scale it back to default,
- * and increase for carer").
- *
- * 1.08 on a 208px box is ~17px of extra width — above the threshold where a
- * change this small stops registering at all (Round 34's lesson). It is a
- * transform rather than a width change so the row's layout never reflows,
- * which would nudge the label and the unit beside it.
- */
 const ACTIVE_SCALE = 1.08
 const ACTIVE_TRANSITION = { type: 'spring' as const, stiffness: 300, damping: 24 }
 /**
@@ -287,240 +144,6 @@ const FIELD_BASE =
   'min-h-11 rounded-lg border-consumer-primary bg-white text-center text-[22px] leading-[1.3] font-medium text-ink outline-none placeholder:text-ink-faint focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 px-2 py-2 sm:py-3.5'
 const FIELD_ACTIVE = 'border-[3px]'
 const FIELD_IDLE = 'border sm:border-2'
-
-/** The welcome screen's own breath period. */
-const BREATH_S = 4
-
-/**
- * Face expressions, ported from Home's `ConsumerMascot` (direct instruction:
- * "just bring in face expression to the pillow as we have on home screen").
- *
- * ⚠️ Home has a fourth state, `asleep`, which flips the eyes over and raises
- * the `z` glyphs. It is deliberately absent: this pillow is awake with a cup
- * of tea, and "no sleeping animation for this one" was an explicit call.
- *
- * `browY`/`faceY` are PER CENT of the layer box, not Home's px. Home's values
- * are tuned to a 90px-tall head; this pillow renders about 2.4x that, so
- * copying the px would have produced a third of the movement — the Round 34
- * failure of animating too little to see.
- *
- * Only translation and one rotation, for Home's own reason: each layer spans
- * the whole box, so `scale` on a layer pivots about the box centre rather than
- * the feature's, and a scaled brow visibly slides sideways. The tilt is
- * applied to the whole pillow, which is one element with its own box.
- */
-const EXPRESSIONS = {
-  neutral: { browY: 0, faceY: 0, tilt: 0 },
-  /** Brows and features lift together — the whole face reads as brightening. */
-  happy: { browY: -2.2, faceY: -1.3, tilt: 0 },
-  /** Brows up further, features barely move, head tilts. */
-  curious: { browY: -3.4, faceY: -0.5, tilt: 4 },
-} as const
-type DiaryExpression = keyof typeof EXPRESSIONS
-
-const EXPRESSION_MS = 1400
-const NEUTRAL_MIN_MS = 3500
-const NEUTRAL_MAX_MS = 7000
-
-/**
- * The pillow with its mug and books.
- *
- * Six layers rather than the flat `diary-mascot.svg` Round 44 shipped, because
- * two things now have to move independently: the steam, and the pillow's face.
- *
- * ⚠️ NO SLEEPING ANIMATION HERE (direct instruction). The welcome screen's
- * pillow is asleep and carries the `z` glyphs; this one is awake with a cup of
- * tea, so it takes the same body/face/brow layers and the same breath, and
- * none of the `Z_LAYERS`.
- *
- * Travel is expressed in per-cent of each layer's own box, not px: the art
- * renders at ~1.22x its natural size on desktop and ~0.89x on a phone, so px
- * travel would mean a different amount of movement at each width.
- */
-function DiaryMascot({ className }: { className?: string }) {
-  const reduceMotion = useReducedMotion()
-  const loop = (duration: number) => ({ duration, repeat: Infinity, ease: 'easeInOut' as const })
-
-  // Home's own cycle: a neutral hold of 3.5-7s, then one of the two
-  // expressions for ~1.4s, then back. The irregular gap is the point — a fixed
-  // sequence reads as a repeating animation rather than a face doing something
-  // of its own accord.
-  const [expression, setExpression] = useState<DiaryExpression>('neutral')
-  useEffect(() => {
-    if (reduceMotion) return
-    let timer: number
-    const toExpression = () => {
-      setExpression(Math.random() < 0.5 ? 'happy' : 'curious')
-      timer = window.setTimeout(toNeutral, EXPRESSION_MS)
-    }
-    const toNeutral = () => {
-      setExpression('neutral')
-      timer = window.setTimeout(
-        toExpression,
-        NEUTRAL_MIN_MS + Math.random() * (NEUTRAL_MAX_MS - NEUTRAL_MIN_MS),
-      )
-    }
-    timer = window.setTimeout(toExpression, NEUTRAL_MIN_MS)
-    return () => window.clearTimeout(timer)
-  }, [reduceMotion])
-
-  const { browY, faceY, tilt } = EXPRESSIONS[expression]
-  // Slow and soft: an expression that snaps reads as a glitch on a face this
-  // small. The same symmetric curve the rest of this portal's motion uses.
-  const featureTransition = reduceMotion
-    ? { duration: 0 }
-    : { duration: 0.55, ease: [0.4, 0, 0.2, 1] as const }
-
-  return (
-    <div className={cn('relative aspect-[263/145.5]', className)} aria-hidden="true">
-      {/* The frame draws a WIDER ground shadow than the pillow's own, so it
-          reaches under the books too — `816:12507`, the pillow's own ellipse
-          at 1.413x rather than the 1.1694x the pillow itself takes. */}
-      <img src="/illustrations/consumer-diary/diary-ground.svg" alt="" style={{ ...LAYER, ...M.ground }} />
-
-      {/*
-        The pillow: breath on the outer box, head tilt on the inner one, and
-        the expression carried by the face and brow layers inside that.
-
-        Nesting matters. The breath has to scale and float the WHOLE pillow
-        including its features, while the tilt has to rotate the whole pillow
-        about its base without the features counter-rotating — so they are two
-        boxes, not one element trying to animate both with the features
-        applying their own offsets on top.
-
-        3.5%, not the welcome screen's 1.8%. Measured, that value moved this
-        pillow 4.6px across a 4s cycle and was reported as "no motion" — the
-        Round 34 lesson exactly.
-      */}
-      <motion.div
-        style={{ position: 'absolute', ...M.pillow, transformOrigin: 'center bottom' }}
-        animate={reduceMotion ? undefined : { scale: [1, 1.035, 1], y: [0, -3, 0] }}
-        transition={reduceMotion ? undefined : loop(BREATH_S)}
-      >
-        <motion.div
-          className="absolute inset-0"
-          style={{ transformOrigin: 'center bottom' }}
-          animate={{ rotate: tilt }}
-          transition={featureTransition}
-        >
-          <img
-            src="/illustrations/consumer-welcome/pillow-body.svg"
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none' }}
-          />
-          <motion.img
-            src="/illustrations/consumer-welcome/pillow-face.svg"
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none' }}
-            animate={{ y: `${faceY}%` }}
-            transition={featureTransition}
-          />
-          <motion.img
-            src="/illustrations/consumer-welcome/pillow-brows.svg"
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none' }}
-            animate={{ y: `${browY}%` }}
-            transition={featureTransition}
-          />
-        </motion.div>
-      </motion.div>
-
-      <img src="/illustrations/consumer-diary/diary-books.svg" alt="" style={{ ...LAYER, ...M.books }} />
-      <img
-        src="/illustrations/consumer-diary/diary-books-texture.svg"
-        alt=""
-        style={{ ...LAYER, ...M.booksTexture }}
-      />
-      <img src="/illustrations/consumer-diary/diary-mug.svg" alt="" style={{ ...LAYER, ...M.mug }} />
-
-      {/*
-        Steam. Split out of Group 26 byte for byte — the two `fill="white"`
-        wisps (`Vector_17`/`Vector_18`), given that group's own unmodified
-        `<svg>` open tag so it keeps the same 107.65 x 133.282 coordinate space
-        and registers with the mug by construction, with no offsets to
-        transcribe (§84.2, and the reason a mask and its outline have landed
-        apart three times in this project).
-
-        Treatment is deliberately the simple one (direct instruction: "easy
-        option -> show white fade from bottom to top. thats all"): a vertical
-        mask holds the wisps solid where they leave the cup and fades them out
-        toward the top.
-
-        ⚠️ STATIC and at full opacity, both by direct instruction ("keep opacity
-        100% else it wont be visible", then "keep it static, make it white
-        increase opacity"). An earlier pass breathed it between 0.5 and 1 and at
-        0.5 white-on-purple all but disappeared, so the fade is the whole
-        effect — there is deliberately no motion here.
-
-        The solid stop is 70%, not 35%: at 35% the gradient started eating the
-        wisps barely above the cup and most of the plume rendered as a ghost.
-        The top 30% still fades out, which is what keeps it reading as steam
-        dispersing rather than a hard-edged shape.
-      */}
-      <img
-        src="/illustrations/consumer-diary/diary-steam.svg"
-        alt=""
-        style={{
-          ...LAYER,
-          ...M.mug,
-          maskImage: 'linear-gradient(to top, #000 70%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to top, #000 70%, transparent 100%)',
-        }}
-      />
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------------ */
-/* Welcome + thank-you (one hero layout, two contents)                       */
-/* ------------------------------------------------------------------------ */
-
-function HeroScreen({
-  mascotClassName,
-  title,
-  children,
-  headingRef,
-}: {
-  mascotClassName: string
-  title: string
-  children: React.ReactNode
-  headingRef: React.RefObject<HTMLHeadingElement | null>
-}) {
-  return (
-    // The canvas is `purple-50`, so this has to reach the fold or the app's
-    // own warm `--background` shows as a cream block under it. Same rule the
-    // questions step uses, and the same paired breakpoint: `ConsumerHeader` is
-    // 96px only at `min-[1200px]`, below which its tab row makes it 157px.
-    <div className="relative flex min-h-[calc(100dvh-157px)] flex-col items-center px-6 pb-16 min-[1200px]:min-h-[calc(100dvh-96px)]">
-      <DiaryWaveBand />
-      {/*
-        The mascot STRADDLES the wave — it stands at the trough rather than
-        below it, which is what the frames draw and what makes the art read as
-        sitting on the wave instead of floating under it.
-
-        Desktop is the frame's own `pt-80`: art top at page 176, base at 321.5,
-        against a trough at 300. The 48 here is that 80 less the 32px of shadow
-        bleed above the art in the export (solid art starts at y45 of its 388,
-        which is 31.8 at this render width) — the box is not the art.
-      */}
-      <div className="relative mt-12 sm:mt-20">
-        <DiaryMascot className={mascotClassName} />
-      </div>
-      {/* 56, not the frame's 64: the export carries ~8px of bleed BELOW the art
-          too (249 of 260), and that counts as layout height. */}
-      {/* Base rhythm is the frames' tightest step (title -> date, 8px); the
-          two wider steps below add to it — date -> body 8+8=16, body -> CTA
-          8+56=64. Frame nodes `811:11009` (gap 16) and `812:11486` (gap 64). */}
-      <div className="relative mt-8 flex w-full max-w-[772px] flex-col items-center gap-2 text-center sm:mt-16">
-        <h1 ref={headingRef} tabIndex={-1} className="text-consumer-display text-balance text-ink outline-none">
-          {title}
-        </h1>
-        {children}
-      </div>
-    </div>
-  )
-}
-
 /* ------------------------------------------------------------------------ */
 /* Page                                                                      */
 /* ------------------------------------------------------------------------ */
@@ -536,7 +159,6 @@ export function ConsumerDiaryPage() {
   /** +1 = travelling forward (Next), -1 = back — steers the slide direction. */
   const [direction, setDirection] = useState(1)
   const [draft, setDraft] = useState<Draft>({ patient: {}, carer: {} })
-  const [showHint, setShowHint] = useState(false)
   /** Round 44 left the X discarding answers with no confirmation (§87.6). */
   const [exitOpen, setExitOpen] = useState(false)
   const exitButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -581,7 +203,6 @@ export function ConsumerDiaryPage() {
 
   const answersFor = (who: Who, field: keyof SleepDiaryAnswers) => draft[who][field] ?? ''
   const setAnswer = (who: Who, field: keyof SleepDiaryAnswers, value: string) => {
-    setShowHint(false)
     setDraft((prev) => ({ ...prev, [who]: { ...prev[who], [field]: value } }))
   }
 
@@ -591,13 +212,14 @@ export function ConsumerDiaryPage() {
   const goHome = () => navigate(`/consumer/${dyad.id}`)
 
   const next = () => {
-    if (!stepComplete) {
-      // The button stays focusable (`aria-disabled`, not `disabled`) so the
-      // reason it does nothing is discoverable; clicking it surfaces the hint.
-      setShowHint(true)
-      return
-    }
-    setShowHint(false)
+    // Round 48 — the footer's own `continueBlockedReason` now owns the "you
+    // have not answered yet" affordance (`aria-disabled` plus a `BlockedHint`
+    // that opens on hover, focus and tap), so the footer never calls this while
+    // the step is incomplete. The guard stays: it is the only thing standing
+    // between an unanswered step and `submitSleepDiary` writing `Number('')`
+    // as `NaN` into the store, and a guard whose caller happens to be careful
+    // is not a guard.
+    if (!stepComplete) return
     if (!isLast) {
       setDirection(1)
       setQIndex((i) => i + 1)
@@ -628,7 +250,6 @@ export function ConsumerDiaryPage() {
 
   const back = () => {
     if (isFirst) return
-    setShowHint(false)
     setDirection(-1)
     setQIndex((i) => i - 1)
   }
@@ -685,12 +306,45 @@ export function ConsumerDiaryPage() {
       // Purple/50, the diary frames' own canvas on all three screens — not
       // Home's warm radial. Padding is per-stage, so the shell contributes none.
       contentClassName="relative overflow-clip bg-purple-50 p-0"
+      // Round 48 — the shared `ConsumerFlowFooter` is a full-bleed white bar in
+      // the module flow, and a bar that stops 128px short of the window on a
+      // wide screen reads as a broken layout rather than a centred one. Each
+      // stage below re-applies the cap itself (the question column at its own
+      // 1121, `CompletionHero` by centring), which is the same trade the module
+      // page takes. The wave band already escaped the column via `100vw`, so it
+      // is unaffected.
+      contentFullBleed
+      // The footer is viewport-anchored and the shell's cue pins itself to the
+      // same corner. Both diary heroes are viewport-height and never scroll, so
+      // the cue was already hidden on them — this only concerns the questions.
+      showScrollCue={false}
       optedOut={dyad.optedOut}
     >
+      {/*
+        The footer is `sticky bottom-0`, and a sticky element only detaches from
+        the flow once its container overflows — so on a short question step it
+        would simply sit wherever the content ended, halfway up the page. This
+        column gives the page a viewport-height floor and hands the slack to the
+        step, exactly as `ConsumerModulePage` does. `-61px` below 1200 is this
+        portal's nav tab row, which the module flow drops and this page keeps.
+      */}
+      {/* ⚠️ `ConsumerContentReveal`, not a plain `div` — reported as "when I
+          open sleep diary there is no motion, its static", and it was the only
+          consumer page without it. The inner `AnimatePresence` below carries
+          `initial={false}`, deliberately, so it animates *between* steps and
+          never on arrival — nothing was animating the arrival at all.
+
+          It **replaces** the column rather than wrapping it, so the
+          viewport-height floor and the sticky footer that depends on it are
+          unchanged; an extra nested element would have broken that `min-h`
+          chain. Reusing the shared component also means closing the hamburger
+          drawer on this page now plays the same shutter-reveal as every other
+          page, since this is what subscribes to the pulse. */}
+      <ConsumerContentReveal className="flex min-h-[calc(100dvh-var(--consumer-header-h)-61px)] flex-col min-[1200px]:min-h-[calc(100dvh-var(--consumer-header-h))]">
       <AnimatePresence mode="wait" initial={false}>
         {stage === 'welcome' && (
           <motion.div key="welcome" {...stageMotion}>
-            <HeroScreen
+            <CompletionHero
               // 274px renders the art at the frames' own 263 (the export
               // carries 15px of shadow bleed: solid art is 373 of its 388).
               mascotClassName="w-[200px] sm:w-[274px]"
@@ -715,7 +369,7 @@ export function ConsumerDiaryPage() {
                   Go Back
                 </button>
               </div>
-            </HeroScreen>
+            </CompletionHero>
           </motion.div>
         )}
 
@@ -723,11 +377,13 @@ export function ConsumerDiaryPage() {
           <motion.div
             key="questions"
             {...stageMotion}
-            // The column fills the viewport below the header so Back/Next rest
-            // on the fold. `ConsumerHeader` is 96px only at `min-[1200px]` —
-            // below that its tab row adds 61px (157 total), a real 61px
-            // overshoot when this was a flat calc against 96 (measured at 375).
-            className="mx-auto flex min-h-[calc(100dvh-157px)] w-full max-w-[1121px] flex-col px-6 pt-6 pb-6 sm:px-10 sm:pt-20 sm:pb-10 min-[1200px]:min-h-[calc(100dvh-96px)] xl:px-0"
+            // `flex-1 min-h-0` rather than its own viewport calc: the wrapper
+            // above holds the floor now, and the step takes the slack so the
+            // footer is pushed to the bottom of the window on a short question
+            // and stays stuck there on a tall one. Without `min-h-0` a long
+            // step cannot shrink inside the column and pushes the sticky footer
+            // off-screen.
+            className="mx-auto flex min-h-0 w-full max-w-[1121px] flex-1 flex-col px-6 pt-6 pb-6 sm:px-10 sm:pt-20 xl:px-0"
           >
             {/* Progress row — persistent chrome, never animates with the step. */}
             <div className="flex items-center gap-6 sm:gap-14">
@@ -920,48 +576,13 @@ export function ConsumerDiaryPage() {
                   </div>
                 </motion.div>
               </AnimatePresence>
-
-              {/* The incomplete-step hint — appears only after Next is pressed
-                  with an answer missing; a live region so it is announced. */}
-              <div aria-live="polite" className="mt-6 min-h-6 text-center">
-                {showHint && (
-                  <p className="text-consumer-eyebrow text-consumer-primary">
-                    Please fill in an answer for{' '}
-                    {members.length === 2 ? 'both of you' : 'this question'} before moving on.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Back / Next — persistent chrome. Back on the first question is
-                aria-disabled (direct instruction), never removed: a control
-                that vanishes and reappears as you travel reads as a bug. */}
-            <div className="mt-8 flex w-full items-start gap-6 sm:gap-28">
-              <button
-                type="button"
-                onClick={back}
-                aria-disabled={isFirst}
-                className={cn(CTA_OUTLINE, 'flex-1', isFirst && 'cursor-default opacity-40')}
-              >
-                Back
-                {isFirst && <span className="sr-only"> (not available on the first question)</span>}
-              </button>
-              <button
-                type="button"
-                onClick={next}
-                aria-disabled={!stepComplete}
-                className={cn(CTA_PRIMARY, 'flex-1', !stepComplete && 'opacity-70')}
-              >
-                {isLast ? 'Finish' : 'Next'}
-                {!stepComplete && <span className="sr-only"> (answer this question first)</span>}
-              </button>
             </div>
           </motion.div>
         )}
 
         {stage === 'done' && (
           <motion.div key="done" {...stageMotion}>
-            <HeroScreen
+            <CompletionHero
               // Frames `811:10934` / `816:12478` draw the mascot at an
               // IDENTICAL 263 art width on both screens, so this now matches
               // the welcome screen. That reverses Round 44's own direct
@@ -973,18 +594,66 @@ export function ConsumerDiaryPage() {
               headingRef={headingRef}
             >
               <p className="text-consumer-eyebrow mt-2 max-w-[644px] text-ink">
-                Remember to complete your lesson of the week, if not done already. We will see you
+                {/* "module of the week", not "lesson" — Round 46 renamed this
+                    portal-wide and §89.12 recorded zero occurrences of "lesson"
+                    in rendered text, which was wrong: this screen sits behind
+                    nine answered questions and the sweep never reached it. */}
+                Remember to complete your module of the week, if not done already. We will see you
                 again tomorrow to fill in the sleep diary.
               </p>
               <div className="mt-6 flex w-full max-w-[448px] flex-col sm:mt-14">
+                {/* "Go home", not the frame's title-case "Go Back Home": the
+                    module flow's own footer and the yellow bar both say "Go
+                    home", and this screen now shares its layout with theirs. */}
                 <button type="button" className={CTA_PRIMARY} onClick={goHome}>
-                  Go Back Home
+                  Go home
                 </button>
               </div>
-            </HeroScreen>
+            </CompletionHero>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/*
+        Round 48, direct instruction: the questionnaire's own Back / Next row is
+        gone and the module flow's footer carries the pair instead — one
+        component, two flows. It sits OUTSIDE the `AnimatePresence` so it does
+        not slide with the step: the whole point of this chrome is that it never
+        moves while the question under it changes, which is what the row it
+        replaces was already documented as doing.
+
+        `shown` is left at its default. The module flow hides the footer on
+        scroll up because its stages are long enough to scroll; a question step
+        is one question and two fields, so there is no direction to be aware of.
+      */}
+      {stage === 'questions' && (
+        <ConsumerFlowFooter
+          // The diary's own wording, kept as it was. The module flow says "Go
+          // back" / "Go next"; aligning the two is a copy decision rather than
+          // a consequence of sharing the component, so it is not taken here.
+          backLabel="Back"
+          label={isLast ? 'Finish' : 'Next'}
+          onBack={back}
+          // Blocked, never removed (direct instruction, Round 44): a control
+          // that vanishes and reappears as you travel reads as a bug.
+          backBlockedReason={isFirst ? 'This is the first question.' : undefined}
+          onContinue={next}
+          // This replaces the press-Next-then-show-a-hint live region this page
+          // used to run. `BlockedHint` says the same sentence on hover, on
+          // focus AND on tap — the last one being what the old hint was really
+          // for — and wires it as the button's own `aria-describedby`, so the
+          // reason now reaches a screen-reader user before they press rather
+          // than after.
+          continueBlockedReason={
+            stepComplete
+              ? undefined
+              : `Please fill in an answer for ${
+                  members.length === 2 ? 'both of you' : 'this question'
+                } before moving on.`
+          }
+        />
+      )}
+      </ConsumerContentReveal>
 
       {/*
         Exit confirmation — closes §87.6's first open item ("the X exit button
@@ -1002,6 +671,7 @@ export function ConsumerDiaryPage() {
         normal choice rather than an alarming one.
       */}
       <ConfirmDialog
+        variant="consumer"
         open={exitOpen}
         title="Leave the sleep diary?"
         body="Your answers will not be saved. You can fill in the sleep diary again later today."

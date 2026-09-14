@@ -20,9 +20,11 @@ import { DeliveryConsumerDetailPage } from '@/pages/delivery/DeliveryConsumerDet
 import { DeliveryAccountPage } from '@/pages/delivery/DeliveryAccountPage'
 import { ResearchAccountPage } from '@/pages/research/ResearchAccountPage'
 import { ConsumerAccountPage } from '@/pages/consumer/ConsumerAccountPage'
-import { ConsumerInProgressPage } from '@/pages/consumer/ConsumerInProgressPage'
+import { ConsumerMenuDrawer } from '@/components/consumer/ConsumerMenuDrawer'
 import { ConsumerLessonsPage } from '@/pages/consumer/ConsumerLessonsPage'
 import { ConsumerDiaryPage } from '@/pages/consumer/ConsumerDiaryPage'
+import { ConsumerModulePage } from '@/pages/consumer/ConsumerModulePage'
+import { ConsumerHelpPage } from '@/pages/consumer/ConsumerHelpPage'
 
 /**
  * One app, every portal (decision 2026-07-22): the portal switcher is the
@@ -114,26 +116,21 @@ export default function App() {
                 Whitfield (dyad-011), standing in for a signed-in session. */}
             <Route path="/consumer" element={<Navigate to="/consumer/dyad-011" replace />} />
             <Route path="/consumer/:dyadId" element={<ConsumerHomePage />} />
-            {/* Round 41 — the header's other two tabs. Real routes carrying an
-                honest "still being built" page, so the tabs can be selected and
-                the selected-tab animation is reachable. See
-                `ConsumerInProgressPage`. */}
-            {/* Round 43 — the real page, built from frames `771:3711` (desktop)
-                and `792:2080` (mobile). `ConsumerInProgressPage` stays: it is
-                still what Need Help renders. */}
+            {/* Round 43 — built from frames `771:3711` (desktop) and
+                `792:2080` (mobile). ⚠️ `ConsumerInProgressPage` was deleted in
+                Round 49: this page and Need Help were its only two callers and
+                both are now real. */}
             <Route path="/consumer/:dyadId/learning" element={<ConsumerLessonsPage />} />
+            {/* Round 46 — a module's inner pages (welcome -> video -> summary
+                -> reflection), opened by any "Play module" CTA. Frames
+                `818:12862` and `819:13049`; the last two stages are WIP. */}
+            <Route path="/consumer/:dyadId/module/:moduleId" element={<ConsumerModulePage />} />
             {/* Round 44 — the sleep diary fill-in flow (welcome -> 9 questions
                 -> thank you), opened by Home's "Fill in sleep diary" CTA. */}
             <Route path="/consumer/:dyadId/diary" element={<ConsumerDiaryPage />} />
-            <Route
-              path="/consumer/:dyadId/help"
-              element={
-                <ConsumerInProgressPage
-                  title="Need Help"
-                  body="This is where you will find answers and a way to reach us. We are still building it. In the meantime, your coach is the best person to ask."
-                />
-              }
-            />
+            {/* Round 49 — the real page, from frame `982:8558`. Reached from
+                the account menu, not a header tab (Round 48). */}
+            <Route path="/consumer/:dyadId/help" element={<ConsumerHelpPage />} />
             {/* Round 41, direct instruction: the Health & Sleep tab is gone.
                 `ConsumerHealthPage.tsx` was deleted with it (grep-confirmed at
                 zero other readers); the Fitbit and sleep-diary components it
@@ -145,6 +142,16 @@ export default function App() {
             <Route path="*" element={<PortalSwitcherPage />} />
           </Routes>
         </AnimatePresence>
+
+        {/* ⚠️ **Mounted once, ABOVE the routes, deliberately.** The consumer
+            hamburger drawer has to outlive a navigation: every consumer page
+            mounts its own `ConsumerShell`, so a drawer rendered inside the
+            header unmounted the instant a row was tapped and its exit
+            animation never played. Sitting here, it can navigate and close in
+            the same frame — the new page mounts underneath and plays its own
+            entrance while the shutter is still rising over it. Its open state
+            is the module-scoped store in `data/consumerMenuReveal`. */}
+        <ConsumerMenuDrawer />
       </ResearchProvider>
     </MotionConfig>
   )

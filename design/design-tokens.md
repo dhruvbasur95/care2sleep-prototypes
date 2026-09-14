@@ -6676,3 +6676,2066 @@ welcome/thank-you `h1`.
   `doodles.svg` took.
 - Mobile and tablet keep Round 44's own wave export and mascot sizes; **no
   mobile frames were supplied** for any of this round's changes.
+
+---
+
+## §89 — Round 46: the consumer module's inner pages, and "My Modules" (2026-09-07)
+
+Frames `818:12862` (welcome) and `819:13049` (video), file `s6OLTSd4nc9V9W9lT1oBTO`.
+Summary and Reflection have **no frames** and ship as WIP screens. There are **no
+mobile or tablet frames for any of the four**, so every value below `min-[1200px]`
+is derived and is flagged as such at its call site.
+
+### 89.1 New surface: `/consumer/:dyadId/module/:moduleId`
+
+One page, four stages (`welcome → video → summary → reflection`) on `stage`
+state, not four routes — the chassis `ConsumerDiaryPage` already established for
+this portal's other multi-step flow.
+
+Two additive `ConsumerShell` slots, both defaulting to today's behaviour so no
+other page moved a pixel:
+
+| Slot | Default | Why this page needs it |
+|---|---|---|
+| `showNav` | `true` | Both frames draw the bare wordmark + Sign Out header. A module is somewhere you are *inside*; leaving the portal tabs up invites wandering out of a video with no idea whether your place was kept. |
+| `contentFullBleed` | `false` | Three surfaces are edge-to-edge in the frames — the photo band, the yellow bar, the white footer. The shell's `max-w-[1320px]` capped all three, so on a wide laptop each stopped 128px short of the window and read as a broken layout. A page that opts in re-applies the cap to its own *content* (`SHELL`), which is the pattern `OptedOutBanner` already used. |
+| `showScrollCue` | `true` | **Added, then unused.** It existed because the footer was pinned and the cue landed on its CTA. Once the footer stopped being sticky (below) the collision went with it and the page returned to the default. The slot stays on `ConsumerShell` — one additive line, and the next page with a pinned bottom control will want it. |
+
+**Nothing on these screens is sticky except the global header.** The module bar
+and the footer were both built pinned first — `sticky top-24` and `sticky
+bottom-0` — which is what frame `819:13049` looks like. Both were unpinned on
+direct instruction ("dont make footer sticky", then "also dont make header
+stickey", annotated over the yellow bar). The frame is an 886px artboard
+clipping its own carousel behind a bar, not a design for a page that scrolls:
+pinned, the footer permanently covered the bottom of the chapter row, and
+between three fixed bands roughly a quarter of a short laptop viewport was
+chrome. The page's `min-h-[calc(100vh-96px)]` column stays, so the footer is
+still pushed to the bottom of the window on a short stage rather than floating
+halfway up it — that was never the sticky positioning's job.
+
+### 89.2 The photo band — one asset, and do not split it
+
+**The photo and the yellow wave are a single Figma vector**: one torn-wave path
+carrying the photograph as an image fill and `yellow/500` #FFB600 as a stroke,
+exported as one PNG. It ships as one image for exactly that reason. This project
+has shipped a mask sitting a few px out of register with the outline meant to
+frame it **three times** (Rounds 30, 31, 34, §78.1), every time from
+transcribing the two independently. Here they were never two shapes.
+
+The cost, stated: the photo is baked in, so every module shows the same
+photograph. That already matched the portal — `LessonCards` uses one shared
+`lesson-cover.jpg` across all six cards. A per-module photo is a new Figma
+export, not a code change. **Confirmed as the intended trade-off by direct
+instruction before it was built.**
+
+`public/illustrations/consumer-lesson/lesson-hero-wave.webp`, 2000x699. **This
+repo's first WebP**, and the reason is arithmetic: the shape needs a real alpha
+channel and a photograph with alpha can only be PNG or WebP — 1,976 KB optimised
+PNG against **136 KB** WebP, in a repo whose largest asset was 196 KB. Alpha was
+counted before shipping (273,342 fully transparent pixels), per Round 31's lesson
+that a Figma RGBA export is often opaque over a baked plate.
+
+Geometry, all relative to the clip window so it scales with nothing to re-derive:
+
+```
+window      aspect 1281 / (380 x SCALE),  capped at min(42vh, 480px)
+image       width 104.70476% of the window  (1341.268 / 1281)
+anchored    bottom, lifted 1.51043% of its own height
+            (-93 + 465.962 = 372.962 against a 380 window -> 7.038px)
+skew        -0.82deg, the frame's own
+SCALE       1.6 / 1.25 / 1  at 0 / 640 / 1200
+```
+
+**Three findings here that a screenshot passed and a measurement caught:**
+
+1. **A named breakpoint variant lost to an arbitrary-property one.**
+   `[--wave-s:1.6] sm:[--wave-s:1.25] min-[1200px]:[--wave-s:1]` resolved to
+   **1.25 at a 1680px viewport** — Tailwind v4 emits arbitrary-property
+   utilities in a different order from named-breakpoint ones, specificity is
+   equal, and source order decided it the wrong way. The band came out 623px
+   deep instead of 498. All three are `min-[Npx]:` now. **Do not mix the two
+   kinds on one custom property.**
+2. **`HEIGHT_CAP = min(42vh, 480px)` is load-bearing on a real laptop.** A
+   purely width-proportional band assumes the frame's 982px-tall artboard, where
+   380 is 38% of the body. On a 1500x772 laptop the same ratio gives a **445px**
+   band in a ~700px viewport and pushes the module name, its description and
+   both CTAs below the fold — reported from a real machine, and a Figma artboard
+   cannot show it because it has no viewport. Capping the *height* is safe in a
+   way capping the width would not be: the image is bottom-anchored at a
+   container-set width, so a shorter window crops the top of the photograph and
+   leaves the wave curve pixel-identical. 42vh lands within 2px of the frame's
+   own 380 at 1281x900, which is the check that it is not arbitrary.
+3. `maxWidth: none` on the image, or Tailwind's preflight `img { max-width:
+   100% }` clamps the deliberately oversized shape back to the window and
+   flattens the curve. Same trap `ConsumerWelcome`'s `LAYER_STYLE` documents.
+
+### 89.3 Focus: a callback ref, not an effect
+
+The stage-change focus move was built first as `useRef` + `useEffect` keyed on
+`stage`, and **measured dropping focus to `<body>` on every single transition** —
+this project's most-repeated defect, six rounds. The cause is Round 32's lesson
+one layer up: under `AnimatePresence mode="wait"` the incoming node mounts a
+commit **later** than the state change, so the effect ran while the outgoing
+stage was still the only thing in the tree, focused the old heading or nothing,
+and never ran again.
+
+A **callback ref** is keyed on the element, which cannot exist too early. React
+invokes it synchronously when the heading attaches, whichever commit that is.
+Re-measured after the fix: H1 on every one of the three stage changes, and
+`<main>` (the shell's deliberate landing spot) on Finish.
+
+### 89.4 Content is derived, the frames' episode copy is not placeholder
+
+The frames are a template: the header says "Module 1: Understanding Sleep" over
+chapters titled "How to Stop AI From Killing Everyone" and "Prediction for 2027".
+Module identity is read from `CONSUMER_MODULES` at render time instead, so the
+page cannot disagree with My Modules about which module it is.
+
+**But the two frames' own episode copy was kept**, because it is real: "Why does
+sleep feel impossible when you need it most?" is the question the supplied
+script's intro opens on, and the sub copy naming "what sleep drive is and how
+daily habits affect your nights" describes that script exactly. Only the module
+header and the chapter titles were stock.
+
+Chapters come from the real production script
+(`BuildingBlocksOfGoodSleep_step4_script.docx.md`) — six, not the frames' seven,
+because the script has INTRO + four chapters + CLOSE. **`startsAt` is derived,
+not invented**: each chapter timed at 140 words/minute of narration plus 1.2s per
+`[pause]` the script marks, giving 20:15 total. Replace with real timestamps the
+moment the video is cut.
+
+`data/consumerLessonContent.ts` is keyed by module **id**, not index — the
+pre-module sits at index 0 and every "Module N" label is the index, so an index
+key would silently point one module off the moment the curriculum gains an entry.
+
+### 89.5 Divergences from the frames, and why
+
+| Frame | Shipped | Reason |
+|---|---|---|
+| Welcome CTA "Continue" with a trailing chevron | **"Start learning"**, no chevron | Direct instruction. It is the one control in the flow that *begins* something rather than advancing through it, so it says what it does and does not borrow the footer's forward arrow. |
+| Copy block and CTAs separated only by `justify-between` | `gap-16` as well | `justify-between` separates by whatever slack the viewport has left, and on a window where the band, title and a three-line description nearly fill the height there is none — the pill ended up directly under the last line of copy ("almost getting clubbed into the text"). The gap is a floor `justify-between` can add to but never eat into. 64 against the frame's own 120, which is what a 982px artboard could afford. |
+| Continue 48 over Go back 40 | both **48** | Two stacked pills of identical width at two heights read as a mistake — the same complaint raised against Home in this round. |
+| Chapter thumbnails: 7 stock photos of a man at a bookshelf | `lesson-cover.jpg` at `objectPosition: center 29.7%` | Direct instruction. The crop centre is `LearningTaskCard`'s own — a plain `object-cover` of a 666x1000 portrait into a 180x108 box lands on a shoulder. |
+| Audio = music note, Transcript = quote mark | `Headphones`, `FileText` | Direct instruction: "use your own icons, figma is for reference only". `Headphones` says listen and `FileText` says read; a quote mark standing in for "a written version" is the wrong kind of clever for this audience. |
+| Icons at 16px, lucide default stroke | **20px at stroke 2.25** | Direct instruction ("too small, thin"). A 2-unit stroke on a 24-unit grid rendered into a 16px box paints 1.33 device px, genuinely lighter than the 16/600 label beside it. |
+| Go home fixed `w-128` | `min-w-32` + `shrink-0` on the glyph | This app's content needs ~130px; at a hard 128 the flex line overflowed and the `<svg>`, a flex item like any other, absorbed it by squashing. |
+| Footer "Back" pill, `hidden` in the frame | stays hidden | Agrees with this portal's audience note: one action per screen. The browser's own Back still works. **Flagged as a product call, not settled.** |
+| No chevrons on the carousel | left/right chevrons | Direct instruction. Black fill, white glyph, the thumbnails' own `2px 8px 16px rgba(85,85,85,0.4)` rather than the app's warm gold, which reads as a smudge on the purple panel (Round 30's call for the trainee sidebar). **Both stay mounted and go `aria-disabled`/`opacity-0` at the ends rather than unmounting** — Round 19.1's Critical was a chevron that dropped focus to `<body>` on unmount, and a control that never unmounts cannot. |
+| Bar: title left, bar + % right, one row | **below 640**: icon-only Go home, then Module N / title / % / bar stacked beside it | Direct instruction, twice. The label becomes `sr-only`, not absent, so the accessible name and the 48px hit area survive. ⚠️ This portal's audience note argues against icon-only controls; a deliberate exception on instruction. |
+| — | entrance animation on first mount | Direct instruction ("no motion transition to the welcome page"). Cause was `ConsumerShell`'s module-scoped `pageIntroPlayed` latch, added in Round 41 so tab switches do not replay a fade. Correct for tabs, wrong for a flow you enter. Fixed by dropping `initial={false}` on **this page's** `AnimatePresence` rather than unwinding the shell's latch, which would bring the flicker back on all four tabs. |
+
+### 89.6 "My Lessons" -> "My Modules", portal-wide
+
+Direct instruction: "we call them My modules, not my lessons, so update
+everywhere". This overturns Round 43's own naming, and the frames corroborate it
+— both say "Module".
+
+Changed: the header nav label, the page title, "Module of the week", "6 modules
+in total", "Previous weeks' modules", the empty state, both card CTAs ("Play
+module" / "Resume module"), "Module complete" in two places, "This week's
+module" / "Complete this week's module", and `LessonView.label` (`Module N`),
+which is the single field every surface reads.
+
+**Internal identifiers deliberately keep "lesson"** — `LessonCards`,
+`LessonView`, `releasedLessons`, `lessons.ts`, the `/learning` route. They are
+code, not copy, and renaming them is a large diff with no user-visible effect:
+the same call this project already made for `ConsumerDyad`/`dyadId` under the
+consumer/client rule.
+
+### 89.7 Two Home fixes bundled in
+
+- **Button heights unified at 48.** Measured on Home, the three task-card CTAs
+  were **56 / 48 / 48** ("Resume module", "Fill in sleep diary", "Join video
+  call") in a row of identical cards, with the coach card's "Read More" a fourth
+  value at 44. `LessonPlayCta` moved `h-14` -> `h-12` and `CoachCard`'s control
+  `h-11` -> `h-12`; all four now measure 48. A deliberate divergence from frames
+  `792:2310`/`786:4179`, since 48 is what everything else in the portal uses.
+- **The demo state cycler is gone.** Home's Play control walked
+  start -> resume -> complete on every click, with the resume bar pinned to a
+  hardcoded `DEMO_PROGRESS = 143/264`. Both now come from `releasedLessons` and
+  the control is a real `<Link>`. What that costs: Home shows only the state the
+  demo dyad's Module 4 is genuinely in — the other two are still reachable on My
+  Modules, which renders every released module in its own real state.
+  `LessonPlayCta` gained a `to` prop and renders an `<a>` when it has one,
+  because a button calling `navigate()` breaks middle-click, open-in-new-tab and
+  the status bar.
+
+### 89.9 Verification
+
+`tsc -b` and `oxlint` clean (16 pre-existing `only-export-components` warnings,
+none in this round's files). Vite `preview_logs` clean — a green typecheck is
+still not proof the app builds (§Round 23). Console clean **in a fresh tab**, per
+Round 32's retained-buffer lesson. `design/layout-audit.js` **empty on every
+stage at 1500, 1400, 1281, 768 and 375**, both card faces included, with `documentElement.scrollWidth === innerWidth`
+at every width. Contrast rasterised through a 1x1 canvas (Tailwind v4 emits
+`oklab()`, so parsing the computed string as RGB returns nonsense — Round 31):
+14 measurements across the new surfaces, **lowest 8.61:1** (the active chapter
+title, `consumer-primary` on `purple-200`), everything else 11:1 or better.
+
+### 89.10 Direction-aware chrome
+
+Direct instruction: the module bar comes back on scroll **up**, the footer comes
+in on scroll **down**. This is the resolution of the two reversals above rather
+than a third position — pinned permanently ate a quarter of a short laptop
+viewport, unpinned left a long page with no way out and no way on without
+scrolling to an end. Each band is now present exactly when you are heading
+toward what it does.
+
+`sticky` + `translateY`, not `fixed`: `fixed` takes both bands out of flow and
+the content then needs top and bottom padding equal to two heights that change
+with the viewport — a measurement to keep in sync, which is how spacing drifts.
+
+Rules, in priority order:
+
+```
+page does not scroll  -> both visible
+at the top            -> bar visible, footer hidden
+at the bottom         -> footer visible, bar hidden
+scrolling up          -> bar visible, footer hidden
+scrolling down        -> bar hidden, footer visible
+arriving at a stage   -> both visible, until the first scroll
+```
+
+The two end rules are not the direction rules restated: you can arrive at the
+bottom while scrolling down and then rubber-band, and without them the footer
+would flick away at the moment you reached the thing it offers. The arrival rule
+exists because deriving the initial state from scroll position hides the footer
+on a screen nobody has scrolled yet — the reader lands on a page whose only way
+forward is off-screen. `DIRECTION_THRESHOLD = 8` is measured against an anchor
+set at the last flip rather than the last event, so a slow drag still
+accumulates; without it single-pixel momentum jitter flips the bands.
+
+**⚠️ The transition property is `translate`, not `transform`, and getting it
+wrong is silent.** Tailwind v4 emits `translate-y-*` as the standalone CSS
+`translate` property. `getComputedStyle(el).transform` reads `none` on an
+element that is visibly offset, while its `translate` carries
+`0px calc(-100% - 96px)`. A first pass declared the transition on `transform`,
+so the class toggled, the band moved to the right place, and it **teleported** —
+a transition on a property that never changes. Only reading both properties back
+catches it. Verified after the fix by sampling mid-flight: 70ms into a flip the
+bar's bottom edge measured 33px against 0 hidden and 177 shown.
+
+The bar is `-translate-y-[calc(100%+96px)]` rather than `-100%`: its own height
+parks it *behind* the 96px global header but still inside the viewport, where
+its drop shadow bleeds out from under the white bar.
+
+Neither band is `aria-hidden` while hidden. The bar holds the only Go home and
+the footer the only Continue, and a screen-reader user has no scroll direction
+to bring them back with — only their paint moves.
+
+### 89.11 Summary screen and the flip cards
+
+Frames `882:2067` (screen + card front) and `900:2244` (card back). Content is
+the supplied `BuildingBlocksOfGoodSleep_activities_v2.md`.
+
+**The cards are the doc's own "CHAPTER SUMMARY CARDS"**, four of them, one per
+numbered chapter. The frame draws three identical cards all reading "01 / The
+Building Blocks of Sleep" — one card duplicated as a layout study. The screen's
+lead paragraph is the doc's MODULE CORE MESSAGE quoted verbatim, which is also
+what the frame prints; the frame's trailing "Clikc on each of the cards below
+to" is a typo and an unfinished sentence, so it is finished here.
+
+**Titles come from `chapters`, not from the card data** — a `chapterId` lookup,
+so this screen and the video carousel cannot name the same chapter two ways.
+That is also why the doc's own casing ("Waiting Until You're Sleepy") is not
+carried: the chapter list already settled on sentence case with contractions
+spelled out. Bullet *bodies* stay verbatim — author's production copy, not UI
+chrome — so contractions live inside a card and not in its title. Deliberate.
+
+**The three UI styles** are three hand-drawn pillow vectors
+(`902:2341`/`902:2348`/`902:2355`), each at its own size and rotation, committed
+as SVGs and cycled across the four cards. Each width is a share of the card's
+356px inner width rather than a px value, so it scales with a fluid card.
+Rotation is the frame's; the -0.82deg skew is one shared constant, the same tilt
+the hero wave carries.
+
+**Grid stack, not an absolutely positioned back.** Both faces occupy one grid
+cell, so a card is as tall as its taller face and **nothing reflows when it
+turns**. Front-in-flow with `absolute inset-0` behind would size the card to the
+front alone, and these backs are taller than their fronts (609 against 553 in
+the frames), so every flip would resize the card mid-rotation.
+
+#### The card-height thread, and the four shapes it went through
+
+Getting the cards down took five rounds of direct instruction. The rejected
+shapes are recorded because each is individually reasonable and would otherwise
+be re-attempted.
+
+| Shape | What it produced |
+|---|---|
+| Panel sized to content | 878px cards at three across. |
+| Panel `h-70` + `mt-auto` footer | Slack landed as a **gap between the panel and Download resource** — annotated as dead space. |
+| Panel `min-h-70 flex-1` | The same slack moved **inside** the panel: a 420px box holding 300px of text, reported from a real laptop as a large empty pale box. |
+| Panel content-height + `items-start` | Every card its own size, so no dead space anywhere — but `layout-audit.js` flagged `grid-row-uneven-heights` (684 / 635 / 710 in one row). That check is calibrated to zero false positives here, so it was treated as a finding rather than loosened. |
+| **Shipped:** one fixed panel height per breakpoint, footer not `mt-auto`, cards stretched to a shared row height | Slack falls **below Download resource**, where it is just more of the card's own fill. |
+
+Panel heights step with the breakpoint — **200 / 260 / 300** — because a phone
+card is narrow enough that its title and lead wrap to six lines before the list
+starts, so one value cannot serve both ends. Direct instruction: "I dont want to
+see cards with a lot of height on tablet and mobile view."
+
+#### Four more fixes from a full-viewport sweep
+
+Sweeping 320 → 1920 rather than checking three widths found three things a
+spot-check missed, all in the single-column band:
+
+1. **The card filled the whole content column** — 1151px wide at 1199, 976 at
+   1024. A reflection card that wide is not a card. The list is
+   `max-w-[560px] mx-auto` while there is one column, released at 1200, so a
+   card reads at roughly the same size in either band.
+2. **The artwork grew with it.** Sized purely as a share of the card's inner
+   width, the pillow rendered ~1000px across at 1199 and the *front* became the
+   tallest face on the page — card heights of 833 / 730 / **951** / 833 behind a
+   280px panel. `PILLOW_MAX_W = 340` (just above the frame's own 324 at its
+   404px card, so the desktop layout is untouched) clamps it.
+3. **The three pillow aspects made cards unequal.** 324x248, 353x207 and
+   317x296 sized by width alone left style 3 rendering 343px tall against style
+   2's 217, so card 3 ran 14px taller than its neighbours. `PILLOW_MAX_H_VARS`
+   (180 / 220 / 260) caps the height too; CSS scales a replaced element
+   proportionally when both a width and a `max-height` bind, so aspect survives
+   and only the largest shape moves.
+4. **`useEqualHeaders` replaced a hardcoded header reserve.** A `min-h-38`
+   applied only at 1200+ was right for one width and one set of titles: it
+   over-reserved 32px on two desktop cards and did nothing on a phone, where
+   card 4's title wraps an extra line and its card ran 23px taller (552 against
+   529 at 320). The hook measures the tallest header in the set and publishes it
+   as `--card-hdr-h` on the list. Two details are load-bearing — it measures an
+   **inner** element, because measuring the box that is itself being inflated by
+   `min-height` reads the inflated value back and never settles; and it observes
+   **every header**, not just the list, because a webfont swapping in reflows
+   text inside a box that never resizes, which is exactly when a title gains a
+   line.
+
+`PILLOW_SCALE_VARS` shrinks the front artwork to 0.66 / 0.8 / 1 across the same
+breakpoints. Scaling the **width** is what reduces the height: each vector is
+sized as a share of the card's inner width with `height: auto`, so its aspect
+does the rest and the three shapes stay in proportion to one another.
+
+#### The lead copy, and the pillow stroke
+
+The bold line under each card's title is capped at **two lines** (direct
+instruction), which at the 371px desktop card is roughly 65 characters —
+measured, not estimated: 88 characters wrapped to three. All four leads went
+from 133-171 characters to 56-63, and all four now render on two lines at
+desktop and one at 560. Copy is in `ux-copy.md`.
+
+**No em dashes anywhere in copy** (direct instruction, and it restores the
+app-wide sweep Round 17.1 ran). Two bullets kept theirs from the source doc and
+now use a colon; one `aria-label` did too.
+
+The committed pillow SVGs carry a **hand-added `purple-300` centred stroke**
+that the Figma exports do not. Adding it meant growing each file's `viewBox` and
+intrinsic size by the stroke width, because a centred stroke sits half outside
+the path's bounds and an `<img>` clips to the viewBox — without that the outline
+is shaved flat on every edge. `PILLOW_STYLES`' widths are the post-stroke
+intrinsics (324.265 -> 330.265, 353.16 -> 359.16, 317.237 -> 323.237), which
+keeps the pillow itself the size the frame drew it. **A re-export drops both and
+they must be reapplied together**, the same trap as the confetti transparency.
+
+#### Hover
+
+Hovering or focusing a card's front swells its pillow by 1.07 and nothing else
+moves. It is a `scale()` composed into the artwork's own transform — the image
+already carries a rotate and a skew, so a Tailwind `scale-*` utility would
+replace them rather than add to them, and a transform is painted rather than
+laid out, so the card's height and the grid's tracks cannot react. Measured:
+0.999 -> 1.069 -> 0.999 with card height and row tops unchanged throughout.
+
+**⚠️ Driven from React state, not CSS `:hover`.** The first pass used
+`motion-safe:hover:[--pillow-hover:1.07]` and Tailwind emitted **no rule at
+all** — verified by walking every stylesheet for the property name and finding
+zero matches, while the class sat in the DOM and setting the variable by hand
+scaled the image correctly. Arbitrary *properties* work here unprefixed or under
+`min-[Npx]:` (`--pillow-s`, `--wave-s` both do); stacked under
+`motion-safe:hover:` they do not. `onMouseEnter`, not `onPointerEnter`: the
+pointer events never fired under automated hover.
+
+#### Measured, every viewport
+
+All four cards identical, panels identical and top-aligned, `layout-audit.js`
+empty and `scrollWidth === innerWidth` at every row:
+
+| viewport | cols | card w | card h | panel |
+|---|---|---|---|---|
+| 320 | 1 | 272 | 552 | 200 |
+| 375 | 1 | 327 | 484 | 200 |
+| 414 | 1 | 366 | 484 | 200 |
+| 639 | 1 | 560 | 439 | 200 |
+| 768 | 1 | 560 | 500 | 260 |
+| 1024 | 1 | 560 | 501 | 260 |
+| 1199 | 1 | 560 | 501 | 260 |
+| 1200 | 3 | 331 | 590 | 300 |
+| 1512 | 3 | 371 | 590 | 300 |
+| 1920 | 3 | 371 | 590 | 300 |
+
+Against the starting point: **878 -> 590** at desktop, **880 -> 484** at 375,
+**951 -> 501** at 1199. The front face is never the taller of the two at any
+width, the artwork stays inside its card, and "Click to flip" stays visible.
+
+(Heights above are from the sweep that closed the geometry; the lead-copy and
+stroke passes after it took desktop to **545** and 375 to **461**, with the same
+uniformity at every row.)
+
+⚠️ **Two measurement traps, both instrument rather than app.** A probe that
+grouped cards into rows by `Math.round(getBoundingClientRect().top)` reported
+`cols: 1` at desktop while the grid was demonstrably `370.664px x 3` — negative
+tops become string object keys and sort after integer-like ones, so
+`Object.values(rows)[0]` returned the second row. And **programmatic
+`element.focus()` dispatches no focus event in this harness**: `activeElement`
+was correct, listeners on `focus` and `focusin` never fired, and the focus-raise
+looked broken. A real OS Tab press proved it works. Read
+`gridTemplateColumns` and the raw rects before believing a derived count, and
+use real key presses before believing focus is broken.
+
+#### The scroll hint
+
+Not a Show more toggle — direct instruction ("it should not [be] show more or
+show less. It should be a scroll detector, scroll to see more"). An expand
+control was built first and replaced.
+
+It lives **inside** the scroll panel, `sticky bottom-0` (also direct
+instruction), with negative side margins bleeding its `purple-50` fill to the
+panel's edges. The panel carries `pb-0` and the list inside supplies the bottom
+padding: a `sticky bottom-0` child aligns to its container's **padding** box,
+not its border box, so a `pb-4` on the panel leaves a 16px band underneath the
+hint where the scrolling text shows through.
+
+**It is a real button that scrolls the list**, because as a plain div it read as
+clickable and clicking it flipped the card — the back's background handler only
+spares `button, a`. Reported exactly that way. It is `aria-hidden` +
+`tabIndex={-1}`, a pointer-only affordance: the panel itself is a focusable
+region an AT user can arrow through, so a button duplicating that is noise. And
+it is `h-9`, the app's floor — `layout-audit.js` caught it at its natural 17px.
+
+Visibility is measured, on scroll and via a `ResizeObserver` watching **both the
+panel and the list inside it**: the panel's own box can hold still while its
+content reflows (a webfont swapping in), and observing only the panel misses it.
+
+#### Flipping back
+
+The visible "Flip back" pill was removed on instruction; **clicking anywhere on
+the back** turns it over. Two guards: not on a `button, a` (Download resource
+and the scroll hint live there), and not on a drag — pointer-up compared against
+pointer-down, ignoring anything past 6px, so scrolling the list or selecting a
+line to read it does not throw the reader out of the card.
+
+The back cannot be a `<button>` like the front is, since it contains buttons, so
+this is a click handler on a div. Keyboard parity comes from an `sr-only` "Flip
+back to the front of this card" button plus Escape while focus is on that face.
+The instruction was to remove the button, not the route back.
+
+**⚠️ `inert` takes a boolean in React 19, and `inert=""` is falsy there.** The
+first pass wrote the React 18 form with a `@ts-expect-error` (older React types
+lacked the prop) and the attribute never reached the DOM — `hasAttribute('inert')`
+returned `false` on a face already carrying `aria-hidden`. Every hidden back's
+Download and Flip back controls were tabbable. React 19's types declare
+`inert?: boolean`, so the suppression comment was also hiding the compiler saying
+so. Re-measured after the fix: all four backs inert at rest, front inert once
+turned.
+
+Flipping **moves focus** (front button -> back title, and back), because the
+control that was clicked turns away. An effect is safe here where it was not for
+the page's stages: both faces are always mounted, so the target exists when the
+flag changes.
+
+The front is a `<button>` covering the whole face; the back is a `div` with its
+own controls, because a button inside a button is invalid and the back carries
+Download resource and the scroll hint. "Download resource" is an `aria-disabled`
+control with an `sr-only` "(coming soon)" — no resource exists yet.
+
+The grid went three across -> two across -> three across, all on direct
+instruction. Two across was an attempt to cut card height; the height turned out
+to come from the panel stretching rather than from the column count, so three
+returned once that was fixed. The single-column band reaches all the way to
+**1200** rather than stopping at 640: at 768 two columns give a 348px card,
+narrower than the phone's own single-column card, so the "tablet" layout was
+worse than the phone one and was reported as broken.
+
+Three divergences worth recording: the card title uses `consumer-card-title`
+(28/500 at desktop) rather than the frame's `display-md` 32/500/-0.374, because
+this portal's own card-title step moved to 28 and dropped its tracking in §85 and
+these are card titles; the module bar's progress bar sits **beside** the "%
+complete" caption at every width, after a pass that put it below on mobile — on
+its own line near the band's lower edge a full 100% bar read as a second rule
+under the band ("the lower stroke becomes progress bar"); and "Download
+resource" keeps a full-strength fill rather than being dimmed, since the
+`sr-only` "(coming soon)" is what marks an unwired control and dimming only
+costs contrast (Round 28).
+
+The footer gains a **Go back** beside Continue from Summary on (frame
+`882:2185`). The video screen keeps its single action, which is its own frame's
+`hidden` Back pill being specific rather than inconsistent.
+
+The frame's 75px `#d9d9d9` square becomes a lucide `NotebookPen` in
+`consumer-primary` with no badge — Home's own `CardIcon` precedent (§88), per
+direct instruction ("add icon blue coloer as you did in home page").
+
+**⚠️ Naming collision, flagged not resolved:** this screen is headed "Module
+reflections" (the frame's own words) while the *next* stage is the Reflection
+screen, whose five multiple-choice questions are in the same doc under
+"REFLECTION QUESTIONS". Two consecutive screens both called reflection. The
+frame is explicit so its wording ships, but this wants a product call — the
+doc's own name for these is "chapter summary cards".
+
+### 89.12 Close-out sweep
+
+Removed rather than left: `LessonPlayCta.onClick` (its only caller was Home's
+demo state cycler, replaced by a real link in this round, so it was a second
+unused way to wire one control), and `export` on `MODULE_EPISODES` /
+`MODULE_INTROS`, which only `moduleLesson` reads. One genuinely **stale comment**
+was corrected in place rather than deleted: `LearningTaskCard`'s note still
+described `DEMO_PROGRESS` as the live source of both progress figures and
+claimed the card reads "~7 mins left", when both now come from
+`releasedLessons`.
+
+Verified across the whole portal — Home, My Modules, sleep diary, Need Help, My
+Profile, and all four module stages including every card flipped: `layout-audit.js`
+**empty on all ten surfaces**, no horizontal scroll on any, **zero occurrences of
+"lesson"** in rendered text, **zero em dashes** in rendered text, and focus on a
+real heading (never `<body>`) at every stage change. `tsc -b` clean; `oxlint` 16
+warnings, all the pre-existing `only-export-components` ones and none in a
+consumer file. No orphaned exports in `components/consumer`, and every committed
+`consumer-lesson` asset is referenced.
+
+### 89.13 Portal-wide type sweep
+
+Direct instruction: "match what we have decided on home + other pages. Use
+consumerhome as the basis, and streamline all pages for consumers including
+sleep diary and module pages."
+
+**Home is the scale**, measured off the live page:
+
+| px / weight | token | role |
+|---|---|---|
+| 40 / 500 | `consumer-display` | page title |
+| 28 / 500 | `consumer-card-title` | card title |
+| 22 / 500 | `consumer-heading` | section heading |
+| 20 / 500 | `consumer-lead` | lead line, panel title |
+| 20 / 600 | `consumer-lead`/`consumer-lesson` + semibold | emphasised figure, number above a title |
+| 18 / 400 | `consumer-eyebrow` | eyebrow, sub copy |
+| 16 / 600 | `body-md` | button, pill label |
+| 16 / 400 | `body` | body text, caption |
+
+**Nothing below 16, and nothing above 600.** That is the finding the sweep turned
+on: the portal's own scale has no 14px or 12px step and no bold, so any of those
+is app-scale leakage rather than a decision.
+
+Seven violations found by dumping every rendered `(font-size, weight)` pair on
+every consumer surface and diffing against Home:
+
+| Where | Was | Now |
+|---|---|---|
+| Summary card number "01" | `text-[24px] font-bold` (24/700) | `consumer-lesson font-semibold` (20/600) — the same treatment the module welcome gives "Module 4" |
+| Summary card bullet emphasis | `font-bold` (700) | `font-semibold` (600) |
+| Scroll hint | `caption-medium` (14/500) | `body-md` (16/600) |
+| Module bar "% complete" | `caption-medium` (14/500) | `body` (16/400) |
+| Carousel chapter titles | `caption-medium` (14/500) | `body` (16/400) |
+| Carousel timestamp badges | `fine font-medium` (12/500) | `body-md` (16/600) |
+| Need Help page | `display-lg` + `sub-greeting` (app tokens) | `consumer-display` + `consumer-lead` |
+
+**My Profile was the biggest offender** and had never been migrated — a Round
+6.2.1 page still entirely on the app scale: a 32px title against Home's 40,
+`text-title`, and 14s and 12s throughout. Its page-local type is now on the
+consumer scale.
+
+⚠️ **Three shared components initially kept their 14s**: `PersonCard` (from
+`SpacesCoachProfilePage`), `NotificationPreferencesCard` and
+`PasswordChangeCard`, all rendering in other portals too — 17 sub-16 nodes, all
+on My Profile. **Resolved in §89.14 on the next instruction**: `PersonCard`
+moved to the Consumer Portal (it had no other caller at all), and the other two
+took a `variant` prop. Left here as the trail, since the reasoning for stopping
+at the portal boundary was wrong and the correction is the interesting part.
+
+Verified after: every module stage and every portal page reads only from the
+table above, `layout-audit.js` empty at 375 / 768 / 1512, no horizontal scroll,
+and the summary cards still uniform at each width (545 / 455 / 440).
+
+### 89.14 Consumer Portal made internally consistent
+
+Direct instruction: "make consumer portal consistent, regardless of what has
+been extracted from researcher portal, make sure the UI is consistent in
+consumer portal." The §89.13 type sweep had stopped at the shared-component
+boundary and flagged it; this went through it.
+
+**`PersonCard` moved, because the sharing was fiction.** It was exported from
+`SpacesCoachProfilePage` and imported across the portal boundary by
+`ConsumerAccountPage` — but a grep found exactly two render sites and both were
+that consumer page. No researcher or coach surface had used it for some time. So
+it was a researcher-styled component with only a consumer caller, which is
+precisely why My Profile was the last consumer page showing 14px labels, app
+purple and 36px controls. It is now
+`components/consumer/ConsumerPersonCard.tsx` on this portal's own values, and
+the original was **deleted** (133 lines) rather than left behind — a shared
+component nobody shares is a second copy waiting to drift. The researcher file
+keeps a comment saying where it went.
+
+**The two genuinely shared cards took a `variant` prop instead.**
+`NotificationPreferencesCard` (3 portals) and `PasswordChangeCard` (2) each got
+a `TONE` table and `variant?: 'app' | 'consumer'`, defaulting to `app`. Same
+pattern as `viewerRole` on `SessionTracker` and `ProfileDetailsSections`: one
+component, one behaviour, surface values chosen by who is looking.
+
+| | app | consumer |
+|---|---|---|
+| title | `text-title` 20/500 | `consumer-heading` 22/500 |
+| body / labels | `caption` 14, `fine` 12 | `body` 16 |
+| buttons | `caption-medium` 14, `h-9` | `body-md` 16, `h-12` |
+| brand | `primary` #4a278f | `consumer-primary` #3a00ad |
+| focus ring | `ring-ring` | `ring-consumer-primary` |
+| button shape | `rounded-full` / `rounded-sm` | the portal's 28px pills |
+
+**My Profile lost its hero band.** It was the only consumer page using the
+shell's `hero` slot, which paints `bg-pearl` — the app's *cool* grey — across
+the top of a portal whose canvas is the warm `consumer-canvas`. Every other page
+here puts its title straight on the canvas. The band is gone and the title sits
+where Home's does.
+
+Also swept: the page's own `bg-primary`/`text-primary`/`border-primary`/
+`ring-ring` to consumer equivalents and its controls 36 -> 48; the compact nav
+tab row (14 -> 16); the opted-out banner (14 -> 16); Home's "~N mins to
+complete" caption (14 -> 16); and `hover:bg-pearl` -> `hover:bg-purple-50` in
+the header, its account menu and `ScrollCue`, since pearl is the cool grey the
+temperature rule warns about.
+
+**`--text-consumer-chip`'s floor moved 14 -> 16.** It clamps 14 -> 18 from
+frames `787:1516`/`787:1449`, so on a 375px screen the "Module complete" chip
+bottomed out at 14 while every label around it held 16 — the last sub-16 text in
+the portal, and a hole in the floor the scale is supposed to have. The frame's
+14 loses deliberately: the floor exists because of this portal's audience note,
+and 2px on one chip is a better trade than a scale with an exception. Recomputed
+with §85.1's own clamp formula.
+
+**Verified.** Across Home, My Modules, the diary, Need Help, My Profile and all
+three built module stages, at 375 / 768 / 1440:
+`layout-audit.js` empty, no horizontal scroll, **zero off-scale type** (nothing
+under 16px, nothing over weight 600) and **zero app-brand purple** — the only
+`#f5f5f7` left anywhere is `border-parchment`, the `Card` component's own
+default stroke.
+
+**The other portals are untouched, measured not assumed.** The researcher
+account page still renders the shared cards at 20/500 titles, 14px labels, 36px
+`pearl` buttons and app purple; the coach profile page renders and its tabs work
+after the deletion. Its `layout-audit.js` findings there are pre-existing —
+`git diff` on that file is 133 deletions and a 10-line comment, nothing else —
+and one of them (`control-not-filling-wrapper` on a checkbox) is the documented
+false positive from Round 36.
+
+### 89.15 Left open
+
+- Reflection is a WIP screen awaiting its frame. Its content is already known —
+  the activities doc's five multiple-choice questions.
+- At three across the cards measure ~850px tall, because the back was drawn
+  against a 468px card and three columns at 1400 give ~397. The fronts carry a
+  lot of empty purple below the pillow as a result. Shorter cards mean either
+  two across on desktop or smaller body text on the back; both are product calls.
+- Audio and Transcript are real single-select toggles with pressed states but do
+  **not** change the panel — direct instruction: "for now make them functional,
+  i.e. add interactive states, but do not wire them. I will share the UI for
+  each." Built as `aria-pressed` toggles in a `role="group"`, **not**
+  `role="radiogroup"`, which carries a roving-tabindex and arrow-key contract
+  this project has already shipped unimplemented once (`WeekdayPicker`, fixed in
+  Round 14.5).
+- Five of the six modules have no episode content, so their cards' Play control
+  is a plain button that does nothing rather than a link into an empty player.
+- `CONSUMER_MODULES[4]` is still titled "Daytime habits that support sleep"; the
+  supplied script's own heading is "Building Blocks of Good Sleep". Both describe
+  the content accurately and renaming was not asked for, so the curriculum name
+  stands — a one-line change if the script's title should win.
+
+---
+
+## §90 — Round 47: the consumer module's reflection activity, and three summary-screen corrections (2026-09-07)
+
+Frame `910:2367` ("Module page template"), plus a run of direct instructions
+arriving mid-turn, several as freehand annotations over the live page. Content
+is the supplied `BuildingBlocksOfGoodSleep_activities_v2.md`.
+
+This closes the fourth and last stage of `/consumer/:dyadId/module/:moduleId`.
+§89 is still the spec for the other three.
+
+### 90.1 The activity
+
+`components/consumer/ModuleReflection.tsx`, rendered by a new `ReflectionStage`
+in `ConsumerModulePage` that replaces the `InProgressStage` placeholder (that
+component is now deleted, along with its `Hammer` import).
+
+One question at a time inside one card. The card is the frame's `#f3efff` on a
+`#f5f5f7` stroke with the Card shadow at 16px radius — **every hex in this
+frame already had a token**: `purple-50`, `purple-200`, `purple-300`,
+`parchment`, `ink`, `ink-muted`. No new tokens this round.
+
+| Region | Value |
+|---|---|
+| Panel | `bg-purple-200`, 32px/40px inset (24/32 below 768) |
+| Progress row | 5 segments, `w-10 h-2`, `rounded-[16px]`, 8px gap |
+| Question | `consumer-card-title` (22 -> 28 / 500), `ink` |
+| Sub | `consumer-eyebrow` (16 -> 18 / 400), `ink` |
+| Answer pill | `min-h-12`, `rounded-[28px]`, `body-md`, 24px trailing mark |
+| Card nav | `min-h-12`, `rounded-[28px]`, black not purple |
+
+### 90.2 Five things the frame does not say, all direct instructions
+
+1. **Multi-select.** The frame's own sub copy says "Choose one or more options",
+   which the doc's one-of phrasing does not. `aria-pressed` toggle buttons in a
+   `role="group"` — the §89.15 call again, not `role="radiogroup"`, whose
+   roving-tabindex contract this project has shipped unimplemented once already.
+2. **No Go back on the first question, no Next on the last.** The card never
+   shows a control that would land you outside it; leaving is the module
+   footer's job.
+3. **Next is inert until the question has an answer**, and **Finish until every
+   question does.** Both `aria-disabled`, not `disabled`, so the control a
+   reader is waiting for stays findable and says why.
+4. **The pips are a progress bar, not a stepper** — every segment up to and
+   including the current one stays solid, so the row fills. 8px tall, down from
+   the frame's 10.
+5. **Below 1200 the card's nav fills the row and splits it evenly, aligned
+   left**; at 1200 and up it is the frame's two 136px pills on the right.
+
+### 90.3 Four defects found by measuring
+
+- **`flex-basis: 0` resolves against the content box**, so Go back's 1px outline
+  made it 2px wider than a borderless Next: 135.5 against 133.5 at 375, with
+  `flex-1` and `min-w-0` on both. `border border-transparent` on the filled pill
+  equalises the boxes; measured 134.5 / 134.5 after. Invisible in a screenshot
+  and the exact thing "equally divided" was asking for.
+- **The frame's own 136px width wraps its own label.** 136 less 40px of padding,
+  a 16px gap and a 16px chevron leaves 64px; "Go back" needs ~66 at 16/600. It
+  is a `min-w` here, with `whitespace-nowrap`; measured 137.5 at 1440.
+- **The disabled Finish failed AA at `/55`.** Rasterised over the footer's white
+  (Tailwind v4 emits `oklab`, so the computed string is not RGB): 55% paints
+  `rgb(147,115,210)` and the white label lands at **3.73:1**. `/65` paints
+  `rgb(127,89,202)` at **5.02:1**. The card's own disabled Next is `bg-ink/60`
+  on `purple-50` at **4.96:1**.
+- **A block comment in a JSX attribute list.** The `continueBlockedReason`
+  expression was first written inline with a `/* … */` above it, between two
+  attributes. `tsc -b` passed and the page rendered, but the prop never reached
+  the component — the gate simply did not apply. Lifted to a `blockedReason`
+  const above the JSX. This is §Round 23's trap in a second form: a comment in
+  an attribute position is not safe here even when nothing turns blank.
+
+### 90.4 Motion, and the focus that goes with it
+
+The question block uses the sleep diary's own `stepVariants` / `riseVariants`
+verbatim (§87.3): the block slides 64px in the direction of travel on a spring
+while its children rise a beat behind it on a 0.07 stagger, collapsing to a
+crossfade under reduced motion. Direct instruction was to match what the portal
+already does, and the diary is this portal's other one-question-at-a-time flow.
+
+Direction comes from a **ref compared against the incoming index during render**,
+not state — state would need a second render to be right, and the exiting block
+reads the value at exit time through `custom`.
+
+The clip around it is `overflow-x-clip` with `-mx-1 px-1`: `clip` leaves the
+vertical axis visible where `hidden` would not, and the 4px buys back what an
+option pill's `ring-offset-2` focus ring needs at the column edges.
+
+**Focus is load-bearing rather than decorative here.** The question `<h2>` takes
+focus on every change through a callback ref keyed to the element, skipping the
+mount that arrives with the stage (that one belongs to the stage's `<h1>`).
+Without it, pressing Next on question four unmounts the button under the cursor
+that pressed it — the focus-to-`<body>` defect this project has shipped in six
+rounds. Measured `H2` at every one of the five steps, `activeElement !== body`.
+
+### 90.5 Content
+
+`MODULE_REFLECTIONS` in `data/consumerLessonContent.ts`, keyed by module and read
+through `moduleReflection()`, so a module with no questions cannot render a flow
+with nothing in it. Five questions, the doc's own, with three conventions
+applied on the way in and nothing else reworded:
+
+1. Contractions spelled out ("there's" -> "there is", "I'm" -> "I am").
+2. No em dashes; two questions carried one and are repunctuated, not reworded.
+3. Q3's prompt has no main clause in the doc ("In the afternoon, and you sit
+   down for a minute") and is written as "It is the afternoon, and you sit down
+   for a minute".
+
+Verified on the rendered stage: **zero em dashes, zero en dashes, zero
+contractions**, and the only `(size, weight)` pairs present are 16/400, 16/600,
+18/400 and 28/500 — all on §89.13's table.
+
+### 90.6 Three summary-screen corrections, bundled
+
+- **"Module reflections" -> "Module summary"**, and its icon `NotebookPen` ->
+  `BookOpen`. Both had to move together: `NotebookPen` is this app's reflection
+  mark across all four portals and reflection is now a real stage one screen on,
+  so two stages would have shared one glyph and one word.
+- **New intro copy**, supplied directly, with "summaries" -> "summarise" and
+  "listened" -> "listened to". Its first sentence is still
+  `episode.coreMessage`, read from the data so it cannot drift from the cards it
+  describes.
+- **"Click to flip" -> "Tap to flip" below 1200**, on the cards and on that
+  intro line's verb. Two spans with one `display: none` rather than React state:
+  CSS-hidden text is excluded from the accessible name, so the button announces
+  the verb on screen, and there is nothing to keep in sync with a resize. Same
+  device split gives the footer "Finish" below 768 and "Finish module" above it.
+
+### 90.7 The mobile pillow
+
+Direct instruction: bigger on a phone, without touching its container or the
+card. So only `--pillow-s` moved, 0.66 -> 0.88, and `--pillow-max-h` stayed at
+180 — the height cap is what guarantees the card cannot grow. Measured at 375:
+artwork 174x138 -> 232x184 inside an **unchanged** 279x215 container and an
+**unchanged** 327x440 card. 0.88 is a ceiling, not a round number: the widest
+pillow (style 2, 1.009 of the column) rotated 4.51deg and swelled by the
+hover/focus scale reaches 211px of the container's 215.
+
+The `min-[640px]:[--pillow-s:0.8]` step is now *below* the base value, which
+looks like a mistake and is not: the container grows with the card, so the
+artwork still gets bigger, measured 232x184 at 375 against 345x233 at 768.
+
+### 90.8 Verification
+
+`tsc -b` clean; `oxlint` 16 warnings, all the pre-existing
+`only-export-components` ones, none in a consumer file. Vite `preview_logs`
+clean — a green typecheck is not proof the app builds. Console clean **in a
+fresh tab**, per Round 32's retained-buffer lesson. `layout-audit.js` **empty**
+on the reflection and summary stages at 375, 768 and 1440, with
+`scrollWidth === innerWidth` at all three. The whole five-question flow was
+walked forwards and backwards through the real UI, not asserted.
+
+⚠️ **Harness note.** Synthetic pointer clicks from the browser tool did not
+reach this page's buttons at all this session — the call reported success and
+nothing fired. Programmatic `.click()` did, and is what every measurement above
+was driven with. Worth knowing before concluding a control is dead.
+
+### 90.10 The blocked-control hint (added after the first pass)
+
+`components/consumer/BlockedHint.tsx`, wrapping both inert controls: the card's
+Next and the footer's Finish.
+
+**It replaces `cursor: not-allowed`, rather than joining it.** Direct
+instruction: "when I try to click it, there is a hover deactive icon that we
+show, swap that". That cursor is the problem it solves — it says "no" and
+nothing about why, in a glyph the browser draws and this project cannot word.
+
+**Two rejected passes are worth recording, because the reasoning was wrong both
+times.** The first put the sentence permanently under the button, on the
+argument that hover does not exist on touch. It was rejected in the footer and
+again in the card. The instruction was a hover tip and the sentence sitting
+there always reads as a page-level warning rather than as something belonging to
+one control. Touch is handled inside the tip instead: an `aria-disabled` button
+still fires a real `click`, so it opens on that too and closes on the next
+`pointerdown` outside.
+
+| Copy | Where |
+|---|---|
+| "Please choose an answer first." | card's Next |
+| "Please answer all questions first." | footer's Finish |
+
+Chosen from a `/design:ux-copy` pass, option C. The `sr-only` parentheticals both
+controls carried are **gone** — the button's `aria-describedby` points at the tip
+itself, so there is one sentence rather than a second copy that can drift.
+
+**Three defects found while building it, all measured:**
+
+- **An empty black box after Finish activated.** The wrapper does not unmount
+  when a control unblocks, so `open` survived into a state with nothing to say,
+  and the tip rendered with an empty string. Reported from the live page as "a
+  black box after finish module button activates". Fixed twice over: no `reason`
+  now renders no tip at all, and an effect keyed on `reason` resets the flag.
+- **The tip overflowed the viewport at 375.** Centred on the footer's Finish —
+  which sits right of the viewport centre, because Go back takes the left — a
+  260px tip ran 142 to 402 against a 375 viewport. `center` now means
+  right-anchored below 768 and centred above; measured 91 to 351 at 375, and
+  exactly centred (0px offset) at 1440.
+- **React's `onMouseEnter` does not fire from a dispatched `mouseenter`.** It is
+  delegated through `mouseover`/`mouseout`, so a synthetic `mouseenter` opened
+  nothing and made a working tip look dead. Verified with `mouseover`.
+
+### 90.11 Option copy is left-aligned below 1200
+
+Direct instruction. The frame centres every answer label, which is right while
+they fit on one line; a centred label that wraps to two leaves a ragged edge on
+both sides, and at 375 in a single column several of them wrap. Left-aligned
+below 1200 (`justify-start` + `text-left`), the frame's centring from 1200 up.
+Measured `left` at 375 and 1041, `center` at 1440.
+
+### 90.12 The welcome screen joined the flow's footer
+
+Direct instruction, then refined across roughly eight follow-ups against the
+live page. What landed:
+
+| | Before | After |
+|---|---|---|
+| Yellow module bar | absent | **still absent** — see below |
+| Forward / back | two stacked pills in the content | the shared `ModuleFooter` |
+| Band height cap | `min(42vh, 480px)` | `min(32vh, 380px)` |
+| Content spacing | `justify-between` + `gap-16` + `pb-20` | a plain column, `gap-10` |
+
+**The bar went on and came straight back off.** The first pass put it on welcome
+too, reading 25%. The next instruction removed it: "there is no need to show
+header on first page, just footer is fine". That is the right call and worth the
+round trip — the bar carries Go home and a progress figure, and on a screen you
+have not started, "25% complete" is a claim about work nobody has done. The
+footer stays, because that screen does need a way forward. `stageProgress` is
+untouched throughout; welcome simply never shows its term.
+
+**The band height took four passes** — 42 -> 30 -> 24 -> 27 -> 32 vh, each one a
+look at the live page rather than a calculation. It settles at
+`min(32vh, 380px)`: 288px at 1440x900, 285 at 768x1024, 247 at the 772px laptop
+height this project has had a report from.
+
+**Every stage now has a back control.** Round 46 shipped the video screen with
+Continue alone, following frame `819:13080`, whose Back pill (`875:1162`) the
+designer set `hidden` — flagged at the time as a product call, with the
+competing reading written down (a consumer with dementia should never be in a
+flow with no visible way back). Round 47 settled it that way by instruction.
+
+**The labels are now a matched set**, which they were not before:
+
+| Stage | Back | Forward |
+|---|---|---|
+| welcome | **Go home** (house glyph, leaves the module) | Start learning |
+| video · summary | Go back | **Go next** |
+| reflection | Go back | Finish module / Finish |
+
+"Go next" replaced "Continue" so the pair names one kind of move in two
+directions. Welcome's back says "Go home" in sentence case, not the
+instruction's "Go Home" — the yellow bar has said "Go home" since Round 46, and
+two casings of one label in one flow is the drift rather than the fix. Its
+destination follows the label (`toHome`, not My Modules): a button that says
+home and lands somewhere else is a lie the reader has no way to check.
+
+**Widths are uniform across all four stages** — 384 forward, 152 back at 1440
+and 768; below 768 the back pill sizes to its own content (138-147) so both stay
+on one line. An intermediate pass made welcome's pair equal-width and stacked;
+that was reversed on instruction ("make it consistent for all screens").
+
+**Three defects found by measuring, none visible in a screenshot:**
+
+- **"Start learning" wrapped to two lines at 375.** With Go back fixed at 152px
+  the forward pill got ~159 of a 327 row. The 152 is a floor from 768 up only
+  now, and both pills carry `whitespace-nowrap` so it cannot come back quietly.
+- **The equal-width pass was not equal.** At 768 the outline pill's `shrink-0`
+  let it hold 384 while the primary absorbed the whole shrink at 320. Fixed with
+  `flex-1` + `shrink` on both — then made moot when equal widths were reversed,
+  but the mechanism is the point: `shrink-0` on one of two flex siblings means
+  the *other* one pays.
+- **The house glyph did not match the bar's**, reported directly. The bar draws
+  `size-5` at `strokeWidth 2.25`; the footer's chevron slot is `size-4` at the
+  lucide default. A local `HomeGlyph` wrapper puts its class last in `cn` so it
+  wins the size while keeping the slot's `shrink-0`. Measured identical (20px
+  box, stroke 2.25) in both places afterwards.
+
+**Measured after, all four stages:** `layout-audit.js` empty and
+`scrollWidth === innerWidth` at 375, 768, 1440 and 1440x772; every footer CTA on
+one line at 48px; welcome's content and both controls above the fold with no
+page scroll at every size; focus still landing on each stage's own heading.
+
+### 90.12b Superseded first pass
+
+Direct instruction: "streamline module welcome screen with other screens. bring
+in the header, and use footer from the next screen, the image section height can
+be reduced, so that the content does not get pushed way down."
+
+Welcome was the one stage with neither band. It had its own two stacked
+full-width pills sitting in the content instead, plus `justify-between`, a 64px
+floor gap and `pb-20` that existed only to keep them off the copy. All of that
+is gone.
+
+| | Before | After |
+|---|---|---|
+| Yellow module bar | absent | present, reading **25% complete** |
+| Forward / back | two stacked pills in the content | the shared `ModuleFooter` |
+| Band height cap | `min(42vh, 480px)` | `min(30vh, 360px)` |
+| Content spacing | `justify-between` + `gap-16` + `pb-20` | a plain column, `gap-10` |
+
+`stageProgress` is **unchanged** — 25% simply continues the 25 / 50 / 75 / 100
+series the other three already showed, and the bar was the only reason nobody
+had seen the first term.
+
+**Two consequences worth naming rather than burying.**
+
+1. **Start learning gains the footer's chevron**, reversing an earlier call in
+   this flow that gave it none on the grounds that it begins rather than
+   advances. One footer used four times cannot also be four footers, and the
+   label already carries that distinction.
+2. **Welcome's Go back leaves the module** (to My Modules) rather than stepping
+   a stage. There is nothing behind stage one, and `retreat` would silently do
+   nothing — so the footer's `onBack` is `toModules` there and `retreat`
+   everywhere else, with video keeping its single action as its own frame draws.
+
+**One defect found by measuring at 375.** With Go back fixed at 152px the
+forward pill got ~159 of a 327 row, and "Start learning" wrapped to two lines
+inside a 48px pill. The 152 is now a floor from 768 up only; below it Go back
+sizes to its own content (measured 138) and the forward pill takes 173, one
+line. Both pills carry `whitespace-nowrap` so this cannot come back quietly.
+
+**Measured after, welcome stage:**
+
+| Viewport | Band | CTA above the fold | Page scrolls |
+|---|---|---|---|
+| 1440 x 772 | ~232 | yes (bottom 756) | no |
+| 1440 x 900 | 270 | yes (bottom 884) | no |
+| 768 x 1024 | 285 | yes (bottom 1008) | no |
+| 375 x 812 | — | yes (bottom 796) | no |
+
+`layout-audit.js` empty and `scrollWidth === innerWidth` at every one, focus
+still landing on the welcome `<h1>`, and all four stages re-walked at 375 with
+no wrapped label on any footer CTA.
+
+### 90.13 The header shrank, and four other surfaces measured against it
+
+Direct instruction: "reduce logo by 0.5x this should reduce page header height",
+then "reduced by a lot, increase by a little". Landed at `LOGO_SCALE = 0.65` —
+137 x 34 desktop against the frames' 211 x 52 — with the frames' own numbers
+kept as the source and multiplied, so they stay checkable and the scale is one
+edit. The `vw` term in the clamp is scaled by the same factor, so both crossover
+points are unchanged and the curve is identical, just smaller.
+
+**A smaller logo does not shrink a fixed-height bar.** The header was `h-24`, so
+the logo change alone would have left a 96px bar around a 34px lockup. The bar
+is now **72px**, and the number lives in one place — a new
+`--consumer-header-h` in `consumer-tokens.css` — because **five** surfaces
+measure against it:
+
+| Surface | Was | Now |
+|---|---|---|
+| `ConsumerHeader`'s bar | `h-24` | `h-[var(--consumer-header-h)]` |
+| Module page's column | `calc(100vh-96px)` x2 | `calc(100vh-var(--consumer-header-h))` |
+| `ConsumerWelcome`'s column | `calc(100vh-96px)` x2 | same |
+| Diary's question column | `calc(100dvh-157px)` / `-96px` | `calc(100dvh-var(--consumer-header-h)-61px)` / `-var(...)` |
+| `ConsumerCanvasWave` | `headerPx = 96` | `headerPx = 72` |
+| Diary's wave crest | `top: -160` | `calc(-64px - var(--consumer-header-h))` |
+
+**Two regressions this caused, both found rather than predicted.**
+
+- **A 24px band of dead canvas between the header and the yellow module bar**,
+  reported from the live page. The bar is `sticky top-24` — 96, the header's old
+  height — so it stuck 24px too low. Now `top-[var(--consumer-header-h)]`, and
+  measured flush (header bottom 72, bar top 72, gap 0). `ConsumerShell`'s two
+  `sticky top-24` slots had the same bug and were fixed with it.
+- **The logo link fell to 34px, under this project's 36px floor, on every page
+  in the portal.** It had always inherited its height from the lockup, which was
+  52px and never a question. `layout-audit.js` caught it on all five pages;
+  nothing about it is visible, because the artwork is unchanged. Fixed with
+  `min-h-9` on the link, which moves the box and never the logo.
+
+Both are the same lesson in two shapes: **a number derived from the header's
+height cannot be written down anywhere but the header.** The token exists so the
+next change to that bar is one edit rather than six.
+
+**Verified across Home, My Modules, the diary, Need Help, My Profile and all
+four module stages, at 375 and 1440:** header 72 everywhere, logo link 36,
+`layout-audit.js` empty on every page, no horizontal scroll anywhere, and the
+diary's wave crest sitting flush under the header rather than 24px low.
+
+### 90.14 "Start learning" only the first time
+
+Direct instruction: go past the welcome screen and come back, and it should not
+still be offering to start something already started. A `furthest` index is held
+alongside `stage` — separately, for the reason `ModulePlayerNav`'s own
+`furthestIndex` is (§77): re-reading an earlier screen must never roll a label,
+or a destination, backwards. Welcome's forward control reads "Start learning"
+while `furthest === 0` and "Go next" after. Measured across a full
+forward-and-back walk: Start learning -> Go next -> (back) Go next -> Go next.
+
+### 90.15 The module completion screen
+
+Frame `915:3850`, which is the sleep diary's own thank-you screen with different
+words, plus `915:4218` for its illustration.
+
+**`CompletionHero` is a real extraction, not a copy.** The wave band, the
+six-layer mascot and the centred title column moved out of `ConsumerDiaryPage`
+into `components/consumer/ConsumerCompletionHero.tsx` at their **second**
+caller — 408 lines, doc comments and all, because the numbers they explain are
+the reason nothing in there is round. Copying them would have set two versions of
+a six-layer composition running in parallel, which is §89.14's `PersonCard`
+exactly. The diary's page keeps its input-field constants and imports the hero
+back.
+
+`done` is a fifth screen but **not a fifth quarter**: `STAGES` still holds the
+four that carry progress, so the bar reads 100% on reflection rather than 80%,
+and `done` renders with no bar and no footer at all.
+
+**The illustration is the rosette badge**, not the pillow-and-books mascot the
+diary uses — direct instruction, and it reads correctly: a rosette is what you
+get for finishing something, where a pillow with a mug and a stack of books is
+what you get for keeping a diary. `CompletionHero` takes a `mascot` slot for it
+rather than being forked, since everything else about the screen is identical.
+
+**The breath is on the whole badge, and that is deliberate.** It is the diary's
+own 4s `scale: [1, 1.035, 1]` / `y: [0, -3, 0]` loop on the same easing. What
+differs is the target: the diary's pillow is one of six separate layers so it can
+breathe alone, while this rosette is a single flattened vector with the pillow
+inside it. Pulling the pillow out to animate it separately is precisely the
+split this project has shipped misaligned three times (§78.1), and at this size
+the difference cannot be seen. Verified live mid-cycle:
+`matrix(1.01174, 0, 0, 1.01174, 0, -1.00626)`.
+
+**The overlap is desktop-only.** Direct instruction allowed the badge to sit
+subtly over the title, then restricted it: "make sure the badge does not overlap
+in tablet or mobile view". Below 1200 the text column is much taller once it
+wraps, so art tucked behind its first line reads as a collision rather than a
+composition. Measured: 7px clear at 1440, **56px** at 375, **88px** at 768, and
+`overlaps: false` at both narrow widths.
+
+**Two stale strings fixed on the diary's own screen**, found while borrowing it:
+"your **lesson** of the week" -> "module of the week" (Round 46 renamed this
+portal-wide and §89.12 recorded zero occurrences of "lesson" in rendered text —
+wrong: this screen sits behind nine answered questions and the sweep never
+reached it), and its title-case "Go Back Home" -> "Go home".
+
+**Verified** by finishing the real flow rather than deep-linking: focus lands on
+the completion `<h1>`, type entirely on the consumer scale (16/600, 18/400,
+20/600, 40/500), zero em dashes, zero contractions beyond possessives,
+`layout-audit.js` empty and no horizontal scroll at 375 / 768 / 1440. New
+committed asset: `public/illustrations/consumer-lesson/module-complete-badge.svg`
+(267 x 297.589, the frame's own export).
+
+### 90.16 Close-out sweep
+
+Removed rather than left: `InProgressStage` and its `Hammer` import (the
+reflection placeholder it rendered is now a real screen); `toModules`, whose
+last caller went when welcome's back control became "Go home"; the `sameWidth`
+prop and its stacked-pair styling, reversed on instruction the same session;
+`cursor-not-allowed` on both blocked consumer controls, which `BlockedHint`
+replaces by design; and the `sr-only` parentheticals on those two controls,
+which were a second copy of a sentence now rendered once.
+
+Un-exported, having no reader outside their own file: `DiaryWaveBand` and
+`DiaryMascot` (only `CompletionHero` composes them — they were exported by the
+extraction script, not by intent), plus the `ModuleChapter` and
+`ReflectionOption` types.
+
+**Two stale doc comments corrected in place** rather than deleted, because what
+they got wrong is the interesting part: `ConsumerModulePage`'s header still said
+"Summary and Reflection are deliberately unbuilt" and "four stages" (it is five
+screens, four of which carry progress), and `ConsumerShell`'s still described
+the header as `h-24`/96px and its slots as `sticky top-24`. Every remaining
+mention of `top-24` or 96px in this portal is now inside a comment explaining
+the history, never in a live class.
+
+**Verified at close, at 375 / 768 / 1440:** the whole five-stage module flow
+walked end to end (`layout-audit.js` **0 findings** at every stage, focus on a
+real heading at every change, never `<body>`); Home, My Modules, the diary, Need
+Help, My Profile and the module page each showing **zero** rendered "lesson",
+zero em dashes, zero sub-16px or over-600 type, and zero app-brand purple; no
+horizontal scroll anywhere; every committed `consumer-lesson` and
+`consumer-diary` asset referenced. The researcher and coach portals were checked
+and render unchanged on their own 48px header. `tsc -b` clean; `oxlint` 16
+warnings, all the pre-existing `only-export-components` ones and none in a file
+this round touched. Fresh-tab console clean, Vite logs clean.
+
+### 90.9 Left open
+
+- **Answers are session state.** A reload starts over and nothing reaches the
+  coach's record. There is no store slice for a consumer's reflection answers,
+  and inventing one would put a figure on a researcher's screen that no coach
+  has ever discussed. Same call, same reason, as the sleep diary's (§87.6).
+- **The inactive pips measure 1.54:1** (`purple-300` on `purple-200`) — the
+  frame's own pairing. The active segment is 8.68:1 and the count is also
+  carried as `sr-only` "Question N of M", so the information is available in
+  text; the tint is left as drawn rather than overridden without a call.
+- **A single card nav button takes the full width below 1200** (first and last
+  questions), which follows from "100% equally divided" plus "left aligned" but
+  was not separately confirmed. A natural-width left-aligned pill is a one-line
+  change.
+- Five of the six modules still have no reflection questions, so the stage
+  renders nothing for them. `moduleReflection()` returns an empty list rather
+  than a broken one-step flow.
+
+## §91 — Round 48: the session-feedback modal — responsive stacking, the pillows' real drop shadows, and motion (2026-09-09)
+
+Continues the session-feedback work. Everything here was verified by measurement
+in the running app, not by looking at a screenshot; `design/layout-audit.js`
+returns empty at 375x667, 667x375, 768x1024 and 1281x800.
+
+### 91.1 The stack, per viewport
+
+| Width | Mood options | Footer |
+|---|---|---|
+| < 640 | vertical list, copy first then pillow, `60vw` centred (min 200, max 280) | stacked, full width to a 420px cap, primary first |
+| >= 640 | the frames' 5-across row | row, primary right, 384 / 152 |
+
+Four things worth keeping:
+
+- **The panel is a full-screen sheet below 640 and the frames' 1115 x 674 card
+  above it.** Inset as a card on a phone, the wrapper's 16px plus the panel's
+  24px left the footer buttons at 295 of 375 — reported as "on smaller screens
+  these buttons take ~80% width". Full-bleed with `px-5` they reach 335 (89%),
+  and nothing is spent on a margin a phone does not need.
+- **The footer is *not* sticky** (direct instruction). It sits inside the
+  scrolling region, so on a phone it scrolls up with the options it belongs to.
+  On a tall panel `scrollHeight === clientHeight`, so the whole group is centred
+  by `m-auto` and the space under the footer is the panel's own padding, not
+  slack — checked, because it looks like slack.
+- **⚠️ Height-dependent sizes are `min(px, dvh)` values, not stacked media
+  variants.** Landscape phones were the one real failure in the sweep: at
+  667x375 the frames' 202px cards and 72px panel padding needed 217px of
+  scrolling to reach the footer. Expressing them as `min(202px, 30dvh)`,
+  `min(48px, 5dvh)`, `min(72px, 7dvh)` and `min(110px, 16dvh)` cut that to 98px
+  (844x390: 210 -> 71) and scales continuously. Written as single values on
+  purpose — §89's lesson is that mixing named-breakpoint and arbitrary variants
+  on one property resolves by source order, and a `max-height` variant stacked
+  on `min-[900px]:` is exactly that trap.
+- **A phone-only `min-w`/`max-w` must be switched off at `sm`.** Left
+  unprefixed, the 200px floor applied to the 5-across grid cells too and forced
+  a real horizontal page scroll at 768.
+
+### 91.2 The selected pillow's drop shadow
+
+All five: **X -3, Y 12, blur 36, spread 0, 50%**, colour per mood
+(`#0C4111` / `#4D8C38` / `#B29914` / `#B8590D` / `#801F1A` — four of them the
+card's own border colour, "very good" is not).
+
+- **⚠️ Blur is halved.** Figma's blur is a diameter; `filter: drop-shadow()`
+  takes a standard deviation, so 36 becomes **18**. This is the mirror of §66's
+  `box-shadow` finding, where the mapping *is* 1:1 — the two do not agree, and
+  which one applies depends on the CSS property.
+- **⚠️ An outer shadow cannot survive a node-bounded SVG export, so do not
+  conclude from the export that there isn't one.** Three passes were spent on
+  this. Every export — the cards, then five isolated pillows (`951:7199`,
+  `7211`, `7223`, `7235`, `7247`) — carries exactly one filter, `filter0_ii`,
+  and it is two *inner* shadows, with its region clipped to the pillow's own box
+  (`x="0" width="125.79"`). `get_design_context` on the card, the container and
+  the image node returns fill and stroke only; `get_variable_defs` returns `{}`.
+  Meanwhile Figma's own render plainly showed a colour-matched halo. The
+  intermediate guess — a shadow tinted from each filter's `feColorMatrix` — was
+  visually close and numerically wrong, and was replaced the moment the real
+  values arrived. Ask for the effect panel's numbers; do not reverse-engineer
+  them from ink bounds.
+- **The lengths are `cqw`, so the shadow scales with the pillow.** The effect was
+  authored against the 125.79px selected pillow, which renders at 56px on a
+  phone; fixed px would give a phone a shadow twice as deep as its own pillow.
+  Each length is its share of that width (3/125.79 etc.) against a container
+  established on the pillow box — measured at 1281 as -2.623 / 10.494 / 15.743px
+  against a 110px pillow, matching the arithmetic to three decimals.
+
+### 91.3 The selected stroke is an outline, not a border
+
+The frame's selected card has a 3px stroke against the resting 1px. As a border
+that cost 2px of the card's own padding and **the label stepped 2px right the
+moment a mood was chosen** — invisible unless you diff the two states. It is now
+`outline: 3px solid` at `outlineOffset: -3px` over a permanent 1px transparent
+border: same pixels, no layout. `focus-visible:ring-*` is a box-shadow here, so
+the two never contend. Verified: every label holds at x=92 in both states.
+
+### 91.4 Motion
+
+- **Each pillow performs one beat and settles, on a loop** — "just one change and
+  then move to default, and this loops". Rest until 62%, peak at 76%, settled by
+  100%; five different durations (3.2-4.6s) plus a per-index delay, because one
+  shared duration reads as the row twitching rather than five pillows each with
+  a life of its own.
+- **All five beat until a choice is made, then only the chosen one does.** The
+  flag is `mood === null || selected`, read from the selection itself rather than
+  held separately, so the row cannot get out of step and clearing a choice
+  restores all five.
+- **The faces move too, and the emotion intensifies without ever changing** —
+  "happy becomes slightly more happy". The two happy pillows lift, the two
+  unhappy ones sink, "okay" barely moves. Each pillow is now three layers —
+  body, brows, face — **split out of the flat export byte for byte**, every
+  `<path>` verbatim under the export's own unmodified `<svg>` open tag, the same
+  technique as the awake mascot's four-layer split, so they register by
+  construction. 9 paths in, 9 paths out, per file.
+- **⚠️ Translation only.** Each layer spans the whole box, so `scale`/`rotate` on
+  a layer pivots about the box centre and a scaled brow visibly slides sideways.
+  Same constraint, and same order of magnitude of values, as §84's `EXPRESSIONS`.
+- **⚠️ framer-motion never parsed percentage `y` keyframes here.** It wrote
+  `transform: none` and left it: 5.2s of sampling showed the body's CSS beat
+  running while the face measured 0 the entire time, which is the only reason the
+  failure was visible rather than plausible. The face layers moved to CSS, where
+  the per-layer peak is a `var()` inside the keyframe — resolved at
+  computed-value time, so one keyframe set serves both layers and all five moods
+  while the *interpolation* still happens between resolved transforms. **A class
+  alone is not an animation**: the shared rule set duration and delay but no
+  `animation-name`, and that silent gap cost a second measurement round.
+- **A percentage translate resolves against the layer's own box, which is not
+  always the pillow's.** "Very bad"'s face is a separate 34.2244 x 34.0473 export
+  rendered at 29.30% width, so it occupies 32.128 pillow units of height, not
+  34.047. Using the raw viewBox left that one mood travelling 6% short of every
+  other (2.35px where 2.5 was intended).
+- **Each screen animates in and out** (`AnimatePresence mode="wait"`, 0.26s, out
+  upward / in from below). `mode="wait"` rather than an overlap, because the
+  panel is one fixed box and two screens crossing inside it would overlap their
+  own copy.
+- **⚠️ The heading focus moved from an effect to a callback ref**, which is
+  forced by that wrapper: the incoming heading mounts a commit later than the
+  step change, so an effect keyed on `step` focuses the outgoing heading and
+  every transition lands on `<body>`. Measured after the change: focus lands on
+  "Anything else you want to add?" and "Thank you for your feedback!" in turn.
+
+### 91.5 The thank-you avatar shares the Home mascot's clock
+
+Direct instruction: "re-use pillow avatar animation for last page avatar ... from
+home page or sleeping diary page". `ConsumerCanvasWave` now exports
+**`useMascotExpression`**, extracted from `ConsumerMascot` rather than copied, so
+one implementation drives both avatars and future tuning reaches both;
+`EXPRESSIONS` supplies the same `browY`/`faceY`/`tilt`, which land unchanged
+because `thanks.svg` shares the mascot's 90-unit height. `thanks.svg` was split
+into the same three layers.
+
+`nap: false` is the one difference, and it is a content decision: the pillow
+should not doze off while thanking someone for their feedback. Home was
+re-verified after the extraction — all five layers present, brows reaching -4,
+the head tilting 4° -> 0, the float running.
+
+---
+
+## §92 — Round 49: the Consumer Portal's Need Help page, and the two header submenus (2026-09-11)
+
+Frame `982:8558` (desktop, 1281). No mobile frame, so everything below `lg` is
+derived and measured. New page at `/consumer/:dyadId/help`, reached from the
+account menu rather than a header tab (Round 48 moved it there).
+
+### 92.1 The hero is the portal's own, with two swapped assets
+
+The user's own framing settled the scope: "I can see the background weavy +
+avatar already there, you just need to update the background + avatar shadow
+below", then "avatar will need updating, it has new vector". Nothing about the
+hero was rebuilt.
+
+| Layer | Home | Need Help |
+|---|---|---|
+| Wave | `home-wave-desktop.svg`, flat `#FBF5E6` | `help-wave-desktop.svg`, radial `#FBF5E6 -> #FFCC4D -> #FFB846`, 1323.88 x 247 |
+| Ground shadow | `awake-ground.svg` `#EADECC` | `help-ground.svg` `#966316` |
+| Sticker | none (My Modules has a pencil) | `help-question.svg`, 52.776 x 46.481 |
+
+`ConsumerCanvasWave` gained `variant: 'home' \| 'help'`; `ConsumerMascot`,
+`ConsumerMascotFigure` and `ConsumerPageHero` gained `withQuestion`, mirroring
+`withPencil` exactly.
+
+**`help-ground.svg` is `awake-ground.svg` with one `fill` changed and nothing
+else.** The frame's own ellipse node sits at the bottom of a 138.158 x 97.79
+group where the app's sits at the bottom of a 138.158 x 90 box — the *same*
+relative position — so transcribing the frame's `mt: 82` would have moved a
+shadow that was already correct. §84.2's rule: derive from the asset that
+already registers, never from a second set of numbers.
+
+**The sticker overflows the mascot's box to the right, out to 154.6**, so
+`ConsumerMascotFigure` widens its own box by 16.4px for this variant
+(`w-[99.6px] sm:w-[154.6px]`). The frame does the same thing — its group is
+154.6 wide inside a centred column, so the pillow sits ~8px left of centre and
+the bubble carries the balance. Sizing the box to the pillow instead would
+centre the pillow and let the bubble hang into the gutter.
+
+**The bubble animates as one element** (direct instruction). -5.1deg (its drawn
+rest angle) to +3deg is an 8.1deg swing with a 3px float on a 3.2s loop, offset
+from the pillow's 5s breath. Round 34's threshold is the reason for the
+amplitude: rotations under ~8deg are invisible on a 52px shape. Measured live
+across 8 frames — rotation -4.46deg to +2.88deg, `y` -0.24 to -2.95 — rather
+than assumed from the classes being present.
+
+The bubble and the mark are **not** split into two layers. The export
+interleaves its four paths (bubble fill, mark, bubble outline, mark highlight),
+so splitting would reorder the paint. §84.2 cuts the other way here: the asset
+is only guaranteed to register with itself.
+
+**⚠️ `variant="help"` has no mobile export.** Figma supplies one asset for this
+frame where Home has a purpose-drawn phone band as well, so below `sm` the gold
+variant renders the desktop curve held at its own width and cropped — the same
+"clip, never squash" rule the desktop asset already follows at tablet widths.
+Swap in a real phone export when one is drawn; do not stretch this one.
+
+### 92.2 Four new type steps
+
+None of the existing consumer steps matched, and the standing rule is to add the
+Figma value rather than round onto a near neighbour (Round 21 lost 5 of 16
+elements that way). All four registered in `lib/utils.ts`'s font-size group in
+the same commit — the list Round 21.3 found silently eating a whole token.
+
+| Token | Value | Why not an existing step |
+|---|---|---|
+| `--text-consumer-section` | 24 -> 32, 500, -0.374px | Sits between `card-title` (-> 28) and `display` (-> 40). Lower anchor derived, not transcribed: 24 holds the same 4px step below `display`'s 28 that the desktop pair holds at 40/32 |
+| `--text-consumer-body` | flat 16, 400 | `consumer-eyebrow` grows to 18; the frame draws this at 16 at its own 1281, and 16 is the portal floor so there is nothing to interpolate down to |
+| `--text-consumer-faq` | flat 18, 500, 1.4 | `consumer-lesson` is wrong twice — it grows to 20, and runs 1.3 |
+| `--text-consumer-crisis` | 18 -> 20, **600** | See below |
+
+**`consumer-crisis` is 600 where the frame draws 700.** This portal's scale has
+a documented ceiling of 600 and nothing else in it is bolder; one 700 would be
+the only one in the portal, so the ceiling wins. The line still reads as the
+loudest thing in its block — it is the only 600 among 400s.
+
+Verified by measurement at 375 / 768 / 1281: **zero** rendered text nodes under
+16px or over weight 600.
+
+### 92.3 Deliberate divergences from the frame
+
+1. **The trailing vertical rule is dropped.** The crisis row draws a divider
+   after Beyond Blue with nothing to its right (`982:8878`). Two items take one
+   rule. Implemented as a per-item border rather than a rendered divider node,
+   so the rule cannot outlive the item it separates.
+2. **The 52px white square is a glyph**, per direct instruction. It is
+   `MessageCircleQuestionMark`, **not** `LifeBuoy` — the portal settled this
+   twice already (the coach profile modal, "this icon does not make any sence",
+   and again in `ConsumerMenuDrawer`), and the user's own instruction was to use
+   what the hamburger drawer uses. Drawn as the glyph in white rather than a
+   white plate holding a glyph, so it belongs to the card's all-white content.
+3. **Copy corrected**: "essentials information" -> "essential information",
+   "Care2sleep" -> "Care2Sleep", "About program" -> "About the program". Two sub
+   copy lines also trail off mid-sentence in an ellipsis, which is a Figma text
+   box running out of room rather than intended copy; both are finished.
+4. **The rows are real accordions.** The frame draws a collapsed state only, and
+   a chevron that does nothing is a silently dead control. Each opens onto an
+   honest "This answer has not been written yet" rather than fabricated copy.
+5. **Questions are dummy content**, written to be plausible for this study and
+   counted **4 / 5 / 3 / 2** (direct instruction: "show some variation, not
+   necessarily it will be same number for all sections"), so the layout is
+   exercised against uneven sections rather than a tidy 3-3-3-3 the real content
+   will not match. The frame's three identical "Question" rows per section could
+   not ship as drawn regardless: three controls sharing one accessible name is
+   unusable with a screen reader.
+
+### 92.4 The mobile FAQ card is derived, not transcribed
+
+Direct instruction: "in mobile view, add background white + shadow + purple
+header 50 to section". Below `lg` each section becomes a card — white body, warm
+`shadow-card`, title block on a `purple-50` band. It is derived from a pattern
+this app already has rather than invented: §35a's own card-header contract.
+
+It earns its place. Once the columns stack, a title and its questions sit in one
+undifferentiated run with three more sections behind them and nothing tells a
+reader where one stops. On desktop the 80px column gap does that job, which is
+why the card is not carried up there. Every card property is cancelled
+explicitly at `lg` rather than being written `lg:`-first, so the mobile default
+cannot be lost to a later edit.
+
+**The email cannot wrap** (direct instruction). At 16/600 the address measures
+~250px and the row's chrome another 84, so the frame's fixed 320px column broke
+it onto a second line with one orphaned character; the column now sizes to fit
+(`lg:w-auto lg:min-w-[320px]`) and the row is `whitespace-nowrap`. The earlier
+`break-all` had to go with it — it made the wrap silent instead of preventing
+it. Padding drops to `px-5` on a phone, which is what keeps it inside 375.
+
+### 92.5 The two header submenus are now one pattern
+
+Three direct instructions, all against the account dropdown and all applied to
+the accessibility card too.
+
+**Position.** "It should show below the header, and not overlay (just like it is
+done for accessibility sub menu)." The account menu now hangs off the same
+virtual anchor `AccessibilityMenu` already built, for the same measured reason:
+below 1200 the header is the bar PLUS the nav tab row, so anchoring to the
+trigger drops the card 8px under the bar and straight **on top of** the tabs —
+opaque card, invisible in a screenshot. `bottom` comes from the `<header>`,
+`right` from the trigger (which already sits on this portal's gutter, 24 below
+1200 and 80 above). Measured at 1281: header bottom 72, popup top **84**. At
+768: 133 and **145**. Both 12px, both with the popup's right edge exactly on the
+trigger's.
+
+**Rows.** "Re-use the big icons (make them small just a little), and improve the
+sub menu page buttons." The three items are now the hamburger drawer's own rows
+— icon, label, trailing chevron — one step down at every size, because this
+sits in a 320px card rather than a full-screen sheet: icons `size-7` against the
+drawer's `size-8`, chevron `size-6` against `size-7`, label `consumer-lesson`
+against `card-title-sm`, row 60px against 72. They are now driven from an
+`ACCOUNT_ROWS` list so they cannot drift from the drawer's own bottom three.
+
+**Card chrome.** "Visually align the accessibility sub menu as done for sub menu
+for my account." Both are now 320 / `rounded-lg` / `parchment` stroke / white /
+`shadow-card`. The frame's 348 loses to 320 — one of the two had to move, and
+the narrower still fits a 375 screen inside this portal's gutter without
+relying on the max-width clamp.
+
+**The close button.** "Accessibility sub menu close button does not visually
+align across the app." It did not, measurably: the portal had **three** close
+buttons — the drawer's 44px round `consumer-primary` with `X` at `size-7`, the
+coach profile modal's 44px round with `X` at `size-6`, and this one, a 36px box
+holding a 12px `X` inside a filled 24px grey disc used nowhere else. It is now
+the drawer's. That drops the frame's grey disc, which is right twice over: the
+36px control floor already outranked the frame's 24px target, and a portal
+cannot have one glyph mean "close" in three costumes. `-mt-2 -mr-2` keeps the
+*glyph* on the card's 24px inset rather than the button box — the box is 44
+around a 28px `X`, so 8px is padding, and pulling back by exactly that leaves
+the mark where the padding says while the hit area grows into the corner.
+
+**Motion.** "Introduce a subtle animation when they are displayed, or closed."
+One shared constant, `SUBMENU_CARD_MOTION`: a 4px drop and a fade over 200ms,
+same easing and same distance in both directions — two curves on one element is
+most of what reads as springy (Round 32). Driven by Base UI's own
+`data-starting-style` / `data-ending-style` rather than `framer-motion`, because
+the library unmounts the popup on close and an exit animation has to be
+something it can wait for. `motion-reduce:transition-none` rather than a
+`motion-safe:` prefix on each state class — stacking a media variant on a
+data-attribute variant is the combination this project has already watched fail
+to compile silently.
+
+### 92.6 Orphan deleted
+
+`ConsumerInProgressPage.tsx` had exactly two callers ever — My Modules (real
+since Round 43) and Need Help. Both are now real pages, so it is deleted and
+`App.tsx`'s two stale comments about it corrected rather than left pointing at a
+file that no longer exists.
+
+### 92.7 Verification
+
+`tsc -b` and `oxlint` clean throughout; Vite `preview_logs` carry no transform
+error (a green typecheck is not proof the app builds here). `design/layout-audit.js`
+**empty** at 375, 768 and 1281. No horizontal page scroll at any of the three
+(`scrollWidth === innerWidth`). Zero font-rule violations. The accordion was
+exercised through the real UI: `aria-expanded` toggles, the panel mounts and
+**unmounts** (animated `height: 0` is not concealment — Round 20's Critical),
+and focus stays on the trigger in both directions rather than falling to
+`<body>`.
+
+### 92.8 The search field (frame `982:8583`, added mid-round)
+
+A pill search between the reader and the FAQs. The frame puts it **below** the
+blue card at a 96px inset (929px of pill) and drops the Content stack's gap from
+56 to 40 to fit it. Both were built, then both were overridden by direct
+instruction: "move the search bar above blue card, reduce its width, and revert
+the spacing how it was below the blue card, and FAQ's".
+
+Shipped state — search (720px, centred) -> **72px** -> blue card -> **56px** ->
+each FAQ section, 56 apart. The 72 is a second instruction ("add some vertical
+space between the search bar and blue card"): the search is one control and the
+card is a dense block of contact detail, and at 56 the two read as one unit.
+Everything below the card keeps the frame's own 56, so there is one rhythm and a
+single deliberate exception rather than the frame's two-container split.
+
+**It does real work.** The standing rule against silently dead controls binds
+hardest on a search box — it is the first thing a reader types into, and one
+that swallows a sentence and does nothing is worse than no search at all. It
+filters the twelve questions live, hides sections that fall empty, and shows a
+plain "nothing matches" line rather than four headings over four empty lists.
+
+**Word overlap, not `includes()`.** The placeholder is "Describe your issue",
+which invites a sentence, and a substring match returns nothing for a sentence
+against a question phrased any other way — the classic search box that looks
+broken while working exactly as written. The query is split, stop words and
+1-2 letter fragments dropped, and a question matches if **any** surviving word
+appears in it (`some`, not `every`: a reader describing a problem will use
+several words the list does not have, and requiring all of them is the same
+empty result by a longer route). Verified live: "my fitbit is not syncing"
+resolves to the one Fitbit question; "session" to four; "zzzzz" to the empty
+state; clearing restores all fourteen rows.
+
+**One real defect, found by measuring.** The Clear button only renders while
+there is a value, so clicking it **unmounts the control that was clicked** and
+focus fell straight to `<body>` — this project's most-repeated defect, and an
+earlier version of the code comment beside it asserted the opposite. Focus now
+moves to the input, which is where a reader who just cleared a search is going
+anyway. Re-verified: `document.activeElement` is the input, not `<body>`.
+
+Additions the frame does not draw, all for the same reason — it draws one
+resting state: a focus ring, the Clear button, and an always-mounted
+`aria-live` result count. The count matters most: filtering silently removes
+whole sections, and a region that only mounts once there are results announces
+nothing on the transition *into* zero results, which is the case a
+screen-reader user most needs told.
+
+Measured at 1176: pill 720 and centred, gaps 72 / 56 / 56. At 375: pill 327 x
+59, no horizontal scroll while typing a long sentence, Clear at 36px. Audit
+empty and zero font violations at 375, 768 and 1176.
+
+### 92.9 Corrections made the same round
+
+Four fixes, all found by measurement against Home rather than by looking.
+
+**The gold band's phone half is a mask, not the desktop export.** Figma has one
+export for this frame and no phone counterpart — confirmed against the file's
+metadata, where `982:8558 Home_Desktop` is the only Need Help artboard. Two
+passes at serving both widths from it failed, and both are recorded in the
+component because each looked like the obvious fix:
+
+| Attempt | Result at 375 |
+|---|---|
+| `max(100vw, 1281px)` | 239px band ending at y 265, title starting at 221 — **the heading sat inside the gold** |
+| Hold at 943px (the width that gives Home's 176px depth) | Depth right, **curve wrong** — a 943px crest cropped to 375 is nearly a straight edge |
+
+Stretching to 375 x 176 is worse still: the export carries
+`preserveAspectRatio="none"`, so that shears the curve into the spikes the
+two-export split exists to prevent.
+
+The shipped answer takes **shape from Home's own committed export**
+(`home-wave-mobile.svg` as a CSS mask, so it is the identical curve by
+construction) and **paint from this frame's export** — two endpoints sampled off
+`help-wave-desktop.svg` rasterised to a canvas: `rgb(253,223,147)` at the top to
+`rgb(255,197,75)` at the bottom. Horizontal variation measured ~18 per channel,
+below the visible threshold at 375px wide, so a linear vertical gradient rather
+than a reconstructed radial (the export's own stops are a radial in a coordinate
+space that does not map onto a 375-wide box). Verified: Need Help, Home and My
+Modules now measure **identical** at 375 — wave 176 tall ending at 245, mascot
+base 238 at left 24, h1 top 255, 10px of clearance.
+
+**The email breaks at the `@` below `sm`.** "Email should not wrap" was given
+against the desktop card, where a fixed 320px column broke it mid-word and left
+a single "u" alone; the column now sizes to its content and one line holds from
+`sm` up. On a 375 phone one line is arithmetically impossible — the address
+alone is **237px**, plus a 24px icon, a 12px gap and 40px of pill padding =
+**313px** of content in a **261px** pill, and stripping every scrap of padding
+still leaves it ~30px short. `whitespace-nowrap` was not preventing the wrap, it
+was **hiding** it: the text painted outside its own pill and the page's
+`overflow-clip` swallowed the evidence. It now breaks only at the `@` via a
+`<wbr>`, giving "rosemary.vance@" over "monash.edu".
+
+**⚠️ A verification gap worth carrying forward.** This page sets `overflow-clip`
+on its content container (the full-bleed wave needs it), and that makes
+`document.documentElement.scrollWidth === window.innerWidth` **true while
+content is visibly cut off** — so `layout-audit.js`'s horizontal-scroll check
+reported clean on both the email spill and the band overlap. On any surface with
+a full-bleed clipped element, also walk `main *` for rects outside the viewport
+and compare each element's `scrollWidth` against its own box; the audit's
+page-level check is not sufficient there.
+
+**The search is built and switched off.** Direct instruction, "remove the search
+bar for now". A `SEARCH_ENABLED` flag rather than a deletion, because the pieces
+behind it are correct and still type-checked; flipping it restores the 720px
+pill above the card. If it is still `false` next time this page is opened,
+delete it and the three pieces it gates rather than letting a permanent flag
+pretend to be temporary.
+
+**One non-fix, recorded because it was reported as a bug.** "Why did you get rid
+of other FAQs + section" — nothing was removed. All four sections and fourteen
+questions were intact in the source throughout; the browser tab was showing a
+**stale HMR crash**, and a hard reload restored it. The giveaway was in the
+console alongside it: a reload failure for `ConsumerInProgressPage`, a file
+deleted earlier in the round. Round 32's retained-buffer lesson again — check a
+fresh tab before believing either the console or the rendered DOM after a run of
+hot updates.
+
+### 92.10 Left open deliberately
+
+- **No mobile export for the gold wave** (§92.1, §92.9). Below `sm` the band is
+  Home's curve masked with this frame's sampled colours. Faithful, but a
+  stand-in — replace it with a real phone export the moment one is drawn.
+- **The search is switched off behind `SEARCH_ENABLED`** (§92.9), not deleted.
+- **The FAQ answers are all one placeholder line.** The questions are plausible
+  dummy content; none has been reviewed by the research team and no answer has
+  been written. The page says so rather than inventing copy.
+- **The contact phone number is a UK Ofcom drama-range number** on an Australian
+  study — the frame's own value, kept as a visible stand-in. The two crisis
+  numbers, by contrast, are real and current and should not be swapped for demo
+  values.
+- **No Phase 3/4 review** has been run on this round.
+
+
+---
+
+## §93 — Round 49 continued: the Consumer Portal footer, pillow photos, and two welcome-flow fixes (2026-09-11)
+
+### 93.1 The footer (frame `988:9113`)
+
+A `#333` band over a 50%-opacity `#F1F1F1` rule, carrying the Monash lockup and
+an Acknowledgement of Country. New `components/consumer/ConsumerFooter.tsx`.
+
+**Three surfaces only** — Home, My Modules, Need Help (direct instruction).
+`ConsumerShell` takes `showFooter` and **defaults it `false`**: opt-in, because
+three of six surfaces carry it and a `true` default would hand one to every flow
+built later. My Profile was not named; the sleep diary and a module's inner
+pages are *flows* with their own chrome (the module's bar and footer are
+direction-aware) and a second darker footer under that is two competing
+page-bottoms.
+
+**New tokens.** `--color-consumer-footer` `#333333` and
+`--color-consumer-footer-ink` `#f1f1f1`. The first is the same hex as the
+app-wide `ink-muted`, and is named anyway: that is a **text** token, and Round
+20 already found `bg-hairline` — a *border* token — doing duty as a 584x978
+canvas fill and flagged it because the name stops describing the job. A dark
+surface is a new role in this portal.
+
+**New shared constant `CONSUMER_PAGE_GUTTER`** (`px-6 md:px-20`), exported from
+`ConsumerShell`. The footer is a full-bleed band whose contents must line up
+with the page above it, and the shell's own default (`md:px-16`) is 16px
+narrower than what Home, My Modules, Need Help and My Profile all actually pass.
+Built on the shell default it would have put the lockup 16px inside every card
+edge above it. Measured: logo left 80, card left 80.
+
+**⚠️ The type is 16px where the frame sets 12.** The portal's scale has a hard
+floor of 16 and a ceiling of weight 600, and that floor is an accessibility
+decision for an audience the project has an explicit note about. 12 would be by
+some margin the smallest text in the portal. Weight drops 500 -> 400 with it:
+500 at 12px is compensating for the size. Flagged to the user as a one-line
+revert rather than taken silently. Contrast rasterised at **11.19:1**.
+
+The logo is a **real brand mark** exported from the frame and committed to
+`public/logos/` — the narrow pre-existing exception to never-hand-draw-an-icon
+(Round 6.1.1), same folder as the Gmail/Calendar/Zoom logos.
+
+It renders **inside `<main>`**, so the accessibility text-scale `zoom` reaches
+it. The acknowledgement is readable copy, not chrome; a footer holding at 100%
+while the page grew would become the hardest thing to read at the exact moment
+someone asked for bigger text.
+
+### 93.2 The summary cards' pillows now frame a photo
+
+Direct instruction: "for all summary card, there are pillow with placeholder
+images, add image there, use the stock default image we are using everywhere".
+The stock image is `consumer-home/lesson-cover.jpg` — already on all six module
+cards, Home's task card and the module page header.
+
+New `components/consumer/pillowFrame.ts`, and it is **`blobFrame.ts`'s pattern,
+not a second mask asset**: each pillow's `d` is rendered twice in one inline SVG
+— once as the `clipPath` the photo is cut to, once as the stroke over it — so
+the outline cannot drift from the image it frames at any scale, rotation or
+skew. §78.1 is the reason: this project has shipped a photo hanging outside its
+own outline three separate times by deriving a mask and its frame independently.
+
+The three `d` strings were extracted **programmatically** from the committed
+`card-pillow-N.svg`, not retyped, and each keeps its file's own `-3 -3` viewBox
+origin — which exists because the hand-added 6px centred stroke sits half
+outside the path's bounds and would otherwise be shaved flat.
+
+Three details worth keeping: `preserveAspectRatio="xMidYMid meet"` on the root
+replaces the source file's `none`, because `--pillow-max-h` can make the box
+shorter than natural aspect and `none` would squash the pillow (`meet` is what
+the `<img>` it replaces did by default); the `<image>` uses `slice` so the photo
+fills and crops; and the cream `PILLOW_FILL` is still painted **under** the
+image, so a slow or failed load shows the shape the card was designed around
+rather than a hole. `clipPath` ids come from `useId` — a fixed id would have
+every pillow on the page clipped by whichever mounted last.
+
+Verified live: 4 summary pillows plus the pre-existing resource card = 5 clip
+paths, **5 unique ids**, 5 stroke paths, both images resolving (666x1000 and
+800x1200).
+
+### 93.3 Two welcome-flow fixes
+
+**Home and My Modules are hidden during the welcome journey** (direct
+instruction). This restores the gate Round 48 removed — and the reason Round 48
+removed it is now fixed properly rather than worked around. Hiding the nav
+collapsed the bar's `1fr auto 1fr` grid to two children (`AnimatePresence`
+renders no wrapper of its own), so the account cluster fell into the **middle**
+track and floated mid-bar. `ConsumerHeader` now holds the middle track open with
+an empty grid-only child. The navigation argument and the layout bug had been
+wearing one flag. Measured at 1281: account pill at 914-1095, identical to where
+it sits with the nav present.
+
+**Finishing a module no longer replays the welcome screen.** Reported as a
+routing bug and it was not one — the module's exit was already navigating to
+Home correctly. `welcomeDismissed` was only ever set by the welcome screen's own
+Continue, and the module flow passes `showWelcome={false}`, so a reader who
+finished a module reached Home with the flag still `false` and met the first-run
+welcome *after having used the app*. `ConsumerShell` now records the welcome as
+seen whenever a page opts out of it.
+
+That write happens **during render, not in an effect**: the next thing the
+component does is read `skipWelcome`, and an effect runs a commit too late — the
+welcome would paint for a frame on the way past. It is idempotent and targets a
+module-scoped flag rather than state, so it schedules no render.
+
+Verified: a hard reload straight into a module shows no welcome; leaving it
+lands on `#/consumer/dyad-011` with "Hello Joan & Bruce" and no welcome; the
+tabs return on Home.
+
+### 93.4 Verification
+
+`tsc -b` and `oxlint` clean. `layout-audit.js` **empty** on Home, My Modules and
+Need Help at 1281, zero font violations, no horizontal scroll on any.
+
+### 93.5 Left open
+
+- The footer's 16px vs the frame's 12px (§93.1) — a deliberate rule call,
+  reversible in one line.
+- `card-pillow-{1,2,3}.svg` are now unreferenced by the app, kept as the export
+  the paths came from (same reason `awake-body.svg` is kept). **A re-export from
+  Figma drops the hand-added stroke and reverts the viewBox** — reapply both,
+  then re-extract.
+- No Phase 3/4 review on this round.
+
+
+---
+
+## §94 — Round 49 continued: the Consumer Portal welcome journey and its timeline (2026-09-11)
+
+Frames `988:9229` (first step) and `988:9290` (a middle step). Four screens
+replacing the single first-run welcome, on a horizontal track with a rail
+running through it.
+
+### 94.1 The flow
+
+Four screens: welcome, session plan, a module each week, the sleep diary. Go
+back from screen 2 on, `Take me to my portal` last, **no Skip and no progress
+dots beyond the pagination** (direct instruction).
+
+Copy notes are in `ux-copy.md`; two rules are load-bearing in the component:
+the count in the welcome sentence is derived from `WELCOME_STEPS.length`
+(`NUMBER_WORDS`, the same guard `PATHWAY_STAGE_COUNT_WORD` gives the coach
+portal — a written count has been wrong three times here), and screen 3 states
+the cycle in the order it happens (module opens -> you finish it -> then the
+session), which Round 14.3 once had enforced backwards.
+
+### 94.2 The timeline, and the four shapes that failed first
+
+The shipped rail is **one segment per gap between two steps**, each a circle,
+a bar and a circle, living inside the track so it travels with the text on the
+same tween. It is worth recording what it is not, because each rejected shape
+looked correct until measured:
+
+| Attempt | Why it failed |
+|---|---|
+| A pair of pieces flanking the current step | They belonged to that step, so they travelled away with it and nothing joined one step to the next |
+| One continuous bar, knocked out by a canvas fill on each step | Four 688.5px blocks painting over the bar left only the 168.5px between two of them — the line broke into stubs |
+| The same bar, one centred non-fading fill | The section paints a **radial gradient** (measured: `radial-gradient(85.4% 95.2% at 50% 35.1%, ...)`), so a flat `#fffdfa` rectangle matched only at its centre and showed as a pale 857x32 band across the text |
+| The bar animated separately from the track | Gave the stroke a life of its own; the instruction was one shared movement |
+
+**Drawing the gap instead of covering it** removes all four problems: no fill to
+mismatch a gradient, no knockout to break the line, nothing extra to animate.
+
+**The stride is at least the viewport**, not the frames' flat 857 — the single
+most important number here. A travelling rail can only live between two steps,
+so that gap (`stride - textW`) has to cover the space either side of a centred
+block (`vw - textW`), which happens only when `stride >= vw`. At 857 on a 1281
+screen the gap is 168.5 against 592.5, which is why every earlier attempt either
+stopped ~127px short of each edge or needed a fill faking continuity.
+
+Geometry, all published as custom properties so the rail, circles and text
+cannot disagree: `--stride` (>= viewport), `--text-w` (688.5, or `vw - 48`),
+`--rail-gap` 56 (the frames draw 78-90; built tangent it read as crowded). The
+bar tucks `-mx-0.5` under each circle so no hairline shows at a fractional
+device pixel ratio, and the circles are `relative` so they paint over that
+overlap. Colours are all published tokens — `purple-400` circles, a
+`purple-200` -> `yellow-200` -> `purple-200` bar.
+
+**The numbered node**: 64px against the plain 32, numeral at `consumer-heading`,
+on the circle to the reader's left from the second screen onward. The welcome
+screen carries none — it is the way in, not one of the three steps its own copy
+promises, so the numbering runs 1, 2, 3.
+
+⚠️ White on `purple-400` measures **3.06:1**. Acceptable only because the rail
+is `aria-hidden` and the numeral decorative, with position carried by the
+`sr-only` "Step N of 4". Do not reuse that pairing on anything a reader must
+read.
+
+### 94.3 Motion
+
+**A tween, not a spring, and that is the fix for "too fast".** Three rounds of
+lengthening a spring's duration (0.8 -> 1.15 -> 1.6 -> 2.2s) barely changed how
+fast it looked, because a spring front-loads: it covers most of the distance in
+an early burst then creeps, and the perceived speed is that initial velocity. A
+symmetric ease-in-out at **1.8s** spreads the movement evenly, so the whole
+duration is visible motion — slower to read while being shorter on paper. If a
+spring is wanted back, lower the *stiffness*; that is the knob that governs how
+hard it leaves.
+
+**The text has no motion of its own** (direct instruction, after a rise-and-fade
+was built and removed). The track carries it; a second independently-timed
+movement on top read as a slideshow. No fade is needed to hide the other steps
+either — a cell is one stride wide, so the nearest neighbour sits a full screen
+away.
+
+⚠️ **A lazy `useState` initialiser, not a constant.** `stride` used to start at
+857 and be corrected to the viewport by an effect; that correction is a state
+change, and the track animates on state change, so the welcome screen slid ~200px
+sideways on first paint. Reading the viewport during the first render means the
+track's first `animate` target is already its resting position. Verified: ten
+samples through first paint, one position.
+
+> ⚠️ **Correction, 2026-09-14 (Round 50).** This fixed the *target* but not the
+> *starting point*, and the screen still slid in from the left on every arrival
+> — `animate` with no `initial` starts from the value in the DOM, which is
+> `transform: none`, i.e. x = 0. Measured in an iframe booted at a real 1281px
+> width: x ran **0 -> -640.5 over the full 1.8s** on mount. The "ten samples
+> through first paint, one position" above is not wrong so much as mistimed —
+> the same mistake was made again in Round 50 and caught by re-probing. See
+> §95.5(3). The initialiser stays; `initial={false}` / a seeded `MotionValue` is
+> the other half.
+
+### 94.4 Two layout traps worth carrying forward
+
+**`overflow-hidden` clips both axes.** The track wrapper needs it for the
+horizontal clip (the track is four viewports wide), and that sliced the 64px
+numbered node — which overhangs the track's own top edge by ~16px — into a pill.
+`overflow-x: hidden` alone is not the fix: CSS computes the other axis to `auto`
+and adds a vertical scrollbar. `py-10 -my-10` grows the clip box and leaves
+layout untouched.
+
+**A full-bleed child inside `items-center` must not also be `left-1/2
+-translate-x-1/2`.** Flex has already centred it; adding the usual full-bleed
+incantation double-counts. Measured at 768 it put the row's left edge at **-80**
+and clipped the title off-screen.
+
+### 94.5 Accessibility
+
+All four steps stay mounted so the rail can span them, so the three that are not
+current are **`inert` + `aria-hidden`** — off-screen is not out of the
+accessibility tree, and without it they keep their tab stops (Round 20's
+Critical). Verified: 3 inert at every step.
+
+Focus moves to the current step's `<h1>` on every change — required, not
+cosmetic, because advancing makes the step holding the just-clicked button
+inert and an inert element cannot hold focus. An effect is correct here (all
+steps mounted, so the element already exists); a callback ref was correct in the
+earlier remount-per-step build. Verified on all four steps and on Go back.
+
+Every animation path is reduced-motion guarded: the track collapses to
+`duration: 0`, the pagination to `motion-reduce:transition-none`, and the
+artwork's own loops were already guarded.
+
+### 94.6 Verification
+
+`tsc -b` and `oxlint` clean. `layout-audit.js` **empty** and zero font-rule
+violations on all four welcome steps at 1281 and at 375 / 768, and on Home, My
+Modules, Need Help and My Profile. No horizontal page scroll anywhere. Rail
+segments measured tangent to the text edges and reaching both viewport edges on
+the middle steps, absent left of step 1 and right of step 4.
+
+### 94.7 Left open
+
+- ⚠️ **`ConsumerWelcome.tsx` was truncated by a bad edit mid-round** and rebuilt:
+  the original was restored from git (so the wave, mascot and doodle artwork are
+  byte-exact) and this round's work re-applied on top. It verifies clean, but it
+  was re-applied rather than continuously edited, so a fine-tuning value from the
+  last few exchanges could have been missed.
+- **The Need Help search is built and switched off** behind `SEARCH_ENABLED`
+  (§92.9), not deleted. If it is still `false` next round, delete it and the
+  three pieces it gates.
+- **`public/__mock-reflection.html` and `public/__probe-modal.js`** are
+  unreferenced debug artefacts dated 2026-09-09, from a previous session. Left
+  alone rather than deleted, but they would ship.
+- No Phase 3/4 review on this round.
+
+---
+
+## §95 — Round 50: the Consumer Portal's onboarding tour, and the welcome flow's handover (2026-09-14)
+
+**Built and live-verified by measurement. No formal Phase 3/4 review.**
+
+Five Figma frames — `991:9446` (greeting), `992:9666`, `992:9724`, `995:9931`,
+`995:10173` — became one modal shell with five screens, opening automatically
+once the welcome flow hands over to Home. The round also reworked the welcome
+flow's own motion, copy and spacing across ~25 direct instructions, most
+arriving mid-turn as annotated screenshots from a real machine.
+
+### §95.1 — New files
+
+| File | What it is |
+|---|---|
+| `components/consumer/ConsumerOnboardingTour.tsx` | The five-screen modal. Its own chassis, not `ConfirmDialog` (which unmounts content on close). |
+| `data/consumerOnboarding.ts` | Module-scoped open state + `useSyncExternalStore`. |
+| `public/illustrations/consumer-onboarding/*.png` | The frames' own five exports, 994x686 — exactly 2x their 497x343 layout box. |
+
+`dyadFirstNames()` was extracted into `data/spaces.ts` at its second caller:
+Home's greeting built "Joan & Bruce" inline and the tour's `991:9446` needs the
+identical string.
+
+### §95.2 — Why the open state is module-scoped
+
+Finishing the welcome now **navigates** to Home, and every consumer page mounts
+its own `ConsumerShell` — so the shell that opens the tour unmounts immediately
+afterwards. A flag in shell state would be destroyed by the very navigation
+meant to reveal the modal. Round 29 shipped the neighbouring bug (a shell-held
+flag replaying the whole welcome flow); the standing rule is a module-scoped
+value read through `useSyncExternalStore`.
+
+### §95.3 — The frames' own errors, all derived instead
+
+1. **The counter.** `995:9931` and `995:10173` **both** read "3/4". Computed
+   from position, never written.
+2. **The dots.** All five frames draw the first dot active, including the ones
+   whose own counter says 2/4 and 3/4.
+3. **The greeting.** `991:9446` reads the placeholder `Hello <> & <>`.
+4. **Go back on screen 1.** Drawn on all five; nothing sits behind the first, so
+   the slot is *absent* rather than disabled — `ConsumerWelcome`'s own call.
+5. **Four dots, five screens.** Settled by direct instruction ("I want default
+   welcome to dashboard to be counted as a page"): one dot per screen, counter
+   runs 2/5..5/5, and both derive from `STEPS` so neither can go stale.
+
+### §95.4 — Type and colour mapped with nothing added
+
+Unusually, **no new tokens**. Every hex was already a token byte for byte
+(`#3a00ad` `consumer-primary`, `#333333` `ink-muted`, `#1a1a1a` `ink`,
+`#6d6d6d` `ink-faint`) and every type step already existed:
+
+| Frame | Token |
+|---|---|
+| 32 / 500 / -0.374 / normal | `consumer-section` (exact) |
+| 16 / 400 / 1.4 | `consumer-body` (exact) |
+| 16 / 600 / 1.4 | `consumer-body-strong` (exact) |
+| 18 / 500 / 1.4 | `consumer-eyebrow` + `font-medium` |
+
+Later in the round the welcome's two buttons moved `text-body-md` ->
+`text-consumer-body-strong`. Both are 16/600 so nothing moved on screen, but an
+app token on a consumer surface is leakage, not a decision. Measured across both
+surfaces afterwards: 40/500, 32/500, 20/400, 18/500, 16/600, 16/400 — nothing
+below 16px, nothing above 600.
+
+### §95.5 — Six defects found by measuring, not looking
+
+1. **Focus fell to `<body>` on close.** There is no opener to restore to — the
+   tour opens itself. Now lands on `#main-content`.
+2. **The tour opened with focus outside its own dialog.** The shell's
+   post-welcome focus effect ran a commit *after* the modal mounted and pulled
+   focus back to `main`, so Tab reached the page behind the dim. Round 32's
+   Critical by a different route. Fixed with `welcomed && !tourOpen`.
+3. **The welcome slid in from the left on every arrival.** `animate` with no
+   `initial` starts from the DOM's own `transform: none` (x = 0) and tweens to
+   the target — measured in an iframe booted at a real 1281px: 0 -> -640.5 over
+   the full 1.8s. `readGeom`'s lazy initialiser (§94) fixed the *target*, not the
+   *starting point*, and its note claimed otherwise. Now a `MotionValue` seeded
+   at rest; re-measured as one single x for 2.2s after mount.
+   ⚠️ **An earlier read of this said "no mount motion" and was wrong** — it
+   sampled after the 1.8s had finished. A reload plus a new tool call is not a
+   fast enough probe; an iframe is.
+4. **A horizontal scrollbar inside the modal on a phone.** A `-mx-2` on Skip
+   made the header row 8px wider than its container, and `overflow-y-auto`
+   computes `overflow-x` to `auto` — 8px of overhang became a grey bar across
+   the card.
+5. **"Go back" wrapped to two lines.** The frame's 136px minus its 20px padding
+   and 16px gap leaves ~64px for a label needing ~66.
+6. **Header and footer were 140px out of alignment.** Not the padding, which is
+   what was changed first and did not fix it: the header bar is full-bleed with
+   a gutter, while the footer additionally had `mx-auto max-w-[1320px]`, so at
+   1600 the Monash lockup sat at x=220 against the header's 80. Cap removed;
+   both now at 80.
+
+### §95.6 — Motion on the welcome flow
+
+- **Below 1200 the track does not travel.** One frame, then the incoming step
+  fades up over 450ms. Desktop keeps the 1.8s slide.
+- **Stroke leads the text** by `TEXT_LAG_S` 0.05 — the rail and the words are no
+  longer on one transform. ⚠️ Read the lag as a *distance*: the gap is delay x
+  current velocity, and 0.12 put them ~170px apart mid-travel.
+- **Gradient parallax** `RAIL_PARALLAX` 0.95. ⚠️ Counter-intuitive: apparent
+  speed is `1 - RAIL_PARALLAX`, so **raising** the number calms it. 0.85 left the
+  gradient running at 15% of a 1281px travel and read as "moving a lot, too fast".
+- **Curve** `[0.65,0,0.35,1]` -> `[0.37,0,0.63,1]`, duration untouched at 1.8s.
+  Peak velocity 2.0x average -> 1.57x; peak velocity is what reads as speed.
+- **Rail dots have no entrance.** A scale-in was built on instruction and removed
+  on the next look — they are the fixed points the stroke travels between.
+
+### §95.7 — Layout decisions worth keeping
+
+- **Pagination sits outside the scroller**, as a `shrink-0` sibling of the
+  footer in a fixed-height panel: y is constant at 664 on all five screens and
+  it cannot be scrolled out of view.
+- **The modal is a card at every width**, never a full-bleed sheet. Built as a
+  sheet first, following `SessionFeedbackModal`'s phone treatment, and reported
+  back as "I cannot see it as a pop-up modal" — filling the screen removes the
+  dim and the radius, which are the two things that say *modal*. Phone cap is
+  96px short of the viewport, not 32: at 32 the margin was 16px a side, which
+  you have to look for.
+- **The tour footer stacks below `sm`.** Side by side, the primary had ~87px for
+  a label needing ~150.
+- **The welcome's pagination is `sticky` only from 1200.** It was sticky at every
+  width and pinned itself over Go back on a phone. A first fix reserved 112px of
+  empty space under the CTAs; this supersedes it and the reserve is gone.
+- **Welcome vertical spacing is reduced below 1200**, including `flex-1
+  justify-center` becoming desktop-only — taking the slack on a tablet opened a
+  ~150px hole between the mascot and the title.
+
+### §95.8 — Closed from §94
+
+The two unreferenced debug artefacts §94 flagged as "left alone rather than
+deleted, but they would ship" (`public/__mock-reflection.html`,
+`public/__probe-modal.js`) were **deleted** this round. Both were untracked and
+grep-confirmed unreferenced.
+
+### §95.9 — Verification, and what is NOT verified
+
+`tsc -b` and `oxlint` clean; `layout-audit.js` empty at 375x667, 375x812,
+768x1024, 1281x620, 1281x900 and 1600x900; no horizontal page scroll at any of
+them; the five-screen walk exercised through the real UI at each width.
+
+⚠️ **The Skip button's hover is NOT measured.** A synthetic mouse move never set
+`:hover` in this harness, and a `document.styleSheets` walk reached only 176
+rules with zero hover rules of any kind — it is not seeing Tailwind's sheet, so
+that scan proves nothing either way. `hover:bg-parchment` is a standard utility
+and `bg-parchment` resolves to `rgb(245,245,247)`, but the state itself wants a
+look on a real machine. The rest-state colour was rasterised: `ink-muted` on
+white, 12.63:1.
+
+### §95.10 — Left open
+
+- No Phase 3/4 review on this round.
+- The tour is **not persisted**, matching the welcome it follows, so a reviewer
+  meets both on every full page load. Deliberate.
+- This is the **second** consumer modal carrying `SessionFeedbackModal`'s focus
+  chassis with no shared component. Extracting one means editing a signed-off
+  file and was not done in the same pass that introduced this one; a third
+  caller should force it.
+- Page *content* is still capped at `max-w-[1320px]` while the header and footer
+  are now full-bleed, so above ~1480 the footer aligns with the header rather
+  than with the content column above it. Moving content to match is a separate
+  change.

@@ -111,6 +111,27 @@
     --color-consumer-canvas: #fffdfa;
     --color-consumer-canvas-edge: #fff9f0;
 
+    /* The full-screen hamburger drawer's own ground, given directly as
+       `#FFFCF6`.
+
+       Named rather than left a literal because it matches **neither** canvas
+       token above — it sits between `consumer-canvas` #fffdfa and
+       `consumer-canvas-edge` #fff9f0 — so there was nothing to reuse, and an
+       unexplained hex at a call site is what this file exists to avoid. The
+       drawer covers the viewport, so this is a real surface rather than a tint
+       over the page it hides. */
+    --color-consumer-menu: #fffcf6;
+
+    /* The portal header's height, in one place because four other surfaces
+       measure against it: the module page's viewport-height column, the
+       welcome screen's, and `ConsumerCanvasWave`'s crest offset. It was a
+       hardcoded 96 in each of them, and Round 47 halved the logo — which is
+       what a reader sees, but the bar is a fixed height, so the logo alone
+       changes nothing. Now the bar reads this and so does everything that has
+       to sit under it. 72 = the halved 26px lockup plus the frame's own
+       vertical breathing room. */
+    --consumer-header-h: 72px;
+
     /* The purple wave header behind the mascot (frame `761:3137`). The shape
        itself is a committed Figma export — `/illustrations/consumer-welcome/
        wave.svg` — so these three are NOT applied anywhere in CSS; they are
@@ -231,10 +252,20 @@
     --text-consumer-eyebrow--letter-spacing: 0;
     --text-consumer-eyebrow--font-weight: 400;
 
-    /* The "Lesson complete" chip label. 14 -> 18. Frame `787:1516` /
-       `787:1449`. The widest travel of any step here, which is why the
-       chip needs its own rather than borrowing the eyebrow's. */
-    --text-consumer-chip: clamp(0.875rem, 0.7614rem + 0.4848vw, 1.125rem);
+    /* The "Module complete" chip label. **16 -> 18**, from the frames' own
+       14 -> 18 (`787:1516` / `787:1449`).
+
+       ⚠️ The lower anchor was raised in Round 46's type sweep. This portal's
+       scale, taken from Home, has a hard floor of **16px** — nothing on any
+       other consumer surface goes below it — and a clamp bottoming out at 14
+       put this chip under that floor on a 375px screen while every label
+       around it stayed at 16. It was the last sub-16 text in the portal.
+
+       The frame's 14 loses to the floor deliberately: this portal's audience
+       note (plain language, big targets) is the reason the floor exists, and a
+       2px divergence on one chip is a better answer than a scale with a hole in
+       it. Recomputed with §85.1's own formula for anchors 375 and 1200. */
+    --text-consumer-chip: clamp(1rem, 0.9091rem + 0.3879vw, 1.125rem);
     --text-consumer-chip--line-height: 1.4;
     --text-consumer-chip--letter-spacing: 0;
     --text-consumer-chip--font-weight: 600;
@@ -282,6 +313,29 @@
     --text-consumer-card-title--line-height: normal;
     --text-consumer-card-title--letter-spacing: 0;
     --text-consumer-card-title--font-weight: 500;
+
+    /* The emphasis line under a card's intro paragraph — frame `930:5270`
+       ("If you can't make it to a session..."), the frames' published
+       `body-md` at Inter Semi Bold 16 / 1.4.
+
+       **Flat, like `card-title-sm`, and that is the honest value rather than a
+       clamp that had nowhere to go.** The frame is desktop-only (`930:5195`,
+       1121px) so there is no second anchor to interpolate toward, and 16 is
+       already this portal's hard floor — a clamp would have to run 16 -> 16.
+       Written as a flat step so the next reader is not left wondering which
+       mobile frame the lower bound came from.
+
+       It sits one size below the intro paragraph (`consumer-eyebrow`, 16 -> 18)
+       and one weight above it, which is the frame's own relationship between
+       the two lines: 18/400 over 16/600.
+
+       ⚠️ Registered in `lib/utils.ts`'s `font-size` class group in the same
+       commit — a `--text-*` token missing from that list is silently dropped by
+       tailwind-merge wherever `cn()` also passes a text colour (Round 21.3). */
+    --text-consumer-body-strong: 1rem;
+    --text-consumer-body-strong--line-height: 1.4;
+    --text-consumer-body-strong--letter-spacing: 0;
+    --text-consumer-body-strong--font-weight: 600;
 
     /* A **flat 22** card title, and the only consumer step that does not
        interpolate — Round 43, frames `786:4179`/`787:1053`/`787:1082` and the
@@ -345,6 +399,76 @@
     --text-consumer-progress--letter-spacing: 0;
     --text-consumer-progress--font-weight: 600;
 
+    /* The site footer's dark band — frame `988:9113`, the published
+       `neutral/dark-grey` #333333.
+
+       Named rather than reached for as `ink-muted`, which carries the identical
+       hex app-wide. That token is a **text** colour, and this project has been
+       here before: Round 20 found `bg-hairline`, a *border* token, doing duty
+       as a 584x978 canvas fill and flagged it precisely because the name stops
+       describing the job. A dark surface is a new role in this portal — nothing
+       else in it has one — so it gets a name that says so. Same value, honest
+       label, and it can move independently if the footer ever restyles. */
+    --color-consumer-footer: #333333;
+
+    /* The footer's rule and its copy — `Neutrals/Light grey` #F1F1F1. The rule
+       draws it at 50% opacity, the text at full. */
+    --color-consumer-footer-ink: #f1f1f1;
+
+    /* ── Need Help (Round 49) ─────────────────────────────────────────────
+       Four steps from frame `982:8558`. Each is here rather than mapped onto a
+       near neighbour because the standing rule is "add the Figma value as a new
+       named step when none genuinely matches" — Round 21 lost 5 of 16 elements
+       to rounding onto the nearest step and it read as a different typographic
+       system rather than a near miss. All four are registered in
+       `lib/utils.ts`'s font-size group in the same commit (Round 21.3). */
+
+    /* An FAQ section's title — "Common questions", "Troubleshooting".
+       Desktop is the frames' published `display-md` (32/500/-0.374), which sits
+       between `consumer-card-title` (-> 28) and `consumer-display` (-> 40) and
+       is genuinely a new size for this portal. No mobile frame was supplied for
+       this page, so the lower anchor is derived, not transcribed: 24 keeps the
+       same 4px step below `consumer-display`'s own 28 mobile value that the
+       desktop pair holds at 40/32. Anchors 375 and 1200, per §85.1. */
+    --text-consumer-section: clamp(1.5rem, 1.2727rem + 0.9697vw, 2rem);
+    --text-consumer-section--line-height: normal;
+    --text-consumer-section--letter-spacing: -0.374px;
+    --text-consumer-section--font-weight: 500;
+
+    /* An FAQ section's sub copy, and any flat body line on this page.
+       A **flat 16**, which is why `consumer-eyebrow` could not serve it: that
+       step grows to 18 on desktop and the frame draws this at 16 at its own
+       1281. It is also the portal's floor, so there is nothing to interpolate
+       down to. The app-wide `--text-body` is the same 16/400 but is an
+       index.css token, and this portal does not read those. */
+    --text-consumer-body: 1rem;
+    --text-consumer-body--line-height: 1.4;
+    --text-consumer-body--letter-spacing: 0;
+    --text-consumer-body--font-weight: 400;
+
+    /* An FAQ row's question. A **flat 18/1.4/500** (`988:8945`).
+       `consumer-lesson` is the near miss and is wrong twice over: it grows to 20
+       on desktop where this holds 18, and it runs 1.3 where this runs 1.4. */
+    --text-consumer-faq: 1.125rem;
+    --text-consumer-faq--line-height: 1.4;
+    --text-consumer-faq--letter-spacing: 0;
+    --text-consumer-faq--font-weight: 500;
+
+    /* The crisis numbers — "Call 000", "Call 1300 22 4636" (`982:8887`).
+       18 -> 20.
+
+       ⚠️ **Weight 600, where the frame draws 700.** This portal's scale has a
+       documented ceiling of 600 (CLAUDE.md: "nothing below 16px and nothing
+       heavier than 600") and nothing anywhere else in it is bolder. A single
+       700 on one line would be the only one in the portal, so the ceiling wins
+       and the divergence is recorded here rather than left looking like a
+       transcription slip. The line still reads as the loudest thing in its own
+       block: it is the only 600 among 400s. */
+    --text-consumer-crisis: clamp(1.125rem, 1.0114rem + 0.4848vw, 1.25rem);
+    --text-consumer-crisis--line-height: 1.3;
+    --text-consumer-crisis--letter-spacing: 0;
+    --text-consumer-crisis--font-weight: 600;
+
     /* The unit label beside a numeric answer ("min") — 18 -> 22, medium. */
     --text-consumer-unit: clamp(1.125rem, 1.0114rem + 0.4848vw, 1.375rem);
     --text-consumer-unit--line-height: normal;
@@ -397,4 +521,117 @@
         var(--color-consumer-canvas) 10.13%,
         var(--color-consumer-canvas-edge) 100%
     );
+}
+
+/* ── Sticky chrome height ───────────────────────────────────────────────────
+   How far down the page the portal's fixed chrome actually reaches, for
+   anything that has to stick *below* it.
+
+   ⚠️ **`--consumer-header-h` is the BAR only, not the header.** The Home / My
+   Modules tab row lives inside the same `sticky top-0 z-30` `<header>`, so on
+   a page that shows it the header is 133px tall (72 + 61) while
+   `--consumer-header-h` still reads 72. Every sticky element offset by the bar
+   alone slid its top 61px underneath an opaque white tab row and appeared
+   half-cut — reported on the opted-out banner, and measured: the banner stuck
+   at 72px with `z-20` against the header's `z-30`.
+
+   Raising the banner's z-index would have been the wrong fix: it would have put
+   the banner *over* the tab row rather than under it. The offset was wrong, not
+   the stacking.
+
+   ⚠️ **This is written by `ConsumerHeader` from a `ResizeObserver`, and it has
+   to be.** The obvious version of this fix is a media query — 61px below
+   1200px, 0 above, since the tab row is `min-[1200px]:hidden`. That is wrong,
+   and measuring caught it: the tab row's presence is decided **per page**
+   (`showNav`), not per viewport. The module player hides it, so at 375px its
+   header is 72px, and a viewport-based 133px pushed its own sticky bar 61px
+   below the chrome it was supposed to sit against. The row is also animated in
+   and out by `AnimatePresence`, so its height is not a constant even on one
+   page. Measuring the real header is the only thing that is correct on every
+   page and mid-animation.
+
+   The declaration below is the fallback used before the observer's first
+   callback, and it deliberately equals the bar alone: erring 61px high for one
+   frame tucks a banner slightly under the row, where erring low would jump it
+   down and back. */
+:root {
+    --consumer-chrome-h: var(--consumer-header-h);
+}
+
+/* ── Feedback pillow idle beats ──────────────────────────────────────────────
+   The five mood pillows on the session-feedback modal each perform one small
+   move and settle back, on a loop: "just one change and then move to default,
+   and this loops". The emotion itself never changes — each pillow stays in its
+   own default face, and the beat is a movement in the spirit of that face, so a
+   pillow reads as alive without ever misreporting the feeling it stands for.
+
+   One keyframe set per mood rather than one parameterised set, because CSS
+   cannot interpolate an unregistered custom property inside `@keyframes`, and
+   registering five transform variables to avoid five short rules would be the
+   more obscure of the two.
+
+   The long rest (0-62%) is what makes it read as a beat rather than a
+   wobble, and each mood carries its own duration so five pillows on one row
+   never move in lockstep. `prefers-reduced-motion` stops all of them. */
+@keyframes consumer-pillow-verygood {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-9%) rotate(-2.5deg) scale(0.98, 1.03); }
+}
+@keyframes consumer-pillow-good {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-6%) rotate(1.5deg) scale(0.99, 1.02); }
+}
+@keyframes consumer-pillow-okay {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(-2%) rotate(2.5deg) scale(1, 1); }
+}
+@keyframes consumer-pillow-notgreat {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(3%) rotate(-2deg) scale(1.02, 0.97); }
+}
+@keyframes consumer-pillow-verybad {
+    0%, 62%, 100% { transform: translateY(0) rotate(0) scale(1, 1); }
+    76% { transform: translateY(4%) rotate(-3.5deg) scale(1.03, 0.95); }
+}
+
+/* The brows and the features, on the same clock as the body above so the whole
+   pillow reads as one gesture. One keyframe set serves all five moods and both
+   layers: the peak is a `var()`, which resolves at computed-value time and is
+   therefore free to differ per layer, while the *interpolation* still happens
+   between the two resolved transforms. That is the way around CSS's inability
+   to interpolate an unregistered custom property directly.
+
+   `translateY` in per cent is relative to the element's own box, so one value
+   holds from a 56px pillow on a phone to a 110px one on a desktop.
+
+   ⚠️ This started as framer-motion `y` keyframes and was moved here after
+   measurement: framer wrote `transform: none` and left it there, having never
+   parsed the percentage keyframe array — the body's CSS beat was running at the
+   same moment, which is what made the failure visible rather than plausible. */
+@keyframes consumer-pillow-feature {
+    0%, 62%, 100% { transform: translateY(0); }
+    76% { transform: translateY(var(--feature-y, 0)); }
+}
+
+/* The body's animation name is set per mood from the call site (one keyframe set
+   each); the feature layers all share one, so it is named here. */
+.consumer-pillow-feature {
+    animation-name: consumer-pillow-feature;
+}
+
+.consumer-pillow-beat,
+.consumer-pillow-feature {
+    animation-duration: var(--beat-duration, 3.6s);
+    animation-delay: var(--beat-delay, 0s);
+    animation-iteration-count: infinite;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: 50% 100%;
+    will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .consumer-pillow-beat,
+    .consumer-pillow-feature {
+        animation: none !important;
+    }
 }

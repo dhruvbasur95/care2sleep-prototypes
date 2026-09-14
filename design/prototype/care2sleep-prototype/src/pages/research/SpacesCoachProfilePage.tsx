@@ -1475,140 +1475,17 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
 /** Editable patient/carer card — the "assign/update consumer details" affordance (plan §2a).
  *  Exported for reuse by the Consumer Management dyad-card (Round 4), which reuses this exact
  *  patient/carer card grammar (design-tokens.md §13/§16 `dyad-card`). */
-export function PersonCard({
-  title,
-  person,
-  showRelationship,
-  onSave,
-}: {
-  title: string
-  person: PersonProfile
-  showRelationship: boolean
-  onSave: (patch: Partial<PersonProfile>) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(person.name)
-  const [age, setAge] = useState(String(person.age))
-  const [relationship, setRelationship] = useState(person.relationship ?? '')
-  const [background, setBackground] = useState(person.background)
+/* `PersonCard` lived here until Round 46 and now lives in the Consumer Portal
+ * as `components/consumer/ConsumerPersonCard.tsx`.
+ *
+ * It was exported from this file as a shared component, but a grep at close-out
+ * found exactly two render sites and both were `ConsumerAccountPage` — no
+ * researcher or coach surface had used it for some time. So it was a
+ * researcher-styled component with only a consumer caller, which is why the
+ * consumer My Profile page was the last one rendering 14px labels, app purple
+ * and 36px controls. It moved to where its caller lives and took that portal's
+ * own scale with it; nothing here needs it back. */
 
-  return (
-    <Card className="gap-0 self-start rounded-lg py-0">
-      <div className="bg-card-header p-6">
-        <div className="flex items-center justify-between gap-4">
-          <h3 className="font-display text-title">{title}</h3>
-          {!editing && (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-            >
-              Edit details
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="border-t border-hairline p-6 pt-4">
-        {editing ? (
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              onSave({
-                name,
-                age: Number(age) || person.age,
-                ...(showRelationship ? { relationship } : {}),
-                background,
-              })
-              setEditing(false)
-            }}
-          >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-fine text-ink-faint">Name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-fine text-ink-faint">Age</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            {showRelationship && (
-              <div className="flex flex-col gap-1">
-                <label className="text-fine text-ink-faint">Relationship to PLE</label>
-                <input
-                  value={relationship}
-                  onChange={(e) => setRelationship(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-1">
-              <label className="text-fine text-ink-faint">Background</label>
-              <textarea
-                value={background}
-                onChange={(e) => setBackground(e.target.value)}
-                rows={4}
-                className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
-              >
-                Save changes
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setName(person.name)
-                  setAge(String(person.age))
-                  setRelationship(person.relationship ?? '')
-                  setBackground(person.background)
-                  setEditing(false)
-                }}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <dl>
-            {[
-              { label: 'Name', value: person.name },
-              { label: 'Age', value: String(person.age) },
-              ...(showRelationship
-                ? [{ label: 'Relationship to PLE', value: person.relationship ?? '—' }]
-                : []),
-              { label: 'Background', value: person.background },
-            ].map((f, i) => (
-              <div key={f.label}>
-                {i > 0 && <Separator className="bg-divider-soft" />}
-                <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
-                  <dt className="text-caption text-ink-faint">{f.label}</dt>
-                  <dd className="text-caption leading-[1.6] text-ink">{f.value}</dd>
-                </div>
-              </div>
-            ))}
-          </dl>
-        )}
-      </div>
-    </Card>
-  )
-}
 
 interface PendingSessionAction {
   session: number
