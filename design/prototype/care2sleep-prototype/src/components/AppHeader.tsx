@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeftRight, Bell, ChevronDown } from 'lucide-react'
-import { Menu } from '@base-ui/react/menu'
-import { Separator } from '@/components/ui/separator'
+import { ArrowLeftRight, Bell, LogOut } from 'lucide-react'
+import { Care2SleepLogo } from '@/components/shared/Care2SleepLogo'
+import { AccountMenu } from '@/components/shared/AccountMenu'
 import { cn } from '@/lib/utils'
 import { coach } from '@/data/portal'
 import { researcher } from '@/data/research'
@@ -12,6 +12,11 @@ import { signOutOfTraining } from '@/data/auth'
  * The notification bell is an inert placeholder on both portals: rendered
  * as a non-interactive element so it's never announced as a button to
  * assistive tech.
+ *
+ * Round 47, direct instruction: **the portal name no longer sits beside the
+ * lockup** ("no need to say coach training portal"). `portal` still selects the
+ * home destination and the account name; it no longer selects a label, because
+ * there is none.
  *
  * `portal` selects the chrome for the surface being shown:
  * - `training-v2` (default) — the module overview/player pages reached from
@@ -71,29 +76,25 @@ export function AppHeader({
           : portal === 'delivery'
             ? '/delivery'
             : '/'
-  const label =
-    portal === 'research'
-      ? 'Research Dashboard'
-      : portal === 'training-v2'
-        ? 'Coach Training Portal'
-        : portal === 'consumer'
-          ? 'Consumer Portal'
-          : portal === 'delivery'
-            ? 'Coach Delivery Portal'
-            : null
   const accountName =
     portal === 'consumer' || portal === 'delivery'
       ? (accountLabel ?? '')
       : portal === 'research'
         ? researcher.fullName
         : coach.fullName
-  // No portal has a profile page yet — kept as an explicit `null` (not
-  // removed outright) since the "Edit profile" menu item below is already
-  // written to gracefully omit itself when this is null.
-  const profilePath: string | null = null
-
   return (
-    <header className="sticky top-0 z-30 bg-header text-white">
+    /* Round 47, direct instruction: the trainee and coach portals re-use the
+       header with the C2S logo. The bar had to come off `bg-header` (black) to
+       do it — the lockup is purple `#3A00AD` and measures **1.78:1** on black,
+       which is not a logo, it is a smudge. It is now the Consumer Portal's own
+       treatment: white surface, warm card shadow, no bottom rule.
+
+       ⚠️ The height stays this app's 48px rather than the consumer bar's 72.
+       That bar's height is a CSS variable four other things offset from; this
+       one is `sticky top-0` under pages that already reserve space against it
+       (`lg:top-24` on My Learning's right rail, for one). Growing it is a
+       separate, measurable change, not a side effect of a colour swap. */
+    <header className="sticky top-0 z-30 bg-white text-ink shadow-card">
       <a
         href="#main-content"
         className="sr-only rounded-sm bg-primary px-4 py-2 text-white focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
@@ -108,75 +109,44 @@ export function AppHeader({
       >
         <Link
           to={home}
+          aria-label="Care2Sleep home"
           className="flex min-h-11 items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="font-display text-body-md">
-            Care2Sleep
-          </span>
-          {label && (
-            <>
-              <span aria-hidden="true" className="h-4 w-px bg-white/25" />
-              <span className="text-fine text-on-dark-muted">
-                {label}
-              </span>
-            </>
-          )}
+          {/* The lockup is `aria-hidden` inside the link, so the link needs its
+              own accessible name — the same contract every other call site of
+              this logo uses. */}
+          <Care2SleepLogo maxWidth={116} />
         </Link>
 
         {(portal === 'training-v2' || portal === 'research' || portal === 'consumer' || portal === 'delivery') && (
           <div className="flex items-center gap-2 md:gap-4">
-            <Link
-              to="/"
-              className="flex min-h-11 items-center gap-1.5 rounded-sm text-fine text-link-on-dark outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ArrowLeftRight aria-hidden="true" className="size-3.5" />
-              Switch portal
-            </Link>
-
             {/* Inert placeholder — notifications (coming soon) */}
             <span
-              className="flex size-11 items-center justify-center text-on-dark-muted"
+              className="flex size-11 items-center justify-center text-ink-muted"
               title="Notifications (coming soon)"
             >
               <Bell aria-hidden="true" className="size-[18px]" />
               <span className="sr-only">Notifications (coming soon)</span>
             </span>
 
-            <Menu.Root>
-              <Menu.Trigger className="group flex min-h-11 items-center gap-1 rounded-sm text-fine text-on-dark-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring data-[popup-open]:text-white">
-                <span className="hidden sm:inline">{accountName}</span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="size-3.5 transition-transform group-data-[popup-open]:rotate-180"
-                />
-              </Menu.Trigger>
-              <Menu.Portal>
-                <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50 outline-none">
-                  <Menu.Popup className="min-w-[180px] rounded-sm bg-card p-1 text-caption text-ink shadow-card ring-1 ring-hairline outline-none">
-                    {profilePath && (
-                      <>
-                        <Menu.Item
-                          onClick={() => navigate(profilePath)}
-                          className="flex min-h-9 cursor-pointer items-center rounded-sm px-3 text-ink-muted outline-none data-[highlighted]:bg-pearl data-[highlighted]:text-ink"
-                        >
-                          Edit profile
-                        </Menu.Item>
-                        <Separator className="my-1" />
-                      </>
-                    )}
-                    <Menu.Item
-                      onClick={() => {
-                        signOutOfTraining()
-                        navigate('/')
-                      }}
-                      className="flex min-h-9 cursor-pointer items-center rounded-sm px-3 text-ink-muted outline-none data-[highlighted]:bg-pearl data-[highlighted]:text-ink"
-                    >
-                      Sign out
-                    </Menu.Item>
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.Root>
+            {/* Round 47, direct instruction: the trainee/coach header re-uses
+                the Consumer Portal's account control and its sub-menu card.
+                What used to sit here was a bare text trigger with a chevron. */}
+            <AccountMenu
+              name={accountName}
+              actions={[
+                { label: 'Switch portal', icon: ArrowLeftRight, onSelect: () => navigate('/') },
+                {
+                  label: 'Sign out',
+                  icon: LogOut,
+                  destructive: true,
+                  onSelect: () => {
+                    signOutOfTraining()
+                    navigate('/')
+                  },
+                },
+              ]}
+            />
           </div>
         )}
       </div>

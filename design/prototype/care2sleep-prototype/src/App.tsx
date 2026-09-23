@@ -53,13 +53,13 @@ export default function App() {
             {/* Module overview page (Round 7.1): the hub between a module's
                 timeline card and its in-module player, replacing the old
                 `ModulePreviewModal` overlay. A generic template — only
-                `understanding-sleep` has real outline content this round,
+                `building-blocks-good-sleep` has real outline content this round,
                 any other module id renders its real hero with a "coming
                 soon" placeholder below. */}
             <Route path="/training-v2/module/:moduleId/overview" element={<ModuleOverviewPage />} />
             {/* Module content player (Round 7): the chapter-by-chapter
                 screens after "Start module". Fully wired for
-                `understanding-sleep` only (re-keyed from `sleep-basics` when
+                `building-blocks-good-sleep` only (re-keyed twice: from `sleep-basics` when
                 the home page redesign moved to its own real 11-module
                 dataset). */}
             <Route path="/training-v2/module/:moduleId/play" element={<ModulePlayerPage />} />

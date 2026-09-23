@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -51,7 +52,24 @@ export function UnderlineTabs<T extends string>({
    *  rather than two different treatments (direct instruction, Round 37). */
   underlineEmphasis = 'section',
 }: {
-  tabs: readonly { id: T; label: string }[]
+  tabs: readonly {
+    id: T
+    label: string
+    /**
+     * Optional count rendered after the label as a bold `(n)` — Coach
+     * Management shows how many rows sit behind each tab before you open it.
+     * Additive: every other caller omits it and renders exactly as before.
+     */
+    count?: number
+    /**
+     * Shows an amber warning glyph before the label. Coach Management sets it
+     * on "Waiting to be onboarded" whenever that count is non-zero — certified
+     * coaches with no coach record are a backlog, not a resting state. Paired
+     * with the count rather than replacing it, so the icon is never the only
+     * thing carrying the signal.
+     */
+    warn?: boolean
+  }[]
   active: T
   onChange: (id: T) => void
   ariaLabel: string
@@ -95,7 +113,16 @@ export function UnderlineTabs<T extends string>({
               active === t.id ? 'font-semibold text-primary' : 'font-medium text-ink hover:text-primary',
             )}
           >
+            {t.warn && (
+              <TriangleAlert
+                aria-hidden="true"
+                className="mr-1.5 inline-block size-4 shrink-0 align-[-3px] text-amber-600"
+              />
+            )}
             {t.label}
+            {t.count !== undefined && (
+              <span className="ml-1 font-semibold">({t.count})</span>
+            )}
             {active === t.id && (
               <motion.span
                 layoutId={layoutId}

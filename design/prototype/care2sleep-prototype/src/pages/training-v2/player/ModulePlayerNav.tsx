@@ -4,7 +4,7 @@ import { Check, ChevronDown, CircleCheck, Flag, Menu, PanelLeftClose } from 'luc
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
 import type { ModuleContent } from '@/data/moduleContent'
-import { chapterStepRange, outroStepIndex } from '../playerSteps'
+import { sectionRanges } from '../playerSteps'
 
 /**
  * The module player's left navigation rail — frame `665:944`.
@@ -53,31 +53,36 @@ type NavSection = {
   substeps?: { label: string; stepIndex: number }[]
 }
 
+/**
+ * The rail's rows, derived from the built step machine — never from a
+ * separately-written list, and never from a per-chapter constant.
+ *
+ * The sub-steps under a chapter are that chapter's own `module.md` slides,
+ * labelled with the source's own slide labels ("Know What — learn", "Know
+ * How 2 — skills in scenario"). That matters for a multi-scenario chapter:
+ * Module 6's Chapter 3 runs the Know How / You Might Also Hear / Your turn /
+ * Transition unit twice, and the rail shows both runs because it is reading
+ * the real slides rather than printing a fixed seven-row template.
+ *
+ * "Summary" is one row covering the module outro, the feedback slide and the
+ * completion screen: from a coach's point of view those are the module
+ * wrapping up, not three separate places to navigate to.
+ */
 function buildNavSections(content: ModuleContent): NavSection[] {
-  return [
-    { label: 'Introduction', stepIndex: 0 },
-    ...content.chapters.map((chapter, i) => {
-      const { start } = chapterStepRange(i)
-      // The chapter's own run of the step machine, in `buildPlayerSteps`'s
-      // order: marker, learn, case x3, knowledge check, what to expect,
-      // chapter complete. The marker is the chapter row itself, so the list
-      // below starts one past it.
-      const substeps = [
-        'Learn',
-        ...chapter.cases.map((_, c) => `Case example ${c + 1}`),
-        'Knowledge check',
-        'What to expect',
-        'Chapter complete',
-      ].map((label, s) => ({ label, stepIndex: start + 1 + s }))
+  const ranges = sectionRanges(content)
 
-      return {
-        label: `Chapter ${chapter.number}`,
-        subtitle: chapter.title,
-        stepIndex: start,
-        substeps,
-      }
-    }),
-    { label: 'Summary', stepIndex: outroStepIndex(content.chapters.length) },
+  return [
+    { label: 'Introduction', stepIndex: ranges.intro.start },
+    ...content.chapters.map((chapter, i) => ({
+      label: `Chapter ${chapter.number}`,
+      subtitle: chapter.title,
+      stepIndex: ranges.chapters[i].start,
+      substeps: chapter.slides.map((slide, s) => ({
+        label: slide.navLabel,
+        stepIndex: ranges.chapters[i].start + s,
+      })),
+    })),
+    { label: 'Summary', stepIndex: ranges.summary.start },
   ]
 }
 
@@ -250,7 +255,7 @@ export function ModulePlayerNav({
                     )
                   }
                   className={cn(
-                    'flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[12px] py-3 pl-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                    'relative flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[12px] py-3 pl-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
                     open ? 'pr-4' : 'justify-center px-0',
                     state === 'reached' && '[&_span]:transition-colors hover:[&_span]:text-primary',
                     state === 'ahead' && 'cursor-default',
@@ -284,7 +289,7 @@ export function ModulePlayerNav({
                       {section.subtitle && (
                         <span
                           className={cn(
-                            'text-caption leading-[1.3]',
+                            'text-caption',
                             state === 'current' ? 'text-primary' : 'text-ink-muted',
                           )}
                         >
@@ -298,11 +303,22 @@ export function ModulePlayerNav({
                 </button>
 
                 {open && section.substeps && (
+                  // `relative` here and on the row button above is load-bearing,
+                  // not decoration: each holds an `sr-only` span, and Tailwind's
+                  // `sr-only` is `position: absolute`. Without a positioned
+                  // ancestor its containing block is the *initial* one, so it
+                  // escapes every `overflow` clip between here and `<html>` and
+                  // adds its own offset to the viewport's scrollable overflow —
+                  // giving a whole-page scrollbar on a player that clips at
+                  // `h-screen`. It reads as "html overflows but body does not",
+                  // which is unplaceable if you go looking for a box that
+                  // overflows: none does. Round 30 hit the same trap
+                  // horizontally in My Learning's carousel.
                   <button
                     type="button"
                     onClick={() => setExpanded(isOpen ? -1 : i)}
                     aria-expanded={isOpen}
-                    className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-[12px] outline-none transition-colors hover:bg-purple-200/50 focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative mr-1 flex size-9 shrink-0 items-center justify-center rounded-[12px] outline-none transition-colors hover:bg-purple-200/50 focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <ChevronDown
                       aria-hidden="true"
@@ -343,7 +359,17 @@ export function ModulePlayerNav({
                         always ends at the last elbow however many steps there
                         are. */}
                 <ol className="mr-3 ml-6 flex flex-col">
-                  {section.substeps!.map((sub) => {
+                  {/* Where the purple run stops. The trunk is brand purple from
+                      the top of the tree down to the elbow of the step being
+                      read, and `ink-faint` from there on (direct instruction,
+                      2026-09-17: "flow all the way from top and then connect
+                      the right selected slide" / "it is going below the
+                      selected slide"). `-1` when no substep is current — the
+                      chapter is collapsed-but-rendered, or the current step is
+                      the chapter row itself — and every row then stays grey,
+                      which is the correct resting state. */}
+                  {section.substeps!.map((sub, subIdx, substeps) => {
+                    const currentSubIdx = substeps.findIndex((s) => s.stepIndex === stepIndex)
                     const subState =
                       sub.stepIndex === stepIndex
                         ? 'current'
@@ -355,17 +381,52 @@ export function ModulePlayerNav({
                     const subDone = sub.stepIndex < stepIndex
                     return (
                       <li
-                        key={sub.label}
+                        key={sub.stepIndex}
                         className={cn(
                           'relative pl-4',
                           // Square elbows, not curved (direct instruction): a
                           // trunk that runs full height, stopping halfway down
                           // the last step so it ends on that step's own elbow.
-                          'before:absolute before:top-0 before:left-0 before:w-px before:bg-ink-faint before:content-[""]',
+                          'before:absolute before:top-0 before:left-0 before:content-[""]',
                           'before:h-full last:before:h-1/2',
-                          'after:absolute after:top-1/2 after:left-0 after:h-px after:w-3 after:bg-ink-faint after:content-[""]',
+                          'before:w-px before:bg-ink-faint',
+                          'after:absolute after:top-1/2 after:left-0 after:w-3 after:content-[""]',
+                          // The elbow is purple on the step being read and grey
+                          // on every other row — it is the join between the
+                          // purple run down the trunk and the row it belongs
+                          // to, so it is drawn with the run rather than with
+                          // the grey tree.
+                          //
+                          // **2px, not 1px** (direct instruction, 2026-09-17:
+                          // "I can barely see it"). A recolour alone is not
+                          // enough at a hairline against the `purple-200` row
+                          // fill — hue changes but the mark does not read as
+                          // emphasised. The extra pixel grows down from
+                          // `top-1/2`, so the elbow still meets the trunk.
+                          subState === 'current'
+                            ? 'after:h-0.5 after:bg-primary'
+                            : 'after:h-px after:bg-ink-faint',
                         )}
                       >
+                        {/* The purple run, drawn as its own overlay rather than
+                            by recolouring each row's `::before`. It has to stop
+                            *mid-row* on the current step — at that step's elbow,
+                            not at the bottom of its box — and one pseudo-element
+                            cannot be purple for half its length and grey for the
+                            rest. The overlay covers the grey trunk beneath it
+                            (2px over 1px from the same `left-0` origin), so the
+                            two never show as a doubled line.
+                            Rows below the current step render nothing at all and
+                            keep the plain grey trunk. */}
+                        {currentSubIdx !== -1 && subIdx <= currentSubIdx && (
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              'absolute top-0 left-0 w-0.5 bg-primary',
+                              subIdx === currentSubIdx ? 'h-1/2' : 'h-full',
+                            )}
+                          />
+                        )}
                         <button
                           type="button"
                           disabled={subState === 'ahead'}

@@ -52,26 +52,42 @@ const DISPLAY_OVERRIDES: Record<string, { status: ModuleStatus; progress: number
  * (`data/trainingPathwayV2.ts`) — see that file's own module 5 entry and
  * `data/moduleContent.ts`'s `MODULE_CONTENT` key, both re-keyed together.
  */
-export const MODULE_PLAYER_ID = 'understanding-sleep'
+/** The one module with authored player content. Round 47: moved from
+ *  `understanding-sleep` (the Round 7 Module 4 content, retired when the
+ *  player was rebuilt around the real `module.md` block vocabulary) to
+ *  `building-blocks-good-sleep`, built from
+ *  `Coaching modules master/Modules/Module 6.md`. */
+export const MODULE_PLAYER_ID = 'building-blocks-good-sleep'
 
 /**
- * Round 7.1 (direct UI update) — a temporary, demo-only wiring so
- * "Population Understanding" (module 2, the one reachable module in the
- * current forced-linear demo spread) opens the real in-module player and
- * module overview content built for `understanding-sleep`, so the
- * click-through path can actually be exercised without waiting on modules
- * 3–4. Per direct instruction, this is a known, accepted content mismatch:
- * the player/overview still show "Understanding Sleep" content (the only
- * module with any authored content) under module 2's own card and badge —
- * not a real curriculum re-mapping. Moved here (from `ModuleTimeline.tsx`)
- * once the module overview page needed the same resolution for its own
- * content lookup and progress tracking, not just the home page's card
- * click. Remove this map (and let `realPlayerContentId` become an
- * identity function) once module 2 has its own authored content, or once
- * this demo need has passed.
+ * A temporary, demo-only wiring so one card on My Learning opens the real
+ * in-module player and overview content built for `building-blocks-good-sleep`
+ * — the only module with authored content — without waiting on the other ten.
+ * Not a real curriculum re-mapping.
+ *
+ * **It points at module 1 (`portal-orientation`), the very first card**
+ * (direct instruction, 2026-09-18: *"Module 6 that I have shared will be used
+ * for testing purpose, so for now, default it to module 1 in prototype, use the
+ * very first card, update name but use module 1"*). It sat on module 2
+ * (`population-understanding`) from Round 7.1 until then. Module 1 is the
+ * better host for a review build for a structural reason, not just because it
+ * is first: under the forced-linear pathway module 1 is reachable from a
+ * completely fresh state, so a reviewer opening My Learning can click straight
+ * into the content instead of having to satisfy a gate first.
+ *
+ * The card's own **title and description were updated to the real Module 6
+ * content** so the card and the thing it opens agree — the mismatch this map
+ * used to carry (module 2's name over Module 6's content) was accepted at the
+ * time and is no longer necessary now that the instruction is to rename.
+ * Its **id stays `portal-orientation`**: the id is code, keyed on by
+ * `PATHWAY_MODULES_V2` order, `moduleState()` and the demo seed, exactly as
+ * `ConsumerDyad`/`dyadId` are code under this project's own naming rule.
+ *
+ * Remove this map (and let `realPlayerContentId` become an identity function)
+ * once module 1 has its own authored content, or once this demo need passes.
  */
 const DEMO_PLAYER_REDIRECTS: Record<string, string> = {
-  'population-understanding': MODULE_PLAYER_ID,
+  'portal-orientation': MODULE_PLAYER_ID,
 }
 
 /** Resolves a home-timeline module id to the id its real content/progress
@@ -83,8 +99,8 @@ export function realPlayerContentId(moduleId: string): string {
 /**
  * Reads live play progress from `moduleProgressStore` + the generic step
  * machine (`buildPlayerSteps`), resolved through `realPlayerContentId` so
- * the redirected demo module (`population-understanding`) reflects the
- * same live progress as `understanding-sleep` itself. Returns `undefined`
+ * the redirected demo module (`portal-orientation`) reflects the
+ * same live progress as `building-blocks-good-sleep` itself. Returns `undefined`
  * for any module id that doesn't resolve to a real content-bearing module
  * — callers fall back to `DISPLAY_OVERRIDES`/real data in that case.
  */
@@ -109,7 +125,7 @@ export function livePlayerStatus(moduleId: string): { status: ModuleStatus; prog
  *
  * **Only ever the current module**, never a scan across all eleven, and that
  * is the load-bearing part rather than an optimisation. Live progress is keyed
- * by *content* id, and `DEMO_PLAYER_REDIRECTS` points module 2 at module 5's
+ * by *content* id, and `DEMO_PLAYER_REDIRECTS` points module 1 at the Module 6
  * content, so both read the same store entry — a scan would report locked
  * module 5 as in-progress the moment a coach touched module 2. That is exactly
  * the collision Round 19.1 had to fix on the timeline cards. Reading only

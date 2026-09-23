@@ -8,7 +8,7 @@ import { MODULE_PLAYER_ID } from '../pathway'
 const PLAYER_MODULE = PATHWAY_MODULES_V2.find((m) => m.id === MODULE_PLAYER_ID)
 /** Falls back to a neutral wash if the player module id is ever missing —
  *  should never happen in practice since this only renders for
- *  `understanding-sleep` (Option B's own `data/trainingPathwayV2.ts`
+ *  `building-blocks-good-sleep` (Option B's own `data/trainingPathwayV2.ts`
  *  dataset, not the shared `data/portal.ts` which has no matching id). */
 const THUMBNAIL_COLORS = PLAYER_MODULE?.cover.colors ?? (['#1c2b4a', '#5b7fa6', '#f0d9a8'] as const)
 
@@ -32,8 +32,8 @@ const SIMULATED_DURATION_MS = 3200
  * real video, not copy written for a coach to read, and reads oddly
  * presented as if it were the lesson itself. Any genuinely learner-facing
  * framing for a video slide (a quoted transcript line, a case's plain
- * vignette) is now the calling screen's `SlideLayout` `body`, rendered
- * *above* this component, not passed into it.
+ * vignette) is now its own text block on the slide, rendered *above* this
+ * component, not passed into it.
  */
 export function VideoPlaceholder({
   label,
@@ -43,8 +43,10 @@ export function VideoPlaceholder({
 }: {
   /** Short accessible label, e.g. "Chapter 1 Learn video". */
   label: string
-  /** Verbatim duration estimate from the source doc, e.g. "~4-5 min". */
-  durationLabel: string
+  /** Verbatim duration estimate from the source doc, e.g. "~4-5 min".
+   *  Optional: the `module.md` authoring format carries no runtime for its
+   *  `<Video block>`s, and a made-up number on screen is worse than none. */
+  durationLabel?: string
   /** Fired once when the simulated watch-through completes. */
   onWatched?: () => void
   /** True once this exact video has already been marked watched (e.g. the
@@ -86,9 +88,11 @@ export function VideoPlaceholder({
     <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: '16 / 9' }}>
       <div aria-hidden="true" className="absolute inset-0" style={moduleArt(THUMBNAIL_COLORS)} />
 
-      <span className="absolute top-3 right-3 rounded-full bg-black/40 px-2.5 py-1 text-fine text-white backdrop-blur-sm">
-        {durationLabel}
-      </span>
+      {durationLabel && (
+        <span className="absolute top-3 right-3 rounded-full bg-black/40 px-2.5 py-1 text-fine text-white backdrop-blur-sm">
+          {durationLabel}
+        </span>
+      )}
 
       <div className="absolute inset-0 flex items-center justify-center">
         <button

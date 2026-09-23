@@ -369,7 +369,33 @@ export function useMascotExpression({ nap = true }: { nap?: boolean } = {}) {
 export function ConsumerMascot({
   withPencil = false,
   withQuestion = false,
-}: { withPencil?: boolean; withQuestion?: boolean } = {}) {
+  ground,
+  zzzTone = 'grey',
+}: {
+  withPencil?: boolean
+  withQuestion?: boolean
+  /**
+   * Round 47 — the zzz glyphs' tone. The assets are natively **white**; Home
+   * darkens them with a `brightness(0.55)` filter because white all but
+   * disappears on its pale canvas. On the trainee module intro banner the
+   * pillow sits on `primary`, where that filter makes them a dirty grey
+   * against the purple, so `'white'` simply drops the filter — it restores the
+   * asset's own colour rather than adding a second recolour.
+   */
+  zzzTone?: 'grey' | 'white'
+  /**
+   * Round 47 — an explicit ground-shadow asset, for callers whose canvas is
+   * neither Home's cream wave nor Need Help's gold one. The trainee module
+   * intro banner sits on `purple-50` and the frame draws the floor **white**
+   * (direct instruction), where Home's `#EADECC` reads as a dirty smudge.
+   *
+   * Same construction as `help-ground.svg`: `awake-ground.svg` with the one
+   * `fill` changed and nothing else — same box, same `cx`/`cy`/`rx`/`ry` — so
+   * it registers with the pillow by construction rather than by transcribed
+   * offsets. Verified byte-identical apart from the fill.
+   */
+  ground?: string
+} = {}) {
   const { expression, reduceMotion, featureTransition, browY, faceY, tilt } =
     useMascotExpression()
   const asleep = expression === 'asleep'
@@ -429,9 +455,10 @@ export function ConsumerMascot({
       */}
       <img
         src={
-          withQuestion
+          ground ??
+          (withQuestion
             ? '/illustrations/consumer-help/help-ground.svg'
-            : '/illustrations/consumer-welcome/awake-ground.svg'
+            : '/illustrations/consumer-welcome/awake-ground.svg')
         }
         alt=""
         aria-hidden="true"
@@ -624,7 +651,7 @@ export function ConsumerMascot({
                   width: '100%',
                   height: '100%',
                   maxWidth: 'none',
-                  filter: 'brightness(0.55)',
+                  filter: zzzTone === 'white' ? undefined : 'brightness(0.55)',
                 }}
                 initial={{ opacity: 0 }}
                 animate={Z_PATH}

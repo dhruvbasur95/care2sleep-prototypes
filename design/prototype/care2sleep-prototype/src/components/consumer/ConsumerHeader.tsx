@@ -15,7 +15,7 @@ import {
 import { Menu } from '@base-ui/react/menu'
 import { AccessibilityMenu, SUBMENU_CARD_MOTION } from '@/components/consumer/AccessibilityMenu'
 import { openConsumerMenu, useConsumerMenu } from '@/data/consumerMenuReveal'
-import { ConsumerLogo } from '@/components/consumer/ConsumerLogo'
+import { Care2SleepLogo } from '@/components/shared/Care2SleepLogo'
 import { cn } from '@/lib/utils'
 import { signOutOfTraining } from '@/data/auth'
 
@@ -671,7 +671,7 @@ export function ConsumerHeader({
              minimum only affects the box, never the artwork. */
           className="absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary min-[1200px]:static min-[1200px]:translate-x-0 min-[1200px]:justify-self-start"
         >
-          <ConsumerLogo />
+          <Care2SleepLogo />
         </Link>
 
         <AnimatePresence>

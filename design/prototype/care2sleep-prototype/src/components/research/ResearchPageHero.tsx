@@ -11,24 +11,16 @@ import { type ReactNode } from 'react'
  *
  * Treatment, derived from the supplied Figma frames (`1:38` Home, `23:1453`
  * Trainee Management) and then adjusted on direct feedback:
- * - Title: `display-lg` (40px / weight 500) in `purple-700`, `-1px` tracking.
+ * - Title: `display-lg` (40px / weight 500) in `primary`, `-1px` tracking.
  *   The frames draw 56px; stepped down one scale rung on direct instruction
  *   ("all page titles you can go one font size smaller"), applied across every
  *   research page rather than page-by-page.
  *
- *   Round 28: the colour moved `purple-500` -> `purple-700` (#4a278f), which
- *   is what frame `1:38`'s own greeting node (`1:48`) is painted. Changed here
- *   rather than on Home alone, on direct instruction that it "should apply to
- *   all tabs outer pages" — which is exactly why this component was extracted.
- *   Spelled `purple-700`, not `primary`, even though the two tokens now
- *   resolve to the same hex: this is a heading, not a brand *action*, and
- *   `index.css` keeps both spellings deliberately for that distinction.
- * - Sub copy: `subtitle` (20px / 400) in `ink`, 8px below the title, capped at
- *   `72ch` so a long line breaks at a readable measure instead of running the
- *   full 1320px column.
- * - Optional `action` renders right of the title block. `actionAlign` picks
- *   which edge it lines up with; see the prop's own note. Wraps below on
- *   narrow widths.
+ *   Round 28 moved this `purple-500` -> `purple-700`. **2026-09-21 moves it
+ *   again, to `primary` (#3a00ad)** — direct instruction to take the deep
+ *   purple off the researcher surfaces and use the same blue the Consumer
+ *   Portal and the trainee dashboard already paint. Spelled `primary`, not a
+ *   ramp step, because it is the brand accent rather than a tint.
  *
  * The band's own surface/padding lives on `ResearchShell` (`heroClassName`
  * `bg-purple-50` + `heroNoSeam`), not here — the shell owns full-bleed layout.
@@ -67,7 +59,7 @@ export function ResearchPageHero({
       }`}
     >
       <div>
-        <h1 className="font-display text-display-lg text-purple-700">{title}</h1>
+        <h1 className="font-display text-display-lg text-primary">{title}</h1>
         <p className="mt-2 max-w-[72ch] text-sub-greeting text-ink">{subtitle}</p>
       </div>
       {action}

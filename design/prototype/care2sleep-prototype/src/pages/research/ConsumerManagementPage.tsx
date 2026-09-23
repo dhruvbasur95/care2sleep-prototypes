@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarX, CheckCircle, ChevronRight, RefreshCw, UserX, Users } from 'lucide-react'
+import { CalendarX, CheckCircle, ChevronDown, ChevronRight, Clock, RefreshCw, UserX, Users } from 'lucide-react'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { ResearchPageHero } from '@/components/research/ResearchPageHero'
 import { InertButton } from '@/components/shared/MeetingsSection'
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Chip } from '@/components/research/StatusChip'
 import { SearchInput } from '@/components/SearchInput'
 import { StatCard } from '@/components/shared/StatCard'
+import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
 import { cn } from '@/lib/utils'
 import { formatDate, formatTime } from '@/data/format'
 import {
@@ -99,10 +100,38 @@ function moduleActivity(
  * assigned or not — unlike the Coaches area's roster, which only ever shows
  * coaches who already have a SPACES record.
  */
+const SELECT_CLASS =
+  'h-9 appearance-none rounded-sm border border-hairline bg-card py-0 pr-8 pl-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
+
+/** Table-level filters, beside the search field — the same treatment Trainee
+ *  Management uses, not per-column headers. */
+const TYPE_FILTERS = [
+  { id: 'all', label: 'All types' },
+  { id: 'dyad', label: 'Dyad' },
+  { id: 'carer', label: 'Carer only' },
+] as const
+
+const COACH_FILTERS = [
+  { id: 'all', label: 'All coach states' },
+  { id: 'assigned', label: 'Coach assigned' },
+  { id: 'unassigned', label: 'Not assigned' },
+] as const
+
+/** Dummy withdrawn consumers. Non-functional (direct instruction): no row
+ *  click, no link, no chevron — withdrawal has no write path, so none of these
+ *  has a record to open. */
+const WITHDRAWN_CONSUMERS = [
+  { ple: 'Alan Petrov', carer: 'Nina Petrov', coach: 'Helen Zhang', modules: '3 of 7', sessions: '2 of 6', reason: 'PLE moved into residential care' },
+  { ple: null, carer: 'Beverley Nkomo', coach: 'Fatima Haidari', modules: '1 of 7', sessions: '0 of 6', reason: 'Withdrew on personal grounds' },
+] as const
+
 export function ConsumerManagementPage() {
   const { consumerDyads, coaches, sessionCompletion, sessionPlans } = useResearch()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
+  const [tab, setTab] = useState<'active' | 'pending' | 'complete' | 'withdrawn'>('active')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [coachFilter, setCoachFilter] = useState<string>('all')
 
   /* Round 27: one dyad exists only to demonstrate the coach record page's
      zero-session caseload state, and duplicates a state this roster already
@@ -110,6 +139,15 @@ export function ConsumerManagementPage() {
      everywhere else. Filtered once, before the rows *and* the KPI counts
      below, so the tiles cannot disagree with the table under them. */
   const rosterDyads = consumerDyads.filter((d) => !d.omitFromConsumerRoster)
+
+  /* A dyad has a PLE alongside the carer; a carer-only household does not.
+     Counted off the same `patient` field the Type column renders, so tile and
+     column cannot disagree. */
+  const dyadCount = rosterDyads.filter((d) => Boolean(d.patient)).length
+  const carerOnlyCount = rosterDyads.length - dyadCount
+  /* Dummy: consumer invites are issued through REDCap and the platform has no
+     invite-status field for a dyad yet. */
+  const invitePendingCount = 1
 
   const unsorted = rosterDyads.map((dyad) => {
     const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
@@ -178,19 +216,12 @@ export function ConsumerManagementPage() {
   const notAssignedCount = rows.filter((row) => !row.coach).length
   const noSessionsPlannedCount = rows.filter((row) => !isPlanSet(sessionPlans[row.dyad.id])).length
   const fullyCompletedCount = rows.filter((row) => row.sessionsCompleted >= SPACES_CATCHUP_COUNT).length
-  // PLE/Carer breakdown for the "Total consumers" tile: every dyad has a
-  // Carer, but `patient` (PLE) is absent for a carer-only consumer (Round
-  // 3.1's carer-only consumer type) — so the PLE count only includes dyads
-  // that actually have one.
-  const pleCount = rosterDyads.filter((dyad) => dyad.patient).length
-  const carerCount = rosterDyads.length
-
   // Search matches either dyad member's name or the assigned coach's — the
   // three names the table actually renders. Deliberately not filtering the KPI
   // tiles above: they describe the whole study, and Trainee Management's own
   // search behaves the same way.
   const q = searchQuery.trim().toLowerCase()
-  const filtered = q
+  const searched = q
     ? rows.filter(
         (row) =>
           row.dyad.patient?.name.toLowerCase().includes(q) ||
@@ -198,6 +229,38 @@ export function ConsumerManagementPage() {
           row.coach?.fullName.toLowerCase().includes(q),
       )
     : rows
+
+  /* "Fully completed" is the same rule the KPI tile counts, so the tab and the
+     tile cannot disagree about who has finished. */
+  const filtered = searched
+    .filter((row) =>
+      tab === 'complete'
+        ? row.sessionsCompleted >= SPACES_CATCHUP_COUNT
+        : tab === 'active'
+          ? row.sessionsCompleted < SPACES_CATCHUP_COUNT
+          : true,
+    )
+    .filter((row) =>
+      typeFilter === 'all'
+        ? true
+        : typeFilter === 'dyad'
+          ? Boolean(row.dyad.patient)
+          : !row.dyad.patient,
+    )
+    .filter((row) =>
+      coachFilter === 'all'
+        ? true
+        : coachFilter === 'assigned'
+          ? Boolean(row.coach)
+          : !row.coach,
+    )
+
+  const CONSUMER_TABS = [
+    { id: 'active' as const, label: 'Active consumers', count: rows.filter((r) => r.sessionsCompleted < SPACES_CATCHUP_COUNT).length },
+    { id: 'pending' as const, label: 'Pending invite', count: invitePendingCount },
+    { id: 'complete' as const, label: 'Fully completed', count: rows.filter((r) => r.sessionsCompleted >= SPACES_CATCHUP_COUNT).length },
+    { id: 'withdrawn' as const, label: 'Withdrawn', count: WITHDRAWN_CONSUMERS.length },
+  ]
 
   return (
     <ResearchShell
@@ -246,18 +309,44 @@ export function ConsumerManagementPage() {
           the population it counts. */}
       <section>
         <h2 className="font-display text-title text-ink">Consumers overview</h2>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {/* Breakdown is now Total -> Dyad -> Carer only, per the open-items
+              doc. It counts **households**, not people: the previous PLE/Carer
+              split counted individuals, so the parts summed to more than the
+              roster and read as a different population from the table below. */}
           <StatCard
             label="Consumer breakdown"
+            value={rosterDyads.length}
+            valueLabel="Total"
             icon={Users}
             breakdown={[
-              { label: 'PLE', value: pleCount },
-              { label: 'Carer', value: carerCount },
+              { label: 'Dyad', value: dyadCount },
+              { label: 'Carer only', value: carerOnlyCount },
             ]}
           />
-          <StatCard label="Not assigned coach" value={notAssignedCount} icon={UserX} />
-          <StatCard label="No sessions planned" value={noSessionsPlannedCount} icon={CalendarX} />
-          <StatCard label="Fully completed study" value={fullyCompletedCount} icon={CheckCircle} />
+          <StatCard label="Invite pending" value={invitePendingCount} icon={Clock} />
+          {/* Semantic colour on the NUMBER, never the tile fill — the yellow
+              KPI row stays one family and the colour sits on exactly the thing
+              the state is about. Both reds and the green are the app's own
+              tokens, measured against `yellow-100` at 4.77:1 and 4.59:1. */}
+          <StatCard
+            label="Not assigned coach"
+            value={notAssignedCount}
+            icon={UserX}
+            valueTone="destructive"
+          />
+          <StatCard
+            label="No sessions planned"
+            value={noSessionsPlannedCount}
+            icon={CalendarX}
+            valueTone="destructive"
+          />
+          <StatCard
+            label="Fully completed study"
+            value={fullyCompletedCount}
+            icon={CheckCircle}
+            valueTone="success"
+          />
         </div>
       </section>
 
@@ -273,13 +362,57 @@ export function ConsumerManagementPage() {
             <h2 className="font-display text-title text-ink">Consumers management table</h2>
             <p className="mt-2 text-body text-ink-muted">Click a consumer to view more details.</p>
           </div>
-          <SearchInput
-            id="consumer-search"
-            label="Search consumers"
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search consumers"
-            widthClassName="sm:w-[340px]"
+          <div className="flex flex-wrap items-end gap-3">
+            <SearchInput
+              id="consumer-search"
+              label="Search consumers"
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search consumers"
+              widthClassName="sm:w-[340px]"
+            />
+            {tab !== 'withdrawn' && (
+              <>
+                {[
+                  { id: 'type-filter', label: 'Filter by consumer type', value: typeFilter, set: setTypeFilter, opts: TYPE_FILTERS },
+                  { id: 'coach-filter', label: 'Filter by coach assignment', value: coachFilter, set: setCoachFilter, opts: COACH_FILTERS },
+                ].map((f) => (
+                  <div key={f.id} className="relative">
+                    <label htmlFor={f.id} className="sr-only">
+                      {f.label}
+                    </label>
+                    <select
+                      id={f.id}
+                      value={f.value}
+                      onChange={(e) => f.set(e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      {f.opts.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
+                    />
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <UnderlineTabs
+            tabs={CONSUMER_TABS}
+            active={tab}
+            onChange={setTab}
+            ariaLabel="Consumer roster"
+            layoutId="consumer-roster-tab-underline"
+            idPrefix="consumer-tab"
+            panelId="consumer-panel"
           />
         </div>
 
@@ -289,7 +422,9 @@ export function ConsumerManagementPage() {
 
       <Card className="mt-6 gap-0 rounded-lg py-0">
         <div className="overflow-x-auto">
-        {filtered.length === 0 ? (
+        {tab === 'withdrawn' ? (
+          <WithdrawnConsumerTable />
+        ) : filtered.length === 0 ? (
           <p className="p-10 text-center text-body text-ink-muted">
             {rows.length === 0
               ? 'No consumers enrolled in the study yet.'
@@ -318,6 +453,14 @@ export function ConsumerManagementPage() {
                 <th scope="col" className="px-6 py-4 text-caption-medium text-ink">
                   Consumer Details
                 </th>
+                {/* Direct instruction: a real COLUMN, not a chip on the name.
+                    Both members are already named in Consumer Details — this
+                    says whether the household is a dyad or carer-only, which
+                    the name block alone cannot, since a carer-only row simply
+                    has no PLE line and reads as missing data. */}
+                <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+                  Type
+                </th>
                 <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
                   Assigned Coach
                 </th>
@@ -331,7 +474,7 @@ export function ConsumerManagementPage() {
                   Module Activity
                 </th>
                 <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
-                  Sessions Completed
+                  Coaching sessions completed
                 </th>
                 <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
                   Next Session
@@ -381,7 +524,31 @@ export function ConsumerManagementPage() {
                           </Link>
                         )}
                       </span>
+                      {/* A consumer who has asked to leave but has not been
+                          withdrawn yet. It sits in the Consumer Details cell
+                          rather than taking a column of its own: the state is
+                          rare, a whole column would be empty on every other
+                          row, and the brief asks for "a label in the table",
+                          not a field.
+
+                          The row stays on the Active tab, which is correct —
+                          they still have platform access and still count as an
+                          active consumer until the research team records the
+                          withdrawal. `warning`, not `destructive`: this is an
+                          outstanding task, not a closed record, and it matches
+                          the amber banner on the record page itself. */}
+                      {!row.dyad.optedOut && row.dyad.withdrawalRequested && (
+                        <span className="pt-1">
+                          <Chip tone="warning" label="Withdrawal requested" />
+                        </span>
+                      )}
                     </div>
+                  </td>
+                  {/* Plain text, not a chip (direct instruction: "do not make
+                      it a label"). Derived from the same `patient` field the
+                      Consumer breakdown tile counts, so the two agree. */}
+                  <td className="px-4 py-4 text-caption whitespace-nowrap text-ink">
+                    <span>{row.dyad.patient ? 'Dyad' : 'Carer only'}</span>
                   </td>
                   <td className="px-4 py-4 text-caption text-ink-muted">
                     {/* Round 17 — "Pending assignment" in quiet `ink-faint`
@@ -461,5 +628,67 @@ export function ConsumerManagementPage() {
       </section>
 
     </ResearchShell>
+  )
+}
+
+/**
+ * The Withdrawn tab's table. **Non-functional** (direct instruction): no row
+ * click, no link, no chevron. Withdrawal has no write path yet, so none of
+ * these consumers exists as a record to open — the same call the trainee and
+ * coach Withdrawn tables make.
+ *
+ * Columns per the open-items doc: Consumer details, Assigned coach, Modules
+ * completed, Sessions completed, Reason for withdrawal.
+ */
+function WithdrawnConsumerTable() {
+  return (
+    <table className="w-full min-w-[840px] border-collapse text-left">
+      <thead>
+        <tr className="bg-purple-50">
+          <th scope="col" className="px-6 py-4 text-caption-medium text-ink">
+            Consumer Details
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Assigned Coach
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Modules Completed
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Coaching sessions completed
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Reason for withdrawal
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {WITHDRAWN_CONSUMERS.map((c, i) => (
+          <tr key={c.carer} className={cn(i > 0 && 'border-t border-hairline')}>
+            {/* Same stacked PLE / Carer shape the other tabs use — label in
+                `ink-faint`, name in semibold `ink`, one line each. A flat
+                "PLE: X · Carer: Y" string read as a different table. */}
+            <td className="px-6 py-4">
+              <div className="flex min-h-11 flex-col justify-center gap-1">
+                {c.ple && (
+                  <span className="text-caption text-ink">
+                    <span className="text-ink-faint">PLE:</span>{' '}
+                    <span className="font-semibold">{c.ple}</span>
+                  </span>
+                )}
+                <span className="text-caption text-ink">
+                  <span className="text-ink-faint">Carer:</span>{' '}
+                  <span className="font-semibold">{c.carer}</span>
+                </span>
+              </div>
+            </td>
+            <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">{c.coach}</td>
+            <td className="px-4 py-4 text-caption tabular-nums whitespace-nowrap text-ink-muted">{c.modules}</td>
+            <td className="px-4 py-4 text-caption tabular-nums whitespace-nowrap text-ink-muted">{c.sessions}</td>
+            <td className="px-4 py-4 text-caption text-ink-muted">{c.reason}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

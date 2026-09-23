@@ -24,7 +24,7 @@ import {
   type ConsumerDyad,
   type SessionPlanRow,
 } from '@/data/spaces'
-import { formatDate, formatTime, toLocalISODate } from '@/data/format'
+import { formatDate, formatTime, TODAY } from '@/data/format'
 
 /** The wizard anchors to the REAL current date (Round 38, direct feedback:
  *  "I can still see July"), not the seed world's frozen `TODAY` — a coach
@@ -32,7 +32,28 @@ import { formatDate, formatTime, toLocalISODate } from '@/data/format'
  *  of the app keeps reading `TODAY`; a freshly created plan simply lives a
  *  few weeks ahead of the seeded world, which reads correctly everywhere
  *  (all sessions upcoming, nothing markable complete yet). */
-const PLAN_ANCHOR = toLocalISODate(new Date())
+/**
+ * The earliest date either plan screen will let a coach pick.
+ *
+ * **This is the seed world's `TODAY`, deliberately — not the real clock.**
+ *
+ * It was `toLocalISODate(new Date())`, with the reasoning that "a coach
+ * amending a plan should be able to pick dates they could actually book, not
+ * the seed world's frozen `TODAY`". That was written while the two happened to
+ * be the same day, and it is exactly the bug: every date in this prototype —
+ * session plans, completion records, module unlock dates, KPI windows — is
+ * generated from `TODAY` (2026-07-22), while `new Date()` keeps moving. By
+ * 2026-09-22 the floor had drifted two months past the plan it was gating, so
+ * on Bruce Whitfield's record **every remaining session (2 Sep, 8 Sep, 22 Sep)
+ * sat at or before the minimum** — the calendar disabled every sensible date,
+ * and any date that WAS selectable then broke the chronological-order rule
+ * against the rows below it, disabling Save. Reported as "modifying the date
+ * is not working", and that is what it looked like.
+ *
+ * A seeded world has to be dated from its own clock. If this prototype ever
+ * grows a real backend, this goes back to real time along with the seed data.
+ */
+const PLAN_ANCHOR = TODAY
 
 /**
  * Guided "Plan sessions" wizard (Round 14.1 — replaces the old raw
@@ -478,7 +499,7 @@ export function PlanSessionsModal({
   // focus without becoming a stop in normal Tab order — see the 3 effects
   // right after `busy` for exactly when each one fires. Matches this app's
   // own established pattern (`SessionTracker`'s `rowHeadingRefs`,
-  // `PasswordChangeCard`, `ReflectionCard`, `SlideLayout`).
+  // `PasswordChangeCard`, `ReflectionCard`, `BlockSlide`).
   const introHeadingRef = useRef<HTMLHeadingElement>(null)
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
   const loadingHeadingRef = useRef<HTMLParagraphElement>(null)

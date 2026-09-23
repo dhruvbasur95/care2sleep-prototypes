@@ -124,8 +124,11 @@ function Tile({
  *
  * Exported so the account menu in `ConsumerHeader` reads the same string.
  */
-export const SUBMENU_CARD_MOTION =
-  'transition-[opacity,transform] duration-200 ease-out data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-1 data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-1 motion-reduce:transition-none'
+/** Moved to `components/shared/submenuMotion` in Round 47 when the app header's
+ *  account menu adopted the same card. Re-exported so this module's existing
+ *  importers did not have to change. */
+export { SUBMENU_CARD_MOTION } from '@/components/shared/submenuMotion'
+import { SUBMENU_CARD_MOTION } from '@/components/shared/submenuMotion'
 
 export function AccessibilityMenu({
   className,

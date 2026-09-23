@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu } from '@base-ui/react/menu'
@@ -44,9 +44,14 @@ import {
   StudyProgressTimelineCard,
 } from '@/pages/research/ConsumerDetailPage'
 import { Chip, CertificationChip, CoachStatusChip } from '@/components/research/StatusChip'
-import { RecordRowDivider } from '@/pages/research/CoachProfilePage'
+import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research/RecordFields'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
+import { TablePager } from '@/components/shared/TablePager'
+import {
+  ResearchPrioritiesSection,
+  type ResearchPriorityItem,
+} from '@/components/research/ResearchPrioritiesSection'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { type Coach, type NotificationPreferences } from '@/data/research'
@@ -56,14 +61,15 @@ import {
   SPACES_SESSIONS,
   catchupSessionsCompleted,
   displaySessionNumber,
+  sessionRowLabel,
   isPlanSet,
-  latestAnnotationState,
   moduleUnlockState,
   nextUpcomingSessionEntry,
   type AnnotationShareState,
   type ConsumerDyad,
   type PersonProfile,
   type SessionCompletionRecord,
+  type SessionPlan,
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
@@ -295,6 +301,15 @@ function OverviewTab({
   const studyComplete = dyads.filter(
     (d) => catchupSessionsCompleted(sessionCompletion[d.id] ?? []) >= SPACES_CATCHUP_COUNT,
   ).length
+  /* "Session reflections x of y" (direct instruction). The denominator is
+     `sessionsDone`, NOT the 6-per-consumer total: the coach owes one SIPTEA
+     reflection per session actually held (Notion, coach overview), so a coach
+     who is up to date reads "9 of 9" and one who is behind reads "7 of 9".
+     Against the plan total it would read "9 of 18" for a fully up-to-date
+     coach, which names a debt that does not exist.
+     Both halves are derived from the same two sources the table below renders,
+     so the tile cannot disagree with it. */
+  const reflectionsDone = dyads.reduce((n, d) => n + d.annotationSummaries.length, 0)
 
   /* Caseload tabs, on direct instruction and following the same pattern as
      Coach Management's own roster ("Active coaches" / "Waiting to be
@@ -312,6 +327,18 @@ function OverviewTab({
     (d) => catchupSessionsCompleted(sessionCompletion[d.id] ?? []) >= SPACES_CATCHUP_COUNT,
   )
   const tabDyads = caseloadTab === 'ongoing' ? ongoingDyads : completeDyads
+
+  /* Direct instruction (Notion, coach overview): "for the tabs like ongoing,
+     study complete can you add the numbers as well. For example, ongoing (2)."
+     `UnderlineTabs` already renders an optional `count` — the same prop Coach
+     Management's own roster tabs use — so this is the count, not a second
+     label format. Counts are the *unsearched* tab totals: a tab's number is a
+     property of the caseload, and recomputing it under an active query would
+     make both tabs' numbers change as the researcher types. */
+  const caseloadTabsWithCounts = CASELOAD_TABS.map((t) => ({
+    ...t,
+    count: t.id === 'ongoing' ? ongoingDyads.length : completeDyads.length,
+  }))
 
   /* Search filters on every name a row actually shows, so a query that
      visibly matches a row can never hide it. Applied after the tab filter, so
@@ -429,7 +456,7 @@ function OverviewTab({
           last is a warning triangle on a positive count, so they read as
           placeholders. Mapped to semantically correct equivalents on direct
           instruction to update them. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Coach since"
           value={coachSince ? formatDate(coachSince) : 'Not onboarded'}
@@ -441,18 +468,31 @@ function OverviewTab({
           value={`${sessionsDone} of ${sessionsTotal}`}
           icon={CalendarCheck}
         />
+        {/* Added on direct instruction, and it is where the "Annotation
+            summary" column that used to sit in the table below now reports
+            from: the per-consumer share state moved back inside the consumer's
+            own record, so the coach-level fact a researcher needs on this tab
+            is the count, not a per-row chip. */}
+        <StatCard
+          label="Session reflections"
+          value={`${reflectionsDone} of ${sessionsDone}`}
+          icon={NotebookPen}
+        />
         <StatCard label="Study completed" value={studyComplete} icon={CircleCheckBig} />
       </div>
 
-      <Card
-        className="gap-6 rounded-lg border border-parchment p-6 shadow-card"
-      >
-        {/* Frame node `297:1802` — the card's own header is plain white with the
-            title/sub on the left and the search field on the right; the
-            `purple-50` tint moves down onto the table's real `<thead>` below.
-            A documented, frame-driven divergence from §35a (the card-header
-            band): the tint is the boundary, so a second one above it would
-            read as two headers. Same call Round 23 made on Stage Management. */}
+      {/* Direct instruction: "align with other views, in other views the table
+          does not have white background".
+
+          This section used to be ONE white `Card` holding the title, search,
+          tabs *and* a second bordered container around the table — a white box
+          inside a white box, which is why the table read as sitting on a
+          different surface from every other table in the dashboard. It now
+          follows `RosterPage` / `ConsumerManagementPage` / `SpacesRosterPage`
+          exactly: title + search + tabs on the page canvas (`#fffcfa`), and a
+          single plain `Card` holding nothing but the table. One chassis, four
+          tables. */}
+      <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <h2 className="font-display text-title text-ink">Assigned consumers</h2>
@@ -478,7 +518,7 @@ function OverviewTab({
         )}
 
         <UnderlineTabs
-          tabs={CASELOAD_TABS}
+          tabs={caseloadTabsWithCounts}
           active={caseloadTab}
           onChange={setCaseloadTab}
           ariaLabel="Assigned consumers by study status"
@@ -492,10 +532,9 @@ function OverviewTab({
           id="coach-caseload-panel"
           aria-labelledby={`coach-caseload-tab-${caseloadTab}`}
         >
+          <Card className="gap-0 rounded-lg py-0">
           {dyads.length === 0 ? (
-            <div className="rounded-lg border border-parchment">
-              <EmptyState icon={Users} copy="No consumers assigned yet" />
-            </div>
+            <EmptyState icon={Users} copy="No consumers assigned yet" />
           ) : visibleDyads.length === 0 ? (
             /* Three genuinely different empty states. A search that matches
                nothing is not the same as a tab with nobody in it, and neither
@@ -504,35 +543,30 @@ function OverviewTab({
                the shared icon-led treatment (Round 27), with the icon carrying
                the difference: a search glass for a query, a check for a tab
                that is legitimately empty. */
-            <div className="rounded-lg border border-parchment">
-              <EmptyState
-                icon={q ? Search : CircleCheckBig}
-                copy={
-                  q
-                    ? `No consumers match “${query.trim()}”`
-                    : caseloadTab === 'ongoing'
-                      ? 'Every assigned consumer has finished'
-                      : 'No consumers have finished yet'
-                }
-              />
-            </div>
+            <EmptyState
+              icon={q ? Search : CircleCheckBig}
+              copy={
+                q
+                  ? `No consumers match “${query.trim()}”`
+                  : caseloadTab === 'ongoing'
+                    ? 'Every assigned consumer has finished'
+                    : 'No consumers have finished yet'
+              }
+            />
           ) : (
-          /* Frame node `297:1811`: the table sits in its own bordered, 16px
-             rounded container inside the card — not flush against the card's
-             own edge. `overflow-hidden` is what clips the tinted `<thead>` to
-             the rounded corners.
-             No shadow, on direct instruction. The frame does draw one here
-             (`2px 4px 16px rgba(230,194,127,0.2)` — the same `shadow-card`
-             the parent card carries), but nesting the card shadow inside a
-             card that already has it reads as a second floating surface.
-             `shadow-none` is explicit rather than merely omitted, since this
-             is a deliberate divergence from the frame, not an oversight. */
-          <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-parchment shadow-none">
+          /* Bare scroller. The second bordered container that used to sit here
+             (frame node `297:1811`) went with the outer card: with the table
+             now alone inside one plain `Card`, a border here would draw a
+             second outline 1px inside the card's own. Matches `RosterPage`'s
+             `<Card gap-0 rounded-lg py-0><div overflow-x-auto>` exactly. */
+          <div className="overflow-x-auto overflow-y-hidden">
             {/* 820px -> 930px when the Session Plan column was added, then
-                -> 1080px when the frame's Session Date column joined it. The
-                floor has to grow with the column count or a new cell squeezes
-                a neighbour into a wrap at narrow widths. */}
-            <table className="w-full min-w-[1080px] border-collapse text-left">
+                -> 1080px when the frame's Session Date column joined it, then
+                back to 920px when "Annotation summary" was removed. The floor
+                tracks the column count in both directions — leaving it at 1080
+                after dropping a column makes the table scroll for space it no
+                longer needs. */}
+            <table className="w-full min-w-[920px] border-collapse text-left">
               <thead>
                 <tr className="bg-purple-50">
                   <th scope="col" className="px-6 py-4 text-caption-medium text-ink">
@@ -564,13 +598,13 @@ function OverviewTab({
                   <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
                     Session Date
                   </th>
-                  {/* Frame node `297:1816` names this "Annotation summary" —
-                      adopted over the previous bare "Annotation", matching this
-                      project's own terminology table (an annotation summary is
-                      the artifact; "annotation" alone is the act). */}
-                  <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
-                    Annotation summary
-                  </th>
+                  {/* The "Annotation summary" column was REMOVED here on direct
+                      instruction — "within table do not show annotation
+                      summary, that remains inside". A reflection's share state
+                      is a per-consumer fact and now reports in two places that
+                      own it: the "Session reflections" KPI above (the coach-level
+                      count) and the consumer's own Coach's reflection sub-tab
+                      (the entries themselves). Do not reinstate it here. */}
                   {/* Round 27: the "Actions" / "View details" column became a
                       right chevron on direct instruction, matching Consumer
                       Management's and Trainee Management's own rosters — a
@@ -657,12 +691,6 @@ function OverviewTab({
                       </>
                     )
                   })()}
-                  <td className="px-4 py-3">
-                    <Chip
-                      tone={latestAnnotationState(d) === 'shared' ? 'success' : 'muted'}
-                      label={annotationStatusLabel[latestAnnotationState(d)]}
-                    />
-                  </td>
                   <td className="px-4 py-3 text-right">
                     {/* The chevron is a real focusable button, not the bare
                         decorative icon the other rosters use. Those tables sit
@@ -691,8 +719,9 @@ function OverviewTab({
             </table>
           </div>
           )}
+          </Card>
         </div>
-      </Card>
+      </section>
     </div>
   )
 }
@@ -1289,10 +1318,28 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
     { label: 'Phone', value: coach.phone },
   ]
 
+  /* Labels are the Notion brief's own wording (coach profile details tab:
+     "Add Aged-care organisation, Role at organisation, years of work
+     experience at the time of enrolment").
+
+     Renamed on the trainee record page and in the onboarding wizard in the
+     same pass, because the brief also says this tab is "same as trainee" — and
+     the three fields were previously called "Partner org" here, "Aged care
+     employer" there, and "Years in aged care" in both, which is one field
+     under three names across four surfaces.
+
+     ⚠️ The brief asks whether the years figure could be **calculated** from
+     the enrolment date. It already is as-at-enrolment — the number is captured
+     in `AddCoachTraineeModal` at onboarding and never updated — which is why
+     the label says so rather than implying a live figure that would drift as
+     the study runs. A real derivation needs a field this data model does not
+     have (the date they started in aged care), and computing it would be
+     `enrolmentDate - careerStartDate`. Not added: the standing rule for this
+     pass is dummy data only, no data-layer work. */
   const professionalFields = [
-    { label: 'Partner org', value: coach.employer },
-    { label: 'Role at employer', value: coach.roleAtEmployer },
-    { label: 'Years in aged care', value: `${coach.yearsInAgedCare} years` },
+    { label: 'Aged-care organisation', value: coach.employer },
+    { label: 'Role at organisation', value: coach.roleAtEmployer },
+    { label: 'Years of work experience at enrolment', value: `${coach.yearsInAgedCare} years` },
   ]
 
   // Withdraw button classes match the trainee/consumer record pages' own
@@ -1330,17 +1377,13 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             </button>
           )}
         </div>
-        <dl className="flex flex-col py-4">
-          {studyFields.map((f, i) => (
-            <Fragment key={f.label}>
-              {i > 0 && <RecordRowDivider />}
-              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                <dd className="text-caption text-ink">{f.node}</dd>
-              </div>
-            </Fragment>
-          ))}
-        </dl>
+        {/* Round 47: the shared "title + text field" vocabulary
+            (`RecordFields`), applied to every profile-details surface on
+            direct instruction. */}
+        <RecordFieldList
+          className="p-6"
+          fields={studyFields.map((f) => ({ key: f.label, label: f.label, value: f.node }))}
+        />
         {withdrawn ? (
           <p className="px-6 pb-4 text-caption text-ink-faint">
             {firstName} is no longer participating in the study
@@ -1373,29 +1416,21 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
               setEditingContact(false)
             }}
           >
-            <div className="flex flex-col gap-2">
-              <label htmlFor="spaces-contact-email" className="text-caption-medium text-ink-faint">
-                Email
-              </label>
-              <input
-                ref={emailInputRef}
+            <div className={RECORD_GRID}>
+              <RecordInput
+                inputRef={emailInputRef}
                 id="spaces-contact-email"
+                label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                onChange={setEmail}
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="spaces-contact-phone" className="text-caption-medium text-ink-faint">
-                Phone
-              </label>
-              <input
+              <RecordInput
                 id="spaces-contact-phone"
+                label="Phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
+                onChange={setPhone}
               />
             </div>
             <div className="flex gap-3">
@@ -1419,19 +1454,10 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             </div>
           </form>
         ) : (
-          <dl className="flex flex-col py-4">
-            {personalFields.map((f, i) => (
-              <Fragment key={f.label}>
-                {i > 0 && <RecordRowDivider />}
-                <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                  <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                  <dd className={cn('min-w-0 text-caption text-ink', f.breakAll && 'break-all')}>
-                    {f.value}
-                  </dd>
-                </div>
-              </Fragment>
-            ))}
-          </dl>
+          <RecordFieldList
+            className="p-6"
+            fields={personalFields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+          />
         )}
       </Card>
 
@@ -1439,17 +1465,10 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
         <div className="flex min-h-16 items-center bg-purple-50 px-6 py-3">
           <h2 className="font-display text-title text-ink">Professional details</h2>
         </div>
-        <dl className="flex flex-col py-4">
-          {professionalFields.map((f, i) => (
-            <Fragment key={f.label}>
-              {i > 0 && <RecordRowDivider />}
-              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                <dd className="text-caption text-ink">{f.value}</dd>
-              </div>
-            </Fragment>
-          ))}
-        </dl>
+        <RecordFieldList
+          className="p-6"
+          fields={professionalFields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+        />
       </Card>
 
       <CoachNotificationPreferencesCard
@@ -1839,7 +1858,7 @@ export function SessionTracker({
   // complete/incomplete confirm changes the row's own action control, so
   // `ConfirmDialog`'s own trigger-focus-return has nothing left to restore
   // focus to — land on the row's own (otherwise non-interactive,
-  // `tabIndex={-1}`) heading instead, same pattern as `SlideLayout`'s
+  // `tabIndex={-1}`) heading instead, same pattern as `BlockSlide`'s
   // per-slide heading focus.
   const rowHeadingRefs = useRef<Record<number, HTMLParagraphElement | null>>({})
   const planCtaRef = useRef<HTMLButtonElement>(null)
@@ -2470,7 +2489,8 @@ export function DyadSection({
 /* ------------------------------------------------------------------------ */
 
 /** Whole days between two ISO dates. Local rather than imported: the only
- *  other copy lives unexported inside `ResearchNotificationHub`. */
+ *  other copy lived unexported inside `ResearchNotificationHub`, deleted in the
+ *  researcher-dashboard UI pass. */
 function daysBetweenDates(fromIso: string, toIso: string): number {
   const ms = new Date(toIso).getTime() - new Date(fromIso).getTime()
   return Math.max(0, Math.round(ms / 86_400_000))
@@ -2489,7 +2509,14 @@ function StudyProgressKpis({ dyad }: { dyad: ConsumerDyad }) {
   const daysIn = dyad.coachAssignedDate ? daysBetweenDates(dyad.coachAssignedDate, TODAY) : undefined
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    /* Two columns (direct instruction: "KPIs stack 2x2"), because this grid
+       now shares its row with the attention panel and five tiles across left
+       each about 110px, clipping their own labels.
+       Five tiles over two columns would leave a ragged empty cell in the last
+       row — the gap flagged directly on a screenshot — so the fifth tile spans
+       both columns instead. The block stays a clean rectangle at every
+       breakpoint, and no tile is dropped to make the arithmetic work. */
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 [&>*:last-child]:sm:col-span-2">
       {/* An absent value renders an em dash, not a wordy placeholder
           ("None scheduled" / "Not started" / "Not yet") — direct instruction,
           and it matches how every table on the three record pages already
@@ -2510,17 +2537,16 @@ function StudyProgressKpis({ dyad }: { dyad: ConsumerDyad }) {
         value={next?.date ? formatDate(next.date) : '\u2014'}
         icon={CalendarClock}
       />
-      {/* `annotationStatusLabel` is shared with the Coach Delivery Portal, so
-          the "Not yet" label stays as it is there; only this tile substitutes
-          the em dash, since a reflection that isn't due yet is an absent value
-          rather than a status worth naming. */}
+      {/* Was a Shared / Not shared status. Direct instruction (Notion, study
+          progress tab): "in the session reflection, remove the shared. All
+          reflections will be seen by researcher by default" — which leaves a
+          status tile reporting a distinction that no longer exists. It now
+          counts, in the same "x of y" form as the coach-level tile on the
+          Overview tab, against sessions actually held: one SIPTEA reflection
+          is owed per session, so a coach who is up to date reads "3 of 3". */}
       <StatCard
-        label="Session reflection"
-        value={
-          latestAnnotationState(dyad) === 'not-yet'
-            ? '\u2014'
-            : annotationStatusLabel[latestAnnotationState(dyad)]
-        }
+        label="Session reflections"
+        value={`${dyad.annotationSummaries.length} of ${held}`}
         icon={NotebookPen}
       />
     </div>
@@ -2533,31 +2559,6 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
   const { sessionCompletion, sessionPlans } = useResearch()
   const completed = sessionCompletion[dyad.id] ?? []
   const plan = sessionPlans[dyad.id]
-
-  const moduleNumber = (moduleId: string) =>
-    CONSUMER_MODULES.findIndex((m) => m.id === moduleId) + 1
-  /** "Module 2, 3" — the word once, then bare numbers. Repeating "Module" per
-   *  entry made a three-module row long enough to wrap the value column. */
-  const names = (ids: string[]) => {
-    if (ids.length === 0) return 'None'
-    const numbers = ids.map(moduleNumber).sort((a, b) => a - b)
-    return `Module ${numbers.join(', ')}`
-  }
-
-  const doneCount = dyad.moduleEngagement.filter((m) => m.status === 'completed').length
-  const inProgress = dyad.moduleEngagement.filter((m) => m.status === 'in-progress').map((m) => m.moduleId)
-  /* "Left incomplete" is derived, not a stored status: the union only has
-     not-started / in-progress / completed. A module counts as left behind once
-     its own catch-up session has already been held without it being finished —
-     the same rule the sessions table renders as its "Incomplete" chip, so the
-     two cannot disagree. */
-  const leftIncomplete = dyad.moduleEngagement
-    .filter((m) => {
-      const n = moduleNumber(m.moduleId)
-      const sessionHeld = completed.some((c) => displaySessionNumber(c.session) === n)
-      return sessionHeld && m.status !== 'completed'
-    })
-    .map((m) => m.moduleId)
 
   const held = catchupSessionsCompleted(completed)
   const rescheduled = (plan?.sessions ?? []).filter((s) => s.rescheduled)
@@ -2595,22 +2596,24 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
   return (
     <Card className="gap-0 rounded-lg py-0">
       <div className="bg-purple-50 p-6">
-        <h3 className="text-body-md text-ink">Modules and sessions</h3>
+        {/* Retitled with the Modules group: a card headed "Modules and
+            sessions" that shows no modules is a worse read than a narrower
+            title that is true. */}
+        <h3 className="text-body-md text-ink">Sessions and sleep data</h3>
         <p className="mt-1 text-caption text-ink-muted">
           How this pairing is moving through the study
         </p>
       </div>
       <div className="flex flex-col gap-4 border-t border-hairline p-6">
-        <Group
-          title="Modules"
-          rows={
-            <>
-              <Row label="Completed" value={`${doneCount} of ${CONSUMER_MODULES.length} modules`} />
-              <Row label="Left incomplete" value={names(leftIncomplete)} />
-              <Row label="In progress" value={names(inProgress)} />
-            </>
-          }
-        />
+        {/* The "Modules" group was REMOVED here on direct instruction (Notion,
+            study progress tab): "for the modules and sessions, remove the
+            modules portion, it's a repeat of the consumer module completion
+            overview". It was — `ModuleCompletionOverviewCard` sits in the same
+            row and renders every module's own state, so this group restated
+            three of its figures in a second vocabulary. Removing it also ends
+            the risk of the two disagreeing, which is this project's most
+            repeated bug.
+            `doneCount` / `inProgress` / `leftIncomplete` went with it. */}
         <Group
           title="Sessions"
           rows={
@@ -2668,40 +2671,48 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
 }
 
 /**
- * Frame node `297:3575` "Latest updates".
+ * "Latest updates" for one pairing, as `ResearchPriorityItem[]`.
  *
- * Built on Consumer Management's own "Needs attention" card
- * (`ConsumerDetailPage.tsx`) on direct instruction — same `Card` + `purple-50`
- * header + `border-t` divider + `destructive`-dot bullet list, so the two read
- * as one pattern rather than two feed styles.
+ * Direct instruction: *"streamline latest updates, as done for researcher home
+ * page, use same component."* This was a bespoke `LatestUpdatesCard` — a
+ * `purple-50` header over a red-dot bullet list of ` · `-joined log strings —
+ * which is a third attention pattern in an app that already settled on one
+ * (`ResearchPrioritiesSection` on Research Home, `PrioritiesSection` in the
+ * coach portal). The card is gone; only the derivation survives, reshaped into
+ * the rows that component takes.
  *
- * Two rules this card follows, both from direct instruction:
+ * What the swap changes, beyond looks: every row now carries a real High/Medium
+ * priority from the Notion alert classification, a kebab Dismiss with the
+ * focus contract that component already owns, and paging via `TablePager`
+ * rather than an unbounded list.
  *
- * 1. **Attention only.** It is not a study log. Routine facts — a module
- *    finished on time, a session held as planned, a reflection shared — belong
- *    to the sessions table below and are deliberately excluded, or this card
- *    becomes a second, worse copy of it.
- * 2. **Log style, not prose.** An identifier plus ` · ` qualifiers, no
- *    sentences ("Session 2 · held 5 Aug · Module 2 not completed", never
- *    "Session 2 was held while Module 2 was still incomplete"). This is the
- *    same correction already applied to the consumer study log in Round 25
- *    ("the details sounds like ai"), and it is why nothing here is written as
- *    a narrated event.
- *
- * Every item is derived from the record. Nothing is seeded, so an empty card
- * genuinely means nothing needs attention.
+ * Every item is still derived from the record. Nothing is seeded, so an empty
+ * list genuinely means nothing needs attention — and the component returns
+ * `null` in that case, which is why there is no empty state here any more.
  */
-function LatestUpdatesCard({ dyad }: { dyad: ConsumerDyad }) {
-  const { sessionCompletion, sessionPlans } = useResearch()
-  const completed = sessionCompletion[dyad.id] ?? []
-  const plan = sessionPlans[dyad.id]
-  const items: { date?: string; text: string }[] = []
-
+function dyadPriorityItems(
+  dyad: ConsumerDyad,
+  completed: SessionCompletionRecord[],
+  plan: SessionPlan | undefined,
+): ResearchPriorityItem[] {
+  const items: ResearchPriorityItem[] = []
+  const to = `/research/consumers/${dyad.id}`
   const moduleNumber = (moduleId: string) =>
     CONSUMER_MODULES.findIndex((m) => m.id === moduleId) + 1
 
+  /* Titles and priorities are the Notion alert classification's own, so a row
+     here and the same alert on Research Home read identically rather than as
+     two independent wordings of one condition. */
+
   // Session plan never created.
-  if (!isPlanSet(plan)) items.push({ text: 'Session plan · not created' })
+  if (!isPlanSet(plan))
+    items.push({
+      id: 'no-plan',
+      priority: 'Medium',
+      title: 'No session plan built',
+      note: 'This consumer has a coach assigned but no session plan created.',
+      to,
+    })
 
   // A catch-up held without its module finished — a protocol departure.
   dyad.moduleEngagement.forEach((m) => {
@@ -2709,8 +2720,11 @@ function LatestUpdatesCard({ dyad }: { dyad: ConsumerDyad }) {
     const rec = completed.find((c) => displaySessionNumber(c.session) === n)
     if (rec && m.status !== 'completed') {
       items.push({
-        date: rec.completedDate,
-        text: `Session ${n} · held ${formatDate(rec.completedDate)} · Module ${n} not completed`,
+        id: `module-incomplete-${m.moduleId}`,
+        priority: 'Medium',
+        title: 'Module incomplete after session held',
+        note: `Session ${n} was held on ${formatDate(rec.completedDate)} and Module ${n} is still incomplete.`,
+        to,
       })
     }
   })
@@ -2720,78 +2734,55 @@ function LatestUpdatesCard({ dyad }: { dyad: ConsumerDyad }) {
     .filter((s) => s.rescheduled)
     .forEach((s) => {
       items.push({
-        date: s.date,
-        text: `Session ${displaySessionNumber(s.session)} · rescheduled${
-          s.date ? ` · now ${formatDate(s.date)}` : ''
-        }`,
+        id: `rescheduled-${s.session}`,
+        priority: 'Medium',
+        title: 'Session rescheduled',
+        note: `Session ${displaySessionNumber(s.session)} has been moved${
+          s.date ? ` to ${formatDate(s.date)}` : ''
+        }.`,
+        to,
       })
     })
 
-  // Device data gaps, per person — the split matters, since a carer not
-  // syncing is a different finding from the PLE not syncing.
+  /* Device data gaps, per person — the split matters, since a carer not
+     syncing is a different finding from the PLE not syncing. High, per the
+     classification's "Fitbit not synced in 48+ hours". */
   ;[
     { label: dyad.patient?.name.split(' ')[0], log: dyad.patientLog },
     { label: dyad.carer.name.split(' ')[0], log: dyad.carerLog },
-  ].forEach(({ label, log }) => {
+  ].forEach(({ label, log }, i) => {
     if (!label || log.length === 0) return
     const unsynced = log.filter((e) => !e.synced).length
     if (unsynced >= 3) {
-      items.push({ text: `Fitbit sync · ${label} · ${unsynced} of ${log.length} nights missing` })
+      items.push({
+        id: `fitbit-${i}`,
+        priority: 'High',
+        title: 'Fitbit not synced',
+        note: `${label} is missing ${unsynced} of ${log.length} nights of wearable data.`,
+        to,
+      })
     }
   })
 
-  // Reflection outstanding once Session 1 has been held.
+  /* Reflection outstanding once Session 1 has been held. Reads "not added",
+     not "not shared": sharing is no longer a state a researcher waits on —
+     every reflection is visible to the research team by default (Notion,
+     study progress tab), so the only outstanding thing is whether one exists. */
   const session1 = completed.find((c) => c.session === 1)
-  if (session1 && latestAnnotationState(dyad) !== 'shared') {
+  if (session1 && dyad.annotationSummaries.length === 0) {
     items.push({
-      date: session1.completedDate,
-      text: `Annotation summary · not shared · Session 1 held ${formatDate(session1.completedDate)}`,
+      id: 'reflection-missing',
+      priority: 'Medium',
+      title: 'Coach reflection not added after session',
+      note: `Session 1 was held on ${formatDate(session1.completedDate)} and no SIPTEA reflection has been logged.`,
+      to,
     })
   }
 
-  // Newest first; undated items lead, since "not created" has no date and is
-  // the most current state of all.
-  const sorted = [...items].sort((a, b) => (b.date ?? '9999').localeCompare(a.date ?? '9999'))
-
-  return (
-    /* `h-full` + a `flex-1` content section: this card shares a row with the
-       study-progress timeline and the two heights must match (direct
-       instruction). The card is the shorter of the two, so it grows into the
-       row's height rather than the timeline shrinking to it. */
-    <Card className="h-full gap-0 rounded-lg py-0">
-      <div className="flex items-start justify-between gap-4 bg-purple-50 p-6">
-        <div className="min-w-0">
-          <h3 className="text-body-md text-ink">Latest updates</h3>
-          <p className="mt-1 text-caption text-ink-muted">Items that need your attention</p>
-        </div>
-        {sorted.length > 0 && (
-          <span className="shrink-0 rounded-md bg-purple-500 px-2.5 py-1 text-fine text-white">
-            {sorted.length} new
-          </span>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-4 border-t border-hairline p-6 pt-4">
-        {sorted.length === 0 ? (
-          /* Icon-led empty state on direct instruction. The copy is one short
-             line — the previous two-clause sentence naming the coach read as
-             unfinished body text rather than a resting state. */
-          <EmptyState icon={CircleCheckBig} copy="Nothing needs attention" />
-        ) : (
-          <ul className="flex flex-col gap-4 py-2">
-            {sorted.map((a) => (
-              <li key={a.text} className="flex items-start gap-2">
-                <span
-                  aria-hidden="true"
-                  className="mt-2 size-1.5 shrink-0 rounded-full bg-destructive"
-                />
-                <p className="min-w-0 flex-1 text-caption text-ink">{a.text}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Card>
-  )
+  /* High before Medium, so the row that needs chasing leads. The component
+     renders four to a page, which is why the order matters rather than being
+     cosmetic. */
+  return items.sort((a, b) => (a.priority === b.priority ? 0 : a.priority === 'High' ? -1 : 1))
 }
 
 /** The "Assigned Consumers" tab's own consumer picker — global (always
@@ -2824,6 +2815,11 @@ const CONSUMER_SUBTAB_INTRO = {
   },
 } as const
 
+/** Rows per page in the Coach's reflection table. Six catch-ups means a full
+ *  arc is six reflections, so five keeps the common case to two short pages
+ *  rather than one long scroll. */
+const REFLECTIONS_PER_PAGE = 5
+
 const CONSUMER_SUBTABS = [
   { id: 'progress', label: 'Study progress' },
   { id: 'health', label: 'Consumer sleep & health data' },
@@ -2847,7 +2843,7 @@ function ConsumersDetailsTab({
    *  rendered by the page. */
   subtab: ConsumerSubtab
 }) {
-  const { consumerDyads } = useResearch()
+  const { consumerDyads, sessionCompletion, sessionPlans } = useResearch()
   const dyads = consumerDyads.filter((d) => d.coachId === coach.id)
   const selected = dyads.find((d) => d.id === selectedId) ?? dyads[0]
 
@@ -2901,7 +2897,59 @@ function ConsumersDetailsTab({
           Round 27's "Consumer details" card stays gone from this tab —
           identity and contact now open in the "View consumer details" panel
           instead. */}
-      {selected && <StudyProgressKpis dyad={selected} />}
+      {/* Direct instruction: the KPI row and the attention section are stacked
+          **horizontally**, and the attention panel's height matches the KPI
+          column's.
+
+          The height match is structural rather than a px value — the row is a
+          stretched grid, the KPI column sets the height from however many rows
+          its tiles wrap to, and `fillHeight` makes the attention panel `h-full`
+          with a scrolling list. Add a sixth KPI and both sides still agree.
+
+          The KPI grid drops from 5 columns to 3 here: five tiles across plus a
+          420px panel beside them leaves each tile ~110px, which clips
+          "Modules completed" and its value. Three columns wrap 5 tiles to two
+          rows, which is also what gives the panel a usable height.
+
+          `minmax(0, …)` on both tracks: an `fr` track's automatic minimum is
+          `auto`, so a wide child (the attention rows' note lines) would grow
+          its track past its share and push the sibling down — the same trap
+          this tab's own timeline/updates row hit before. */}
+      {selected && (
+        <div className="grid grid-cols-1 items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <TabIntro {...CONSUMER_SUBTAB_INTRO.progress} />
+            <StudyProgressKpis dyad={selected} />
+          </div>
+          {/* The attention panel takes its height from the column beside it,
+              with no magic number anywhere.
+
+              `absolute inset-0` is load-bearing: `items-stretch` sizes a grid
+              row to its **tallest** child, so an `h-full` panel holding three
+              alerts would set the row height and stretch the KPI column to
+              match — the opposite of what was asked for. An absolutely
+              positioned child contributes nothing to the row's height, so the
+              left column is the sole height authority and the panel fills
+              exactly that box, scrolling inside it (`fillHeight`). Add a KPI,
+              or let the intro wrap, and the two still agree.
+
+              `xl:` only: below the breakpoint the two stack, where filling a
+              sibling's height would just clip alerts. */}
+          <div className="relative min-w-0">
+            <div className="xl:absolute xl:inset-0">
+              <ResearchPrioritiesSection
+                key={`priorities-${selected.id}`}
+                fillHeight
+                items={dyadPriorityItems(
+                  selected,
+                  sessionCompletion[selected.id] ?? [],
+                  sessionPlans[selected.id],
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Direct instruction: the timeline and latest updates sit side by side,
           60/40, updates on the right.
@@ -2926,14 +2974,14 @@ function ConsumersDetailsTab({
           `items-start`: each card sizes to its own content rather than both
           stretching to the taller one. Latest updates is usually much the
           shorter (a few attention items against a full session arc). */}
+      {/* Full width now that "Latest updates" has moved above it as the shared
+          attention section. The 60/40 split existed only to pair the two; with
+          the timeline alone the extra ~40% is width the horizontally-scrolling
+          session row can actually use, so fewer pairings need to scroll at
+          all. */}
       {selected && (
-        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]">
-          <div className="min-w-0">
-            <StudyProgressTimelineCard dyad={selected} />
-          </div>
-          <div className="min-w-0">
-            <LatestUpdatesCard dyad={selected} />
-          </div>
+        <div className="min-w-0">
+          <StudyProgressTimelineCard dyad={selected} />
         </div>
       )}
 
@@ -3108,66 +3156,203 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const { sessionCompletion } = useResearch()
   const firstName = coach.fullName.split(' ')[0]
   const session1Done = (sessionCompletion[dyad.id] ?? []).some((s) => s.session === 1)
+  const [viewingId, setViewingId] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
-  const shared = dyad.annotationSummaries.filter((e) => e.shared)
+  /* EVERY reflection, not just the shared ones. Direct instruction (Notion,
+     study progress tab): "in the session reflection, remove the shared. All
+     reflections will be seen by researcher by default." The `shared` field is
+     NOT removed from the data model — the Coach Delivery Portal's own toggle
+     still writes it, and it is what a coach sees on their side — it simply no
+     longer gates or labels anything on a researcher surface.
+
+     Newest first. The store prepends and the seed is written in that order, so
+     this is a stable read rather than a reorder — but sorting anyway means a
+     hand-edited seed cannot silently put the list out of order. */
+  const entries = [...dyad.annotationSummaries].sort((a, b) =>
+    `${a.date} ${a.time}` < `${b.date} ${b.time}` ? 1 : -1,
+  )
+
+  const lastPage = Math.max(0, Math.ceil(entries.length / REFLECTIONS_PER_PAGE) - 1)
+  useEffect(() => {
+    if (page > lastPage) setPage(lastPage)
+  }, [page, lastPage])
+  const visible = entries.slice(page * REFLECTIONS_PER_PAGE, (page + 1) * REFLECTIONS_PER_PAGE)
+  const viewing = entries.find((e) => e.id === viewingId) ?? null
 
   return (
-    /* Round 27, frame `306:155` node `297:2237`. The section title and sub copy
-       sit on the page canvas, *outside* the card — the same external-title
-       pattern `SleepDiaryFeed` and the sessions table already use — and the
-       body is a plain document: one row per SIPTEA component, the component
-       name in `primary` on a fixed 180px track, the answer beside it. No
-       `purple-50` header band, because there is no header to band. */
+    /* Direct instruction: "under coach reflection add back table view as done
+       for coaches when they add reflection after each session."
+
+       This is the Coach Delivery Portal's own "My reflections" table
+       (`DeliveryConsumerDetailPage.tsx`) — same columns, same excerpt rule,
+       same row-opens-a-dialog contract — so a coach and a researcher looking at
+       the same reflections see the same list. It replaces a stack of fully
+       expanded reflection documents, which at one card per session grew to a
+       page the researcher had to scroll past rather than scan.
+
+       Two deliberate differences from the coach's version, both permissions
+       rather than taste: there is **no Share status column** (nothing to show
+       now that every reflection is visible by default) and the dialog is
+       **read-only** (a coach's reflection is their own account of a session; a
+       researcher reads it, and an editable textarea here would say otherwise).
+       The section title and sub copy sit on the page canvas, outside the card,
+       matching `SleepDiaryFeed` and the sessions table. */
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h2 className="font-display text-title text-ink">Session reflection</h2>
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-display text-title text-ink outline-none"
+        >
+          Session reflections
+        </h2>
+        {/* No "shared by" — every reflection reaches the research team, so
+            naming the act would imply a choice the coach no longer makes for
+            the researcher's benefit. */}
         <p className="text-body text-ink">
-          Post session 1 reflection shared by {firstName}
+          {entries.length === 0
+            ? `${firstName} has not written a reflection for this consumer yet`
+            : `SIPTEA reflections ${firstName} wrote after each session with this consumer`}
         </p>
       </div>
 
-      {shared.length === 0 ? (
+      {entries.length === 0 ? (
         <Card className="gap-0 rounded-lg py-0">
           <EmptyState
             icon={NotebookPen}
-            copy={
-              session1Done
-                ? 'No reflection shared yet'
-                : 'Session 1 hasn’t happened yet'
-            }
+            copy={session1Done ? 'No reflection added yet' : 'Session 1 hasn’t happened yet'}
           />
         </Card>
       ) : (
-        shared.map((entry) => (
-          <Card key={entry.id} className="gap-0 rounded-sm py-0">
-            {/* Date/time and the Shared chip sit above the rows rather than in
-                a tinted band: the frame's own doc has no header, and the
-                surrounding section title already names what this is. */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
-              <p className="text-caption-medium text-ink">
-                {formatDate(entry.date)} · {formatTime(entry.time)}
-              </p>
-              <Chip tone="success" label="Shared" />
-            </div>
-            <dl>
-              {entry.components.map((c, i) => (
-                <div
-                  key={c.label}
-                  className={cn(
-                    'flex flex-col gap-2 px-5 py-5 sm:flex-row sm:gap-6',
-                    i > 0 && 'border-t border-hairline',
-                  )}
-                >
-                  <dt className="text-caption-medium text-primary sm:w-[180px] sm:shrink-0">
-                    {c.label}
-                  </dt>
-                  <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">{c.answer}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        ))
+        <Card className="gap-0 rounded-lg py-0">
+          <div className="overflow-x-auto">
+            {/* `table-fixed` is load-bearing: under auto layout the one-line
+                excerpt sizes the Reflection column off its longest row and
+                pushes the table well past its container — the same bug the
+                coach portal's own notes table hit (Round 31). */}
+            <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+              <thead>
+                <tr className="bg-purple-50">
+                  <th scope="col" className="w-[150px] px-6 py-4 text-caption-medium text-ink">
+                    Session
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
+                    Reflection
+                  </th>
+                  <th scope="col" className="w-[150px] px-4 py-4 text-caption-medium text-ink">
+                    Date added
+                  </th>
+                  <th scope="col" className="w-[110px] px-4 py-4 text-caption-medium text-ink">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((entry, i) => (
+                  <tr key={entry.id} className={cn('align-top', i > 0 && 'border-t border-parchment')}>
+                    <td className="px-6 py-5 text-caption-medium text-ink">
+                      {/* Never a bare number — internal 1 is "Planning", and an
+                          entry written before sessions were mapped has none at
+                          all, which is a real absence rather than a zero. */}
+                      {entry.session === undefined ? '—' : sessionRowLabel(entry.session)}
+                    </td>
+                    <td className="px-4 py-5">
+                      {/* The first component's answer as the excerpt: it is the
+                          coach's own opening account of the session, and a
+                          reflection has no title of its own to show instead. */}
+                      <span className="line-clamp-2 text-caption text-ink-muted">
+                        {entry.components[0]?.answer ?? ''}
+                      </span>
+                    </td>
+                    <td className="px-4 py-5 text-caption whitespace-nowrap text-ink-muted">
+                      {formatDate(entry.date)}
+                    </td>
+                    <td className="px-4 py-5">
+                      <button
+                        type="button"
+                        onClick={() => setViewingId(entry.id)}
+                        className="inline-flex h-9 items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        View
+                        <span className="sr-only">
+                          {' '}
+                          reflection for{' '}
+                          {entry.session === undefined
+                            ? formatDate(entry.date)
+                            : sessionRowLabel(entry.session)}
+                        </span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
+
+      {entries.length > REFLECTIONS_PER_PAGE && (
+        <TablePager
+          page={page}
+          pageSize={REFLECTIONS_PER_PAGE}
+          total={entries.length}
+          onPageChange={setPage}
+          itemLabel="reflections"
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!viewing}
+        title={
+          viewing
+            ? viewing.session === undefined
+              ? `${firstName}\u2019s reflection`
+              : `${firstName}\u2019s reflection: ${sessionRowLabel(viewing.session)}`
+            : ''
+        }
+        body={viewing ? `${formatDate(viewing.date)}  ·  ${formatTime(viewing.time)}` : ''}
+        confirmLabel="Close"
+        cancelLabel="Close"
+        /* One control, not a Cancel/Confirm pair: this dialog shows a document
+           and asks nothing, so there is nothing to confirm. */
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[860px]"
+        onConfirm={() => {
+          setViewingId(null)
+          /* The dialog unmounts and its trigger — the row's View button — may
+             have re-rendered, so focus lands on this section's heading rather
+             than `<body>`. This project's most-repeated defect. */
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+        onClose={() => {
+          setViewingId(null)
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+      >
+        {viewing && (
+          /* Read-only, and the same row shape the expanded cards used before
+             this table existed: component name in `primary` on a fixed 180px
+             track, the coach's answer beside it. */
+          <dl className="rounded-sm border border-hairline">
+            {viewing.components.map((c, i) => (
+              <div
+                key={c.label}
+                className={cn(
+                  'flex flex-col gap-2 px-5 py-5 sm:flex-row sm:gap-6',
+                  i > 0 && 'border-t border-hairline',
+                )}
+              >
+                <dt className="text-caption-medium text-primary sm:w-[180px] sm:shrink-0">
+                  {c.label}
+                </dt>
+                <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">{c.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </ConfirmDialog>
     </section>
   )
 }
@@ -3596,7 +3781,7 @@ export function SpacesCoachProfilePage() {
          underline, 40px top / 80px side insets. Applied here so the three
          researcher record pages stay one treatment; see `CoachProfilePage` for
          the measured derivation of `pt-10` and the tab row's `mt-[33px]`. */
-      heroClassName="bg-purple-700 px-6 pt-10 md:px-20 md:pt-10"
+      heroClassName="bg-primary px-6 pt-10 md:px-20 md:pt-10"
       /* Round 27, frame `306:155` node `297:1883`. Consumer selection is a
          full-bleed `purple-50` band flush under the hero. It goes through
          `heroBelow` rather than being rendered as the tab panel's first child,
@@ -3831,15 +4016,12 @@ export function SpacesCoachProfilePage() {
             page's own Sleep & Health Data tab set. The two consumer actions go
             with it; they stay on the Study progress sub-tab, which is where the
             panel opens. */}
-        {tab !== 'Profile details' &&
-          tab !== 'Overview' &&
-          !(tab === 'Assigned Consumers' && consumerSubtab !== 'progress') && (
-          <TabIntro
-            {...(tab === 'Assigned Consumers'
-              ? CONSUMER_SUBTAB_INTRO[consumerSubtab]
-              : TAB_INTRO[tab])}
-          />
-        )}
+        {/* The Study progress sub-tab renders its own intro INSIDE the left
+            column of its KPI row (direct instruction: the KPI block and the
+            attention block are two containers stacked horizontally, so they
+            have to start on the same line). Leaving it here would put the
+            heading full width above both and misalign their top edges. */}
+        {tab === 'Supervision Logs' && <TabIntro {...TAB_INTRO[tab]} />}
         {tab === 'Overview' && <OverviewTab coach={coach} onViewDyad={viewDyad} />}
         {tab === 'Assigned Consumers' && (
           <ConsumersDetailsTab

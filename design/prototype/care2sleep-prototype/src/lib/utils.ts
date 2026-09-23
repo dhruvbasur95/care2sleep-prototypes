@@ -32,6 +32,7 @@ const twMerge = extendTailwindMerge({
         "text-display-xl",
         "text-display-lg",
         "text-display-md",
+        "text-display-sm",
         "text-sub-greeting",
         "text-sub-greeting-semibold",
         "text-title",

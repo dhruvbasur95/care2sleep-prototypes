@@ -4,11 +4,8 @@ import { ResearchPageHero } from '@/components/research/ResearchPageHero'
 import { NotificationPreferencesCard } from '@/components/account/NotificationPreferencesCard'
 import { PasswordChangeCard } from '@/components/account/PasswordChangeCard'
 import { Card } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research/RecordFields'
 import { useResearch } from '@/data/research-context'
-
-const inputClass =
-  'h-9 w-full rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
 
 function ProfileDetailsCard() {
   const { researcherProfile, updateResearcherContact } = useResearch()
@@ -26,7 +23,10 @@ function ProfileDetailsCard() {
 
   return (
     <Card className="gap-0 rounded-lg py-0">
-      <div className="bg-card-header p-6">
+      {/* `purple-50`, not the darker `bg-card-header` `purple-200` (direct
+          instruction, 2026-09-21): this page's cards were the last researcher
+          surface whose header band disagreed with the three record pages. */}
+      <div className="bg-purple-50 p-6">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-title">Profile details</h2>
           {!editing && (
@@ -51,28 +51,20 @@ function ProfileDetailsCard() {
               setEditing(false)
             }}
           >
-            <div className="flex flex-col gap-1">
-              <label htmlFor="account-email" className="text-fine text-ink-faint">
-                Email
-              </label>
-              <input
+            <div className={RECORD_GRID}>
+              <RecordInput
                 id="account-email"
+                label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                onChange={setEmail}
               />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="account-phone" className="text-fine text-ink-faint">
-                Phone
-              </label>
-              <input
+              <RecordInput
                 id="account-phone"
+                label="Phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
+                onChange={setPhone}
               />
             </div>
             <p className="text-fine text-ink-faint">
@@ -99,19 +91,12 @@ function ProfileDetailsCard() {
             </div>
           </form>
         ) : (
-          <dl>
-            {fields.map((f, i) => (
-              <div key={f.label}>
-                {i > 0 && <Separator className="bg-divider-soft" />}
-                <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
-                  <dt className="text-caption text-ink-faint">{f.label}</dt>
-                  <dd className={f.breakAll ? 'text-caption break-all text-ink' : 'text-caption text-ink'}>
-                    {f.value}
-                  </dd>
-                </div>
-              </div>
-            ))}
-          </dl>
+          /* Round 47: the shared "title + text field" vocabulary
+             (`RecordFields`) — direct instruction to use it on every
+             profile-details surface. */
+          <RecordFieldList
+            fields={fields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+          />
         )}
       </div>
     </Card>
@@ -140,8 +125,9 @@ export function ResearchAccountPage() {
         <NotificationPreferencesCard
           preferences={researcherProfile.notificationPreferences}
           onSave={updateResearcherNotificationPreferences}
+          headerClassName="bg-purple-50"
         />
-        <PasswordChangeCard email={researcherProfile.email} />
+        <PasswordChangeCard email={researcherProfile.email} headerClassName="bg-purple-50" />
       </div>
     </ResearchShell>
   )

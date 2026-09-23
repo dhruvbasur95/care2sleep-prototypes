@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, House } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { GateReason } from './slideGate'
 
 /** What a slide reports up to `ModulePlayerPage` about its own Continue
  *  readiness — see `ModulePlayerFooter`'s doc comment below for the full
@@ -8,6 +9,9 @@ import { cn } from '@/lib/utils'
 export interface FooterReadyState {
   canContinue: boolean
   label?: string
+  /** Why Continue is locked, when it is — surfaced as a visible line beside the
+   *  button, not only to a screen reader. See `LOCKED_COPY` below. */
+  lockedReason?: GateReason
 }
 
 /** Only ever wired into the current (bottom-most) visited slide — see
@@ -50,9 +54,46 @@ export type OnReadyChange = (state: FooterReadyState) => void
  * chapter marker's "Start chapter 2", the module outro's "Complete
  * module") without the footer needing to know why.
  */
+/**
+ * What the coach is told when Next is locked.
+ *
+ * **Visible, not `sr-only`.** The footer already carried an `sr-only`
+ * "(complete this step to continue)", which leaves a sighted coach with a dead
+ * button and nothing on screen explaining it. This portal's audience is
+ * explicitly not a digitally literate one, so an unexplained disabled control
+ * is a dead end rather than a nudge.
+ *
+ * Phrased as the action that unlocks it, in the second person, with no jargon
+ * and no contraction — the same register as the stage banners and the tour.
+ */
+/**
+ * ⚠️ **Hidden for now** (direct instruction, 2026-09-18: *"remove that tagline
+ * scroll towards the end... hide it for now"*).
+ *
+ * The line still renders to assistive tech through the button's own `sr-only`
+ * cue below — a disabled control with no stated reason is a WCAG problem as
+ * well as a usability one, and that half was never the thing objected to. Only
+ * the visible line under the pills is suppressed, by this one flag, so turning
+ * it back on is a single character.
+ *
+ * Worth knowing before it stays off permanently: this portal's audience is
+ * explicitly not digitally literate, and a dead Next button with nothing on
+ * screen explaining it is the case the line was written for. If it is not
+ * coming back, the gate probably wants some other visible signal — the
+ * `ScrollCue` already covers the scroll half, so it is the interaction half
+ * that is currently silent.
+ */
+const SHOW_LOCKED_REASON = false
+
+const LOCKED_COPY: Record<Exclude<GateReason, null>, string> = {
+  scroll: 'Scroll to the end of this slide to continue',
+  interaction: 'Complete the activity on this slide to continue',
+}
+
 export function ModulePlayerFooter({
   label,
   disabled,
+  lockedReason = null,
   onClick,
   onPrevious,
   onExit,
@@ -60,6 +101,9 @@ export function ModulePlayerFooter({
 }: {
   label: string
   disabled: boolean
+  /** Which gate is outstanding, for the visible hint. `null` when Next is
+   *  live, or on a step with no gate. */
+  lockedReason?: GateReason
   onClick: () => void
   /** Step back one slide. Absent on the module's first step. */
   onPrevious?: () => void
@@ -142,9 +186,37 @@ export function ModulePlayerFooter({
         >
           {label}
           <ChevronRight aria-hidden="true" className="absolute right-4 size-4" />
-          {disabled && <span className="sr-only"> (complete this step to continue)</span>}
+          {disabled && (
+            <span className="sr-only">
+              {' '}
+              ({lockedReason ? LOCKED_COPY[lockedReason] : 'complete this step to continue'})
+            </span>
+          )}
         </button>
       </div>
+
+      {/* The reason, under the pair it explains.
+       *
+       * `absolute` so it cannot change the bar's 84px height — the frame's own
+       * number (`519:10494`), and a line that appeared and disappeared in flow
+       * would shift every slide by ~20px as the gate opened and closed.
+       *
+       * `role="status"` because the text changes *without* the coach acting on
+       * this control: it appears on arriving at a slide and clears when the gate
+       * opens, and a screen-reader user otherwise gets no signal that Next just
+       * became usable. `aria-live` is polite, so it never interrupts.
+       *
+       * Hidden below `lg` alongside the rail spacer's own breakpoint: at phone
+       * width the two pills already collapse (a known, separate defect) and a
+       * third line under them makes that worse rather than better. */}
+      {SHOW_LOCKED_REASON && (
+        <p
+          role="status"
+          className="pointer-events-none absolute inset-x-0 bottom-1 hidden text-center text-fine text-ink-muted lg:block"
+        >
+          {disabled && lockedReason ? LOCKED_COPY[lockedReason] : ''}
+        </p>
+      )}
     </div>
   )
 }

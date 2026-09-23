@@ -10,37 +10,36 @@ import {
   type ConsumerDyad,
   type SessionPlanRow,
 } from '@/data/spaces'
-import { formatDate, formatTime, toLocalISODate } from '@/data/format'
+import { formatDate, formatTime, TODAY } from '@/data/format'
 import { cn } from '@/lib/utils'
 
-/** Same anchor the wizard uses — a coach amending a plan should be able to pick
- *  dates they could actually book, not the seed world's frozen `TODAY`. */
-const PLAN_ANCHOR = toLocalISODate(new Date())
+/**
+ * The earliest date either plan screen will let a coach pick.
+ *
+ * **This is the seed world's `TODAY`, deliberately — not the real clock.**
+ *
+ * It was `toLocalISODate(new Date())`, with the reasoning that "a coach
+ * amending a plan should be able to pick dates they could actually book, not
+ * the seed world's frozen `TODAY`". That was written while the two happened to
+ * be the same day, and it is exactly the bug: every date in this prototype —
+ * session plans, completion records, module unlock dates, KPI windows — is
+ * generated from `TODAY` (2026-07-22), while `new Date()` keeps moving. By
+ * 2026-09-22 the floor had drifted two months past the plan it was gating, so
+ * on Bruce Whitfield's record **every remaining session (2 Sep, 8 Sep, 22 Sep)
+ * sat at or before the minimum** — the calendar disabled every sensible date,
+ * and any date that WAS selectable then broke the chronological-order rule
+ * against the rows below it, disabling Save. Reported as "modifying the date
+ * is not working", and that is what it looked like.
+ *
+ * A seeded world has to be dated from its own clock. If this prototype ever
+ * grows a real backend, this goes back to real time along with the seed data.
+ */
+const PLAN_ANCHOR = TODAY
 
 /** The wizard's own dashed read-back card, so the summary above the table reads
  *  identically on both screens. */
 const SUMMARY_CARD =
   'flex flex-col gap-4 rounded-sm border border-dashed border-primary bg-card p-4'
-
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-/** The weekday a set of ISO dates falls on, or `null` if they disagree.
- *
- *  The wizard knows its cadence because the coach just answered for it; this
- *  modal has to read it back off the plan. A plan whose rows have been
- *  individually rescheduled genuinely has no single weekday any more, and in
- *  that case the summary says so rather than picking the first row's day and
- *  presenting it as the pattern. */
-function commonWeekday(dates: (string | undefined)[]): number | null {
-  const days = dates
-    .filter((d): d is string => !!d)
-    .map((d) => {
-      const [y, m, dd] = d.split('-').map(Number)
-      return new Date(Date.UTC(y, m - 1, dd)).getUTCDay()
-    })
-  if (days.length === 0) return null
-  return days.every((d) => d === days[0]) ? days[0] : null
-}
 
 /**
  * "Edit plan" entry point for an already-active session plan (direct
@@ -76,10 +75,10 @@ function commonWeekday(dates: (string | undefined)[]): number | null {
  * list is a fixed point an earlier edit could otherwise creep past unnoticed.
  * This is checked on top of the wizard's own same-week (`rowDateInvalid`) and
  * cross-week (`crossWeekInvalid`) rules, which are carried over unchanged.
- * (3) **A derived summary.** The wizard knows its cadence because the coach
- * just answered for it; this modal reads it back off the plan via
- * `commonWeekday`, and says so plainly when the remaining rows no longer share
- * one weekday instead of presenting the first row's day as the pattern.
+ * (3) **A derived summary.** The wizard's review step summarises what the coach
+ * just answered; this modal has no answers to echo, so its card is derived from
+ * the plan itself — the next module date, the next session date and time, and
+ * how many sessions remain.
  *
  * `zoomLink`/`meetingId` are carried through untouched on every row — this
  * modal only ever patches `date`/`endTime`/`time`/`moduleTargetDate`, so nothing
@@ -247,13 +246,10 @@ export function EditSessionPlanModal({
 
   const canSave = rows.length > 0 && rows.every((r) => rowIssues(r.session).length === 0)
 
-  /* Read the cadence back off the live plan for the summary card. Only rows
-     that have NOT happened yet are considered: a completed session is a
-     historical fact and may well have been moved, so including it would let one
-     past reschedule report the whole plan as having no pattern. */
+  /* The summary card's three facts. Only rows that have NOT happened yet count:
+     a completed session is a historical fact, and `firstOpen` is by definition
+     the next thing the coach and client are heading towards. */
   const openRows = rows.filter((r) => !isDone(r.session))
-  const moduleWeekday = commonWeekday(openRows.map((r) => r.moduleTargetDate))
-  const catchupWeekday = commonWeekday(openRows.map((r) => r.date))
   const firstOpen = openRows[0]
   const remaining = openRows.length
 
@@ -314,6 +310,23 @@ export function EditSessionPlanModal({
                     `SessionPlannerTable`. It replaced the Round 14.4 week-wise
                     timeline of green/amber topic cards, which had become the
                     second of two vocabularies for one plan. */}
+                {/* Three facts, nothing else (direct instruction, 2026-09-22:
+                    "Just say when the next module becomes available and when the
+                    next session is scheduled, and how many sessions remaining").
+
+                    What this replaced was a cadence read-back — "A new module is
+                    available each Tuesday. You meet on a different day each
+                    week." — which described the plan's *shape* rather than what
+                    happens next, and got longer the less regular the plan was:
+                    the moment a coach rescheduled one week it fell back to
+                    "Module dates vary week to week" and "you meet on a different
+                    day each week", two clauses that tell a coach nothing they
+                    can act on. `commonWeekday` and `DAY_NAMES` go with it.
+
+                    Every clause is still omitted rather than guessed when the
+                    underlying row has no date — a plan row can legitimately be
+                    undated, and an invented date here would contradict the table
+                    directly below it. */}
                 <div className={SUMMARY_CARD}>
                   <p className="text-caption-medium text-ink">Plan summary</p>
                   <p className="text-body text-ink-muted">
@@ -321,50 +334,40 @@ export function EditSessionPlanModal({
                       <>All {SPACES_CATCHUP_COUNT} catch-up sessions have been held. There is nothing left to reschedule.</>
                     ) : (
                       <>
-                        {/* Each clause is stated only when the plan actually has
-                            a single pattern to state. A plan whose remaining
-                            rows have been individually rescheduled has no
-                            weekday, and claiming one would be the kind of
-                            confident-but-wrong summary this project keeps
-                            finding in its own copy. */}
-                        {moduleWeekday !== null ? (
+                        {firstOpen?.moduleTargetDate && (
                           <>
-                            A new module is available each{' '}
-                            <span className="font-semibold text-primary">{DAY_NAMES[moduleWeekday]}</span>
-                            {catchupWeekday !== null ? ', and you ' : '. You '}
+                            {/* "Module 4" emphasised as one unit, not the bare
+                                numeral — the app names modules that way
+                                everywhere else ("Module 9: Setting the Stage for
+                                Sleep"), and splitting the label from its number
+                                reads as two separate facts. */}
+                            <span className="font-semibold text-primary">
+                              Module {displaySessionNumber(firstOpen.session)}
+                            </span>{' '}
+                            is available from{' '}
+                            <span className="font-semibold text-primary">
+                              {formatDate(firstOpen.moduleTargetDate)}
+                            </span>
+                            .{' '}
                           </>
-                        ) : (
-                          <>Module dates vary week to week. You </>
                         )}
-                        {catchupWeekday !== null ? (
+                        {firstOpen?.date && (
                           <>
-                            meet every{' '}
-                            <span className="font-semibold text-primary">{DAY_NAMES[catchupWeekday]}</span>
-                            {firstOpen?.time && (
-                              <>
-                                ,{' '}
-                                <span className="font-semibold text-primary">
-                                  {formatTime(firstOpen.time)}
-                                  {firstOpen.endTime ? ` to ${formatTime(firstOpen.endTime)}` : ''}
-                                </span>
-                              </>
-                            )}
+                            <span className="font-semibold text-primary">
+                              Session {displaySessionNumber(firstOpen.session)}
+                            </span>{' '}
+                            is scheduled for{' '}
+                            <span className="font-semibold text-primary">
+                              {formatDate(firstOpen.date)}
+                              {firstOpen.time ? `, ${formatTime(firstOpen.time)}` : ''}
+                            </span>
+                            .{' '}
                           </>
-                        ) : (
-                          <>meet on a different day each week</>
                         )}
-                        .{' '}
                         <span className="font-semibold text-primary">
                           {remaining} {remaining === 1 ? 'session' : 'sessions'}
                         </span>{' '}
-                        {remaining === 1 ? 'is' : 'are'} still to come
-                        {firstOpen?.date && (
-                          <>
-                            , starting{' '}
-                            <span className="font-semibold text-primary">{formatDate(firstOpen.date)}</span>
-                          </>
-                        )}
-                        . Sessions already held cannot be changed.
+                        {remaining === 1 ? 'is' : 'are'} still to come.
                       </>
                     )}
                   </p>

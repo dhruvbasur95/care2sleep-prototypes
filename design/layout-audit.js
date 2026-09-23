@@ -93,7 +93,17 @@ function layoutAudit(rootSelector) {
    *    Left reporting rather than special-casing "wrapper is a `<td>`", for
    *    the same reason as above: that would hide a genuine missed width on
    *    any control that really is meant to fill a cell. Recognise it by the
-   *    shortfall matching the cell padding exactly. */
+   *    shortfall matching the cell padding exactly.
+   *
+   *    KNOWN FALSE POSITIVE (Your turn free-text block, 2026-09-17) — the same
+   *    grandparent mechanism, one level up from a table. The textarea's parent
+   *    is the block's `purple-50` container and its grandparent is the plain
+   *    column that holds it; the container is the column's only laid-out child,
+   *    so the sibling heuristic passes, and the reported shortfall is exactly
+   *    the container's own `p-10` (80px at every viewport width). Recognise it
+   *    the same way: the gap equals twice the intermediate container's padding
+   *    and does not change with the viewport. Left reporting rather than
+   *    special-cased, for the same reason as the two above. */
   root.querySelectorAll('input, select, textarea').forEach((c) => {
     if (!visible(c)) return
     const wrap = c.parentElement?.parentElement
@@ -131,7 +141,21 @@ function layoutAudit(rootSelector) {
  *    about this one. Same standing as the Round 21.1 "Next"-chip cell.
  *    The supervision-records "Attachments" cell (paperclip icon + count in an
  *    inline-flex span) is the same shape and the same false positive: measured
- *    31x17 in a 160px column, demonstrably one line. */
+ *    31x17 in a 160px column, demonstrably one line.
+ *
+ *    FOURTH CALIBRATION (2026-09-22) — `SessionDateCalendar`'s day grid reports
+ *    **42 of these at once**, one per visible day, whenever the picker is open.
+ *    Same cause, one step removed: the day cell's inner element is a `<button>`,
+ *    which is not in this check's `a, span, p` lookup, so `target` falls back to
+ *    the cell and the Range spans the 36x36 flex button box PLUS its text line.
+ *    Measured on the "16" cell: cell 41x40, button 36x36, Range over the cell
+ *    gives tops 452 and 461, while a Range over the **text node alone** gives a
+ *    single 14x17 rect. It does not wrap. Left as a known false positive for the
+ *    same reason as the three above — widening the lookup to `button` would not
+ *    help (the button is itself the flex container), and measuring the deepest
+ *    text-bearing node instead is a rewrite of this check, not a calibration.
+ *    Worth knowing because 42 findings will bury a real one: if you are auditing
+ *    a screen with a date picker, close it first or discount these by shape. */
   root.querySelectorAll('td, th').forEach((cell) => {
     if (!visible(cell)) return
     const target = cell.querySelector('a, span, p') ?? cell

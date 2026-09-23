@@ -68,10 +68,17 @@ const TONE = {
 export function PasswordChangeCard({
   email,
   variant = 'app',
+  headerClassName,
 }: {
   email: string
   /** `consumer` swaps type, brand purple and control height — see above. */
   variant?: 'app' | 'consumer'
+  /** Header band override, mirroring `NotificationPreferencesCard`'s own prop.
+   *  Defaults to `bg-card-header` (`purple-200`), so every existing caller is
+   *  byte-identical; the researcher's My Profile passes `bg-purple-50` so its
+   *  three cards match the `purple-50` band the record pages use (direct
+   *  instruction, 2026-09-21). */
+  headerClassName?: string
 }) {
   const t = TONE[variant]
   const inputClass = cn(
@@ -94,7 +101,7 @@ export function PasswordChangeCard({
 
   return (
     <Card className="gap-0 rounded-lg py-0">
-      <div className={open ? 'bg-card-header p-6' : 'p-6'}>
+      <div className={cn('p-6', open && (headerClassName ?? 'bg-card-header'))}>
         <h2 className={t.title}>Password</h2>
 
         {!open && (

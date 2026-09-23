@@ -3,7 +3,12 @@ import { CircleCheck, Lock } from 'lucide-react'
 import { DeliveryShell } from '@/components/delivery/DeliveryShell'
 import { moduleArt } from '@/components/ModuleCard'
 import { MODULE_GROUPS, type TrainingModuleV2 } from '@/data/trainingPathwayV2'
-import { PATHWAY_MODULES, completedModulesCount, moduleState } from '@/pages/training-v2/pathway'
+import {
+  PATHWAY_MODULES,
+  completedModulesCount,
+  livePlayerStatus,
+  moduleState,
+} from '@/pages/training-v2/pathway'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,17 +110,49 @@ function ModuleCard({
   state: CardState
 }) {
   const locked = state === 'upcoming'
-  const inProgress = state === 'current' && module.status === 'in-progress'
-  const complete = state === 'completed'
+
+  /**
+   * Live progress, where the module has real player content, so this card and
+   * the module overview page it opens cannot disagree about where the coach is.
+   *
+   * They did: the card read the seed `status`/`progress` while the overview
+   * read `getModuleStepIndex`, so six steps into the module the card still said
+   * "Start module" beside an overview saying "Resume learning" — one action,
+   * two contradictory claims, which is this project's most-repeated defect
+   * class and the reason `livePlayerStatus` exists at all.
+   *
+   * **Guarded on `locked` first, and that order is load-bearing** — the Round
+   * 19.1 collision: `livePlayerStatus` resolves through `DEMO_PLAYER_REDIRECTS`,
+   * and calling it for `building-blocks-good-sleep` itself finds no key and
+   * falls through to the same id module 1's redirect resolves to. Both ids then
+   * read one progress-store key, so a locked Sleep-tier card would inherit
+   * module 1's real progress and render a filled bar while genuinely locked.
+   */
+  const live = locked ? undefined : livePlayerStatus(module.id)
+  const status = live?.status ?? module.status
+  const progress = live?.progress ?? module.progress
+
+  const inProgress = state === 'current' && status === 'in-progress'
+  const complete = state === 'completed' || status === 'completed'
 
   // The frame writes "Approx. 15 min left" on a *completed* card, which cannot
   // be true. Derived here instead: a module still in progress reports what is
   // left, everything else reports its full length.
   const meta = inProgress
-    ? `Approx. ${Math.max(1, Math.round((module.estimatedMinutes * (100 - module.progress)) / 100))} min left`
+    ? `Approx. ${Math.max(1, Math.round((module.estimatedMinutes * (100 - progress)) / 100))} min left`
     : `Approx. ${module.estimatedMinutes} min`
 
-  const ctaLabel = complete ? 'Restart Module' : inProgress ? 'Resume Module' : 'Start Module'
+  // The same two labels the module overview page uses, and the same casing
+  // (direct instruction, 2026-09-18: *"always say start or resume module"*,
+  // then *"dont say resume module, say resume learning"*). This card had a
+  // third, `Restart Module`, and Title Case on all three — so the one action
+  // read three ways here and two more ways on the page it opens.
+  //
+  // `Restart` is gone for the reason it went from the outline: it throws away
+  // progress, which is the opposite of the resume this control now promises. A
+  // finished module keeps the same label; re-entering it lands on its last
+  // step, which is where a coach returning to revise would want to be anyway.
+  const ctaLabel = inProgress || complete ? 'Resume learning' : 'Start module'
 
   return (
     <div
@@ -130,19 +167,20 @@ function ModuleCard({
       data-node-id="588:7093"
     >
       <div className="relative h-44 w-full shrink-0">
-        {/* The frame uses one stock photo on all eleven cards. Kept as this
-            app's own per-module gradient art (`moduleArt`, real data on every
-            module) rather than committing a placeholder photo eleven times —
-            the frame's *treatment* is what matters here, and that is the dark
-            bottom wash, which is what makes the white numeral badge legible. */}
-        <div aria-hidden="true" className="absolute inset-0" style={moduleArt(module.cover.colors)} />
-        <div
-          aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0), rgba(24,1,71,0.7))',
-          }}
-        />
+        {/* The frame uses one stock photo on all eleven cards. Ten of them are
+            this app's own per-module gradient art (`moduleArt`, real data on
+            every module) rather than a placeholder photo committed eleven
+            times; the one module with authored content carries a real
+            generated cover, painted over its gradient.
+
+            The frame's dark bottom wash — `linear-gradient` to
+            `rgba(24,1,71,0.7)` — is **removed** (direct instruction,
+            2026-09-18: *"remove this vignette effect"*). It was there to keep a
+            white numeral legible, and that reason had already lapsed: the
+            numeral sits in its own `bg-card` tab below, so nothing on the cover
+            needs the darkening. On a real illustration it read as a vignette
+            over the artwork rather than as part of it. */}
+        <div aria-hidden="true" className="absolute inset-0" style={moduleArt(module.cover.colors, module.cover.image)} />
         {/* Sits astride the cover's bottom edge, its own top corners rounded so
             it reads as a tab cut into the image. */}
         <div className="absolute -bottom-1 left-4 flex size-12 flex-col items-center justify-center rounded-t-3xl bg-card pt-2">
@@ -171,11 +209,11 @@ function ModuleCard({
 
           {inProgress && (
             <div className="flex flex-col gap-2">
-              <p className="text-body leading-[1.4] text-ink">{module.progress}% complete</p>
+              <p className="text-body leading-[1.4] text-ink">{progress}% complete</p>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-hairline">
                 <div
                   className="h-full rounded-full bg-purple-500"
-                  style={{ width: `${module.progress}%` }}
+                  style={{ width: `${progress}%` }}
                 />
               </div>
             </div>

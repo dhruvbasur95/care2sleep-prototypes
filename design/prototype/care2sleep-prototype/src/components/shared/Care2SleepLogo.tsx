@@ -1,5 +1,5 @@
 /**
- * The Consumer Portal wordmark — Figma node `787:1755` (desktop) / `787:1642`
+ * The Care2Sleep wordmark — Figma node `787:1755` (desktop) / `787:1642`
  * (mobile), a **single flattened export** at 210.89 x 52.2682.
  *
  * ── What changed, and what it cost ────────────────────────────────────────
@@ -25,6 +25,15 @@
  *
  * Rendered from the committed export, never hand-written as `<path>` — this
  * project's standing rule, and doubly so for a brand mark.
+ *
+ * ── Why it is shared, not consumer-only ───────────────────────────────────
+ *
+ * Round 47 (direct instruction) put the same lockup in the trainee and coach
+ * header. The standing rule is that a component only the Consumer Portal
+ * renders lives under `components/consumer/`; once a second portal renders it,
+ * it moves. It is also the one thing in that folder that is genuinely
+ * brand-level rather than consumer-branded — the mark is the same mark in every
+ * portal.
  *
  * ── Sizing ────────────────────────────────────────────────────────────────
  *
@@ -53,14 +62,24 @@ const LOGO_SCALE = 0.65
 const WIDTH_DESKTOP = 210.89 * LOGO_SCALE
 const WIDTH_MOBILE = 178.619 * LOGO_SCALE
 
-export function ConsumerLogo({ className }: { className?: string }) {
+export function Care2SleepLogo({
+  className,
+  maxWidth = WIDTH_DESKTOP,
+}: {
+  className?: string
+  /** Round 47: the app header's bar is shorter than the Consumer Portal's, so
+   *  it caps the lockup rather than carrying a second export. The aspect ratio
+   *  and the two clamp crossover points are untouched — only the ceiling
+   *  moves. */
+  maxWidth?: number
+}) {
   return (
     <img
-      src="/illustrations/consumer-welcome/care2sleep-logo.svg"
+      src={`${import.meta.env.BASE_URL}illustrations/consumer-welcome/care2sleep-logo.svg`}
       alt=""
       aria-hidden="true"
-      width={WIDTH_DESKTOP}
-      height={WIDTH_DESKTOP / 4.0348}
+      width={maxWidth}
+      height={maxWidth / 4.0348}
       className={className}
       style={{
         // `clamp()` rather than a breakpoint: the lockup is a fixed-aspect
@@ -70,7 +89,7 @@ export function ConsumerLogo({ className }: { className?: string }) {
         // after `LOGO_SCALE`, reaching the desktop width at ~443px and holding
         // there — the same two crossover points as before, halved together so
         // the curve is identical, just smaller.
-        width: `clamp(${WIDTH_MOBILE}px, ${47.6 * LOGO_SCALE}vw, ${WIDTH_DESKTOP}px)`,
+        width: `clamp(${Math.min(WIDTH_MOBILE, maxWidth)}px, ${47.6 * LOGO_SCALE}vw, ${maxWidth}px)`,
         height: 'auto',
         display: 'block',
       }}

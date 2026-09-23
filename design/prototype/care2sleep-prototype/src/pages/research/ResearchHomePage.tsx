@@ -4,20 +4,28 @@ import {
   Award,
   Calendar,
   CalendarPlus,
+  CircleCheckBig,
   CircleHelp,
+  ClipboardCheck,
+  Handshake,
   RefreshCw,
+  Scale,
   UserCheck,
   UserPlus,
   Users,
-  type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { ResearchPageHero } from '@/components/research/ResearchPageHero'
-import { ResearchNotificationHub } from '@/components/research/ResearchNotificationHub'
+import {
+  ResearchPrioritiesSection,
+  type ResearchPriorityItem,
+} from '@/components/research/ResearchPrioritiesSection'
+import { StatCard } from '@/components/shared/StatCard'
 import { MeetingsSection, type ScheduleRow } from '@/components/shared/MeetingsSection'
 import { useResearch } from '@/data/research-context'
 import { upcomingGroupSessions, type Coach } from '@/data/research'
+import { isPlanSet } from '@/data/spaces'
 import { TODAY } from '@/data/format'
 
 /**
@@ -305,60 +313,138 @@ function NeedHelpButton() {
 /* Study overview (`1:926`)                                                  */
 /* ------------------------------------------------------------------------ */
 
-/** The frame's `stat-card` (`1:341`) transcribed exactly: 120px tall, 16px
- *  padding, 12px radius, Yellow Lighter 1 fill, no border and no shadow; a
- *  label/icon row on top, then the value below it.
+/* The tiles are the shared `components/shared/StatCard.tsx`, not a local copy.
+   Home had its own near-identical `StatCard` since Round 21; the shared one has
+   since grown the `valueLabel` + `breakdown` props Trainee Management and
+   Consumer Management already use, which is exactly what the eight tiles below
+   need, so the fork is retired rather than taught the same trick twice. */
+
+/** Eight tiles, per the researcher-dashboard open-items document.
  *
- *  Deliberately not the shared `KpiTile`: that component bottom-anchors its
- *  value and always reserves a subtext line beneath it (both load-bearing for
- *  the baseline alignment its own doc comment explains), which is a different
- *  layout from this card's simple top-down stack. Forcing one to render the
- *  other would have meant a flag that switches off the very behaviour that
- *  makes it correct on the two pages already using it. */
-function StatCard({ label, value, icon: Icon }: { label: string; value: number; icon: LucideIcon }) {
-  return (
-    <div className="h-[120px] flex-1 rounded-md bg-yellow-100 p-4">
-      {/* `<dl>` term/definition, per the accessibility fix Round 20 made to
-          `KpiTile` for this same label/number pairing — a screen reader landing
-          on the number alone otherwise gets a bare digit with nothing tying it
-          to its label. */}
-      <dl className="flex h-full flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <dt className="text-caption font-medium text-ink">{label}</dt>
-          {/* Same lucide glyphs, same `size-5`, same default stroke as the
-              shared `KpiTile` renders on Trainee/Consumer Management, so all
-              three KPI rows in the dashboard read as one family. The frame's
-              own 32px icon box is kept as the wrapper so the icon lands on the
-              frame's optical position. */}
-          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center">
-            <Icon className="size-5 text-purple-500" />
-          </span>
-        </div>
-        <dd className="font-display text-display-lg font-medium text-ink">{value}</dd>
-      </dl>
-    </div>
-  )
+ *  Where a figure can be derived from the prototype's own seed data it is —
+ *  total consumers, coaches and trainees, coach-assignment and session-plan
+ *  coverage, sessions this week — so this row cannot contradict the Consumer,
+ *  Trainee and Coach Management pages that count the same things.
+ *
+ *  The parts with **no field behind them** are the week-on-week deltas and the
+ *  completed-study count. Those are dummy constants, marked below: the study
+ *  has no enrolment-timestamp or completion field yet, and this round is a UI
+ *  pass, not a data one. `[No change this week if none]` in the source document
+ *  is why a zero delta renders as words rather than "+0". */
+const DUMMY = {
+  consumersAddedThisWeek: 1,
+  coachesAddedThisWeek: 0,
+  traineesAddedThisWeek: 1,
+  completedStudy: 1,
+  completedAddedThisWeek: 0,
+} as const
+
+/** `[No change this week if none]` — a zero delta is a sentence, not a digit,
+ *  and it carries a direction so the tile can tint it and pick its arrow.
+ *
+ *  These tiles stay on `StatCard`'s default `inline` breakdown. `stacked` was
+ *  tried, since its own doc comment recommends it for word-valued breakdowns —
+ *  measured here it is worse, not better: in a 4-up row "No change" wraps onto
+ *  two lines inside its column and "Consumers" truncates to "Consu...". Inline
+ *  wraps the whole part onto a second row instead, which fits. */
+function weekDelta(n: number): {
+  label: string
+  value: string
+  srValue?: string
+  trend: 'up' | 'down' | 'flat'
+} {
+  return {
+    label: 'This week',
+    /* Direct instruction: a zero delta is the dash alone, not the words "No
+       change" — the `Minus` glyph the `flat` trend already renders says it, and
+       a 9-character string beside a 24px number read as a second, competing
+       figure. The words survive for screen readers via `srValue`, which is the
+       only place they were carrying information a sighted reader could not get
+       from the glyph. */
+    value: n === 0 ? '' : n > 0 ? `+${n}` : `${n}`,
+    srValue: n === 0 ? 'No change' : undefined,
+    trend: n === 0 ? 'flat' : n > 0 ? 'up' : 'down',
+  }
 }
 
 function StudyOverview({
   consumerCount,
+  activeConsumerCount,
+  traineeCount,
   activeTraineeCount,
   coachCount,
+  activeCoachCount,
+  consumersWithCoach,
+  consumersOnboarded,
   sessionsThisWeek,
 }: {
   consumerCount: number
+  activeConsumerCount: number
+  traineeCount: number
   activeTraineeCount: number
   coachCount: number
+  activeCoachCount: number
+  consumersWithCoach: number
+  consumersOnboarded: number
   sessionsThisWeek: number
 }) {
+  /* Guarded: a study with no onboarded coaches would otherwise render `NaN`
+     here, and a KPI tile showing NaN is worse than one showing nothing. */
+  const avgPerCoach = coachCount === 0 ? '—' : (consumerCount / coachCount).toFixed(1)
+
   return (
     <section>
       <h2 className="font-display text-title text-ink">Study overview</h2>
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total consumers" value={consumerCount} icon={Users} />
-        <StatCard label="Active trainees" value={activeTraineeCount} icon={UserCheck} />
-        <StatCard label="Coaches" value={coachCount} icon={Award} />
+        <StatCard
+          label="Total consumers"
+          value={consumerCount}
+          valueLabel="Total"
+          icon={Users}
+          breakdown={[
+            { label: 'Active', value: activeConsumerCount },
+            weekDelta(DUMMY.consumersAddedThisWeek),
+          ]}
+        />
+        <StatCard
+          label="Total coaches"
+          value={coachCount}
+          valueLabel="Total"
+          icon={Award}
+          breakdown={[
+            { label: 'Active', value: activeCoachCount },
+            weekDelta(DUMMY.coachesAddedThisWeek),
+          ]}
+        />
+        <StatCard
+          label="Total trainees"
+          value={traineeCount}
+          valueLabel="Total"
+          icon={UserCheck}
+          breakdown={[
+            { label: 'Active', value: activeTraineeCount },
+            weekDelta(DUMMY.traineesAddedThisWeek),
+          ]}
+        />
+        <StatCard
+          label="Fully completed study"
+          value={DUMMY.completedStudy}
+          valueLabel="Consumers"
+          icon={CircleCheckBig}
+          breakdown={[weekDelta(DUMMY.completedAddedThisWeek)]}
+        />
+        <StatCard
+          label="Coach assigned to consumer"
+          value={`${consumersWithCoach} of ${consumerCount}`}
+          icon={Handshake}
+        />
+        <StatCard
+          label="Consumer onboarding started"
+          value={`${consumersOnboarded} of ${consumerCount}`}
+          icon={ClipboardCheck}
+        />
         <StatCard label="Your sessions this week" value={sessionsThisWeek} icon={Calendar} />
+        <StatCard label="Average consumers per coach" value={avgPerCoach} icon={Scale} />
       </div>
     </section>
   )
@@ -372,19 +458,133 @@ function StudyOverview({
 /* Page                                                                      */
 /* ------------------------------------------------------------------------ */
 
+/** Dummy attention rows spanning all four classifications in the
+ *  researcher-dashboard open-items document — Staffing and assignment,
+ *  Progress and engagement, Certification and training, Data issues.
+ *
+ *  **Twelve of the seventeen, not all of them** (direct instruction, twice):
+ *  the first pass was one per category, then widened to "some more, to show
+ *  the pagination use case". Twelve fills three pages of four, which is what
+ *  makes the pager reviewable; the full seventeen-row classification is
+ *  documentation for the build and lives in the Figma dev section rather than
+ *  on this surface.
+ *
+ *  All twelve are **dummy**, named after real seed records only so the copy
+ *  reads like the real thing. None has a trigger behind it: there is no
+ *  consumer `lastActive`, no knowledge-check accuracy, no projected study-end
+ *  date and no per-session reflection flag in the data layer. Wiring those is
+ *  a separate pass — this round is UI. The `to` targets are real routes, so
+ *  every row still goes somewhere sensible. */
+function attentionItems(): ResearchPriorityItem[] {
+  return [
+    // --- Staffing and assignment ---
+    {
+      id: 'staffing-no-coach',
+      priority: 'High',
+      title: 'No coach assigned',
+      note: 'Harold Ableson & Diane Ableson have been onboarded but have no coach linked.',
+      to: '/research/consumers',
+    },
+    {
+      id: 'staffing-certified-not-onboarded',
+      priority: 'Medium',
+      title: 'Coach certified but not onboarded',
+      note: 'Mei-Ling Chen has passed certification but has not been converted to an active coach record.',
+      to: '/research/spaces-coaches',
+    },
+    {
+      id: 'staffing-trainee-invite',
+      priority: 'Medium',
+      title: 'Trainee invite pending',
+      note: "Priya Raman's platform invite has not been accepted after 7 days.",
+      to: '/research/trainees',
+    },
+    {
+      id: 'staffing-consumer-invite',
+      priority: 'Medium',
+      title: 'Consumer invite pending',
+      note: "Arthur Ngata & Tania Ngata's invite has not been accepted after 7 days.",
+      to: '/research/consumers',
+    },
+    // --- Progress and engagement ---
+    {
+      id: 'progress-no-plan',
+      priority: 'Medium',
+      title: 'No session plan built',
+      note: 'Dorothy Kellerman & Frank Kellerman have a coach assigned but no session plan created.',
+      to: '/research/consumers',
+    },
+    {
+      id: 'progress-inactive-consumer',
+      priority: 'High',
+      title: 'Consumer not active for 7 days',
+      note: 'Dorothy Kellerman has not been active in the platform for 7 days.',
+      to: '/research/consumers',
+    },
+    {
+      id: 'progress-module-incomplete',
+      priority: 'Medium',
+      title: 'Module incomplete after session held',
+      note: "Bruce Whitfield's Session 3 has passed but its linked module still shows incomplete.",
+      to: '/research/consumers',
+    },
+    {
+      id: 'progress-session-not-held',
+      priority: 'High',
+      title: 'Coaching session not held this week',
+      note: "This week's session for Eleanor Sinclair & Margaret Sinclair did not go ahead.",
+      to: '/research/consumers',
+    },
+    {
+      id: 'progress-trainee-accuracy',
+      priority: 'Medium',
+      title: 'Knowledge-check accuracy below threshold',
+      note: "Marcus Webb scored 48% on Module 4, under the 60% threshold.",
+      to: '/research/trainees',
+    },
+    {
+      id: 'progress-inactive-trainee',
+      priority: 'High',
+      title: 'Trainee not active for 7 days',
+      note: 'Noah Fenwick has not been active in the platform for 7 days.',
+      to: '/research/trainees',
+    },
+    // --- Certification and training ---
+    {
+      id: 'certification-ready',
+      priority: 'Medium',
+      title: 'Trainee ready for final assessment',
+      note: 'Lauren Mitchell has completed all prior stages and is waiting on Stage H.',
+      to: '/research/trainees',
+    },
+    // --- Data issues ---
+    {
+      id: 'data-fitbit-sync',
+      priority: 'High',
+      title: 'Fitbit not synced in 48+ hours',
+      note: "Bruce Whitfield's wearable data has not synced since 19 September.",
+      to: '/research/consumers',
+    },
+  ]
+}
+
 export function ResearchHomePage() {
   const { coaches, consumerDyads, spacesCoaches, sessionPlans, researcherProfile } = useResearch()
   const firstName = researcherProfile.fullName.split(' ')[0]
 
-  /** Set by the attention hub when its last notice is dismissed — see its
-   *  `onEmptyChange` note and the `mt-24` it controls below. */
+  /** Set when the last attention row is dismissed, so the gap this section
+   *  owns closes with it rather than leaving a 96px hole between Study
+   *  overview and the meetings table. */
   const [attentionEmpty, setAttentionEmpty] = useState(false)
 
   const rows = scheduledRows(coaches)
 
-  const activeTraineeCount = coaches.filter(
-    (c) => c.currentPhase < GRADUATED_PHASE && c.inviteStatus === 'active',
-  ).length
+  const trainees = coaches.filter((c) => c.currentPhase < GRADUATED_PHASE)
+  const activeTraineeCount = trainees.filter((c) => c.inviteStatus === 'active').length
+  const activeConsumerCount = consumerDyads.filter((d) => Boolean(d.coachId)).length
+  const consumersWithCoach = activeConsumerCount
+  const consumersOnboarded = consumerDyads.filter((d) => isPlanSet(sessionPlans[d.id])).length
+
   const weekEnd = addDays(TODAY, WEEK_DAYS)
   const sessionsThisWeek = rows.filter((row) => row.date >= TODAY && row.date < weekEnd).length
 
@@ -404,37 +604,30 @@ export function ResearchHomePage() {
         />
       }
     >
-      {/* Round 28, direct instruction: the attention section moved ABOVE
-          "Study overview". A deliberate divergence from frame `1:38`, which
-          orders them the other way round — and the better order for this
-          surface: "Study overview" is standing context that does not change
-          hour to hour, while these are the items asking the researcher to do
-          something today. The thing that needs action leads. */}
-      <div>
-        <ResearchNotificationHub
-          coaches={coaches}
-          dyads={consumerDyads}
-          sessionPlans={sessionPlans}
-          onEmptyChange={setAttentionEmpty}
-        />
-      </div>
+      {/* Section order is **Study overview -> attention -> meetings** (direct
+          instruction). Round 28 had put attention first, on the reasoning that
+          the thing asking for action should lead. That reasoning was tied to
+          the old hub, which carried a "Dismiss all" and so behaved like an
+          inbox to clear; with that control gone the attention list is a
+          standing read, and the study's own headline figures lead instead. */}
+      <StudyOverview
+        consumerCount={consumerDyads.length}
+        activeConsumerCount={activeConsumerCount}
+        traineeCount={trainees.length}
+        activeTraineeCount={activeTraineeCount}
+        coachCount={spacesCoaches.length}
+        activeCoachCount={spacesCoaches.length}
+        consumersWithCoach={consumersWithCoach}
+        consumersOnboarded={consumersOnboarded}
+        sessionsThisWeek={sessionsThisWeek}
+      />
 
-      {/* The frame's own section offsets are 56px; raised to 96px (`mt-24`) on
-          direct feedback that the sections read as too tightly packed. A
-          deliberate divergence from the frame, and the only spacing value on
-          this page that isn't transcribed from it.
-
-          Round 28: dropped to 0 once the attention section hides itself, so
-          "Study overview" rises into the position that section occupied
-          instead of sitting under a 96px hole. The hub collapses its own box
-          but cannot reach the margin its sibling owns — hence the callback. */}
+      {/* The 96px offset is this page's own spacing (Round 28), not the frame's
+          56px. Dropped to 0 once every row is dismissed: the section unmounts
+          itself, and a wrapper still holding a margin would leave the hole
+          behind it. */}
       <div className={attentionEmpty ? '' : 'mt-24'}>
-        <StudyOverview
-          consumerCount={consumerDyads.length}
-          activeTraineeCount={activeTraineeCount}
-          coachCount={spacesCoaches.length}
-          sessionsThisWeek={sessionsThisWeek}
-        />
+        <ResearchPrioritiesSection items={attentionItems()} onEmptyChange={setAttentionEmpty} />
       </div>
 
       <div className="mt-24">

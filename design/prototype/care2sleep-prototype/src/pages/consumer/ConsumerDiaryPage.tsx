@@ -64,7 +64,7 @@ import { ConfirmDialog } from '@/components/research/ConfirmDialog'
  *
  * Focus moves to the incoming question's heading on every step change —
  * announced step changes rather than silence is this project's
- * most-repeated defect class, fixed here the same way `SlideLayout` does it.
+ * most-repeated defect class, fixed here the same way `BlockSlide` does it.
  */
 
 /* ------------------------------------------------------------------------ */

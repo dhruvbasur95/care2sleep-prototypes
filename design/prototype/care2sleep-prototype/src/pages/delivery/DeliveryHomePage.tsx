@@ -48,7 +48,8 @@ import {
   dyadsForCoach,
   isPlanSet,
   nextPlannedSession,
-  nextUpcomingSessionNumber,
+  displaySessionNumber,
+  nextUpcomingSessionEntry,
   sessionRowLabel,
   SPACES_CATCHUP_COUNT,
   addDays,
@@ -244,8 +245,25 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
               {filtered.map((dyad, i) => {
                 const completedRows = sessionCompletion[dyad.id] ?? []
                 const sessionsCompleted = catchupSessionsCompleted(completedRows)
-                const upcoming = dyad.upcomingSession
-                const upcomingDisplayNumber = nextUpcomingSessionNumber(sessionPlans[dyad.id], completedRows, upcoming)
+                /* Read the whole "next session" answer off ONE resolution.
+                   This row used to take its number from the live session plan
+                   and its date/time from `dyad.upcomingSession`, the frozen
+                   legacy seed field — so editing a plan updated "Session 4"
+                   here while the date beside it stayed at its seed value
+                   forever. Reported as the session plan date "not working",
+                   and from this table that is exactly how it looked.
+                   `nextUpcomingSessionEntry` exists for this and already backs
+                   the researcher's own caseload table; the coach portal's Home
+                   was simply never migrated onto it. The legacy field stays as
+                   the fallback for a dyad with no plan yet. */
+                const upcoming = nextUpcomingSessionEntry(
+                  sessionPlans[dyad.id],
+                  completedRows,
+                  dyad.upcomingSession,
+                )
+                const upcomingDisplayNumber = upcoming
+                  ? displaySessionNumber(upcoming.session)
+                  : undefined
                 return (
                   <tr
                     key={dyad.id}
@@ -305,10 +323,13 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-caption text-ink-muted">
-                      {upcoming ? formatDate(upcoming.date) : <span className="text-ink-faint">—</span>}
+                      {/* `date`/`time` are optional on a plan row: a coach can
+                          have a session in the plan with no date set yet. Guard
+                          on the field, not just on `upcoming`. */}
+                      {upcoming?.date ? formatDate(upcoming.date) : <span className="text-ink-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-caption text-ink-muted">
-                      {upcoming ? formatTime(upcoming.time) : <span className="text-ink-faint">—</span>}
+                      {upcoming?.time ? formatTime(upcoming.time) : <span className="text-ink-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" />

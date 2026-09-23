@@ -260,13 +260,13 @@ function TimelineModuleCard({
   // hypothetical: `displayStatus`/`displayProgress` (`pathway.ts`) both
   // check `livePlayerStatus()` first, which resolves through
   // `realPlayerContentId()`/`DEMO_PLAYER_REDIRECTS`. That map only has one
-  // KEY (`population-understanding` → `understanding-sleep`) — calling
-  // `realPlayerContentId('understanding-sleep')` directly (i.e. for Sleep's
-  // own "Understanding Sleep" card, not via the redirect) finds no matching
+  // KEY (`portal-orientation` → `building-blocks-good-sleep`) — calling
+  // `realPlayerContentId('building-blocks-good-sleep')` directly (i.e. for its
+  // own card, not via the redirect) finds no matching
   // key and falls through to returning `moduleId` unchanged, which is the
-  // exact same id `population-understanding`'s redirect resolves to. Both
-  // module ids collide on one progress-store key, so a locked "Understanding
-  // Sleep" card was silently inheriting Foundational module 2's real live
+  // exact same id `portal-orientation`'s redirect resolves to. Both
+  // module ids collide on one progress-store key, so a locked Sleep-tier
+  // card was silently inheriting Foundational module 1's real live
   // progress and rendering "11% complete" with a filled bar despite being
   // genuinely locked. `locked` itself (from `timelineRowState`/
   // `moduleState()`, the forced-linear position) is computed independently
@@ -303,7 +303,7 @@ function TimelineModuleCard({
   // in progress state after i start a module, thats not been implemented
   // yet"). Before this, the status chip only branched on `locked`/
   // `completed`/else — a genuinely started-but-not-finished module (e.g.
-  // `understanding-sleep` mid-player, via `livePlayerStatus()` in
+  // `building-blocks-good-sleep` mid-player, via `livePlayerStatus()` in
   // `pathway.ts`) fell into the same generic "Approx. N min" branch as a
   // module never opened at all, even though `displayStatus`/
   // `displayProgress` already had the real data. Deliberately NOT the
@@ -456,7 +456,7 @@ function TimelineModuleCard({
        *  and `grayscale` only desaturates hue, which the locked chip's
        *  white/black pairing has none of to begin with. */}
       <div className={cn('relative h-36 w-full shrink-0 overflow-hidden rounded-sm', locked && 'grayscale')}>
-        <div aria-hidden="true" className="absolute inset-0" style={moduleArt(module.cover.colors)} />
+        <div aria-hidden="true" className="absolute inset-0" style={moduleArt(module.cover.colors, module.cover.image)} />
         {/* Numeral overlay, every card (promoted from a module-1-only trial;
          *  see this file's module-scope doc comment above
          *  `TimelineModuleCard` for the color-switching-tried-and-reverted

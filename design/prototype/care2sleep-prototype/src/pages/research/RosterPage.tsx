@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Award, ChevronRight, Clock, UserCheck, Users } from 'lucide-react'
+import { Award, ChevronDown, ChevronRight, Clock, TriangleAlert, UserCheck, Users } from 'lucide-react'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { ResearchPageHero } from '@/components/research/ResearchPageHero'
 import { Card } from '@/components/ui/card'
@@ -118,14 +118,73 @@ const ROSTER_TABS = [
   { id: 'active', label: 'Active trainees' },
   { id: 'pending', label: 'Pending invite' },
   { id: 'certified', label: 'Certified' },
+  { id: 'withdrawn', label: 'Withdrawn' },
 ] as const
 type RosterTab = (typeof ROSTER_TABS)[number]['id']
+
+/** Table-level filter dropdowns, sitting beside the search field rather than
+ *  in per-column headers (direct instruction: "Do it at table view, not column
+ *  view. add filter by drop down after search bar").
+ *
+ *  Status is deliberately NOT one of them — the tab row above already splits
+ *  the roster by exactly that field, and a dropdown that could disagree with
+ *  the selected tab is the "two surfaces, one fact" bug this project keeps
+ *  hitting. */
+/* Derived from `stageLabel`, never written out. These five strings used to be
+   literals and had already drifted from the real stage names twice — the
+   filter offered "Stage CP: Community of practice" while the column beside it
+   rendered "Stage CP: Community Practice". One source, so the filter and the
+   column it filters cannot disagree. */
+const STAGE_FILTERS = [
+  { id: 'all', label: 'All stages' },
+  ...[3, 4, 5, 6, 7].map((n) => ({ id: String(n), label: stageLabel(n) })),
+]
+
+/** Same select chrome the Fitbit date-range and module pickers already use. */
+const SELECT_CLASS =
+  'h-9 appearance-none rounded-sm border border-hairline bg-card py-0 pr-8 pl-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
+
+const ACTIVITY_FILTERS = [
+  { id: 'all', label: 'All activity' },
+  { id: 'recent', label: 'Active in last 7 days' },
+  { id: 'stale', label: 'Inactive 7+ days' },
+] as const
+
+/** Which rows carry the red inactivity flag.
+ *
+ *  **Deliberately not derived from `lastActive`** (direct instruction: "Just
+ *  randomly plot it, do not map it to data"). It is keyed off the participant
+ *  ID so a given trainee always flags the same way across reloads, filters and
+ *  paging — a `Math.random()` here would reshuffle on every render and make the
+ *  table look broken. Swap this for a real `daysBetween(lastActive, TODAY) > 7`
+ *  check when the rule is wired up. */
+const INACTIVE_DAYS = 7
+function isFlaggedInactive(participantId: string): boolean {
+  const n = Number.parseInt(participantId.replace(/\D/g, '').slice(-2), 10)
+  // `% 4 === 3` is tuned, not arbitrary: across the seeded IDs it flags 2 of
+  // the 5 active trainees, which is enough to review the treatment without
+  // implying the whole roster has gone quiet.
+  return Number.isFinite(n) && n % 4 === 3
+}
+
+/** Dummy withdrawn trainees. No store, no inner-page links (direct
+ *  instruction) — withdrawal has no write path yet, and a row that navigated to
+ *  a live trainee record would be claiming this record exists when it does not.
+ *  Its column set is genuinely different from the other three tabs: Withdrawn
+ *  Stage and Reason for withdrawal replace Status and Current Stage. */
+const WITHDRAWN_TRAINEES = [
+  { name: 'Priya Raman', id: 'C2S-C-014', stage: stageLabel(3), modules: 2, lastActive: '2026-08-04', reason: 'Left the aged care organisation' },
+  { name: 'Tomas Berg', id: 'C2S-C-017', stage: stageLabel(4), modules: 11, lastActive: '2026-07-29', reason: 'Unable to commit to placement hours' },
+  { name: 'Ruth Adeyemi', id: 'C2S-C-019', stage: stageLabel(5), modules: 11, lastActive: '2026-07-11', reason: 'Withdrew on personal grounds' },
+] as const
 
 export function RosterPage() {
   const { coaches, searchQuery, setSearchQuery } = useResearch()
   const navigate = useNavigate()
   const [addOpen, setAddOpen] = useState(false)
   const [tab, setTab] = useState<RosterTab>('active')
+  const [stageFilter, setStageFilter] = useState<string>('all')
+  const [activityFilter, setActivityFilter] = useState<string>('all')
 
   const trainees = sortTrainees(coaches.filter((c) => c.currentPhase < GRADUATED_PHASE))
 
@@ -161,11 +220,32 @@ export function RosterPage() {
   )
   // "Active trainees" and "Pending invite" split the same searched list by
   // inviteStatus, matching the two KPI tiles above (activeCount/invitePendingCount).
-  const filtered = searched.filter((c) => c.inviteStatus === (tab === 'pending' ? 'pending' : 'active'))
+  const filtered = searched
+    .filter((c) => c.inviteStatus === (tab === 'pending' ? 'pending' : 'active'))
+    .filter((c) => stageFilter === 'all' || String(c.currentPhase) === stageFilter)
+    .filter((c) => {
+      if (activityFilter === 'all') return true
+      const stale = isFlaggedInactive(c.participantId)
+      return activityFilter === 'stale' ? stale : !stale
+    })
   // Pre-search, tab-scoped count — distinguishes "this tab has no rows at
   // all" from "a search term produced zero results", matching Consumer
   // Management's own empty-state split.
   const tabScoped = trainees.filter((c) => c.inviteStatus === (tab === 'pending' ? 'pending' : 'active'))
+
+  /* Counts derived from the same arrays each tab renders, never written —
+     matching Coach Management. "Certified" is 0 by design here: a certified
+     trainee graduates out of this roster and is managed under Coach
+     Management, which is why that tab shows an empty state. */
+  const tabsWithCounts = ROSTER_TABS.map((t) =>
+    t.id === 'active'
+      ? { ...t, count: trainees.filter((c) => c.inviteStatus === 'active').length }
+      : t.id === 'pending'
+        ? { ...t, count: invitePendingCount }
+        : t.id === 'certified'
+          ? { ...t, count: 0 }
+          : { ...t, count: WITHDRAWN_TRAINEES.length },
+  )
 
   return (
     <ResearchShell
@@ -211,7 +291,11 @@ export function RosterPage() {
             <h2 className="font-display text-title text-ink">Trainees management table</h2>
             <p className="mt-2 text-body text-ink-muted">Click a trainee to view more details.</p>
           </div>
-          <div>
+          {/* Search, then the two table-level filters. `flex-wrap` so the
+              filters drop under the search field rather than squeezing it
+              below ~900px. Both are hidden on the Withdrawn tab: that tab has
+              no Current Stage column to filter and its rows are dummy. */}
+          <div className="flex flex-wrap items-end gap-3">
             <SearchInput
               id="coach-search"
               label="Search trainees"
@@ -220,12 +304,58 @@ export function RosterPage() {
               placeholder="Search trainees"
               widthClassName="sm:w-[340px]"
             />
+            {tab !== 'withdrawn' && tab !== 'certified' && (
+              <>
+                <div className="relative">
+                  <label htmlFor="stage-filter" className="sr-only">
+                    Filter by current stage
+                  </label>
+                  <select
+                    id="stage-filter"
+                    value={stageFilter}
+                    onChange={(e) => setStageFilter(e.target.value)}
+                    className={SELECT_CLASS}
+                  >
+                    {STAGE_FILTERS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
+                  />
+                </div>
+                <div className="relative">
+                  <label htmlFor="activity-filter" className="sr-only">
+                    Filter by recent activity
+                  </label>
+                  <select
+                    id="activity-filter"
+                    value={activityFilter}
+                    onChange={(e) => setActivityFilter(e.target.value)}
+                    className={SELECT_CLASS}
+                  >
+                    {ACTIVITY_FILTERS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="mt-6">
           <UnderlineTabs
-            tabs={ROSTER_TABS}
+            tabs={tabsWithCounts}
             active={tab}
             onChange={setTab}
             ariaLabel="Trainee roster"
@@ -249,7 +379,59 @@ export function RosterPage() {
             consistency with every other data-table pattern in the app"). */}
         <Card className="gap-0 rounded-lg py-0">
           <div className="overflow-x-auto">
-            {tab === 'certified' ? (
+            {tab === 'withdrawn' ? (
+              /* A genuinely different column set from the other three tabs:
+                 Withdrawn Stage and Reason for withdrawal replace Status and
+                 Current Stage. Rows are NOT clickable and carry no chevron —
+                 withdrawal has no write path yet and there is no record to
+                 open, so a link here would promise a page that does not exist
+                 (direct instruction: "do not connect with inner pages for
+                 now"). */
+              <table className="w-full min-w-[840px] border-collapse text-left">
+                <thead>
+                  <tr className="bg-purple-50">
+                    <th scope="col" className={cn(TH, 'px-6')}>
+                      Trainee Name
+                    </th>
+                    <th scope="col" className={TH}>
+                      Trainee ID
+                    </th>
+                    <th scope="col" className={TH}>
+                      Withdrawn Stage
+                    </th>
+                    <th scope="col" className={TH}>
+                      Modules Completed
+                    </th>
+                    <th scope="col" className={TH}>
+                      Last Active
+                    </th>
+                    <th scope="col" className={TH}>
+                      Reason for withdrawal
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {WITHDRAWN_TRAINEES.map((w, i) => (
+                    <tr key={w.id} className={cn(i > 0 && 'border-t border-hairline')}>
+                      <td className="px-6 py-4">
+                        <div className="flex min-h-11 items-center">
+                          <span className="text-caption font-semibold whitespace-nowrap text-ink">{w.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">{w.id}</td>
+                      <td className="px-4 py-4 text-caption whitespace-nowrap text-ink">{w.stage}</td>
+                      <td className="px-4 py-4 text-caption tabular-nums whitespace-nowrap text-ink-muted">
+                        {w.modules} of {TOTAL_MODULES}
+                      </td>
+                      <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">
+                        {formatDate(w.lastActive)}
+                      </td>
+                      <td className="px-4 py-4 text-caption text-ink-muted">{w.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : tab === 'certified' ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
                 <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-primary/10">
                   <Award className="size-8 text-primary" strokeWidth={1.75} />
@@ -287,7 +469,11 @@ export function RosterPage() {
                     <th scope="col" className={TH}>
                       Current Stage
                     </th>
-                    <th scope="col" className={TH}>
+                    {/* `whitespace-nowrap`: at 154px this header broke onto
+                        two lines and `layout-audit.js` flagged it as a squeezed
+                        column. Pinning it lets the browser take the width back
+                        from Current Stage, whose values wrap harmlessly. */}
+                    <th scope="col" className={cn(TH, 'whitespace-nowrap')}>
                       Modules Completed
                     </th>
                     <th scope="col" className={TH}>
@@ -337,11 +523,27 @@ export function RosterPage() {
                         {modulesCompleted(c)} of {TOTAL_MODULES}
                       </td>
                       <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">
-                        {c.lastActive ? (
-                          formatDate(c.lastActive)
-                        ) : (
-                          <span className="text-ink-faint">Never</span>
-                        )}
+                        {/* Red inactivity flag, stacked BELOW the date
+                            (direct instruction). Dummy — see
+                            `isFlaggedInactive`. Colour is not the only signal:
+                            the label spells the condition out, so it survives
+                            for anyone who cannot separate red from the
+                            surrounding grey. `items-start` keeps the pill
+                            hugging its text rather than stretching to the
+                            column width. */}
+                        <span className="flex flex-col items-start gap-1.5">
+                          {c.lastActive ? (
+                            formatDate(c.lastActive)
+                          ) : (
+                            <span className="text-ink-faint">Never</span>
+                          )}
+                          {isFlaggedInactive(c.participantId) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/8 px-2 py-0.5 text-fine text-destructive">
+                              <TriangleAlert aria-hidden="true" className="size-3" />
+                              {INACTIVE_DAYS}+ days
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 py-4 text-right">
                         <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" />

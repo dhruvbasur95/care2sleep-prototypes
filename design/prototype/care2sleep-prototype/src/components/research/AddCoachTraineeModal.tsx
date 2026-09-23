@@ -49,7 +49,12 @@ const STEPS = [
     key: 'aged-care',
     navLabel: 'Aged care details',
     heading: 'Add their aged care details',
-    subtitle: 'Their employer, role, and experience in aged care.',
+    /* The record pages label this "Years of work experience **at
+       enrolment**"; the wizard drops the qualifier because filling this form
+       IS the enrolment — the as-at date is today, and saying otherwise here
+       would read as a question about some other moment. Same field, and the
+       brief's own wording either way. */
+    subtitle: 'Their organisation, role, and years of work experience.',
   },
   {
     // Round 28, direct instruction — matches `EnrollConsumerDialog`. Review is
@@ -282,9 +287,9 @@ function AgedCareDetailsSection({
   }
 
   const fields = [
-    { label: 'Aged care employer', value: employer },
-    { label: 'Role at employer', value: roleAtEmployer },
-    { label: 'Years in aged care', value: yearsInAgedCare },
+    { label: 'Aged-care organisation', value: employer },
+    { label: 'Role at organisation', value: roleAtEmployer },
+    { label: 'Years of work experience', value: yearsInAgedCare },
   ]
 
   return (
@@ -300,7 +305,7 @@ function AgedCareDetailsSection({
         >
           <div className="flex flex-col gap-1">
             <label htmlFor="review-employer" className="text-fine text-ink-faint">
-              Aged care employer
+              Aged-care organisation
             </label>
             <input
               id="review-employer"
@@ -312,7 +317,7 @@ function AgedCareDetailsSection({
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="review-role" className="text-fine text-ink-faint">
-              Role at employer
+              Role at organisation
             </label>
             <input
               id="review-role"
@@ -324,7 +329,7 @@ function AgedCareDetailsSection({
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="review-years" className="text-fine text-ink-faint">
-              Years in aged care
+              Years of work experience
             </label>
             <input
               id="review-years"
@@ -666,7 +671,7 @@ export function AddCoachTraineeModal({
                           <div className={cn(STEP_CONTENT_GAP, 'space-y-3')}>
                             <div className="flex flex-col gap-1">
                               <label htmlFor="trainee-employer" className="text-fine text-ink-faint">
-                                Aged care employer
+                                Aged-care organisation
                               </label>
                               <input
                                 id="trainee-employer"
@@ -678,7 +683,7 @@ export function AddCoachTraineeModal({
                             </div>
                             <div className="flex flex-col gap-1">
                               <label htmlFor="trainee-role" className="text-fine text-ink-faint">
-                                Role at employer
+                                Role at organisation
                               </label>
                               <input
                                 id="trainee-role"
@@ -690,7 +695,7 @@ export function AddCoachTraineeModal({
                             </div>
                             <div className="flex flex-col gap-1">
                               <label htmlFor="trainee-years" className="text-fine text-ink-faint">
-                                Years in aged care
+                                Years of work experience
                               </label>
                               <input
                                 id="trainee-years"

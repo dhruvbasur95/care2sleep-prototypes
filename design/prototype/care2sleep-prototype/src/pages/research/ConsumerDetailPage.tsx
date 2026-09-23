@@ -15,10 +15,10 @@ import {
   Lock,
   GripVertical,
   Minus,
-  MoreVertical,
   NotebookPen,
   Paperclip,
   SlidersHorizontal,
+  TriangleAlert,
 } from 'lucide-react'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
@@ -27,9 +27,18 @@ import { Chip } from '@/components/research/StatusChip'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
+import { KeyUpdatesPanel, type KeyUpdateItem } from '@/components/research/KeyUpdatesPanel'
+import {
+  RECORD_GRID,
+  RecordFieldList,
+  RecordInput,
+  RecordSelect,
+  RecordTextarea,
+  type RecordFieldItem,
+} from '@/components/research/RecordFields'
 import { cn } from '@/lib/utils'
 import { downloadCsv } from '@/lib/csv'
-import { RecordRowDivider, SlideCard } from '@/pages/research/CoachProfilePage'
+import { SlideCard } from '@/pages/research/CoachProfilePage'
 import {
   CONSUMER_MODULES,
   SLEEP_DIARY_QUESTIONS,
@@ -48,8 +57,10 @@ import {
   type SessionPlan,
   type SleepDiaryAnswers,
 } from '@/data/spaces'
+import { SegmentedSwitch } from '@/components/shared/SegmentedSwitch'
+import { SleepSourceComparison } from '@/components/research/SleepSourceComparison'
 import { useResearch } from '@/data/research-context'
-import { formatDate, formatSleepDuration, formatTime, TODAY } from '@/data/format'
+import { formatDate, TODAY } from '@/data/format'
 import { parseTimeToMinutes } from '@/data/spaces'
 
 // Round 21: "Assigned Coach" removed on direct instruction — the Overview's
@@ -99,6 +110,94 @@ const inputClass =
 function dyadTitle(dyad: ConsumerDyad): string {
   return dyad.patient ? `${dyad.patient.name} & ${dyad.carer.name}` : dyad.carer.name
 }
+
+/**
+ * Page-level banner for a consumer who has left the study.
+ *
+ * Mirrors `CoachProfilePage`'s `WithdrawnBanner` exactly — same `destructive`
+ * fill, same `TriangleAlert`, same `role="status"`, same 1320px inner width —
+ * so a researcher reads the same signal whichever record page they are on.
+ *
+ * **Not dismissible, deliberately.** It describes standing account state, not a
+ * one-time notice; a researcher who dismissed it would read the rest of the
+ * record as though the consumer were still active.
+ *
+ * White on `--destructive` measures **5.38:1** here, rasterised through a 1x1
+ * canvas on the live page. `CoachProfilePage`'s equivalent banner comment says
+ * 5.86:1; that figure was not reproduced on a recompute, so the measured one is
+ * recorded rather than the inherited one — CLAUDE.md warns specifically about
+ * "verified" contrast numbers that do not survive being measured again. Clears
+ * AA either way.
+ */
+function DyadWithdrawnBanner({ dyad }: { dyad: ConsumerDyad }) {
+  return (
+    <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
+      <div className="mx-auto flex max-w-[1320px] items-start gap-3">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <p className="text-caption font-semibold text-white">
+          {dyadTitle(dyad)} withdrew from the study
+          {dyad.optedOut ? ` on ${formatDate(dyad.optedOut.date)}` : ''}. They no longer have
+          access to the platform. Their records are kept per their consent.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Page-level banner for a consumer who has **asked** to leave and is waiting on
+ * the research team.
+ *
+ * **Red, same `destructive` fill as the withdrawn banner** (direct instruction,
+ * 2026-09-21: *"withdrawn banner to be red"*, given while looking at this one).
+ * It was built amber, on the trainee page's `PendingInviteBanner` treatment,
+ * on the reasoning that a request is an outstanding task rather than a closed
+ * record — that reasoning is recorded here and overruled, not silently
+ * dropped. The two banners are still mutually exclusive at the call site, and
+ * the copy is what now distinguishes them: this one says the consumer *asked*
+ * and still has access, the other says they have gone.
+ *
+ * White on `--destructive` measures **5.38:1**, rasterised on the live page.
+ */
+function WithdrawalRequestedBanner({ dyad }: { dyad: ConsumerDyad }) {
+  return (
+    <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
+      <div className="mx-auto flex max-w-[1320px] items-start gap-3">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <p className="text-caption font-semibold text-white">
+          {dyadTitle(dyad)} asked to withdraw from the study
+          {dyad.withdrawalRequested ? ` on ${formatDate(dyad.withdrawalRequested.date)}` : ''}.
+          They still have platform access until the research team records the withdrawal on the
+          Profile details tab.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The reasons a research coordinator withdraws a consumer.
+ *
+ * Deliberately **not** the trainee/coach list (`CoachProfilePage`'s
+ * `WITHDRAWAL_REASONS`), which is about employment — "Left their aged care
+ * employer", "No longer has capacity to continue training". A consumer is a
+ * person living with dementia and their carer; they leave for clinical and
+ * caregiving reasons, and offering a researcher "Left their aged care employer"
+ * on this dialog would be noise at best.
+ *
+ * "Withdrew at their own request" is first among the real reasons because it is
+ * the one the withdrawal-request flow lands on.
+ */
+const CONSUMER_WITHDRAWAL_REASONS = [
+  'Withdrew from the study at their own request',
+  'Health or care needs have changed',
+  'Moved into residential aged care',
+  'Carer no longer able to take part',
+  'Unable to be contacted',
+  'Bereavement',
+  'Research team decision',
+  'Other',
+]
 
 function SelectChevron() {
   return (
@@ -322,10 +421,11 @@ function consumerKeyUpdates({
   coachName: string | undefined
   plan: SessionPlan | undefined
   completed: SessionCompletionRecord[]
-}): { label: string; value: string; tone?: string }[] {
-  const rows: { label: string; value: string; tone?: string }[] = []
+}): KeyUpdateItem[] {
+  const rows: KeyUpdateItem[] = []
 
   rows.push({
+    id: 'ongoing-module',
     label: 'Ongoing module',
     value:
       inProgressTitle ??
@@ -333,6 +433,7 @@ function consumerKeyUpdates({
   })
 
   rows.push({
+    id: 'assigned-coach',
     label: 'Assigned coach',
     value: coachName ?? 'Not assigned',
     ...(coachName ? {} : { tone: 'text-destructive' }),
@@ -345,6 +446,7 @@ function consumerKeyUpdates({
   if (lastDone) {
     const title = CONSUMER_MODULES[moduleIndex(lastDone.moduleId)]?.title ?? lastDone.moduleId
     rows.push({
+      id: 'last-completed-module',
       label: 'Last completed module',
       value: `${title} · ${formatDate(lastDone.lastActivityDate!)}`,
     })
@@ -356,14 +458,21 @@ function consumerKeyUpdates({
   rows.push(
     next?.date
       ? {
+          id: 'next-session',
           label: 'Next session',
           value: `${sessionRowLabel(next.session)} · ${formatDate(next.date)}`,
         }
-      : { label: 'Next session', value: 'Not yet scheduled', tone: 'text-destructive' },
+      : {
+          id: 'next-session',
+          label: 'Next session',
+          value: 'Not yet scheduled',
+          tone: 'text-destructive',
+        },
   )
 
   const planned = plan?.sessions.every((s) => !!s.date) ?? false
   rows.push({
+    id: 'session-plan',
     label: 'Session plan',
     value: planned ? 'Created' : 'Not created yet',
     ...(planned ? {} : { tone: 'text-destructive' }),
@@ -532,51 +641,7 @@ export function OverviewTab({ dyad }: { dyad: ConsumerDyad }) {
               </div>
 
               {/* Key updates panel (`194:2655`) */}
-              <div className="flex flex-col gap-6 overflow-hidden rounded-sm bg-parchment p-4 xl:w-[640px] xl:shrink-0">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="text-body-md whitespace-nowrap text-ink">Key updates</p>
-                    {/* `purple-500` fill with white text: 4.85:1, clears AA. */}
-                    <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-purple-500 px-2 text-caption-medium text-white">
-                      {keyUpdates.length} {keyUpdates.length === 1 ? 'update' : 'updates'}
-                    </span>
-                  </div>
-                  {/* No write path — "read" is not a state this app persists.
-                      Focusable `aria-disabled` + `sr-only` cue per the standing
-                      rule, never a silently dead control. */}
-                  <button
-                    type="button"
-                    aria-disabled="true"
-                    className="-my-3 shrink-0 rounded-sm py-3 text-caption-medium text-primary underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    Mark all as read
-                    <span className="sr-only"> (coming soon)</span>
-                  </button>
-                </div>
-                <ul className="flex max-h-[174px] min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xs bg-card p-3">
-                  {keyUpdates.map((u) => (
-                    <li
-                      key={u.label}
-                      className="flex shrink-0 items-center justify-between gap-4 border-b border-purple-200 px-px py-3"
-                    >
-                      <p className="min-w-0 flex-1 text-body text-ink">
-                        {u.label}: <span className={u.tone ?? 'text-primary'}>{u.value}</span>
-                      </p>
-                      {/* `-my-2.5`: keeps a real 36x36 target while contributing
-                          only 16px to the frame's 43px row, so one more update
-                          still fits in the scroller. */}
-                      <button
-                        type="button"
-                        aria-disabled="true"
-                        className="-my-2.5 flex size-9 shrink-0 items-center justify-center rounded-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <MoreVertical aria-hidden="true" className="size-4" />
-                        <span className="sr-only">More options for {u.label} (coming soon)</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <KeyUpdatesPanel items={keyUpdates} className="xl:w-[640px] xl:shrink-0" />
             </div>
           </div>
         </Card>
@@ -600,25 +665,158 @@ export function OverviewTab({ dyad }: { dyad: ConsumerDyad }) {
  *  below it — the band is its own boundary) and `RecordRowDivider` between
  *  rows instead of a plain `divide-y`, so all three cards in this tab now
  *  share one header/row grammar. */
-/** One dyad member's identity record, on the trainee record page's Personal
- *  details card vocabulary (design-tokens.md §67): a `purple-50` header band
- *  (title + "Edit details" pinned right, no `border-t` seam below it — the
- *  band is its own boundary) over a `dl` of 40px label/value rows separated
- *  by `RecordRowDivider`. Deliberately a local sibling of `ProfilePersonCard`
- *  above rather than a rebuild of it in place — that component is also
- *  reused as-is by the Coach Delivery Portal's own (untouched, "Not started"
- *  per the revamp) Consumer Profile Details tab, and restyling it there
- *  wasn't asked for. Same fields, same `onSave` shape, same edit path. */
+/**
+ * ⚠️ **DUMMY CLINICAL DATA — prototype only, no data-layer backing.**
+ *
+ * The Notion brief ("Researcher dashboard open items to be confirmed" →
+ * Consumer management sub-pages → Profile details) lists clinical fields that
+ * have no home on `PersonProfile`:
+ *
+ *   PLE   — Sleep issues, Current medications relevant to sleep,
+ *           Years since diagnosis during enrolment, Dementia type, Comorbidities
+ *   Carer — Sleep issues, Current medications relevant to sleep,
+ *           Own health conditions, Primary carer
+ *
+ * Direct instruction, 2026-09-21: *"just update prototype, add some fields, no
+ * need to mess with data"*. So `PersonProfile` and the seed in `data/spaces.ts`
+ * are deliberately untouched, the values below are invented, and they are held
+ * in **local component state** — an edit survives Save while the card stays
+ * mounted and resets on navigation. Nothing here reaches the store.
+ *
+ * **What replaces this:** real fields on `PersonProfile` (or a read of the
+ * REDCap record the brief asks about), seeded per dyad, saved through
+ * `updateDyadPerson` alongside the fields that already round-trip.
+ *
+ * Keyed by person name rather than dyad id so a carer-only dyad resolves too.
+ */
+const DUMMY_CLINICAL: Record<
+  string,
+  { sleepIssues?: string; medications?: string; yearsSinceDiagnosis?: string; comorbidities?: string; ownConditions?: string; primaryCarer?: string }
+> = {
+  'Bruce Whitfield': {
+    sleepIssues: 'Yes',
+    medications: 'Donepezil 10mg (evening), melatonin 2mg PRN',
+    yearsSinceDiagnosis: '3',
+    comorbidities: 'Type 2 diabetes, osteoarthritis (both knees)',
+  },
+  'Joan Whitfield': {
+    sleepIssues: 'Yes',
+    medications: 'None',
+    ownConditions: 'Hypertension, managed with medication',
+    primaryCarer: 'Yes',
+  },
+  'Arthur Ngata': {
+    sleepIssues: 'Yes',
+    medications: 'Rivastigmine patch 9.5mg/24h',
+    yearsSinceDiagnosis: '1',
+    comorbidities: 'Benign prostatic hyperplasia (nocturia)',
+  },
+  'Tania Ngata': {
+    sleepIssues: 'Yes',
+    medications: 'None',
+    ownConditions: 'None reported',
+    primaryCarer: 'Yes',
+  },
+  'Dorothy Kellerman': {
+    sleepIssues: 'Yes',
+    medications: 'Amlodipine 5mg (morning), temazepam 10mg PRN',
+    yearsSinceDiagnosis: '4',
+    comorbidities: 'Hypertension, previous TIA (2023)',
+  },
+  'Frank Kellerman': {
+    sleepIssues: 'Yes',
+    medications: 'None',
+    ownConditions: 'Lower back pain',
+    primaryCarer: 'Yes',
+  },
+  'Eleanor Sinclair': {
+    sleepIssues: 'No',
+    medications: 'Memantine 20mg (morning)',
+    yearsSinceDiagnosis: '5',
+    comorbidities: 'Atrial fibrillation, hypothyroidism',
+  },
+  'Margaret Sinclair': {
+    sleepIssues: 'No',
+    medications: 'None',
+    ownConditions: 'None reported',
+    primaryCarer: 'Yes',
+  },
+  'Harold Ableson': {
+    sleepIssues: 'Yes',
+    medications: 'Donepezil 5mg (evening)',
+    yearsSinceDiagnosis: '2',
+    comorbidities: 'Chronic kidney disease (stage 2), high cholesterol',
+  },
+  'Diane Ableson': {
+    sleepIssues: 'Yes',
+    medications: 'None',
+    ownConditions: 'Migraine',
+    primaryCarer: 'Yes',
+  },
+}
+
+const YES_NO = ['Yes', 'No', 'Not recorded']
+
+/** The recognised dementia types, in the order the enrolment record uses. */
+const DEMENTIA_TYPES = [
+  "Alzheimer's disease",
+  'Vascular dementia',
+  "Mixed vascular and Alzheimer's",
+  'Lewy body dementia',
+  'Frontotemporal dementia',
+  'Not recorded',
+]
+
+/**
+ * Dementia type, **derived from the person's own Background text** rather than
+ * stored beside it.
+ *
+ * Deliberate: Background is rendered two rows below this one on the same card,
+ * and it already says which dementia the PLE lives with. A second, independent
+ * copy is precisely how this project's most-repeated bug arrives — two surfaces
+ * (here, one card) showing the same fact off two fields, free to disagree the
+ * moment either is edited. Deriving it means they cannot.
+ *
+ * Order matters: "mixed" is checked before the single types, because a mixed
+ * presentation names both.
+ */
+function dementiaTypeFrom(background: string): string {
+  const b = background.toLowerCase()
+  if (b.includes('mixed')) return "Mixed vascular and Alzheimer's"
+  if (b.includes('lewy')) return 'Lewy body dementia'
+  if (b.includes('frontotemporal')) return 'Frontotemporal dementia'
+  if (b.includes('vascular')) return 'Vascular dementia'
+  if (b.includes('alzheimer')) return "Alzheimer's disease"
+  return 'Not recorded'
+}
+
+/** One dyad member's identity record.
+ *
+ *  Round 47 (2026-09-21): the `dl` of inline `Label ....... value` rows is
+ *  replaced by the shared `RecordFields` "title + text field" vocabulary —
+ *  a label above a filled `pearl` box, two to a row — ported from the
+ *  Consumer Portal's own My Profile card on direct instruction. The
+ *  `purple-50` header band, the "Edit details" toggle and the `onSave` shape
+ *  are unchanged; only the rows inside changed. `RecordRowDivider` is gone
+ *  from this card: the boxes are their own boundaries, so a rule between them
+ *  would draw a line through whitespace. */
 function PersonRecordCard({
   title,
   person,
   showRelationship,
+  isPle,
   onSave,
   readOnly = false,
 }: {
   title: string
   person: PersonProfile
   showRelationship: boolean
+  /** Selects the brief's PLE-only clinical block (dementia type, years since
+   *  diagnosis, comorbidities) over the carer-only one (own health conditions,
+   *  primary carer). Passed explicitly rather than inferred from
+   *  `showRelationship`, which is about the *dyad's shape*, not this person's
+   *  role — a carer-only enrolment has no PLE and still shows the carer block. */
+  isPle: boolean
   onSave: (patch: Partial<PersonProfile>) => void
   /** Round 36, direct instruction: a coach may read a client's PLE/Carer
    *  details but not change them — that write path belongs to the research
@@ -633,6 +831,19 @@ function PersonRecordCard({
   const [email, setEmail] = useState(person.email ?? '')
   const [phone, setPhone] = useState(person.phone ?? '')
   const [background, setBackground] = useState(person.background)
+
+  /* Dummy clinical block — see `DUMMY_CLINICAL` above. Held here, saved
+     nowhere. `useState` initialisers run once, so an edit is not clobbered by a
+     re-render; navigating away and back resets it, which is the honest
+     behaviour for a value with no store behind it. */
+  const seed = DUMMY_CLINICAL[person.name] ?? {}
+  const [sleepIssues, setSleepIssues] = useState(seed.sleepIssues ?? 'Not recorded')
+  const [medications, setMedications] = useState(seed.medications ?? 'None recorded')
+  const [yearsSinceDiagnosis, setYearsSinceDiagnosis] = useState(seed.yearsSinceDiagnosis ?? '—')
+  const [dementiaType, setDementiaType] = useState(dementiaTypeFrom(person.background))
+  const [comorbidities, setComorbidities] = useState(seed.comorbidities ?? 'None recorded')
+  const [ownConditions, setOwnConditions] = useState(seed.ownConditions ?? 'None reported')
+  const [primaryCarer, setPrimaryCarer] = useState(seed.primaryCarer ?? 'Not recorded')
 
   // Both the form's Cancel and Save controls unmount the instant `editing`
   // flips back to `false` — the card swaps to its `dl` and remounts "Edit
@@ -658,17 +869,62 @@ function PersonRecordCard({
     setEmail(person.email ?? '')
     setPhone(person.phone ?? '')
     setBackground(person.background)
+    setSleepIssues(seed.sleepIssues ?? 'Not recorded')
+    setMedications(seed.medications ?? 'None recorded')
+    setYearsSinceDiagnosis(seed.yearsSinceDiagnosis ?? '—')
+    setDementiaType(dementiaTypeFrom(person.background))
+    setComorbidities(seed.comorbidities ?? 'None recorded')
+    setOwnConditions(seed.ownConditions ?? 'None reported')
+    setPrimaryCarer(seed.primaryCarer ?? 'Not recorded')
   }
 
-  const idFor = (field: string) => `${title}-${field}`
+  const idFor = (field: string) => `${title.replace(/\s+/g, '-').toLowerCase()}-${field}`
 
-  const fields: { label: string; value: string; breakAll?: boolean; multiline?: boolean }[] = [
-    { label: 'Name', value: person.name },
-    { label: 'Age', value: String(person.age) },
-    ...(showRelationship ? [{ label: 'Relationship to PLE', value: person.relationship ?? '—' }] : []),
-    { label: 'Email', value: person.email || '—', breakAll: true },
-    { label: 'Phone', value: person.phone || '—' },
-    { label: 'Background', value: person.background, multiline: true },
+  /* Read-mode rows, in the brief's own order: the five shared identity fields
+     first, then the role-specific clinical block. `full` on the sentence
+     fields — Background, Comorbidities, Own health conditions — because a
+     half-width box wraps them to four lines and reads as a broken column. */
+  /* Read-mode rows. Order is deliberate and is the same order the edit form
+     below uses: **every short field first, every narrative field last.** A
+     `full` item placed mid-list spans the whole grid, which forces itself onto
+     the next row and leaves the cell beside its predecessor empty — so the
+     brief's own ordering (Background sitting among the identity fields) would
+     punch a hole through the middle of the card. The fields are all still
+     here, and a narrative field reading last is also how a record actually
+     gets read: facts, then prose.
+
+     Both roles land on exactly eight short fields — a clean four-by-two block
+     — which is what makes the two-column grid above the right call. */
+  const fields: RecordFieldItem[] = [
+    { key: 'name', label: 'Name', value: person.name },
+    { key: 'age', label: 'Age', value: String(person.age) },
+    ...(showRelationship
+      ? [{ key: 'relationship', label: 'Relationship to PLE', value: person.relationship || '—' }]
+      : []),
+    { key: 'email', label: 'Email', value: person.email || '—' },
+    { key: 'phone', label: 'Phone', value: person.phone || '—' },
+    { key: 'sleep-issues', label: 'Sleep issues', value: sleepIssues },
+    { key: 'medications', label: 'Current medications relevant to sleep', value: medications },
+    ...(isPle
+      ? [
+          {
+            key: 'years-since-diagnosis',
+            label: 'Years since diagnosis at enrolment',
+            value: yearsSinceDiagnosis,
+          },
+          { key: 'dementia-type', label: 'Dementia type', value: dementiaType },
+          { key: 'comorbidities', label: 'Comorbidities', value: comorbidities, full: true },
+        ]
+      : [
+          { key: 'primary-carer', label: 'Primary carer', value: primaryCarer },
+          {
+            key: 'own-conditions',
+            label: 'Own health conditions',
+            value: ownConditions,
+            full: true,
+          },
+        ]),
+    { key: 'background', label: 'Background', value: person.background, full: true },
   ]
 
   return (
@@ -689,9 +945,12 @@ function PersonRecordCard({
 
       {editing && !readOnly ? (
         <form
-          className="flex flex-col gap-4 p-6"
+          className="flex flex-col gap-5 p-6"
           onSubmit={(e) => {
             e.preventDefault()
+            /* Only the fields that exist on `PersonProfile` are sent. The
+               clinical block stays in local state by design — see
+               `DUMMY_CLINICAL`. */
             onSave({
               name,
               age: Number(age) || person.age,
@@ -703,81 +962,100 @@ function PersonRecordCard({
             setEditing(false)
           }}
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label htmlFor={idFor('name')} className="text-caption-medium text-ink-faint">
-                Name
-              </label>
-              <input
-                id={idFor('name')}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor={idFor('age')} className="text-caption-medium text-ink-faint">
-                Age
-              </label>
-              <input
-                id={idFor('age')}
-                type="number"
-                min={0}
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          {showRelationship && (
-            <div className="flex flex-col gap-2">
-              <label htmlFor={idFor('relationship')} className="text-caption-medium text-ink-faint">
-                Relationship to PLE
-              </label>
-              <input
+          <div className={RECORD_GRID}>
+            <RecordInput id={idFor('name')} label="Name" value={name} onChange={setName} />
+            <RecordInput
+              id={idFor('age')}
+              label="Age"
+              value={age}
+              onChange={setAge}
+              type="number"
+              min={0}
+            />
+            {showRelationship && (
+              <RecordInput
                 id={idFor('relationship')}
+                label="Relationship to PLE"
                 value={relationship}
-                onChange={(e) => setRelationship(e.target.value)}
-                className={inputClass}
+                onChange={setRelationship}
               />
-            </div>
-          )}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label htmlFor={idFor('email')} className="text-caption-medium text-ink-faint">
-                Email <span className="font-normal text-ink-faint">(optional)</span>
-              </label>
-              <input
-                id={idFor('email')}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor={idFor('phone')} className="text-caption-medium text-ink-faint">
-                Phone <span className="font-normal text-ink-faint">(optional)</span>
-              </label>
-              <input
-                id={idFor('phone')}
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor={idFor('background')} className="text-caption-medium text-ink-faint">
-              Background
-            </label>
-            <textarea
+            )}
+            <RecordInput
+              id={idFor('email')}
+              label="Email"
+              value={email}
+              onChange={setEmail}
+              type="email"
+            />
+            <RecordInput
+              id={idFor('phone')}
+              label="Phone"
+              value={phone}
+              onChange={setPhone}
+              type="tel"
+            />
+            <RecordSelect
+              id={idFor('sleep-issues')}
+              label="Sleep issues"
+              value={sleepIssues}
+              onChange={setSleepIssues}
+              options={YES_NO}
+            />
+            <RecordInput
+              id={idFor('medications')}
+              label="Current medications relevant to sleep"
+              value={medications}
+              onChange={setMedications}
+            />
+            {isPle ? (
+              <>
+                <RecordInput
+                  id={idFor('years-since-diagnosis')}
+                  label="Years since diagnosis at enrolment"
+                  value={yearsSinceDiagnosis}
+                  onChange={setYearsSinceDiagnosis}
+                />
+                <RecordSelect
+                  id={idFor('dementia-type')}
+                  label="Dementia type"
+                  value={dementiaType}
+                  onChange={setDementiaType}
+                  options={DEMENTIA_TYPES}
+                />
+                <RecordTextarea
+                  id={idFor('comorbidities')}
+                  label="Comorbidities"
+                  value={comorbidities}
+                  onChange={setComorbidities}
+                  rows={2}
+                />
+              </>
+            ) : (
+              <>
+                <RecordSelect
+                  id={idFor('primary-carer')}
+                  label="Primary carer"
+                  value={primaryCarer}
+                  onChange={setPrimaryCarer}
+                  options={YES_NO}
+                />
+                <RecordTextarea
+                  id={idFor('own-conditions')}
+                  label="Own health conditions"
+                  value={ownConditions}
+                  onChange={setOwnConditions}
+                  rows={2}
+                />
+              </>
+            )}
+            {/* Last, matching the read view's own order — see the comment on
+                `fields` above for why every spanning field sits at the end. */}
+            <RecordTextarea
               id={idFor('background')}
+              label="Background"
               value={background}
-              onChange={(e) => setBackground(e.target.value)}
+              onChange={setBackground}
               rows={4}
-              className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           <div className="flex gap-3">
@@ -800,24 +1078,7 @@ function PersonRecordCard({
           </div>
         </form>
       ) : (
-        <dl className="flex flex-col py-4">
-          {fields.map((f, i) => (
-            <Fragment key={f.label}>
-              {i > 0 && <RecordRowDivider />}
-              <div
-                className={cn(
-                  'flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:gap-0',
-                  f.multiline ? 'sm:items-start' : 'sm:items-center sm:py-0',
-                )}
-              >
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                <dd className={cn('min-w-0 text-caption text-ink', f.breakAll && 'break-all')}>
-                  {f.value}
-                </dd>
-              </div>
-            </Fragment>
-          ))}
-        </dl>
+        <RecordFieldList fields={fields} className="p-6" />
       )}
     </Card>
   )
@@ -973,7 +1234,34 @@ export function ProfileDetailsSections({
   const { updateDyadPerson, setDyadOptOut, updateDyadNotificationPreferences, coaches, spacesCoaches } =
     useResearch()
   const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const [withdrawReason, setWithdrawReason] = useState('')
+  const [withdrawDetail, setWithdrawDetail] = useState('')
+  /* Seeded from the request date when there is one: a researcher actioning a
+     request that came in three days ago is recording *that* date, not the day
+     they got to the paperwork. Falls back to today, and stays editable either
+     way. A lazy initialiser, so re-renders cannot clobber a typed value. */
+  const [withdrawDate, setWithdrawDate] = useState(() => dyad.withdrawalRequested?.date ?? TODAY)
+  /** Focus target after a withdrawal is recorded.
+   *
+   *  Confirming unmounts the button that opened the dialog — `!dyad.optedOut`
+   *  goes false and the CTA disappears — so `ConfirmDialog`'s own
+   *  restore-focus-to-trigger has nothing left to restore to and focus lands
+   *  on `<body>`. **Measured, not assumed**: running the flow end to end
+   *  reported `document.activeElement === document.body`, which is this
+   *  project's most-repeated defect and has shipped in six separate rounds.
+   *
+   *  The Study information heading is the right landing place — it is the card
+   *  whose contents just changed, and unlike the trigger it survives the
+   *  change. Same contract `SpacesCoachProfilePage`'s own `studyHeadingRef`
+   *  already uses. Focusing synchronously inside `onConfirm` is deliberate:
+   *  `ConfirmDialog` defers its restore a frame and skips it when focus has
+   *  already left the closing panel, so the heading wins. */
+  const studyHeadingRef = useRef<HTMLHeadingElement>(null)
   const isResearcher = viewerRole === 'researcher'
+  /* The consumer has asked to leave and nobody has actioned it yet. Drives the
+     banner, the Study information status row and the CTA's own label — one
+     fact, read in three places rather than three booleans that could drift. */
+  const requested = !dyad.optedOut && !!dyad.withdrawalRequested
   const joinDate = dyad.consentDocuments[0]?.uploadedDate
   /* Direct instruction: the assigned coach belongs in Study information — who
      this consumer is paired with, and since when, is study record rather than
@@ -1000,76 +1288,130 @@ export function ProfileDetailsSections({
     <div className="flex flex-col gap-10">
       <Card className="gap-0 overflow-hidden rounded-lg border border-parchment bg-card py-0 shadow-card">
         <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
-          <h2 className="font-display text-title text-ink">Study information</h2>
+          <h2
+            ref={studyHeadingRef}
+            tabIndex={-1}
+            className="font-display text-title text-ink outline-none"
+          >
+            Study information
+          </h2>
           {isResearcher && !dyad.optedOut && (
+            /* Same destructive-outline-on-`bg-card` button the trainee record
+               page uses. The fill is opaque, not `bg-destructive/8`: measured,
+               an 8% tint on the `purple-50` band composites to a pinkish
+               `rgb(241,220,236)` where `destructive` is only 4.15:1 and fails
+               AA. On white it is 5.38:1.
+
+               The label changes when the consumer has already asked to leave —
+               the researcher is then *confirming a request*, not initiating a
+               withdrawal, and a button that says "Withdraw from study" over a
+               banner saying they already requested it reads as a second,
+               separate action. */
             <button
               type="button"
               onClick={() => setWithdrawOpen(true)}
               className="inline-flex h-9 shrink-0 items-center rounded-sm border border-destructive bg-card px-4 text-caption-medium text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
             >
-              Withdraw from study
+              {requested ? 'Review withdrawal request' : 'Withdraw from study'}
             </button>
           )}
         </div>
-        <dl className="flex flex-col py-4">
-          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Join date</dt>
-            <dd className="text-caption text-ink">{joinDate ? formatDate(joinDate) : '—'}</dd>
-          </div>
-          <RecordRowDivider />
-          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Assigned coach</dt>
-            <dd className="text-caption text-ink">
-              {isResearcher && coachRecordExists && coach ? (
-                /* A link, not plain text: the coach record is where a
-                   researcher goes next from here, and it is one hop away.
-                   Never for a coach — the target is a Research Dashboard
-                   route, so it renders as the plain-text branch below. */
-                <Link
-                  to={`/research/spaces-coaches/${coach.id}`}
-                  className="rounded-sm text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {coach.fullName}
-                </Link>
-              ) : coach ? (
-                <span>{coach.fullName}</span>
-              ) : (
-                <span className="text-destructive">Not assigned</span>
-              )}
-            </dd>
-          </div>
-          <RecordRowDivider />
-          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Coach email</dt>
-            <dd className="text-caption break-all text-ink">{coach?.email || '\u2014'}</dd>
-          </div>
-          <RecordRowDivider />
-          <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-            <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Assigned on</dt>
-            <dd className="text-caption text-ink">
-              {dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : '\u2014'}
-            </dd>
-          </div>
-          {dyad.optedOut && (
-            <>
-              <RecordRowDivider />
-              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Status</dt>
-                <dd className="text-caption text-destructive">
-                  Withdrawn on {formatDate(dyad.optedOut.date)}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
+        {/* Round 47: the inline `Label ....... value` rows become the shared
+            "title + text field" vocabulary (`RecordFields`), so this card and
+            the two personal-details cards below it read as one system rather
+            than two. `RecordRowDivider` goes with them — the boxes are their
+            own boundaries. */}
+        <RecordFieldList
+          className="p-6"
+          fields={[
+            { key: 'join-date', label: 'Join date', value: joinDate ? formatDate(joinDate) : '\u2014' },
+            {
+              key: 'assigned-coach',
+              label: 'Assigned coach',
+              value:
+                isResearcher && coachRecordExists && coach ? (
+                  /* A link, not plain text: the coach record is where a
+                     researcher goes next from here, and it is one hop away.
+                     Never for a coach — the target is a Research Dashboard
+                     route, so it renders as the plain-text branch below. */
+                  /* `-my-2 py-2` reclaims the value box's own vertical
+                     padding so the link's hit area is the full 36px the box
+                     is, without the box growing around it. Caught by
+                     `layout-audit.js` at 20px, and it is a real finding rather
+                     than the excluded "text link inside a table cell" case:
+                     there the row is the tap target, here the link is the only
+                     way to reach the coach record. */
+                  <Link
+                    to={`/research/spaces-coaches/${coach.id}`}
+                    className="-my-2 inline-flex min-h-9 items-center rounded-sm py-2 text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {coach.fullName}
+                  </Link>
+                ) : coach ? (
+                  <span>{coach.fullName}</span>
+                ) : (
+                  <span className="text-destructive">Not assigned</span>
+                ),
+            },
+            { key: 'coach-email', label: 'Coach email', value: coach?.email || '\u2014' },
+            {
+              key: 'assigned-on',
+              label: 'Assigned on',
+              value: dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : '\u2014',
+            },
+            /* Status is only a row when there is something to say. An
+               always-present "Active" row would be the fifth thing on a card
+               whose other four are facts a researcher looks up; the two states
+               that matter are both exceptions. */
+            ...(dyad.optedOut
+              ? [
+                  {
+                    key: 'status',
+                    label: 'Status',
+                    full: true,
+                    value: (
+                      <span className="text-destructive">
+                        Withdrawn on {formatDate(dyad.optedOut.date)}
+                        {dyad.optedOut.reason ? ` \u00b7 ${dyad.optedOut.reason}` : ''}
+                      </span>
+                    ),
+                  } as RecordFieldItem,
+                ]
+              : requested && dyad.withdrawalRequested
+                ? [
+                    {
+                      key: 'status',
+                      label: 'Status',
+                      full: true,
+                      value: (
+                        <span className="text-destructive">
+                          Withdrawal requested on {formatDate(dyad.withdrawalRequested.date)}
+                          {dyad.withdrawalRequested.note
+                            ? ` \u00b7 ${dyad.withdrawalRequested.note}`
+                            : ''}
+                        </span>
+                      ),
+                    } as RecordFieldItem,
+                  ]
+                : []),
+          ]}
+        />
       </Card>
 
-      <div className={cn('grid grid-cols-1 gap-6', dyad.patient && 'lg:grid-cols-2')}>
+      {/* Direct instruction, 2026-09-21: *"vertically stack the consumer
+          details first PLE then carer"*. They were two side-by-side columns
+          at `lg`, which halved each card's width and forced its own field grid
+          down to one column on anything but a very wide screen — so the
+          "title + text field" rows never actually got to sit two across.
+          Stacked, each card is full width and its fields read as the intended
+          grid. PLE first, matching the hero's own PLE/Carer order. */}
+      <div className="flex flex-col gap-6">
         {dyad.patient && (
           <PersonRecordCard
             title="PLE personal details"
             person={dyad.patient}
             showRelationship={false}
+            isPle
             readOnly={!isResearcher}
             onSave={(patch) => updateDyadPerson(dyad.id, 'patient', patch)}
           />
@@ -1078,6 +1420,7 @@ export function ProfileDetailsSections({
           title="Carer personal details"
           person={dyad.carer}
           showRelationship={!!dyad.patient}
+          isPle={false}
           readOnly={!isResearcher}
           onSave={(patch) => updateDyadPerson(dyad.id, 'carer', patch)}
         />
@@ -1091,19 +1434,119 @@ export function ProfileDetailsSections({
       )}
 
       {isResearcher && (
+        /* Withdrawal — rebuilt 2026-09-21 from the Notion brief: *"The
+           researcher will click on the withdraw tab, enter reason for
+           withdrawal, date of withdrawal."* It was a single yes/no confirm
+           before, which recorded neither: it hardcoded "Withdrawn by the
+           research team" and stamped `TODAY` inside the store.
+
+           Deliberately identical in shape to the trainee record page's own
+           withdrawal dialog (`CoachProfilePage`'s `PersonalDetails`) — same
+           reason/date/detail triple, same `confirmDisabled` gate, same
+           "Other" handling — because a researcher does this job on both
+           record pages and two dialogs would be two vocabularies for one task.
+           Only the reason list differs, because a consumer leaves the study
+           for different reasons than a trainee does.
+
+           Confirm is gated on a reason being chosen (and, for "Other", on the
+           free text being filled), so the record can never say a reason was
+           given when none was. */
         <ConfirmDialog
           open={withdrawOpen}
-          title={`Withdraw ${dyadTitle(dyad)} from the study?`}
-          body="Their status changes to withdrawn and their records are kept per their consent. They'll lose access to Zoom session links. This is reversible in the prototype only."
-          confirmLabel="Withdraw from study"
+          title={
+            requested
+              ? `Confirm withdrawal for ${dyadTitle(dyad)}?`
+              : `Withdraw ${dyadTitle(dyad)} from the study?`
+          }
+          body={
+            requested
+              ? "They asked to leave the study. Confirming records the withdrawal: their status changes to withdrawn, they lose access to Zoom session links, and their records are kept per their consent. This is reversible in the prototype only."
+              : "Their status changes to withdrawn and their records are kept per their consent. They'll lose access to Zoom session links. This is reversible in the prototype only."
+          }
+          confirmLabel={requested ? 'Confirm withdrawal' : 'Withdraw from study'}
           cancelLabel="Keep active"
           destructive
+          confirmDisabled={
+            !withdrawReason || (withdrawReason === 'Other' && !withdrawDetail.trim())
+          }
           onConfirm={() => {
-            setDyadOptOut(dyad.id, 'Withdrawn by the research team')
+            const trimmed = withdrawDetail.trim()
+            const primary = withdrawReason === 'Other' ? trimmed : withdrawReason
+            const extra = withdrawReason === 'Other' ? '' : trimmed
+            setDyadOptOut(
+              dyad.id,
+              [primary, extra ? `Additional comments: ${extra}` : null].filter(Boolean).join('. '),
+              withdrawDate,
+            )
             setWithdrawOpen(false)
+            studyHeadingRef.current?.focus({ preventScroll: true })
           }}
           onClose={() => setWithdrawOpen(false)}
-        />
+        >
+          <div className="flex flex-col gap-6 py-2">
+            {/* The consumer's own words, shown before the researcher picks a
+                reason rather than after — it is the thing they are deciding
+                on, and asking for a reason while hiding the one already given
+                invites a mismatch between the two records. */}
+            {requested && dyad.withdrawalRequested?.note && (
+              <p className="rounded-sm bg-pearl p-3 text-caption text-ink">
+                <span className="text-caption-medium">
+                  Requested on {formatDate(dyad.withdrawalRequested.date)}:
+                </span>{' '}
+                {dyad.withdrawalRequested.note}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="consumer-withdraw-reason" className="text-fine text-ink-faint">
+                Reason for withdrawal
+              </label>
+              <select
+                id="consumer-withdraw-reason"
+                value={withdrawReason}
+                onChange={(e) => setWithdrawReason(e.target.value)}
+                className="h-9 w-full appearance-none rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Select a reason…</option>
+                {CONSUMER_WITHDRAWAL_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="consumer-withdraw-date" className="text-fine text-ink-faint">
+                Date of withdrawal
+              </label>
+              {/* Defaults to the request date when there is one, otherwise
+                  today. A researcher actioning a request that came in three
+                  days ago is recording *that* date, not the date they got
+                  round to the paperwork — but it stays editable either way. */}
+              <input
+                id="consumer-withdraw-date"
+                type="date"
+                value={withdrawDate}
+                onChange={(e) => setWithdrawDate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="consumer-withdraw-detail" className="text-fine text-ink-faint">
+                {withdrawReason === 'Other' ? 'What happened?' : 'Anything to add? (optional)'}
+              </label>
+              <textarea
+                id="consumer-withdraw-detail"
+                rows={3}
+                value={withdrawDetail}
+                onChange={(e) => setWithdrawDetail(e.target.value)}
+                className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+        </ConfirmDialog>
       )}
     </div>
   )
@@ -1414,58 +1857,50 @@ function learningCycles(
  *  this fixes. */
 type ToneKey = LearningCycle['tone'] | 'milestone'
 
-const CYCLE_TONE: Record<ToneKey, { card: string; marker: string; ring: string }> = {
-  /* Round 25, direct instruction: the milestone timepoints are **yellow**,
-     with an **off-white (`parchment`) stroke** rather than a tinted one. They
-     are structural markers, not outcomes — a green "Consumer onboarded" read
-     as a completed status competing with the session cards, when all it says
-     is where the arc begins. `yellow-100` is the same surface the KPI tiles
-     above use, so the two "this is context, not status" surfaces agree.
-     ⚠️ The `yellow-400` marker measures **1.76:1** against the page — below
-     WCAG 1.4.11's 3:1 for a graphical object, and `yellow-400` is the darkest
-     step this ramp has. Accepted because the marker is decorative
-     reinforcement (`aria-hidden`) and the card beside it carries the whole
-     meaning in text; flagged rather than silently substituted for a colour
-     that wasn't asked for. */
-  milestone: {
-    card: 'border-parchment bg-yellow-100',
-    marker: 'bg-yellow-400',
-    ring: 'border-yellow-400',
-  },
-  /* Round 25, direct instruction: **every** card's stroke is off-white
-     (`parchment`); only the fill carries state. The tinted borders this
-     replaces were doing the same job as the fill twice over. */
-  /* Round 25, direct instruction (confirmed against the alternatives): a
-     completed cycle's **card** is purple, not green — so the card tint groups
-     "this cycle is on track" (complete or in progress) against red for
-     "needs attention" and neutral for "not reached yet". The *status badge*
-     inside it stays green for Complete, which is what keeps a completed cycle
-     distinguishable from an in-progress one and honours the original rule
-     that a complete session reads green. Green now lives only at status
-     level, never as a surface. */
-  complete: {
-    card: 'border-parchment bg-primary/8',
+/**
+ * Timeline node treatments — **two resting states, plus the one the consumer is
+ * actually on**.
+ *
+ * Direct instruction: *"further simplify timeline, too many colours, don't know
+ * where to look at, where user currently are."* It had five: yellow milestone
+ * cards, purple complete/ongoing cards, pink attention cards, grey upcoming
+ * cards, and a matching marker colour for each — on top of the two status chips
+ * inside every session card. Nine coloured objects in one row, none of which
+ * said which step was live.
+ *
+ * So the card surface no longer carries state at all. Every node is a white
+ * card with a `parchment` stroke; state is carried **only** by the status chips
+ * inside it, which is where a researcher should be reading it. The marker
+ * separates just two things a colour can honestly say at a glance: reached
+ * (`ink-faint`) and not reached yet (`hairline`).
+ *
+ * The one accent left in the whole timeline is `current`, applied to the single
+ * step the pairing is up to. It is the only primary-coloured thing in the row,
+ * which is what makes "where are they now" answerable without reading a word.
+ */
+const CYCLE_TONE: Record<ToneKey | 'current', { card: string; marker: string; ring: string }> = {
+  /* REACHED — a milestone that happened, or a catch-up that has been held.
+     Neutral grey, the same as every other non-current node. Whether it went
+     well is the chips' job, not the card's. */
+  milestone: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+  complete: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+  attention: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+  ongoing: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+  /* NOT REACHED — the same neutral grey card as every reached node (direct
+     instruction: "make all neutral grey except the current one"). Only the
+     marker separates them: `hairline` is this app's own inactive-line token,
+     present and aligned like every other node, just quiet. A white dot on a
+     white page was invisible and read as a broken column. */
+  upcoming: { card: 'border-parchment bg-parchment', marker: 'bg-hairline', ring: 'border-hairline' },
+  /* THE STEP THEY ARE ON — the only brand colour in the timeline.
+     `p-[15px]` pays for the extra border pixel: without it the 2px stroke
+     pushes this card's two lanes 1px down while every neighbour sits at `p-4`
+     with a 1px stroke, and the lanes stop running level. Measured — and the
+     whole point of the lane grid is that the eye can run along one. */
+  current: {
+    card: 'border-2 border-primary bg-purple-50 p-[15px]',
     marker: 'bg-primary',
     ring: 'border-primary',
-  },
-  attention: {
-    card: 'border-parchment bg-destructive/8',
-    marker: 'bg-destructive',
-    ring: 'border-destructive',
-  },
-  ongoing: {
-    card: 'border-parchment bg-primary/8',
-    marker: 'bg-primary',
-    ring: 'border-primary',
-  },
-  /* An unplanned session had a white dot and a white connector on a white
-     page, so both were invisible and its column read as broken next to the
-     others. `hairline` is this app's own inactive-line token: present and
-     aligned like every other node, just quiet. */
-  upcoming: {
-    card: 'border-parchment bg-parchment',
-    marker: 'bg-hairline',
-    ring: 'border-hairline',
   },
 }
 
@@ -1751,7 +2186,9 @@ export function ModuleCompletionOverviewCard({ dyad }: { dyad: ConsumerDyad }) {
                 </p>
               </div>
               <div
-                className="h-2 w-full overflow-hidden rounded-full bg-purple-100"
+                /* `purple-200` — see the timeline spine below: the ramp has
+                   no 100 and Tailwind v4 fills the gap from its own palette. */
+                className="h-2 w-full overflow-hidden rounded-full bg-purple-200"
                 role="img"
                 aria-label={`${completionRate}% of modules complete`}
               >
@@ -1893,7 +2330,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
         // Earliest consent document on file. `ConsumerDyad` has no enrolment
         // date of its own, and consent is the record that proves onboarding
         // happened, so it is used rather than inventing a second field.
-        { label: 'Onboarded on', value: consentDate ? formatDate(consentDate) : 'Not recorded' },
+        { label: 'Date', value: consentDate ? formatDate(consentDate) : 'Not recorded' },
       ],
     },
     {
@@ -1905,7 +2342,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
       rows: [
         { label: 'Coach', value: coach?.fullName ?? 'Not assigned' },
         {
-          label: 'Assigned on',
+          label: 'Date',
           value: dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : 'Not recorded',
         },
       ],
@@ -1926,7 +2363,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
             isNext: !isPlanned,
             rows: [
               {
-                label: 'Planned on',
+                label: 'Date',
                 // The planning session (internal session 1, displayed as
                 // Session 0) is where the coach and consumer set the whole arc
                 // up, so its date is when the plan was made. Derived, not a
@@ -1952,7 +2389,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
             // know.
             rows: [
               {
-                label: allHeld ? 'Completed on' : 'Projected',
+                label: allHeld ? 'Date' : 'Projected date',
                 value: lastSessionDate ? formatDate(lastSessionDate) : '\u2014',
               },
             ],
@@ -1960,13 +2397,59 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
         ]
       : []),
   ]
+  /* The one step the pairing is up to: the first catch-up not yet held, or —
+     before a plan exists — the first milestone not yet reached. Exactly one
+     node can be current, which is what makes it usable as the timeline's only
+     accent. Derived here rather than stored, so it cannot disagree with the
+     chips inside the card. */
+  const currentCycleSession = cycles.find((c) => !c.sessionHeld)?.session
+
+  /* "Go to current step" (direct instruction). The arc runs to nine nodes and
+     scrolls, so the step a researcher opens this card to find is often off
+     screen to the right.
+
+     Deliberately a control, not an auto-scroll on mount: this project has
+     shipped that bug twice (Rounds 18 and 19), where a mount-time
+     `scrollIntoView` dragged the whole *page* to the card instead of scrolling
+     inside it. For the same reason this sets `scrollLeft` arithmetically rather
+     than calling `scrollIntoView` — `scrollLeft` cannot escape the scroller,
+     and `scrollIntoView` demonstrably can. */
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const currentRef = useRef<HTMLDivElement>(null)
+  const goToCurrent = () => {
+    const scroller = scrollerRef.current
+    const node = currentRef.current
+    if (!scroller || !node) return
+    scroller.scrollTo({
+      left: Math.max(0, node.offsetLeft - (scroller.clientWidth - node.offsetWidth) / 2),
+      behavior: 'smooth',
+    })
+    /* Focus follows the scroll, so a keyboard user ends up where the sighted
+       user is looking rather than back at the button. The node is not
+       otherwise focusable, hence `tabIndex={-1}`. */
+    node.focus({ preventScroll: true })
+  }
+
+  /* EXACTLY ONE current node.
+     `isNext` is a per-milestone flag and more than one milestone can carry it
+     at once — an unonboarded consumer has both "Consumer onboarded" and
+     "Sessions planned" pending, and both rendered "Up next" with a primary
+     border. Two accents is the same as none: the reader cannot tell which step
+     is actually live. The first pending node in study order is the current one;
+     once a plan exists it is the first catch-up not yet held. */
+  const currentKey =
+    currentCycleSession !== undefined && nodes.some((n) => n.key === `c${currentCycleSession}`)
+      ? `c${currentCycleSession}`
+      : nodes.find((n) => n.kind === 'milestone' && n.isNext)?.key
+
   /* Study progress timeline (`212:4665`).
      §35a card-header band + border-t divider, matching Trainee's
      SynthesisCard — this card previously put its title in the same padded
      content div as the timeline itself. */
   return (
       <Card className="gap-0 rounded-lg py-0">
-        <div className="bg-purple-50 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-purple-50 p-6">
+          <div className="min-w-0">
           <h3 className="text-title text-ink">Study progress timeline</h3>
           <p className="mt-1 text-caption text-ink-muted">
             {/* Round 25: the timeline truncates at the next step, so it
@@ -1975,29 +2458,68 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                 exists. This wording holds in every state. */}
             Everything this consumer has reached, plus the step that comes next
           </p>
+          </div>
+          {/* Hidden when nothing is pending — with every catch-up held there is
+              no current step to go to, and a control that scrolls nowhere is
+              worse than no control. Keyed on `currentKey`, not on the cycle:
+              before a plan exists the current step is a milestone. */}
+          {currentKey !== undefined && (
+            <button
+              type="button"
+              onClick={goToCurrent}
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border-[1.5px] border-primary px-5 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+            >
+              {/* Label only, no glyph. lucide's `Crosshair` had no equivalent
+                  in this project's Figma icon set, and the standing rule is
+                  never to hand-draw one to fill the gap — so rather than let
+                  the two surfaces diverge over decoration, the icon went. The
+                  label already says exactly what the control does. */}
+              Go to current step
+            </button>
+          )}
         </div>
         <div className="flex flex-col gap-6 border-t border-hairline p-6 pt-4">
           {/* `min-w-0` on the scroller: without it the 6-card row sizes the
               container and forces the whole page into horizontal scroll — the
               exact bug `layout-audit.js` caught on the trainee pathway. */}
-          <div className="min-w-0 overflow-x-auto pb-2">
+          <div ref={scrollerRef} className="min-w-0 overflow-x-auto pb-2">
             {/* `min-w-full` alongside `w-max`: the row is max(content, container), so
                 the spine below always runs the **full width of the card** even
                 when the timeline is truncated to two cards, while a full arc
                 still overflows and scrolls. */}
             <div className="relative flex w-max min-w-full gap-6 pt-1">
               {/* Spine, behind the markers. 71px = the 56px date block + half
-                  the 30px marker. */}
+                  the 30px marker.
+                  `purple-200`, not `purple-100`: this project's brand ramp
+                  skips 100, and Tailwind v4 silently fills an undefined brand
+                  step from its OWN stock palette — so this line was painting a
+                  lavender that appears in no Figma swatch. Round 40 documented
+                  the same trap on the coach sidebar. 200 is the ramp's real
+                  neighbour. */}
               <span
                 aria-hidden="true"
-                className="absolute top-[71px] right-0 left-0 h-0.5 rounded-full bg-purple-100"
+                className="absolute top-[71px] right-0 left-0 h-0.5 rounded-full bg-purple-200"
               />
               {nodes.map((n) => {
-                const t = CYCLE_TONE[n.kind === 'cycle' ? n.cycle.tone : n.tone];
-                const date = n.kind === 'cycle' ? n.cycle.sessionDate : n.date;
-                const time = n.kind === 'cycle' ? n.cycle.sessionTime : n.time;
+                /* `current` outranks the node's own tone — it is the single
+                   accent in the row and the answer to "where are they now". */
+                const isCurrent = n.key === currentKey
+                const t = CYCLE_TONE[isCurrent ? 'current' : n.kind === 'cycle' ? n.cycle.tone : n.tone];
+                /* 240 -> 208 when the rows dropped to two lanes, briefly 252
+                   while the chip shared the title's line, now **224** with the
+                   chip stacked under the title. Measured, not guessed: the
+                   binding pair is "Scheduled date" + "30 Sep 2026" at ~160px,
+                   which clears 192px of content. Titles no longer compete for
+                   the line, so the card does not have to be sized for the
+                   widest chip. Still fixed-width, so the markers stay evenly
+                   spaced along the spine. */
                 return (
-                  <div key={n.key} className="relative flex w-[240px] shrink-0 flex-col items-center">
+                  <div
+                    key={n.key}
+                    ref={isCurrent ? currentRef : undefined}
+                    tabIndex={isCurrent ? -1 : undefined}
+                    className="relative flex w-[224px] shrink-0 flex-col items-center outline-none"
+                  >
                     {/* Milestones carry their date inside the card, not above
                         the marker (direct instruction). The 56px block is kept
                         empty for them so every marker still lands on the
@@ -2006,26 +2528,30 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                       {/* Round 25, direct instruction: the next step shows
                           **"Next"** here — the slot the session columns spend
                           on their date, and otherwise empty for a milestone. */}
+                      {/* The current column announces itself here, in the slot
+                          every other column spends on its date. It is the only
+                          place in the timeline that says where the pairing is
+                          up to, so it is deliberately a word rather than a
+                          colour — "Up next" is legible to someone who cannot
+                          separate the primary stroke from a parchment one. */}
                       <p
                         className={cn(
                           'text-caption-medium',
-                          n.kind === 'milestone' && n.isNext ? 'text-primary' : 'text-ink',
+                          isCurrent ? 'text-primary' : 'text-ink',
                         )}
                       >
-                        {n.kind === 'milestone'
-                          ? n.isNext
-                            ? 'Next'
-                            : ''
-                          : date
-                            ? formatDate(date)
-                            : 'Not scheduled'}
+                        {isCurrent ? 'Up next' : ''}
                       </p>
-                      {/* A milestone like consent has a date but no time —
-                          `formatTime('00:00')` would print a fabricated
-                          "12:00 AM". The block keeps its 56px height either
-                          way, so the markers stay aligned. */}
+                      {/* The block keeps its 56px height whether or not it
+                          speaks, so every marker still lands on the spine. */}
                       <p className="text-fine text-ink-muted">
-                        {n.kind === 'milestone' ? '' : date ? (time ? formatTime(time) : '') : '—'}
+                        {/* Empty. The date under "Up next" was removed on
+                            direct instruction — the card's own "Scheduled
+                            date:" row already carries it, so this was the same
+                            fact twice in one column. The line is kept rather
+                            than deleted so the 56px block holds its height and
+                            every marker still lands on the spine. */}
+                        {''}
                       </p>
                     </div>
                     <span
@@ -2038,85 +2564,152 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                       <span className={cn('size-3.5 rounded-full', t.marker)} />
                     </span>
                     <span aria-hidden="true" className={cn('h-6 w-0.5', t.marker)} />
-                    {n.kind === 'milestone' ? (
-                      /* No `flex-1`: a milestone carries two rows, so it hugs
-                         its own content and sits shorter than the session
-                         cards rather than stretching to match them (direct
-                         instruction). The session cards still equalise against
-                         each other, because they keep `flex-1`. */
-                      <div className={cn('flex w-full flex-col self-start rounded-lg border p-4', t.card)}>
-                        <p className="text-body-md text-ink">{n.title}</p>
-                        <span aria-hidden="true" className="mt-3 mb-3 block h-px bg-ink/10" />
-                        {n.lead && <p className="text-caption-medium text-ink">{n.lead}</p>}
-                        <dl className="flex flex-col gap-2.5">
-                          {n.rows.map((r) => (
-                            <div key={r.label} className="flex items-center justify-between gap-2">
-                              <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
-                                {r.label}
-                              </dt>
-                              <dd className="min-w-0 truncate text-caption-medium text-ink">
-                                {r.value}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      </div>
-                    ) : (
-                      <div className={cn('flex w-full flex-1 flex-col rounded-lg border p-4', t.card)}>
-                        <p className="text-body-md text-ink">Session {n.cycle.session}</p>
-                        <span aria-hidden="true" className="mt-3 mb-3 block h-px bg-ink/10" />
-                        <dl className="flex flex-1 flex-col justify-between gap-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">Module</dt>
-                            <dd className="text-caption-medium whitespace-nowrap text-ink">
-                              Module {n.cycle.moduleIndex}
-                            </dd>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
-                              Module status
-                            </dt>
-                            <dd>
-                              <Chip
-                                label={MODULE_STATUS_LABEL[n.cycle.moduleStatus]}
-                                tone={moduleBadgeTone(n.cycle.moduleStatus)}
-                              />
-                            </dd>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
-                              Completed on
-                            </dt>
-                            <dd className="text-caption-medium whitespace-nowrap text-ink">
-                              {n.cycle.completedOn ? formatDate(n.cycle.completedOn) : '—'}
-                            </dd>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
-                              Session status
-                            </dt>
-                            <dd>
-                              <Chip
-                                label={
-                                  n.cycle.rescheduled
-                                    ? 'Rescheduled'
-                                    : n.cycle.sessionHeld
-                                      ? 'Complete'
-                                      : 'To be held'
-                                }
-                                tone={
-                                  n.cycle.rescheduled
-                                    ? 'destructive'
-                                    : n.cycle.sessionHeld
-                                      ? 'success'
-                                      : 'muted'
-                                }
-                              />
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
-                    )}
+                    {/* ONE card shape for every node, and exactly TWO lanes in
+                        every card (design critique, direct instruction: "very
+                        simple, easy to scan").
+
+                        Before this the row was nine independent mini-tables —
+                        milestones carried one or two rows, sessions carried
+                        four, and no row lined up with its neighbour, so
+                        answering "which sessions are done" meant reading nine
+                        separate blocks instead of running the eye along one
+                        line. Fixing the lane count and giving each lane a fixed
+                        28px box makes the whole timeline a real grid: both
+                        lanes run unbroken across every column.
+
+                        **The status moved into the title row** (direct
+                        instruction: "its confusing to have a title then repeat
+                        same copy below"). A card titled "Session 1" above a
+                        lane labelled "Session" reading "Complete" said the word
+                        twice; a card titled "Consumer onboarded" above a lane
+                        labelled "Onboarded on" did the same. Now the title
+                        carries its own state — `Session 1  [Complete]`,
+                        `Consumer onboarded  [Yes]` — and the lanes below are
+                        only the facts that are not already in the title.
+
+                        A milestone with one lane pads the second with an
+                        invisible spacer rather than shrinking, which is what
+                        keeps the lanes aligned end to end. */}
+                    <div className={cn('flex w-full flex-1 flex-col rounded-lg border p-4', t.card)}>
+                      {/* Title, then a label/value list whose FIRST row is
+                          "Status" (direct instruction: "add a status row, and
+                          map labels on right").
+
+                          The chip used to sit on its own line under the title,
+                          left-aligned against nothing. As a row it joins the
+                          same two-track grid as every other fact, so the labels
+                          run down one column and the values down another — and
+                          the eye can read "Status" straight across all nine
+                          cards instead of hunting a floating pill.
+
+                          Three lanes in every card, padded where a node has
+                          fewer, each a fixed 28px box. That is what keeps the
+                          lanes level end to end. */}
+                      <p className="text-body-md text-balance text-ink">
+                        {n.kind === 'milestone' ? n.title : `Session ${n.cycle.session}`}
+                      </p>
+                      <span aria-hidden="true" className="mt-3 mb-3 block h-px bg-ink/10" />
+                      <dl className="flex flex-col gap-2.5">
+                        {(() => {
+                          /* Chips get a white backing: `Chip`'s fills are 8%
+                             tints, and a `destructive/8` tint over this card's
+                             `parchment` or `purple-50` paints a colour against
+                             which `destructive` text measures under AA — the
+                             same failure Round 23 found on the `purple-50`
+                             table band. Over white they keep their measured
+                             ratios whatever the card is tinted. */
+                          const chip = (label: string, tone: Parameters<typeof Chip>[0]['tone']) => (
+                            <span className="inline-flex w-fit rounded-full bg-white">
+                              <Chip label={label} tone={tone} />
+                            </span>
+                          )
+                          const plain = (v: string) => (
+                            <span className="text-caption-medium text-ink">{v}</span>
+                          )
+                          const lanes =
+                            n.kind === 'milestone'
+                              ? [
+                                  {
+                                    label: 'Status',
+                                    value: chip(
+                                      n.tone === 'milestone' ? 'Yes' : 'No',
+                                      n.tone === 'milestone' ? 'success' : 'muted',
+                                    ),
+                                  },
+                                  ...n.rows.slice(0, 2).map((r) => ({
+                                    label: r.label,
+                                    value: plain(r.value),
+                                  })),
+                                ]
+                              : [
+                                  {
+                                    label: 'Status',
+                                    value: chip(
+                                      n.cycle.rescheduled
+                                        ? 'Rescheduled'
+                                        : n.cycle.sessionHeld
+                                          ? 'Complete'
+                                          : 'To be held',
+                                      n.cycle.rescheduled
+                                        ? 'destructive'
+                                        : n.cycle.sessionHeld
+                                          ? 'success'
+                                          : 'muted',
+                                    ),
+                                  },
+                                  {
+                                    label: 'Scheduled date',
+                                    value: plain(
+                                      n.cycle.sessionDate
+                                        ? formatDate(n.cycle.sessionDate)
+                                        : 'Not scheduled',
+                                    ),
+                                  },
+                                  {
+                                    label: `Module ${n.cycle.moduleIndex}`,
+                                    value: chip(
+                                      MODULE_STATUS_LABEL[n.cycle.moduleStatus],
+                                      moduleBadgeTone(n.cycle.moduleStatus),
+                                    ),
+                                  },
+                                ]
+                          return (
+                            <>
+                              {lanes.map((r) => (
+                                <div
+                                  key={r.label}
+                                  className="flex h-7 items-center justify-between gap-2"
+                                >
+                                  {/* The colon is part of the label, not a
+                                      separate track: these lanes are
+                                      `justify-between`, so the label hugs the
+                                      left edge and a colon column would float
+                                      in the middle of the gap rather than
+                                      aligning to anything. */}
+                                  <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
+                                    {r.label}:
+                                  </dt>
+                                  <dd className="min-w-0 truncate">{r.value}</dd>
+                                </div>
+                              ))}
+                              {/* Pads a short card to the row's three lanes.
+                                  `invisible`, not omitted: the box has to exist
+                                  for the lanes below it to stay level with the
+                                  cards beside it. */}
+                              {Array.from({ length: Math.max(0, 3 - lanes.length) }).map((_, i) => (
+                                <div
+                                  key={`pad-${i}`}
+                                  aria-hidden="true"
+                                  className="invisible flex h-7 items-center"
+                                >
+                                  <span className="text-fine">&nbsp;</span>
+                                </div>
+                              ))}
+                            </>
+                          )
+                        })()}
+                      </dl>
+                    </div>
                   </div>
                 );
               })}
@@ -2518,6 +3111,121 @@ function Trend({ current, previous }: { current?: number; previous?: number }) {
   )
 }
 
+/**
+ * The six sleep metrics the Fitbit tables report, derived from one log entry.
+ *
+ * Direct instruction: the tables now carry Total Sleep Time, Time in bed
+ * (sleep opportunity), Sleep efficiency, Sleep latency, WASO and Early morning
+ * awakening, and Sync status is gone.
+ *
+ * ## What is real and what is dummy
+ * `HealthLogEntry` carries `durationMin` and `disturbances` and nothing else
+ * that maps onto these. So:
+ *
+ * - **Total sleep time** is REAL — it is `durationMin`, the field the old
+ *   "Duration" column already showed.
+ * - **Sleep latency**, **WASO** and **early morning awakening** are DUMMY.
+ *   They are derived deterministically from `disturbances` rather than
+ *   randomised, so a night reading 3 wakings shows more wake time than one
+ *   reading 0, the same row renders identically on every visit, and the
+ *   Export matches the screen.
+ * - **Time in bed** and **sleep efficiency** are then REAL BY DEFINITION —
+ *   TIB = TST + latency + WASO + EMA, and efficiency = TST / TIB. Computing
+ *   them rather than inventing them is what stops the three columns
+ *   contradicting each other on screen, which is this project's most-repeated
+ *   bug class.
+ *
+ * ⚠️ **To replace with the real integration:** the Fitbit Sleep API already
+ * returns every one of these — `minutesAsleep` (TST), `timeInBed` (TIB),
+ * `efficiency`, `minutesToFallAsleep` (latency), `minutesAwake` (WASO) — so
+ * this helper should collapse to a straight field read on `HealthLogEntry`
+ * once those are stored. Early morning awakening is the one Fitbit does not
+ * publish directly; it is computed from the final wake epoch against the
+ * scheduled rise time.
+ *
+ * Returns `undefined` for a night with no device reading, so every column
+ * renders an em dash together rather than some cells guessing.
+ */
+export interface SleepMetrics {
+  /** Minutes actually asleep. */
+  totalSleepMin: number
+  /** Minutes in bed — the sleep opportunity. */
+  timeInBedMin: number
+  /** TST / TIB, as a whole percentage. */
+  efficiencyPct: number
+  /** Minutes from lights-out to sleep onset. */
+  latencyMin: number
+  /** Wake after sleep onset, in minutes. */
+  wasoMin: number
+  /** Minutes awake before the intended rise time. */
+  emaMin: number
+}
+
+export function sleepMetrics(entry: HealthLogEntry | undefined): SleepMetrics | undefined {
+  if (!entry || entry.durationMin === undefined) return undefined
+  const wakings = entry.disturbances ?? 0
+  /* DUMMY, deterministic. See the block above for what replaces each one.
+     Seeded from the DATE as well as `disturbances`, which matters: several
+     seeded dyads log 0 disturbances on every night, and a derivation that
+     leaned on that field alone produced an identical 6m/0m/0m row and a flat
+     98% efficiency for every night of the study — a reading no real cohort
+     would ever produce, and one that made the three new columns look broken.
+     The date hash gives each night its own plausible spread; the waking count
+     still pushes wake time up on top of it, so the two fields agree. */
+  /* An FNV-1a mix per metric, salted, and seeded with the entry's OWN duration
+     as well as its date. Both parts are load-bearing and both were found by
+     reading the rendered table rather than the code:
+       - Slicing bit ranges out of ONE weak `h * 31` hash left WASO reading an
+         identical 29m on every night of the study and EMA a flat 0m — adjacent
+         date strings differ by one character, so the high bits barely moved.
+       - Seeding on the date alone gave the PLE and the carer the same latency
+         and WASO every night, because they share the date. `durationMin`
+         differs between them, so it separates the two people. */
+  const mix = (salt: number) => {
+    let h = salt ^ 2166136261
+    for (const ch of `${entry.date}:${entry.durationMin}`) {
+      h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0
+    }
+    return h >>> 0
+  }
+  const latencyMin = 9 + (mix(1) % 17) + wakings * 4
+  const wasoMin = 11 + (mix(2) % 29) + wakings * 8
+  const emaMin = mix(3) % 4 === 0 ? 8 + (mix(4) % 17) : 0
+  const totalSleepMin = entry.durationMin
+  const timeInBedMin = totalSleepMin + latencyMin + wasoMin + emaMin
+  return {
+    totalSleepMin,
+    timeInBedMin,
+    efficiencyPct: Math.round((totalSleepMin / timeInBedMin) * 100),
+    latencyMin,
+    wasoMin,
+    emaMin,
+  }
+}
+
+/** "5h 55m" for the two long durations. */
+function hm(min: number): string {
+  return `${Math.floor(min / 60)}h ${min % 60}m`
+}
+
+/** "12m" for the three short ones — an "0h 12m" latency reads as a duration
+ *  of the same kind as time in bed, which it is not. */
+function mins(min: number): string {
+  return `${Math.round(min)}m`
+}
+
+/** The six column headers, in the order the brief lists them. Shared by all
+ *  three Fitbit tables and the CSV so a column can never be renamed on one
+ *  surface only. */
+const SLEEP_METRIC_COLUMNS = [
+  'Total sleep time',
+  'Time in bed',
+  'Sleep efficiency',
+  'Sleep latency',
+  'WASO',
+  'Early morning awakening',
+] as const
+
 export function FitbitLogTable({
   log,
   emptyMessage = 'No Fitbit data synced yet for this consumer.',
@@ -2531,18 +3239,17 @@ export function FitbitLogTable({
     return <p className="p-6 text-caption text-ink-faint">{emptyMessage}</p>
   }
   return (
-    <table className="w-full min-w-[760px] border-collapse text-left">
+    <table className="w-full min-w-[960px] border-collapse text-left">
       <thead>
         {/* `purple-50`, no bottom rule — the treatment `SleepDiaryFeed`'s table
             (the other table on this same tab) already carries. */}
         <tr className="bg-purple-50">
           <th scope="col" className="px-6 py-4 text-caption-medium text-ink">Date</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Sync status</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">REM %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Deep %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Light %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Duration</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Disturbances</th>
+          {SLEEP_METRIC_COLUMNS.map((c) => (
+            <th key={c} scope="col" className="px-4 py-4 text-caption-medium text-ink">
+              {c}
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -2551,43 +3258,34 @@ export function FitbitLogTable({
           return (
             <tr key={entry.date} className={cn(i > 0 && 'border-t border-parchment')}>
               <td className="px-6 py-3 text-caption whitespace-nowrap text-ink">{formatDate(entry.date)}</td>
-              <td className="px-4 py-3">
-                {/* Shared `Chip`, not a hand-rolled pill — Stage Management
-                    already uses `Chip` for its own status indicators, and
-                    this table's own sibling (`ComparativeFitbitTable`) had
-                    drifted onto a different `bg-card` fill for the identical
-                    pill, which routing both through `Chip` fixes for free. */}
-                <Chip tone={entry.synced ? 'success' : 'muted'} label={entry.synced ? 'Synced' : 'Not synced'} />
-              </td>
-              <td className="px-4 py-3 text-caption text-ink-muted">
-                {entry.remPercent !== undefined ? (
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    {entry.remPercent}%
-                    <Trend current={entry.remPercent} previous={prev?.remPercent} />
-                  </span>
-                ) : (
-                  '—'
-                )}
-              </td>
-              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
-                {entry.deepPercent !== undefined ? `${entry.deepPercent}%` : '—'}
-              </td>
-              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
-                {entry.lightPercent !== undefined ? `${entry.lightPercent}%` : '—'}
-              </td>
-              <td className="px-4 py-3 text-caption text-ink-muted">
-                {entry.durationMin !== undefined ? (
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    {Math.floor(entry.durationMin / 60)}h {entry.durationMin % 60}m
-                    <Trend current={entry.durationMin} previous={prev?.durationMin} />
-                  </span>
-                ) : (
-                  '—'
-                )}
-              </td>
-              <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
-                {entry.disturbances ?? '—'}
-              </td>
+              {(() => {
+                const m = sleepMetrics(entry)
+                const p = sleepMetrics(prev)
+                const cell = 'px-4 py-3 text-caption tabular-nums text-ink-muted'
+                if (!m)
+                  return SLEEP_METRIC_COLUMNS.map((c) => (
+                    <td key={c} className={cell}>
+                      —
+                    </td>
+                  ))
+                return (
+                  <>
+                    <td className={cell}>
+                      {/* Trend stays on total sleep time — it was on Duration,
+                          which is the same number under its clinical name. */}
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        {hm(m.totalSleepMin)}
+                        <Trend current={m.totalSleepMin} previous={p?.totalSleepMin} />
+                      </span>
+                    </td>
+                    <td className={cell}>{hm(m.timeInBedMin)}</td>
+                    <td className={cell}>{m.efficiencyPct}%</td>
+                    <td className={cell}>{mins(m.latencyMin)}</td>
+                    <td className={cell}>{mins(m.wasoMin)}</td>
+                    <td className={cell}>{mins(m.emaMin)}</td>
+                  </>
+                )
+              })()}
             </tr>
           )
         })}
@@ -2609,16 +3307,19 @@ export function FitbitLogTable({
  *
  * Two changes from the log table's own columns:
  *   - **Date -> Member.** The rows are people now, not nights.
- *   - **Sync status is dropped entirely** (direct instruction: "I don't want to
- *     see not synced status"). It briefly rendered here as a "5 of 7 nights
+ *   - **Sync status is dropped entirely** — first from this table only (direct
+ *     instruction: "I don't want to see not synced status"), and now from every
+ *     Fitbit table, alongside the metric rewrite. It briefly rendered here as a "5 of 7 nights
  *     synced" chip. Worth recording what goes with it: the reader can no longer
  *     tell how many nights a mean rests on, so a 6h average over 2 synced
  *     nights and one over 7 now look identical. Unsynced nights are still
  *     excluded from every mean rather than counted as zero, so the figures
  *     themselves stay correct — it is only the sample size that is now
- *     invisible. The night-by-night log on the Client sleep & health data tab
- *     still carries its own Sync status column, so the information is one tab
- *     away rather than gone.
+ *     invisible. ⚠️ That escape hatch is now closed too: the night-by-night
+ *     log used to keep its own Sync status column, so sample size was one tab
+ *     away — with the column gone from every table, sync state is no longer
+ *     readable anywhere in this card. It still drives the page-level sync-gap
+ *     banner and the attention list, which is where it now surfaces.
  *
  * `Trend` arrows are dropped — they compare a night with the night before, and
  * there is no "previous" for a single aggregate row.
@@ -2648,11 +3349,15 @@ export function FitbitAveragesTable({
     return {
       ...p,
       considered: window.length,
-      rem: mean((e) => e.remPercent),
-      deep: mean((e) => e.deepPercent),
-      light: mean((e) => e.lightPercent),
-      duration: mean((e) => e.durationMin),
-      disturbances: mean((e) => e.disturbances),
+      /* Means of the SAME derived metrics the log table above renders, read
+         through `sleepMetrics` rather than recomputed here — two surfaces
+         showing one fact must read one source. */
+      totalSleep: mean((e) => sleepMetrics(e)?.totalSleepMin),
+      timeInBed: mean((e) => sleepMetrics(e)?.timeInBedMin),
+      efficiency: mean((e) => sleepMetrics(e)?.efficiencyPct),
+      latency: mean((e) => sleepMetrics(e)?.latencyMin),
+      waso: mean((e) => sleepMetrics(e)?.wasoMin),
+      ema: mean((e) => sleepMetrics(e)?.emaMin),
     }
   })
 
@@ -2661,22 +3366,16 @@ export function FitbitAveragesTable({
   }
 
   const pct = (v: number | undefined) => (v === undefined ? '—' : `${Math.round(v)}%`)
-  /* Disturbances is a count, so a mean is genuinely fractional — "0.4 wakings a
-     night" is a real reading and rounding it to 0 would claim undisturbed
-     sleep. One decimal, and no trailing ".0" on a whole number. */
-  const count = (v: number | undefined) =>
-    v === undefined ? '—' : Number.isInteger(v) ? String(v) : v.toFixed(1)
-
   return (
-    <table className="w-full min-w-[760px] border-collapse text-left">
+    <table className="w-full min-w-[960px] border-collapse text-left">
       <thead>
         <tr className="bg-purple-50">
           <th scope="col" className="px-6 py-4 text-caption-medium text-ink">Member</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">REM %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Deep %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Light %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Duration</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Disturbances</th>
+          {SLEEP_METRIC_COLUMNS.map((c) => (
+            <th key={c} scope="col" className="px-4 py-4 text-caption-medium text-ink">
+              {c}
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -2689,14 +3388,21 @@ export function FitbitAveragesTable({
               <span className="text-caption whitespace-nowrap text-ink">{r.name}</span>{' '}
               <span className="text-fine text-ink-muted">({r.key})</span>
             </th>
-            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">{pct(r.rem)}</td>
-            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">{pct(r.deep)}</td>
-            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">{pct(r.light)}</td>
             <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
-              {r.duration === undefined ? '—' : formatSleepDuration(Math.round(r.duration))}
+              {r.totalSleep === undefined ? '—' : hm(Math.round(r.totalSleep))}
             </td>
             <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
-              {count(r.disturbances)}
+              {r.timeInBed === undefined ? '—' : hm(Math.round(r.timeInBed))}
+            </td>
+            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">{pct(r.efficiency)}</td>
+            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+              {r.latency === undefined ? '—' : mins(r.latency)}
+            </td>
+            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+              {r.waso === undefined ? '—' : mins(r.waso)}
+            </td>
+            <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
+              {r.ema === undefined ? '—' : mins(r.ema)}
             </td>
           </tr>
         ))}
@@ -2705,20 +3411,19 @@ export function FitbitAveragesTable({
   )
 }
 
-/** One log entry as plain CSV cell strings (Sync status/REM %/Deep %/Light %/
- *  Duration/Disturbances) — the same values `FitbitLogTable`/
- *  `ComparativeFitbitTable` display, reused by the Export button's CSV rows
- *  so the export always matches what's on screen. */
+/** One log entry as plain CSV cell strings — the six sleep metrics, read
+ *  through the same `sleepMetrics` helper the tables render, so the export
+ *  always matches what is on screen. */
 function fitbitEntryCsvRow(entry: HealthLogEntry | undefined): string[] {
+  const m = sleepMetrics(entry)
+  if (!m) return SLEEP_METRIC_COLUMNS.map(() => '—')
   return [
-    entry ? (entry.synced ? 'Synced' : 'Not synced') : '—',
-    entry?.remPercent !== undefined ? `${entry.remPercent}%` : '—',
-    entry?.deepPercent !== undefined ? `${entry.deepPercent}%` : '—',
-    entry?.lightPercent !== undefined ? `${entry.lightPercent}%` : '—',
-    entry?.durationMin !== undefined
-      ? `${Math.floor(entry.durationMin / 60)}h ${entry.durationMin % 60}m`
-      : '—',
-    entry?.disturbances !== undefined ? String(entry.disturbances) : '—',
+    hm(m.totalSleepMin),
+    hm(m.timeInBedMin),
+    `${m.efficiencyPct}%`,
+    mins(m.latencyMin),
+    mins(m.wasoMin),
+    mins(m.emaMin),
   ]
 }
 
@@ -2795,19 +3500,18 @@ function ComparativeFitbitTable({ dyad, dateRange }: { dyad: ConsumerDyad; dateR
   const entryFor = (log: HealthLogEntry[], date: string) => log.find((e) => e.date === date)
 
   return (
-    <table className="w-full min-w-[820px] border-collapse text-left">
+    <table className="w-full min-w-[1020px] border-collapse text-left">
       <thead>
         {/* `purple-50`, no bottom rule — matches `FitbitLogTable`'s own
             header and `SleepDiaryFeed`'s table on this same tab. */}
         <tr className="bg-purple-50">
           <th scope="col" className="px-6 py-4 text-caption-medium text-ink">Date</th>
           <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Member</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Sync status</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">REM %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Deep %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Light %</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Duration</th>
-          <th scope="col" className="px-4 py-4 text-caption-medium text-ink">Disturbances</th>
+          {SLEEP_METRIC_COLUMNS.map((c) => (
+            <th key={c} scope="col" className="px-4 py-4 text-caption-medium text-ink">
+              {c}
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -2829,30 +3533,26 @@ function ComparativeFitbitTable({ dyad, dateRange }: { dyad: ConsumerDyad; dateR
                 </td>
               )}
               <td className="px-4 py-3 align-top text-caption font-semibold text-ink-muted">{row.label}</td>
-              <td className="px-4 py-3 align-top">
-                {row.entry ? (
-                  <Chip tone={row.entry.synced ? 'success' : 'muted'} label={row.entry.synced ? 'Synced' : 'Not synced'} />
-                ) : (
-                  <span className="text-caption text-ink-faint">—</span>
-                )}
-              </td>
-              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
-                {row.entry?.remPercent !== undefined ? `${row.entry.remPercent}%` : '—'}
-              </td>
-              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
-                {row.entry?.deepPercent !== undefined ? `${row.entry.deepPercent}%` : '—'}
-              </td>
-              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
-                {row.entry?.lightPercent !== undefined ? `${row.entry.lightPercent}%` : '—'}
-              </td>
-              <td className="px-4 py-3 align-top text-caption text-ink-muted">
-                {row.entry?.durationMin !== undefined
-                  ? `${Math.floor(row.entry.durationMin / 60)}h ${row.entry.durationMin % 60}m`
-                  : '—'}
-              </td>
-              <td className="px-4 py-3 align-top text-caption tabular-nums text-ink-muted">
-                {row.entry?.disturbances ?? '—'}
-              </td>
+              {(() => {
+                const m = sleepMetrics(row.entry)
+                const cell = 'px-4 py-3 align-top text-caption tabular-nums text-ink-muted'
+                if (!m)
+                  return SLEEP_METRIC_COLUMNS.map((c) => (
+                    <td key={c} className={cell}>
+                      —
+                    </td>
+                  ))
+                return (
+                  <>
+                    <td className={cell}>{hm(m.totalSleepMin)}</td>
+                    <td className={cell}>{hm(m.timeInBedMin)}</td>
+                    <td className={cell}>{m.efficiencyPct}%</td>
+                    <td className={cell}>{mins(m.latencyMin)}</td>
+                    <td className={cell}>{mins(m.wasoMin)}</td>
+                    <td className={cell}>{mins(m.emaMin)}</td>
+                  </>
+                )
+              })()}
             </tr>
           )),
         )}
@@ -2945,7 +3645,7 @@ export function FitbitSyncMonitor({
             dateRange,
           )
           return [
-            ['Date', 'Member', 'Sync status', 'REM %', 'Deep %', 'Light %', 'Duration', 'Disturbances'],
+            ['Date', 'Member', ...SLEEP_METRIC_COLUMNS],
             ...dates.flatMap((date) => [
               [formatDate(date), 'PLE', ...fitbitEntryCsvRow(dyad.patientLog.find((e) => e.date === date))],
               [formatDate(date), 'Carer', ...fitbitEntryCsvRow(dyad.carerLog.find((e) => e.date === date))],
@@ -2953,7 +3653,7 @@ export function FitbitSyncMonitor({
           ]
         })()
       : [
-          ['Date', 'Sync status', 'REM %', 'Deep %', 'Light %', 'Duration', 'Disturbances'],
+          ['Date', ...SLEEP_METRIC_COLUMNS],
           ...rangedLog.map((entry) => [formatDate(entry.date), ...fitbitEntryCsvRow(entry)]),
         ]
 
@@ -3543,17 +4243,73 @@ export function SleepDiaryFeed({
  *  Direct instruction: exported so the **Coach Management** record page can
  *  render it as its own "Sleep & health data" sub-tab. This page no longer
  *  shows it. */
+const HEALTH_VIEWS = [
+  { id: 'fitbit', label: 'Fitbit sleep data' },
+  { id: 'diary', label: 'Sleep diary notes' },
+] as const
+type HealthView = (typeof HEALTH_VIEWS)[number]['id']
+
 export function HealthDataHubTab({ dyad }: { dyad: ConsumerDyad }) {
+  /* Direct instruction: the same Fitbit / Sleep diary switch the Coach
+     Delivery Portal's own client health tab already has. Same reasoning as
+     there — the two are alternatives in practice (objective device data vs
+     what the consumer wrote down) and both are tall tables, so stacking them
+     left the diary permanently below the fold of an 18-night Fitbit log.
+
+     The switch itself is now `components/shared/SegmentedSwitch`, extracted at
+     this second caller rather than copied across. Because this component is
+     rendered by BOTH the consumer record page and the Coach profile's health
+     sub-tab, both researcher surfaces get the switch from one change. */
+  const [view, setView] = useState<HealthView>('fitbit')
+
   return (
     // 40px stack, all cards vertical — same rhythm as the other tabs.
     <div className="flex flex-col gap-10">
-      {/* `FitbitSyncMonitor` is reused by the Consumer and Coach Delivery
-          portals too, so the tour anchor sits on a wrapper here rather than
-          inside the shared component. */}
-      <div>
-        <FitbitSyncMonitor dyad={dyad} />
+      {/* Title left, switcher right — the heading gives the control something
+          to be the control *for*, and the switch sits on its own row rather
+          than in either section's header, where a third control would read as
+          one more filter on the table instead of the thing choosing it. */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* "overview" is load-bearing, not filler: the heading names the KPI
+            + switch band, and the section directly below it carries its own
+            "Fitbit sleep data" / "Sleep diary notes" title. Without it the two
+            headings read as the same thing said twice. Matches the Coach
+            Delivery Portal's own wording. */}
+        <h2 className="min-w-0 font-display text-title text-ink">
+          Sleep and health data overview
+        </h2>
+        <SegmentedSwitch
+          options={HEALTH_VIEWS}
+          active={view}
+          onChange={setView}
+          ariaLabel="Sleep data view"
+          idPrefix="research-health-view"
+          panelId="research-health-panel"
+        />
       </div>
-      <SleepDiaryFeed dyad={dyad} />
+
+      <div
+        id="research-health-panel"
+        role="tabpanel"
+        aria-labelledby={`research-health-view-${view}`}
+        className="flex flex-col gap-10"
+      >
+        {view === 'fitbit' ? (
+          <>
+            {/* `FitbitSyncMonitor` is reused by the Consumer and Coach Delivery
+                portals too, so any wrapper concern sits here rather than inside
+                the shared component. */}
+            <div>
+              <FitbitSyncMonitor dyad={dyad} />
+            </div>
+            {/* Takes no props by design — the comparison is a worked example,
+                identical on every consumer, and labelled as such on screen. */}
+            <SleepSourceComparison />
+          </>
+        ) : (
+          <SleepDiaryFeed dyad={dyad} />
+        )}
+      </div>
     </div>
   )
 }
@@ -3857,7 +4613,19 @@ export function ConsumerDetailPage() {
          underline, 40px top / 80px side insets. Applied here so the three
          researcher record pages stay one treatment; see `CoachProfilePage` for
          the measured derivation of `pt-10` and the tab row's `mt-[33px]`. */
-      heroClassName="bg-purple-700 px-6 pt-10 md:px-20 md:pt-10"
+      heroClassName="bg-primary px-6 pt-10 md:px-20 md:pt-10"
+      /* A recorded withdrawal wins over an outstanding request: once the
+         research team has actioned it the request is no longer a task, and
+         showing the amber "still has access" line beside a red one would have
+         the page contradict itself. `setDyadOptOut` also clears the request,
+         so this is belt and braces rather than the only guard. */
+      topBanner={
+        dyad.optedOut ? (
+          <DyadWithdrawnBanner dyad={dyad} />
+        ) : dyad.withdrawalRequested ? (
+          <WithdrawalRequestedBanner dyad={dyad} />
+        ) : undefined
+      }
       /* The band used to be closed by the tab row's own `pb-3`; with the row
          hidden (`TABS.length > 1`) the hero ended flush against its last line
          and the assigned-coach pill sat on the band's bottom edge.

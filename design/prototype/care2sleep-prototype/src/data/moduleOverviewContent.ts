@@ -1,67 +1,96 @@
+import { MODULE_CONTENT, type ModuleContent } from './moduleContent'
+
 /**
- * Round 7.1 (direct UI update, Figma node 1:1433) — content for the new
- * Module Overview page (`ModuleOverviewPage.tsx`), the hub a coach lands
- * on after clicking a module's card CTA on the home timeline, before
- * entering the actual chapter-by-chapter player.
+ * Content for the Module Overview page (`ModuleOverviewPage.tsx`) — the
+ * page a coach lands on before entering the player.
  *
- * Deliberately lighter-weight than `data/moduleContent.ts`'s `ModuleContent`
- * (no learn-video/case/knowledge-check payloads — that's the player's own
- * content, out of scope for this round's "don't touch in-module pages yet"
- * instruction). This is just what the *outline* needs to render: a
- * duration label per section, and the "by the end of this module" outcomes
- * list. Chapter `title`/`number` intentionally mirror `ModuleContent.chapters`
- * 1:1 (same id, title, and count) so the outline never shows a chapter name
- * the player itself doesn't have.
+ * ## It is derived, not authored
+ * This file used to hold its own hand-written chapter list, its own chapter
+ * titles, and three invented "By the end of this module" outcome bullets.
+ * That is the drift this project keeps having to undo: the overview page and
+ * the player's outline rail are two renderings of **one** module structure,
+ * and the moment they are written independently they disagree — the first
+ * time a scenario is added to a chapter, or a chapter is retitled.
  *
- * Keyed by real content id, same as `MODULE_CONTENT` — `pathway.ts`'s
- * `realPlayerContentId()` resolves a home-timeline module id (e.g.
- * `population-understanding`) to the id this map is actually keyed under
- * (`understanding-sleep`) before looking it up, so module 2's overview page
- * shows this same content per the demo redirect, not a mismatched
- * fabrication of its own.
+ * So everything structural now comes straight out of `MODULE_CONTENT`, the
+ * same parse the player runs on. The only thing stored here is the one thing
+ * `module.md` genuinely does not carry: a rough duration per section.
+ *
+ * ## Where the page's prose comes from
+ * The module.md "MODULE SETUP" / "Module brief" table — which sits outside
+ * the slide sequence and is not a slide. Direct instruction (2026-09-15):
+ * its **Core message** replaces the old invented outcomes card, and its
+ * **Core skills** list becomes its own card. Nothing on this page is written
+ * by hand any more except the duration estimates below.
  */
+
+/** Rough section durations. The authoring format carries no timings at all,
+ *  so these are estimates, not source content — the one hand-written thing
+ *  left on this page, and flagged as such. Keyed by slide id so a chapter
+ *  gaining a scenario does not silently shift someone else's estimate. */
+/**
+ * The only hand-written content left on the overview page.
+ *
+ * **Reviewed and deliberately kept, 2026-09-16.** module.md carries no duration
+ * anywhere (workflow §6.1 item 6), so these cannot be derived from the source,
+ * and a slide count is not a time — a 40-word transition and a five-minute video
+ * are both one slide. Inventing a formula would produce a confident number with
+ * nothing behind it.
+ *
+ * What the §C note asked for instead — that they read as estimates — the UI
+ * already does, in both places they appear: the hero says "Estimated Time:
+ * Approx. N min" and every row is prefixed "~". So this closes as *labelled*,
+ * not as *sourced*; a duration row in the authoring template is still the real
+ * fix.
+ */
+const DURATIONS: Record<string, string> = {
+  intro: '~2 min',
+  'chapter-1': '~15 min',
+  'chapter-2': '~15 min',
+  'chapter-3': '~20 min',
+  outro: '~3 min',
+}
 
 export interface ModuleOverviewChapter {
   id: string
   number: number
   title: string
-  /** A single combined estimate for the whole chapter (Learn + case
-   *  examples + knowledge check + what to expect) — distinct from
-   *  `ModuleContent.chapters[].learnVideos[].durationLabel`, which is the
-   *  Learn video's own runtime only. Made up for this round: reasonable
-   *  round numbers, not derived from the player content's finer-grained
-   *  timings. */
   durationLabel: string
+  /** How many slides this chapter actually has — derived, so a
+   *  multi-scenario chapter reports its real length. */
+  slideCount: number
 }
 
 export interface ModuleOverviewContent {
   moduleId: string
+  /** The MODULE SETUP table's Core message. */
+  coreMessage: string
+  coreSkillsIntro: string
+  coreSkills: string[]
   introDurationLabel: string
   chapters: ModuleOverviewChapter[]
   outroDurationLabel: string
-  /** "What you will get from this module" — 3 outcomes, grounded in what the
-   *  linked chapters actually teach. */
-  objectives: string[]
 }
 
-export const MODULE_OVERVIEW_CONTENT: Record<string, ModuleOverviewContent> = {
-  'understanding-sleep': {
-    moduleId: 'understanding-sleep',
-    introDurationLabel: '~1 min',
-    chapters: [
-      { id: 'ch1', number: 1, title: 'How sleep works', durationLabel: '~15 min' },
-      {
-        id: 'ch2',
-        number: 2,
-        title: 'Sleep across the lifespan and what can go wrong',
-        durationLabel: '~15 min',
-      },
-    ],
-    outroDurationLabel: '~5 min',
-    objectives: [
-      'Explain how sleep actually works across the night: sleep cycles, NREM/REM stages, and why brief night waking is normal.',
-      'Distinguish sleep deprivation from insomnia, and describe how sleep changes with ageing.',
-      'Apply a shared-understanding approach when a carer or person living with dementia raises a sleep concern.',
-    ],
-  },
+function deriveOverview(content: ModuleContent): ModuleOverviewContent {
+  return {
+    moduleId: content.moduleId,
+    coreMessage: content.setup.coreMessage,
+    coreSkillsIntro: content.setup.coreSkillsIntro,
+    coreSkills: content.setup.coreSkills,
+    introDurationLabel: DURATIONS.intro,
+    chapters: content.chapters.map((chapter) => ({
+      id: `ch${chapter.number}`,
+      number: chapter.number,
+      title: chapter.title,
+      durationLabel: DURATIONS[`chapter-${chapter.number}`] ?? '~15 min',
+      slideCount: chapter.slides.length,
+    })),
+    outroDurationLabel: DURATIONS.outro,
+  }
 }
+
+export const MODULE_OVERVIEW_CONTENT: Record<string, ModuleOverviewContent> =
+  Object.fromEntries(
+    Object.entries(MODULE_CONTENT).map(([id, content]) => [id, deriveOverview(content)]),
+  )

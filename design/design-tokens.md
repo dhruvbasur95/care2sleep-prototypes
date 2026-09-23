@@ -8739,3 +8739,389 @@ white, 12.63:1.
   are now full-bleed, so above ~1480 the footer aligns with the header rather
   than with the content column above it. Moving content to match is a separate
   change.
+
+---
+
+## §96 — Round 51: the module player rebuilt on the `module.md` block vocabulary (2026-09-15)
+
+The Coach Training Portal's module player now renders clinician-authored content directly from the `Coaching modules master/` authoring format, instead of the Round 7 Module 4 shape. The Round 33 shell (330px outline rail, centred slide column, 84px `purple-50` footer) is unchanged — this replaces what goes *inside* it.
+
+### Why the old content model had to go
+
+Round 7's `ModuleContent` baked one fixed chapter shape into its types: `learnVideos`, exactly 3 `cases`, exactly 5 `knowledgeCheck` questions, 5 `whatToExpect` rows, and a `STEPS_PER_CHAPTER = 8` constant that every position was computed from. That shape does not exist in the real authoring format. A chapter repeats its Know How / You Might Also Hear / Your turn / Transition unit **once per scenario**, and Module 6's three chapters have 1, 1 and 2 scenarios — 8, 8 and 12 slides.
+
+**Any fixed multiplier is wrong for at least one chapter, and wrong silently**: the outline rail and the overview page would point at the wrong slides rather than fail. Positions are now *found* by walking the built step array (`sectionRanges()`), never calculated. Adding a scenario is a data change with no arithmetic to update anywhere.
+
+### The model
+
+A module is slides; a slide is an ordered `Block[]`; a `Block` is a discriminated union keyed by its module.md tag. **One `| Slide N |` row in the source = one player step.** Nothing counts blocks or assumes positions — Module 6 Chapter 3's second Know How genuinely omits the `<Intro block_2>` its first one has, and that renders as authored.
+
+### One outline, two renderings
+
+`sectionRanges()` in `playerSteps.ts` is the single source for both the player's side nav **and** the module overview page's outline rows. Previously the overview page multiplied its own constant. Two surfaces rendering one fact off two independently-written sources is this project's most-repeated bug, and here it would have surfaced the first time a chapter gained a scenario.
+
+`data/moduleOverviewContent.ts` is likewise now **derived** from `MODULE_CONTENT` rather than hand-authored. Its only remaining hand-written values are the per-chapter duration estimates, because the authoring format carries no timings at all.
+
+### Block composition: Figma for layout, this app for styling
+
+Direct instruction. Each block's field order, grouping, and which parts sit on a tinted panel vs. a plain card follow the Figma component (file `xhAPgU8I5GzG9UDPHqJrnj`, canvas `2577:19500`) exactly; type scale, colour tokens, radii and shadows are the portal's own. The block reference itself calls those templates "intentionally low-fidelity — a first pass to validate the workflow", so transcribing their type would import a system nobody chose.
+
+Three deliberate divergences:
+- **Core skills are a wrapping chip list, not the frame's three circular badges.** The frame draws exactly 3; real chapters carry 11, 15 and 17. Three fixed circles cannot hold seventeen, and truncating would drop authored content.
+- **Interactive blocks are bare placeholders** — a labelled card naming the pattern, nothing inside (direct instruction, overriding workflow §3a's "preserve the content in the stub"). The content stays in the data file for whoever builds the real components.
+- **Video blocks show no duration badge.** `VideoPlaceholder.durationLabel` became optional: module.md carries no runtime, and a fabricated number on screen is worse than none.
+
+### Current block spacing (measured, and the thing to fix next)
+
+Blocks have **no padding of their own**. All vertical rhythm comes from one uniform 24px gap between siblings.
+
+| | Measured |
+|---|---|
+| Slide column | 880px wide, 40px top / 40px bottom, 32px sides (24px below `md`) |
+| Gap between any two blocks | **24px**, regardless of which two block types meet |
+| Every text block's own padding | **0 / 0** |
+| LeadPanel (the purple band *inside* `module-intro`, `chapter-intro`, `chapter-opening`, `chapter-outro`) | 28px top/bottom, 32px sides, 16px radius |
+| Video block's `Card` | 12px all round |
+| Interactive placeholder's `Card` | 32px all round |
+| Chapter-outro "Coming up next" `Card` | 24px all round |
+
+880px rather than `SlideLayout`'s 656px: the Figma composite blocks are 879px, and a 17-chip skills list or a three-up quote row does not fit 656px without wrapping into a column of slivers.
+
+**Later the same round, on instruction:** each block now carries **40px on all four sides** and the gap between blocks went **24px -> 40px**. A temporary `DEBUG_BLOCK_OUTLINES` flag in `BlockSlide.tsx` draws a dashed stroke on each block box while the spacing is tuned — `outline`, not `border` or `ring`, because an outline paints outside the box without taking layout, so switching it on cannot move the spacing it is being used to measure. The slide column keeps its own 40px/32px padding for now, so blocks are 816px inside the 880px column; flagged rather than changed, since only the block numbers were specified.
+
+**The column now widens when the outline rail collapses.** It was fixed at 880px, so collapsing the rail (330 -> 76px) just left 254px of dead space either side. `SLIDE_COLUMN_COLLAPSED_PX` is **derived** as `880 + (OUTLINE_RAIL_OPEN_PX - OUTLINE_RAIL_COLLAPSED_PX)` rather than written as `1134` — the two numbers have to move together, and Round 33 already shipped one bug from a hardcoded offset that stopped matching this same collapsible rail (the footer, 127px off centre). The column is `w-full` with that value as `max-width`, so a viewport too narrow for it simply caps at the available width (measured 1124px at a 1280px viewport) rather than overflowing. It transitions over the rail's own 200ms ease-out so the two move together.
+
+The footer needed no change: it already reserves `railWidth + 32` and centres its slide pair in what remains. Measured, the pair's centre matches the column's centre to **0px** in all three cases — rail open (column 880, centre 1101), rail collapsed (column 1134, centre 974), and collapsed at a 1280px viewport (column 1124). `layout-audit.js` empty and no horizontal page scroll in every state.
+
+### `ScrollCue` moved to `components/shared`
+
+Slides can now exceed the content area (a Know What slide carrying four `<Text block_3>` strategy write-ups genuinely does), so the Consumer Portal's cue became the answer here too (direct instruction). Two things generalised on the move and nothing else: a `containerRef` (the player scrolls its own `<main>`, not the window — the cue is `absolute` in that case and `fixed` otherwise) and a `variant: 'app' | 'consumer'`, because the Consumer Portal is on `consumer-primary` and nothing app-wide may leak into it, or the reverse. The consumer call site renders identically.
+
+### Three defects found by measurement, not by looking
+
+1. **55 string literals had the wrong apostrophe.** The source mixes straight `'` and curly `’`; the transcription had normalised everything to curly. Caught by a new `verify-transcription.py`, which checks that every string of copy in the built data appears verbatim in the source. This is the mandated second pass, mechanised — it is not a check the eye passes.
+2. **Duplicate React key.** Slide labels are not unique: a multi-scenario chapter has a "Transition" slide per scenario, and the rail keyed sub-steps by label. Console errors on every render. Key by step index.
+3. **Slides with no heading at all.** You Might Also Hear and Your turn slides are *only* interactive placeholders, so there was no `<h1>` and nowhere for focus to land on arrival — the focus-to-`<body>` class this project has shipped in six rounds. The placeholder's pattern name is now a real heading.
+
+### Deleted
+
+The nine Round 7 screens (`ModuleIntroScreen`, `ChapterMarkerScreen`, `ChapterLearnScreen`, `CaseExampleScreen`, `KnowledgeCheckScreen`, `WhatToExpectScreen`, `ChapterCompleteScreen`, `ModuleOutroScreen`), the orphaned `ModulePlayerHeader` (unreferenced since Round 33), and `OutcomesSection` — whose only call site was an outcomes card whose three bullets were **invented** in Round 7.1, not sourced. Every word on the overview page is now traceable to the source file. `SlideLayout` stays, serving the two shell steps (feedback, complete) that have no module.md slide behind them.
+
+Verified: `tsc -b` and `oxlint` clean, `layout-audit.js` empty on every slide type, no horizontal page scroll, console clean in a fresh tab, focus on the slide's own `<h1>` on every change, 30 built slides against 30 source slide rows, and all 336 strings verbatim.
+
+
+### §96 continued — block type scale, spacing, and transition slides (2026-09-16)
+
+All by direct instruction, applied to the block renderers only (nothing app-wide).
+
+**Type roles inside a block** — Label `body-md` (16/600) · Title `display-md` (32/500) · Sub title `sub-greeting-semibold` (18/600) · Body `body` (16/400).
+
+**Spacing chain** — Label ──24px── Title ──8px── Sub title ──8px── Body. Where a role is absent the next gap applies, so a Title followed directly by Body (the Module intro block has no Sub title) is 8px.
+
+**Transition slides.** A slide whose *only* block is a `<Text block _Sub title>` is a transition beat — detected structurally, never by matching the slide's authored label. It renders centred, with an icon above, and its text bound to `<Text block _Title>`: read from Figma (`2584:1043`) as Inter Medium 32/500, letter-spacing −0.374, `neutral/black`, which is exactly `display-md` + `ink`, so it mapped to existing tokens rather than needing a new step.
+
+The icon is the Consumer Portal's `CardIcon` treatment — a bare glyph, **no plate or tinted circle**, `size-10`, `strokeWidth={1.75}` — and is **chosen per slide against that slide's own copy**, not fixed for the pattern (`TRANSITION_ICONS` in `BlockRenderer.tsx`). Module 6: `Blocks`, `Search`, `Scale`, `SunMoon`. `icon` is the one block field module.md does not supply, so `verify-transcription.py` excludes it as authored.
+
+**Figma mirror.** "Transition slide block" (`2596:1050`) was created in the block library's composite stack, in module.md slide order, matching the code. Its icon came in as the real lucide `footprints` vector via `figma.createNodeFromSvg` — a genuine export, never redrawn — and its layer is named as a per-slide swap slot. **`use_figma` resolved every node id the read tools returned**, which contradicts the Round 35 note above; that failure did not reproduce.
+
+**Two findings recorded rather than acted on:**
+
+1. ~~**`--text-sub-greeting` (18/400) disagrees with Figma's own `sub-greeting` style (18/500).**~~ **Resolved the same day — see below.**
+2. **A page-scroll report that does not reproduce cleanly.** At 1100×560, `documentElement.scrollHeight` is 905 against a 560px viewport, yet `body.scrollHeight` is 560 and **no element has a box past the viewport with an unclipped ancestor**. The overflow is on `<html>`, outside the app's tree — consistent with the preview pane's viewport emulation, but it was reported from a real machine, so it stays open. Full working in `Coaching modules master/next-session-prompt.md` §A1, including the two false leads already eliminated.
+
+
+### §96 continued — `sub-greeting` resynced to Figma, app-wide (2026-09-16)
+
+**`--text-sub-greeting` weight 400 → 500.** Direct instruction to "streamline the subtitle 18md everywhere", which turned a naming question into a token correction.
+
+The question was what "Sub title → 18md" meant; it shipped first as 18/600 on the reasoning that `-md` already means 600 here (`body-md` is 16/600). Figma settled it the other way: it publishes a style named **`sub-greeting` at 18px / Medium (500)**, which "18md" names exactly.
+
+That surfaced the real problem. **The app's token of the same name was 18/400 — nothing in Figma has ever been 18/400.** It was picked up when Round 28 moved this step 20px → 18px and was drift, not a decision. So the fix was a resync rather than a local override, which is the same call Rounds 21.3 and 28 made whenever an app token and its Figma style disagreed.
+
+What moved:
+- the token, 400 → 500;
+- the five block Sub-title call sites, from `sub-greeting-semibold` onto `sub-greeting`;
+- **10 pre-existing call sites that inherit the token** — `ResearchPageHero` sub-copy, `DeliveryOnboarding` body, and sub-lines on My schedule, My profile, My Learning, My Notes and trainee Home. Each was already reaching for Figma's `sub-greeting`, so they became correct rather than merely changed.
+
+`sub-greeting-semibold` (18/600) **stays**. Figma publishes it too, and its one remaining caller is the Plan Sessions wizard's step *heading* (Round 38) — a heading role, not a Sub title, so it is outside what "subtitle 18md" governs.
+
+Both steps were already in `cn()`'s `tailwind-merge` font-size registry, so no call site silently dropped its size class — the Round 21.3 failure this project has hit once before.
+
+Verified: block Sub titles and all 10 inherited sites render 18/500 live; `layout-audit.js` empty on the research home, My schedule, the player and the module overview; no horizontal page scroll; `tsc -b` and `oxlint` clean; the module transcription check still passes 336/336.
+
+---
+
+## §90 — `--primary` returns to `#3a00ad`; the module outro block rebuilt (2026-09-16)
+
+### `--primary` `#4A278F` -> `#3a00ad`, app-wide
+
+Direct instruction: *"primary purple is no longer the key token, it is 3A00AD."*
+
+This **reverses §66/Round 23**, which had moved `--primary` the other way on the
+strength of frame `152:176` using `Purple/700` for every brand-coloured element.
+Both decisions now sit in `index.css` next to the token, the older one left intact
+above the newer rather than overwritten — the reasoning for Round 23's call is
+still the reasoning, it simply no longer wins.
+
+It was asked as a **phased** rollout ("first only the trainee modules overview and
+inner pages") and answered at the token, which is app-wide in one step. That was
+chosen with the consequence stated, and it is recorded here because the phasing was
+the original framing and someone will otherwise read the app-wide diff as a slip.
+
+| | Old | New |
+|---|---|---|
+| `--primary` | `#4A278F` | `#3a00ad` |
+| White on it | 10.62:1 | **11.82:1** |
+
+Contrast was recomputed from the hex rather than carried over. Nothing regresses:
+every filled control gains. `--ring` (`#5300fa`) stays brighter than `--primary`
+and `--color-primary-hover` (`#200061`) stays darker, so the focus-ring-on-primary
+and hover relationships §66 depended on both still hold.
+
+One side effect worth naming: `--color-consumer-primary` is **the same hex**. The
+two portals now share a value while keeping separate tokens. That is not a licence
+to cross-reference them — the standing rule that nothing app-wide may leak into the
+Consumer Portal, or the reverse, is about which token a surface may *name*, and it
+is unchanged. What moved is what `--primary` points at.
+
+**Verified live:** rasterised through a 1x1 canvas (Tailwind v4 emits `oklab()`, so
+parsing the computed string as RGB returns nonsense) — painted `rgb(58, 0, 173)`.
+
+### The module outro block
+
+Rebuilt from a Figma template Dhruv authored mid-session (`2594:19665`). The block
+library doc (`Coaching modules master/block-types-reference.md` -> "The module outro
+block") is the spec; only the app-side decisions are recorded here.
+
+- **Two proportions are derived, not transcribed.** The frame is 1281px wide;
+  the player's card is **720px** at an open rail. A literal 330px pillow takes 47%
+  of that and squeezes the module name to three lines with the CTAs stacked, so it
+  renders at the frame's own ratio (27.5% of inner width) instead. Measured 179px
+  live, CTAs back on one row.
+- **The photo, its yellow wave AND its 4px `#FFCC4D` border are ONE export.**
+  Same construction rule as `ConsumerModuleHeroWave`. The WebP is genuinely
+  transparent below the crest (checked, per the Round 31 baked-plate trap).
+- **That baked border is why the band is neither cropped nor rounded.** A first
+  pass capped it with `max-h-[280px] object-cover`, which was safe while the
+  export was a bare photo; against a baked border, cropping slices it off the
+  cropped edges and a CSS radius rounds the corners straight through it. The
+  Round 46 tall-band risk a cap guards against does not apply here — the band is
+  bounded by the **slide column** (880px, 1134px collapsed), not the viewport, so
+  its height tops out near 353px rather than growing without limit. Worth
+  generalising: *a height cap is a viewport-proportionality fix, and a band
+  constrained by a fixed-width column was never exposed to that problem.*
+- **The template was revised four times on the day it landed** (spacing 40 -> 80
+  -> 40, a 24px band-to-copy gap, title `display-lg` -> `display-md`, and the
+  "Coming up next" number/name rows collapsed to one 18/500 line). The two outer
+  gaps now differ — 24 and 40 — so the band, copy block and card cannot be
+  flattened into one evenly-gapped column. They briefly were, and only the later
+  revision exposed it. Full spec: `block-types-reference.md` -> "The module outro
+  block".
+- **Both CTAs are wired**, to the player's own two moves (advance a step; leave with
+  progress kept — every step is already persisted). They take `caption-medium`, not
+  the frame's 16/600, per the standing button rule, and the inverted white-fill /
+  white-outline pair §67 established for the purple hero band. `OutroButton` falls
+  back to `aria-disabled` + an `sr-only` cue if ever left unwired.
+- Contrast measured on the painted pixels: **11.78:1** on all three pairs.
+
+### A player defect worth generalising
+
+The module player's whole page scrolled, and it had nothing to do with the player's
+layout. Three `sr-only` spans in the outline rail had no positioned ancestor;
+Tailwind's `sr-only` is `position: absolute`, so their containing block was the
+*initial* one. They escaped every `overflow` clip up to `<html>` and added their
+offset to the viewport's scrollable overflow.
+
+The signature is distinctive and worth recognising: **`documentElement.scrollHeight`
+overflows while `body.scrollHeight` is correct, and no element actually overflows.**
+A hunt for the offending box returns nothing, because there isn't one — an
+absolutely-positioned box whose containing block is the ICB contributes to the
+viewport's scrollable overflow, not the body's. `<html>`'s scrollHeight equals the
+*last* such span's bottom, exactly, which is why the number grows with rail height,
+chapter count and browser zoom.
+
+Round 30 hit the same trap horizontally (`sr-only` inside My Learning's carousel
+widening the document to 2399px). This is its vertical twin. Fixed with `relative`
+on the two buttons holding the spans.
+
+---
+
+## §97 — The module player's rail wash (2026-09-17)
+
+A horizontal warm gradient behind the module player's outline rail, **moving
+with the rail**. Frame `2065:1877` (trainee module player shell); only its
+background was in scope ("check background..only").
+
+### The frame's value, and why it is not transcribed
+
+The frame puts it on the shell root as:
+
+```
+linear-gradient(to left, #fffcfa 60.157%, #fff8e5 83.057%)
+```
+
+Read left-to-right on the frame's own 1512px artboard: solid `yellow-50`
+(`#fff8e5`) for the first **16.943%** (256px), fully back to `--background`
+(`#fffcfa`) by **39.843%** (602px).
+
+⚠️ **Those percentages describe one rail state and could not do what was asked.**
+The instruction was that the wash *"moves with side nav"*, and a viewport
+percentage cannot — collapse the rail and the wash would sit exactly where it
+was. The frame's numbers are therefore re-expressed as **ratios of the rail's
+right edge** (24px row inset + 330px rail = 354):
+
+```
+solid ends   256 / 354 = 0.7237
+fade ends    602 / 354 = 1.7017
+```
+
+Measured live: rail open (330) -> wash 602px, exactly the frame. Rail collapsed
+(76) -> wash 170px. Both derived, neither written.
+
+### It is a sized layer, not a computed `background-image`
+
+`background-image` **is not animatable**, so recomputing the stops on collapse
+would make the wash jump while the rail glided. A width is animatable, so the
+wash is a fixed-width layer holding a constant internal gradient
+(`yellow-50` -> `yellow-50` at 42.52% -> `transparent`), carrying the rail's own
+`transition-[width] duration-200 ease-out`. The two now move as one thing.
+
+42.52% is `0.7237 / 1.7017` — the frame's solid stop expressed inside the layer
+rather than against the viewport.
+
+### Stacking
+
+The layer is `-z-10` inside a `relative isolate` root, so it paints **above** the
+root's `bg-background` and **below** every slide, the header and the footer.
+Verified by walking `elementFromPoint` down from a point in the visible band: the
+whole chain is `rgba(0,0,0,0)` until the root's own `rgb(255,252,250)`, so
+nothing opaque covers it.
+
+### Desktop only, and an open question
+
+Gated `hidden lg:block` — **the same breakpoint the rail itself uses**
+(`ModulePlayerNav` is `hidden … lg:block`). Below `lg` there is no side nav for
+the wash to sit behind or move with, so a warm band there would have nothing to
+explain it. Verified: 768px and 375px both render `display: none`.
+
+⚠️ **The instruction said "desktop and tablets".** Tailwind's `lg` is 1024, so a
+768-1023px tablet gets **neither** the rail nor the wash today. Extending the
+wash down to `md` would mean deciding what it follows when there is no rail —
+a separate call, flagged rather than guessed.
+
+---
+
+## §98 — Module player: the end of a module (2026-09-18)
+
+A long direct chat-edit session across the module player's last three screens, with
+~14 instructions arriving mid-turn, several as freehand annotations over the live
+page. One Figma frame (`2695:1055` "Feedback Block"), everything else derived.
+
+### New shared component: `components/shared/FeedbackPillow.tsx`
+
+The five feedback pillows — artwork, moods, selected fills, idle beat — **extracted
+from `SessionFeedbackModal` at their second caller**, the same rule `AnswerOutcome`,
+`Toast` and `MeetingsSection` were extracted under. The consumer file imports them
+back under their old names (`FEEDBACK_MOODS`, `MoodArt`) so its body is unchanged.
+
+It matters more than usual here: every number in that file was measured against a
+frame, several of them twice, and a second copy would drift on the first re-export.
+
+**Only the pillow moved.** The card around it stays with its caller, because the two
+genuinely differ in *layout* rather than colour — the consumer's is a 60vw
+row-reversed strip that becomes a column at `sm`; the module player's is one of five
+equal `flex-1` cards in an 880px slide column. That is the case the standing rules
+say to build locally rather than serve with a flag.
+
+The `consumer-pillow-*` keyframes live in `consumer-tokens.css`, which `index.css`
+imports globally, so the beat runs in the module player too. The class names keep
+their `consumer-` prefix: renaming them would touch the stylesheet, both callers and
+the keyframes for no behavioural gain.
+
+**Five of the 51 broken asset paths closed** on the way — the pillows' `ART` was
+root-absolute and 404s off a sub-path.
+
+### Two measurement lessons
+
+**`text-balance` does nothing past four lines.** The module-summary paragraph runs to
+six and was reported as orphaning. Every engine that ships `text-wrap: balance` caps
+it at four lines, so the class was inert. `text-pretty` is the rule for a paragraph
+that long — it leaves the earlier lines alone and only pulls a word down to stop a
+one-word last line. Measured after: 3 words on the last line at 1512, 4 at 375.
+
+**`layout-audit.js` cannot see a row that is merely too cramped.** Five `flex-1` mood
+cards at 375px measured **37px wide holding 56px pillows** — overlapping artwork,
+colliding labels — and the audit returned empty, because nothing overflowed and
+nothing scrolled. This is the second time that blind spot has hit (the free-text
+feedback bubble was the first). **Look at a 375px screenshot; the audit is not a
+substitute for it.**
+
+### Reuse beats improvement
+
+The mood card's hover is `hover:bg-parchment`, byte-identical to the consumer card.
+A first pass *also* darkened the border to the mood's own shade, reasoning that
+white -> parchment is only a ~10-per-channel shift and therefore near-invisible —
+which is true in general and was the wrong call here. Two copies of one control
+hovering differently is the drift the shared file exists to prevent. Corrected on
+direct instruction: **"use consistent components, remember this, until I
+specifically ask"** — now a standing rule, not a one-off.
+
+### `SlideLayout` deleted
+
+The player's old eyebrow/title/body chassis. It was reviewed on 2026-09-16 and
+deliberately kept for "the two shell steps that have no module.md slide behind
+them — feedback and complete"; both outgrew it this round, leaving it at **zero
+callers**. `BlockSlide` is now the player's only slide chassis, and the five comments
+elsewhere that cited `SlideLayout`'s focus pattern now cite `BlockSlide`'s.
+
+### The outro band is two layers now, and that is not a §78.1 violation
+
+The re-exported band (frame `2598:1043`) is a 1281x360 box carrying a radial purple
+gradient with the 1281x327.92 export pinned to its top. The export's own lower
+corners are **genuinely transparent** — the alpha channel was counted, not assumed —
+and the gradient is what shows through them.
+
+The photo and its wave are still one export. The gradient is the *backdrop* it is
+drawn over, transcribed verbatim from the frame (a `userSpaceOnUse` radial with a
+matrix transform, which CSS's own `radial-gradient()` cannot express) rather than
+re-derived as a flat fill, which would band visibly where the two meet.
+
+### One label, one destination
+
+The "Coming up next" card ended the session with **one** CTA. Its sibling's label
+went *Resume back later -> Back to your modules -> Go back home -> Go to my
+learnings* across four instructions, chasing the player footer's own primary, before
+the button itself was deleted as repetitive. The lesson is in the sequence: when a
+control keeps needing a new name to distinguish it from another control, the second
+control is the problem.
+
+Every rename moved its destination with it. A button reading "home" that lands on the
+module list is the copy-vs-behaviour mismatch this project's reviews keep catching.
+
+### §98a — `--primary` is settled at `#3a00ad` (2026-09-18)
+
+Direct instruction: *"from now on #3a00ad is the primary, not purple 700."*
+
+The code needed no change — `index.css` has said `#3a00ad` since the 2026-09-16
+reversal. What was wrong was the **standing rule** in the app's `CLAUDE.md`, which
+still carried Round 23's "`--primary` is `purple-700` `#4A278F`" and is the line a
+future session reads as current law. Corrected, along with `index.css`'s own comment
+block and the module-folder handover.
+
+Worth recording *why* this drifted twice rather than just what it is now. Round 23
+moved the token because frame `152:176` painted every brand element `Purple/700` and
+nothing `#3a00ad` — reasonable at the time, and exactly the wrong inference. **A
+frame using `Purple/700` is a call site to map onto `--primary`, not a reason to
+repoint `--primary`.** That is now the written rule, so the next set of frames
+cannot restart the loop. `--color-purple-700` stays on the ramp for anything that
+genuinely wants that step.
+
+One consequence to keep straight: `#3a00ad` is also `--color-consumer-primary`'s
+hex, so the two portals now share a painted value while keeping separate tokens.
+The Consumer Portal rule — never `--primary` on a consumer surface — is about
+**provenance, not colour**, and still holds. Do not "simplify" by merging them.
+
+**Still open:** `#3a00ad` is not a published Figma paint style. The block library's
+own labels use it as a raw fill, which is why there was nothing in the file to point
+at when the question came up. Publishing it as a named style — beside `Purple/700`,
+not replacing it — would close the loop properly.

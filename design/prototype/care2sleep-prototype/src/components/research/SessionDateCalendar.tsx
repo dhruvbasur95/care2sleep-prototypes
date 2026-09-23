@@ -95,7 +95,28 @@ export function SessionDateCalendar({
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+      /* The panel is `createPortal`-ed to `document.body`, so it is NOT a
+         descendant of `rootRef` — that div holds only the trigger. Testing
+         `rootRef` alone therefore counted every click **inside the calendar**
+         as an outside click:
+
+           mousedown on a day  ->  this handler closes the popover
+           -> the day button unmounts mid-gesture
+           -> mouseup lands on whatever was underneath
+           -> no `click` event is ever produced (a click needs mousedown and
+              mouseup on the same element)
+           -> the day's onClick never runs and the date never changes.
+
+         Reported as "I cannot pick different dates", and that is exactly what
+         it did. Verified from the real event log: `mousedown:BUTTON|11` then
+         `mouseup:TD|Held 22 Jul 2026`, with no click in between.
+
+         ⚠️ This is invisible to a scripted `element.click()`, which dispatches
+         only a `click` and no `mousedown`, so the handler never fires and the
+         flow appears to work. Test popovers with real presses. */
+      const target = e.target as Node
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

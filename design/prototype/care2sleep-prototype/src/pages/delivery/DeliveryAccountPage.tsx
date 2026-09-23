@@ -4,15 +4,13 @@ import { OptOutCard } from '@/components/delivery/OptOutCard'
 import { NotificationPreferencesCard } from '@/components/account/NotificationPreferencesCard'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research/RecordFields'
 import { useResearch } from '@/data/research-context'
 import { formatDate } from '@/data/format'
 import { cn } from '@/lib/utils'
 import { Download } from 'lucide-react'
 
 const COACH_ID = 'helen-zhang'
-
-const inputClass =
-  'h-9 w-full rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring'
 
 function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['coaches'][number] }) {
   const { updateContact } = useResearch()
@@ -73,28 +71,20 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
               setEditing(false)
             }}
           >
-            <div className="flex flex-col gap-1">
-              <label htmlFor="account-email" className="text-fine text-ink-faint">
-                Email
-              </label>
-              <input
+            <div className={RECORD_GRID}>
+              <RecordInput
                 id="account-email"
+                label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                onChange={setEmail}
               />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="account-phone" className="text-fine text-ink-faint">
-                Phone
-              </label>
-              <input
+              <RecordInput
                 id="account-phone"
+                label="Phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
+                onChange={setPhone}
               />
             </div>
             <p className="text-fine text-ink-faint">
@@ -122,19 +112,12 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
             </div>
           </form>
         ) : (
-          <dl>
-            {fields.map((f, i) => (
-              <div key={f.label}>
-                {i > 0 && <Separator className="bg-divider-soft" />}
-                <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
-                  <dt className="text-caption text-ink-faint">{f.label}</dt>
-                  <dd className={f.breakAll ? 'text-caption break-all text-ink' : 'text-caption text-ink'}>
-                    {f.value}
-                  </dd>
-                </div>
-              </div>
-            ))}
-          </dl>
+          /* Round 47: the shared "title + text field" vocabulary
+             (`RecordFields`) — direct instruction to use it on every
+             profile-details surface. */
+          <RecordFieldList
+            fields={fields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+          />
         )}
       </div>
     </Card>
@@ -192,19 +175,15 @@ function StudyDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['co
       </div>
 
       <div className="border-t border-hairline p-6 pt-4">
-        <dl>
-          {fields.map((f, i) => (
-            <div key={f.label}>
-              {i > 0 && <Separator className="bg-divider-soft" />}
-              <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
-                <dt className="text-caption text-ink-faint">{f.label}</dt>
-                <dd className="text-caption text-ink">{f.value}</dd>
-              </div>
-            </div>
-          ))}
-        </dl>
+        {/* Round 47: same `RecordFields` vocabulary as the Profile details
+            card directly above. Converted alongside it rather than left
+            behind: two cards on one screen drawing label/value two different
+            ways is precisely the drift the shared component exists to end. */}
+        <RecordFieldList
+          fields={fields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+        />
 
-        <Separator className="bg-divider-soft" />
+        <Separator className="mt-5 bg-divider-soft" />
 
         <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
           <p className="text-caption text-ink-muted">

@@ -17,7 +17,6 @@ import {
   Mail,
   Milestone,
   MoreVertical,
-  Star,
   TriangleAlert,
   XCircle,
 } from 'lucide-react'
@@ -28,6 +27,15 @@ import { CertificationChip, Chip } from '@/components/research/StatusChip'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
+import {
+  RECORD_GRID,
+  RecordFieldList,
+  RecordInput,
+  type RecordFieldItem,
+} from '@/components/research/RecordFields'
+import { SIPTEA_BG } from '@/data/siptea'
+import { FEEDBACK_MOODS, FeedbackPillow } from '@/components/shared/FeedbackPillow'
+import { KeyUpdatesPanel, type KeyUpdateItem } from '@/components/research/KeyUpdatesPanel'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import {
@@ -46,7 +54,7 @@ import {
   type ModuleRecord,
 } from '@/data/research'
 import { useResearch } from '@/data/research-context'
-import { formatDate, formatTime } from '@/data/format'
+import { formatDate, formatTime, TODAY } from '@/data/format'
 
 /** Round 9.1: reordered + renamed so researchers see progress first — Learning
  *  Progress (was Training Review), then Stage Management (was Trainee
@@ -121,6 +129,31 @@ const inputClass =
 
 function moduleTitle(moduleId: string): string {
   return PATHWAY_MODULES_V2.find((m) => m.id === moduleId)?.title ?? moduleId
+}
+
+/**
+ * "Module 9: Setting the Stage for Sleep" — the module's curriculum position
+ * followed by its title (direct instruction, 2026-09-21).
+ *
+ * **The number is the module's index in `PATHWAY_MODULES_V2`, not a second
+ * numbering invented here.** That is the same position the trainee sees as the
+ * large numeral on the module card in their own portal, and the same one the
+ * "Modules completed: 5 of 11" figure counts against, so a researcher and a
+ * trainee naming "Module 9" always mean the same module.
+ *
+ * ⚠️ The Notion brief writes this example as "Module 5 - Setting the Stage for
+ * Sleep". 5 is that module's position within **Part B** (the 7 Sleep modules);
+ * 9 is its position in the 11-module curriculum. Flagged rather than silently
+ * matched: shipping the Part B number here would put this card in direct
+ * disagreement with the progress bar 24px to its left.
+ *
+ * Falls back to the bare title if the id is not in the curriculum, so a stale
+ * seed id can never render "Module 0: ".
+ */
+function numberedModuleTitle(moduleId: string): string {
+  const index = PATHWAY_MODULES_V2.findIndex((m) => m.id === moduleId)
+  if (index === -1) return moduleTitle(moduleId)
+  return `Module ${index + 1}: ${PATHWAY_MODULES_V2[index].title}`
 }
 
 /** Nominal slide count used to derive an in-progress module's completion %
@@ -297,14 +330,19 @@ const SIPTEA_LETTER_ORDER: SipteaLetter[] = ['S', 'I', 'P', 'T', 'E', 'A']
  *  with the user rather than invented. `T` happens to land on this app's own
  *  `purple-50` token exactly; the other five are one-off literal Tailwind
  *  hues lifted straight from the frame, not tokens from `index.css`. */
-const SIPTEA_LETTER_STYLE: Record<SipteaLetter, string> = {
-  S: 'bg-blue-100 text-blue-800',
-  I: 'bg-emerald-100 text-emerald-800',
-  P: 'bg-amber-100 text-amber-800',
-  T: 'bg-purple-50 text-violet-800',
-  E: 'bg-red-100 text-red-800',
-  A: 'bg-cyan-100 text-cyan-700',
-}
+/**
+ * ⚠️ **Deleted 2026-09-21.** This surface used to declare its own six-colour
+ * SIPTEA palette out of Tailwind's stock ramps (`bg-blue-100 text-blue-800`
+ * and friends) — an invented mapping with no relationship to the project's
+ * real one, which is exactly the drift `data/siptea.ts` says not to create:
+ * *"Any surface that colours a SIPTEA component reads this — do not re-declare
+ * a palette at a call site."*
+ *
+ * The component discs now read `SIPTEA_BG` directly, so this page and the coach
+ * training module colour a SIPTEA component identically and cannot diverge
+ * again (direct instruction: align the SIPTEA colours used in the training
+ * module here too, letters and background).
+ */
 
 /** 4-tier colour scale for a knowledge-check accuracy percentage — used on
  *  the module-breakdown list and the SIPTEA table's own accuracy column.
@@ -532,6 +570,41 @@ function annotationProgression(coach: Coach): AnnotationProgressionEntry[] {
  * is the one deliberate use of amber in the app; every other status chip
  * still keeps to the documented success/neutral/muted palette.
  */
+/**
+ * Withdrawn banner — shown on every tab of a withdrawn trainee's record
+ * (direct instruction, 2026-09-21: *"show a withdrawn banner uptop as shown
+ * for consumers"*).
+ *
+ * Deliberately the Consumer Portal's own `OptedOutBanner` treatment — red
+ * `destructive` fill, white text, a warning glyph, no dismiss — rather than
+ * the amber `PendingInviteBanner` below. The two states are not the same
+ * kind of thing: a pending invite is a waiting state that resolves itself,
+ * a withdrawal is terminal. Amber for one and red for the other is the
+ * distinction this app already draws everywhere else.
+ *
+ * Not dismissible, for the same reason the consumer one is not: it reports a
+ * standing account state, not a one-time notice, and a researcher who
+ * dismissed it would read the rest of the record as though the trainee were
+ * still active.
+ *
+ * White on `--destructive` measures 5.86:1 (rasterised, not calculated —
+ * Tailwind v4 emits `oklab()`).
+ */
+function WithdrawnBanner({ coach }: { coach: Coach }) {
+  return (
+    <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
+      <div className="mx-auto flex max-w-[1320px] items-start gap-3">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <p className="text-caption font-semibold text-white">
+          {coach.fullName} has withdrawn from the study
+          {coach.withdrawnOn ? ` on ${formatDate(coach.withdrawnOn)}` : ''}. They no longer have
+          access to the platform. Their records are kept per their consent.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function PendingInviteBanner({ coach }: { coach: Coach }) {
   return (
     <div role="status" className="border-b border-amber-200 bg-amber-100 px-6 py-3 md:px-8">
@@ -570,8 +643,24 @@ export function RecordRowDivider() {
   )
 }
 
+/** The reasons a research coordinator withdraws a trainee. Same list the
+ *  SPACES coach withdrawal uses, minus nothing — a trainee leaves for the same
+ *  reasons a certified coach does, and the withdrawn roster tab shows both, so
+ *  two lists would put two vocabularies in one table. */
+const WITHDRAWAL_REASONS = [
+  'Left their aged care employer',
+  'No longer has capacity to continue training',
+  'Health or personal circumstances have changed',
+  'Withdrew from the study at their own request',
+  'Research team decision',
+  'Other',
+]
+
 function PersonalDetails({ coach }: { coach: Coach }) {
   const { updateContact, withdrawCoach } = useResearch()
+  const [withdrawReason, setWithdrawReason] = useState('')
+  const [withdrawDetail, setWithdrawDetail] = useState('')
+  const [withdrawDate, setWithdrawDate] = useState(TODAY)
   const pending = coach.inviteStatus === 'pending'
   const [dialog, setDialog] = useState<'withdraw' | null>(null)
   const [editing, setEditing] = useState(false)
@@ -596,6 +685,23 @@ function PersonalDetails({ coach }: { coach: Coach }) {
     }
   }, [editing])
 
+  /** Focus target after a withdrawal is recorded.
+   *
+   *  **Pre-existing bug, found by measurement 2026-09-21** while building the
+   *  equivalent flow on the consumer record page: confirming unmounts the
+   *  button that opened the dialog (`coach.status !== 'withdrawn'` goes
+   *  false), so `ConfirmDialog` has no trigger left to restore focus to and
+   *  `document.activeElement` lands on `<body>` — verified by running the
+   *  flow end to end, not inferred. Fixed here rather than left to be found a
+   *  seventh time, since the consumer page's identical dialog was being fixed
+   *  in the same pass and shipping one fixed and one broken would be worse
+   *  than either.
+   *
+   *  The Study information heading survives the change and is the card whose
+   *  contents just changed. Same contract `SpacesCoachProfilePage`'s
+   *  `studyHeadingRef` already uses. */
+  const studyHeadingRef = useRef<HTMLHeadingElement>(null)
+
   const participation = [
     { label: 'Participant ID', value: coach.participantId },
     { label: 'Current stage', value: stageLabel(coach.currentPhase) },
@@ -614,9 +720,12 @@ function PersonalDetails({ coach }: { coach: Coach }) {
     { label: 'Full name', value: coach.fullName, breakAll: false },
     { label: 'Email', value: coach.email, breakAll: true },
     { label: 'Phone', value: coach.phone },
-    { label: 'Aged care employer', value: coach.employer },
-    { label: 'Role at employer', value: coach.roleAtEmployer },
-    { label: 'Years in aged care', value: `${coach.yearsInAgedCare} years` },
+    /* Same three labels as the SPACES coach record's Professional details
+       card — the Notion brief's own wording. They were "Aged care employer"
+       here and "Partner org" there for the same field. */
+    { label: 'Aged-care organisation', value: coach.employer },
+    { label: 'Role at organisation', value: coach.roleAtEmployer },
+    { label: 'Years of work experience at enrolment', value: `${coach.yearsInAgedCare} years` },
   ]
 
   return (
@@ -633,7 +742,13 @@ function PersonalDetails({ coach }: { coach: Coach }) {
       {/* Study information */}
       <Card className="gap-0 overflow-hidden rounded-lg border border-parchment bg-card py-0 shadow-card">
         <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
-          <h2 className="font-display text-title text-ink">Study information</h2>
+          <h2
+            ref={studyHeadingRef}
+            tabIndex={-1}
+            className="font-display text-title text-ink outline-none"
+          >
+            Study information
+          </h2>
           {coach.status !== 'withdrawn' && (
             /* Destructive outline on this app's own `destructive` token, not
                the frame's raw `#cc1a1a`/`#fcebeb` pair.
@@ -653,33 +768,33 @@ function PersonalDetails({ coach }: { coach: Coach }) {
             </button>
           )}
         </div>
-        <dl className="flex flex-col py-4">
-          {participation.map((f, i) => (
-            <Fragment key={f.label}>
-              {i > 0 && <RecordRowDivider />}
-              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                <dd className="text-caption text-ink">{f.value}</dd>
-              </div>
-            </Fragment>
-          ))}
-          {/* Ported from ConsumerDetailPage.tsx's own Study information
-              card: withdrawal is only visible here as "the button is gone" —
-              a withdrawn trainee's card otherwise shows no on-screen sign
-              they were ever withdrawn, even though `withdrawalNote` already
-              holds a full sentence for exactly this case. */}
-          {coach.status === 'withdrawn' && (
-            <>
-              <RecordRowDivider />
-              <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-start sm:gap-0 sm:py-2">
-                <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">Status</dt>
-                <dd className="text-caption text-destructive">
-                  {coach.withdrawalNote ?? 'Withdrawn from the study.'}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
+        {/* Round 47: the inline `Label ....... value` rows become the shared
+            "title + text field" vocabulary (`RecordFields`) — direct
+            instruction to use it on every profile-details surface. */}
+        <RecordFieldList
+          className="p-6"
+          fields={[
+            ...participation.map((f) => ({ key: f.label, label: f.label, value: f.value })),
+            /* Withdrawal is otherwise only visible here as "the button is
+               gone" — a withdrawn trainee's card would show no on-screen sign
+               they were ever withdrawn, even though `withdrawalNote` already
+               holds a full sentence for exactly this case. */
+            ...(coach.status === 'withdrawn'
+              ? [
+                  {
+                    key: 'status',
+                    label: 'Status',
+                    full: true,
+                    value: (
+                      <span className="text-destructive">
+                        {coach.withdrawalNote ?? 'Withdrawn from the study.'}
+                      </span>
+                    ),
+                  } as RecordFieldItem,
+                ]
+              : []),
+          ]}
+        />
       </Card>
 
       {/* Personal details */}
@@ -707,33 +822,25 @@ function PersonalDetails({ coach }: { coach: Coach }) {
               setEditing(false)
             }}
           >
-            <div className="flex flex-col gap-2">
-              <label htmlFor="edit-email" className="text-caption-medium text-ink-faint">
-                Email
-              </label>
-              <input
+            <div className={RECORD_GRID}>
+              <RecordInput
                 id="edit-email"
+                label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                onChange={setEmail}
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="edit-phone" className="text-caption-medium text-ink-faint">
-                Phone
-              </label>
-              <input
+              <RecordInput
                 id="edit-phone"
+                label="Phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
+                onChange={setPhone}
               />
             </div>
             <p className="text-caption text-ink-faint">
-              Aged care employer, role, and years in aged care are set at
-              recruitment and aren't editable here.
+              Aged-care organisation, role, and years of work experience are
+              set at enrolment and aren&rsquo;t editable here.
             </p>
             <div className="flex gap-3">
               <button
@@ -756,23 +863,29 @@ function PersonalDetails({ coach }: { coach: Coach }) {
             </div>
           </form>
         ) : (
-          <dl className="flex flex-col py-4">
-            {contactFields.map((f, i) => (
-              <Fragment key={f.label}>
-                {i > 0 && <RecordRowDivider />}
-                <div className="flex min-h-10 flex-col gap-1 px-6 py-2 sm:flex-row sm:items-center sm:gap-0 sm:py-0">
-                  <dt className="text-caption-medium text-ink sm:w-40 sm:shrink-0">{f.label}</dt>
-                  <dd className={cn('min-w-0 text-caption text-ink', f.breakAll && 'break-all')}>
-                    {f.value}
-                  </dd>
-                </div>
-              </Fragment>
-            ))}
-          </dl>
+          <RecordFieldList
+            className="p-6"
+            fields={contactFields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+          />
         )}
       </Card>
 
 
+      {/* Withdrawal — rebuilt 2026-09-21 from the Notion brief: *"The researcher
+          will click on the withdraw tab, enter reason for withdrawal, date of
+          withdrawal."* It was a single yes/no confirm before, which recorded
+          neither.
+
+          Built on `WITHDRAWAL_REASONS` + the reason/detail pair that
+          `SpacesCoachProfilePage`'s own `WithdrawCoachDialog` already
+          established rather than a second vocabulary — a trainee and a coach
+          leave the study for the same kinds of reason, and the withdrawn
+          roster tab lists both. The transfer step is not ported: a trainee has
+          no caseload to hand over.
+
+          Confirm is gated on a reason being chosen (and, for "Other", on the
+          free text being filled), so the record can never say a reason was
+          given when none was. */}
       <ConfirmDialog
         open={dialog === 'withdraw'}
         title={
@@ -783,17 +896,78 @@ function PersonalDetails({ coach }: { coach: Coach }) {
         body={
           pending
             ? "Their invite is cancelled and their status changes to Withdrawn. They won't be able to accept it after this. This is reversible in the prototype only."
-            : 'Their status changes to Withdrawn and their records are kept per their consent. This is reversible in the prototype only.'
+            : 'They lose access to the platform and their status changes to Withdrawn. Their records are kept per their consent. This is reversible in the prototype only.'
         }
-        confirmLabel={pending ? 'Withdraw invite' : 'Withdraw coach'}
+        confirmLabel={pending ? 'Withdraw invite' : 'Withdraw trainee'}
         cancelLabel="Keep active"
         destructive
+        confirmDisabled={!withdrawReason || (withdrawReason === 'Other' && !withdrawDetail.trim())}
         onConfirm={() => {
-          withdrawCoach(coach.id)
+          const trimmed = withdrawDetail.trim()
+          const primary = withdrawReason === 'Other' ? trimmed : withdrawReason
+          const extra = withdrawReason === 'Other' ? '' : trimmed
+          withdrawCoach(
+            coach.id,
+            [primary, extra ? `Additional comments: ${extra}` : null].filter(Boolean).join('. '),
+            withdrawDate,
+          )
           setDialog(null)
+          studyHeadingRef.current?.focus({ preventScroll: true })
         }}
         onClose={() => setDialog(null)}
-      />
+      >
+        <div className="flex flex-col gap-6 py-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="trainee-withdraw-reason" className="text-fine text-ink-faint">
+              Reason for withdrawal
+            </label>
+            <select
+              id="trainee-withdraw-reason"
+              value={withdrawReason}
+              onChange={(e) => setWithdrawReason(e.target.value)}
+              className="h-9 w-full appearance-none rounded-sm border border-hairline bg-card px-3 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Select a reason…</option>
+              {WITHDRAWAL_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="trainee-withdraw-date" className="text-fine text-ink-faint">
+              Date of withdrawal
+            </label>
+            {/* Defaults to today rather than empty: the overwhelmingly common
+                case is recording a withdrawal as it happens, and a required
+                date field that starts blank is a step with one answer. Still
+                editable, because a researcher catching up on paperwork needs
+                to back-date. */}
+            <input
+              id="trainee-withdraw-date"
+              type="date"
+              value={withdrawDate}
+              onChange={(e) => setWithdrawDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="trainee-withdraw-detail" className="text-fine text-ink-faint">
+              {withdrawReason === 'Other' ? 'What happened?' : 'Anything to add? (optional)'}
+            </label>
+            <textarea
+              id="trainee-withdraw-detail"
+              rows={3}
+              value={withdrawDetail}
+              onChange={(e) => setWithdrawDetail(e.target.value)}
+              className="w-full rounded-sm border border-hairline bg-card px-3 py-2 text-caption text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+      </ConfirmDialog>
     </div>
   )
 }
@@ -864,11 +1038,24 @@ export function SlideCard({
   )
 }
 
-/** Star-rating display scale shared with the module player's own
- *  `ModuleFeedbackSlide.tsx` (kept as a separate local constant rather than
- *  a cross-file import — this file only ever reads a rating, never writes
- *  one, so there's no shared behaviour to couple, just the same number). */
-const RATING_MAX = 5
+/**
+ * Maps a stored 1-5 `feedbackRating` onto the trainee's own feedback moods.
+ *
+ * The trainee does not pick a number — the module player's last slide
+ * (`ModuleFeedbackSlide`) asks "How was this module?" and they choose one of
+ * five pillows, Very good -> Very Bad. The seed data predates that slide and
+ * still stores the older 1-5 rating, so the researcher's view of the same
+ * answer derives the mood rather than inventing a second scale: a 5 is
+ * `FEEDBACK_MOODS[0]` (Very good) and a 1 is `FEEDBACK_MOODS[4]` (Very Bad).
+ *
+ * ⚠️ **Dummy-data seam, and the only one on this tab.** Replace this helper
+ * with a direct read of the mood id once `ModuleRecord` carries one; nothing
+ * else here changes, because everything below already renders a mood object.
+ */
+function feedbackMood(rating: number | undefined) {
+  if (!rating) return undefined
+  return FEEDBACK_MOODS[Math.min(FEEDBACK_MOODS.length - 1, Math.max(0, 5 - rating))]
+}
 
 /**
  * A module's per-coach content, presented as the training portal's own
@@ -958,38 +1145,82 @@ function ModuleSlides({ coach, record }: { coach: Coach; record: ModuleRecord })
         </SlideCard>
       )}
 
+      {/* Module feedback — rebuilt 2026-09-21 on direct instruction to show the
+          trainee's answer *in the format they gave it*: the module player's own
+          five-pillow question, not the 0-5 star row this used to draw. The
+          pillow artwork comes from the shared `FeedbackPillow`, so the mood a
+          researcher reads is literally the one the trainee tapped.
+
+          Two deliberate departures from the trainee's slide:
+          - **Only the chosen pillow renders**, not all five with one selected.
+            This is a record of an answer, not the form — four unchosen options
+            in a detail panel are four things a researcher has to rule out. The
+            mood's own name is spelled out beside it so the reading never
+            depends on recognising the artwork.
+          - **No avatars** (direct instruction, and the app-wide rule).
+
+          The free-text box is shown as-is and is what the brief's "topics
+          flagged as unclear" resolves to for now (direct instruction: "for now
+          just treat it as a free text box that we already have in module
+          feedback slide"). It is deliberately NOT relabelled "Topics flagged
+          as unclear" — the trainee was asked what would improve the module,
+          not what confused them, and titling the answer as though a different
+          question had been asked would misreport it. When the mandatory
+          Yes/No + "what is still unclear?" pair from the Notion brief is
+          built, that becomes its own row here. */}
       <SlideCard title="Module feedback" tag={`Slide ${totalSlides} of ${totalSlides}`}>
         {!record.feedbackRating && !record.feedbackComment ? (
           <p className="text-caption text-ink-faint">
             {firstName} didn't leave feedback for this module.
           </p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {record.feedbackRating ? (
-              <div
-                role="img"
-                aria-label={`${record.feedbackRating} out of ${RATING_MAX} stars`}
-                className="flex items-center gap-0.5"
-              >
-                {Array.from({ length: RATING_MAX }, (_, i) => i + 1).map((star) => (
-                  <Star
-                    key={star}
-                    aria-hidden="true"
-                    className={cn(
-                      'size-4',
-                      star <= record.feedbackRating!
-                        ? 'fill-primary text-primary'
-                        : 'fill-none text-ink-faint',
-                    )}
-                    strokeWidth={1.5}
+          <div className="flex flex-col gap-4">
+            {(() => {
+              const mood = feedbackMood(record.feedbackRating)
+              if (!mood) return <p className="text-fine text-ink-faint">No rating given.</p>
+              return (
+                <div
+                  /* The mood's own fill and border, exactly as the trainee's
+                     selected card paints them — `FEEDBACK_MOODS` owns those
+                     hexes and nothing here recolours one. A 3px inset outline
+                     rather than a border, matching the slide: a border would
+                     shift the contents by 2px against the resting card. */
+                  style={{
+                    backgroundColor: mood.fill,
+                    outline: `3px solid ${mood.border}`,
+                    outlineOffset: '-3px',
+                  }}
+                  className="flex items-center gap-4 rounded-[16px] px-4 py-3"
+                >
+                  <FeedbackPillow
+                    art={mood.art}
+                    label={mood.label}
+                    selected
+                    glow={mood.glow}
+                    /* 64px fixed, and no glow — direct instruction. The form
+                       callers scale this to 110px because the pillow is the
+                       control there; here it is a value in a record and sits
+                       beside two lines of text it must not tower over. */
+                    sizeClassName="w-16"
+                    shadow={false}
+                    /* Never beats here. The idle animation exists to invite a
+                       choice; this is a recorded answer, and a looping face in
+                       a read-only record is motion with nothing to say. */
+                    beat={false}
+                    index={0}
                   />
-                ))}
-              </div>
-            ) : (
-              <p className="text-fine text-ink-faint">No rating given.</p>
-            )}
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-fine text-ink-muted">{firstName} rated this module</span>
+                    <span className="text-body-md text-ink">{mood.label}</span>
+                  </div>
+                </div>
+              )
+            })()}
             {record.feedbackComment && (
-              <p className="text-caption leading-[1.6] text-ink">{record.feedbackComment}</p>
+              <div className="flex flex-col gap-2 rounded-sm bg-purple-50 p-4">
+                <p className="text-fine text-ink-muted">In their own words</p>
+                <p className="text-caption leading-[1.6] text-ink">{record.feedbackComment}</p>
+              </div>
             )}
           </div>
         )}
@@ -1099,14 +1330,14 @@ export function NoDetailsAvailable({
  * The three annotated-SIPTEA-guide timepoints a *trainee* record can carry, and
  * the COACH phase each becomes due after. Straight from CLAUDE.md's own
  * "Annotated SIPTEA guide" table: baseline after Content learning, midline
- * after Guided group practice, endline after Placement 2. (The fourth
+ * after Observation and role-play, endline after Hands-on assessment. (The fourth
  * timepoint, post-practice, belongs to a certified coach delivering SPACES and
  * has no slot on `Coach.annotationSummaries`, so it isn't listed.)
  *
  * `dueAfterPhase` is the phase number the trainee must have *reached* for the
  * timepoint to be overdue rather than simply not yet applicable — i.e. one past
  * the phase that produces it. Deliberately named for the stage rather than the
- * number in the copy, because "Not due until Guided group practice" is
+ * number in the copy, because "Due after Observation and role-play" is
  * something a researcher can act on and "Not due until phase 5" isn't.
  *
  * Kept separate from `REVIEW_ITEMS` above rather than merged into it: that one
@@ -1118,27 +1349,22 @@ const ANNOTATION_TIMEPOINTS: {
   timepoint: 'baseline' | 'midline' | 'endline'
   label: string
   dueAfterPhase: number
-  dueAfter: string
 }[] = [
-  {
-    timepoint: 'baseline',
-    label: 'Baseline annotation summary',
-    dueAfterPhase: 4,
-    dueAfter: 'Content learning',
-  },
-  {
-    timepoint: 'midline',
-    label: 'Midline annotation summary',
-    dueAfterPhase: 5,
-    dueAfter: 'Guided group practice',
-  },
-  {
-    timepoint: 'endline',
-    label: 'Endline annotation summary',
-    dueAfterPhase: 8,
-    dueAfter: 'Placement 2',
-  },
+  { timepoint: 'baseline', label: 'Baseline annotation summary', dueAfterPhase: 4 },
+  { timepoint: 'midline', label: 'Midline annotation summary', dueAfterPhase: 5 },
+  { timepoint: 'endline', label: 'Endline annotation summary', dueAfterPhase: 8 },
 ]
+
+/** The stage a timepoint becomes due *after* — the phase one below the phase
+ *  the trainee must have reached. Derived from `stageLabel` rather than written
+ *  beside each entry, which is what let these three strings keep saying
+ *  "Guided group practice" after the stage was renamed to "Observation and
+ *  role-play" on 2026-09-21. Strips the "Stage X: " prefix, because the row
+ *  reads "Due after ...", not "Due after Stage O: ...". */
+function dueAfterStage(dueAfterPhase: number): string {
+  const full = stageLabel(dueAfterPhase - 1)
+  return full.split(': ')[1] ?? full
+}
 
 /**
  * The "Key updates" list on the Overview tab (frame `152:375`, node `152:608`).
@@ -1171,8 +1397,8 @@ const ANNOTATION_TIMEPOINTS: {
  * is an **annotation summary** — the project's own term, and the one used
  * everywhere else in this app.
  */
-function overviewKeyUpdates(coach: Coach): { label: string; value: string; tone?: string }[] {
-  const updates: { label: string; value: string; tone?: string }[] = []
+function overviewKeyUpdates(coach: Coach): KeyUpdateItem[] {
+  const updates: KeyUpdateItem[] = []
 
   // No "Current stage" row, though it was the obvious first one to add: the
   // white sub-panel 24px to the left of this list already says "Current Stage:
@@ -1183,12 +1409,23 @@ function overviewKeyUpdates(coach: Coach): { label: string; value: string; tone?
 
   // 1. What they are working through right now, and what they last finished.
   const inProgress = coach.moduleRecords.find((r) => r.status === 'in-progress')
-  if (inProgress) updates.push({ label: 'Ongoing module', value: moduleTitle(inProgress.moduleId) })
+  if (inProgress)
+    updates.push({
+      id: 'ongoing-module',
+      label: 'Ongoing module',
+      value: numberedModuleTitle(inProgress.moduleId),
+      strong: true,
+    })
 
   const completed = coach.moduleRecords.filter((r) => r.status === 'completed')
   const lastCompleted = completed[completed.length - 1]
   if (lastCompleted)
-    updates.push({ label: 'Last completed module', value: moduleTitle(lastCompleted.moduleId) })
+    updates.push({
+      id: 'last-completed-module',
+      label: 'Last completed module',
+      value: numberedModuleTitle(lastCompleted.moduleId),
+      strong: true,
+    })
 
   // 3. The two learning-quality figures the Learning Progress tab already
   //    publishes. Derived through the SAME helpers that tab uses
@@ -1197,31 +1434,39 @@ function overviewKeyUpdates(coach: Coach): { label: string; value: string; tone?
   //    same field, which is a bug class this project has shipped more than once.
   const accuracy = averageAccuracy(completedModulesWithBank(coach))
   if (accuracy !== null)
-    updates.push({ label: 'Avg. knowledge check accuracy', value: `${accuracy}%` })
+    updates.push({ id: 'accuracy', label: 'Avg. knowledge check accuracy', value: `${accuracy}%` })
 
   const sipteaAssessed = sipteaBreakdown(coach).filter((s) => s.averageAccuracy !== null).length
   if (sipteaAssessed > 0)
-    updates.push({ label: 'SIPTEA components assessed', value: `${sipteaAssessed} of 6` })
+    updates.push({
+      id: 'siptea-assessed',
+      label: 'SIPTEA components assessed',
+      value: `${sipteaAssessed} of 6`,
+    })
 
   // 4. The annotated SIPTEA guide's real timepoints. A timepoint the trainee
   //    has not reached yet says so, naming the stage that unlocks it, rather
   //    than being silently absent — "not due" and "due but missing" are
   //    different things to a researcher, and only one of them needs chasing.
-  for (const { timepoint, label, dueAfterPhase, dueAfter } of ANNOTATION_TIMEPOINTS) {
+  for (const { timepoint, label, dueAfterPhase } of ANNOTATION_TIMEPOINTS) {
     const summary = coach.annotationSummaries.find((a) => a.timepoint === timepoint)
     if (summary) {
-      updates.push({ label, value: summary.shared ? 'Shared' : 'Approved, not shared' })
+      updates.push({
+        id: timepoint,
+        label,
+        value: summary.shared ? 'Shared' : 'Approved, not shared',
+      })
     } else if (coach.currentPhase < dueAfterPhase) {
       // "Due after X", not "Not due until X": a trainee at Stage C is *inside*
       // Content learning, and "Not due until Content learning" reads as though
       // they haven't started it. "Due after" is true at every phase.
-      updates.push({ label, value: `Due after ${dueAfter}` })
+      updates.push({ id: timepoint, label, value: `Due after ${dueAfterStage(dueAfterPhase)}` })
     } else {
       // Overdue — the trainee is past the stage this reflection is due after
       // and nothing has been submitted. Flagged the same way Consumer's own
       // key-updates list flags an at-risk state (Round 25's `tone` field),
       // rather than rendering identically to every routine update above it.
-      updates.push({ label, value: 'Not submitted yet', tone: 'text-destructive' })
+      updates.push({ id: timepoint, label, value: 'Not submitted yet', tone: 'text-destructive' })
     }
   }
 
@@ -1230,6 +1475,7 @@ function overviewKeyUpdates(coach: Coach): { label: string; value: string; tone?
   const nextSession = stageZoomSession(coach).find((s) => s.phase >= coach.currentPhase)
   if (nextSession)
     updates.push({
+      id: 'next-session',
       label: 'Next session',
       // The stage's own short label ("Group practice", "Placement 2"), not
       // `session.title` — the real titles carry their own colon ("Group
@@ -1475,64 +1721,7 @@ function Overview({
               </div>
 
               {/* Key updates panel (`152:525`) */}
-              <div className="flex flex-col gap-6 overflow-hidden rounded-sm bg-parchment p-4 xl:w-[640px] xl:shrink-0">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="text-body-md whitespace-nowrap text-ink">Key updates</p>
-                    {/* `purple-500` fill with white text: 4.85:1, clears AA. */}
-                    <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-purple-500 px-2 text-caption-medium text-white">
-                      {keyUpdates.length} {keyUpdates.length === 1 ? 'update' : 'updates'}
-                    </span>
-                  </div>
-                  {/* No write path: "read" is not a state anything in this app
-                      persists. Rendered as a focusable `aria-disabled` control
-                      with an `sr-only` cue per the standing rule, rather than a
-                      silently dead link or an omission. */}
-                  {/* `-my-3 py-3` again: keeps the frame's 24px header row
-                      while giving the link a 41px pointer target. */}
-                  <button
-                    type="button"
-                    aria-disabled="true"
-                    className="-my-3 shrink-0 rounded-sm py-3 text-caption-medium text-primary underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    Mark all as read
-                    <span className="sr-only"> (coming soon)</span>
-                  </button>
-                </div>
-                {/* Frame draws 5 rows in a fixed-height scroller. Height is
-                    capped rather than growing with the list, so a trainee with
-                    more updates scrolls instead of stretching the card. */}
-                <ul className="flex max-h-[174px] min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xs bg-card p-3">
-                  {keyUpdates.map((u) => (
-                    <li
-                      key={u.label}
-                      className="flex shrink-0 items-center justify-between gap-4 border-b border-purple-200 px-px py-3"
-                    >
-                      <p className="min-w-0 flex-1 text-body text-ink">
-                        {u.label}: <span className={u.tone ?? 'text-primary'}>{u.value}</span>
-                      </p>
-                      {/* Per-row overflow menu, drawn by the frame with nothing
-                          behind it yet — same `aria-disabled` + `sr-only`
-                          treatment as "Mark all as read".
-                          The frame draws this glyph at 20x16 inside a 43px row,
-                          which cannot hold a 36px control. `-my-2.5` resolves
-                          that without giving up either: the button stays a real
-                          36x36 target but contributes only 16px to the row, so
-                          the row's height is still set by its 19px text line
-                          and measures the frame's 43px. Without it the row grew
-                          to 61px and one fewer update fit in the scroller. */}
-                      <button
-                        type="button"
-                        aria-disabled="true"
-                        className="-my-2.5 flex size-9 shrink-0 items-center justify-center rounded-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <MoreVertical aria-hidden="true" className="size-4" />
-                        <span className="sr-only">More options for {u.label} (coming soon)</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <KeyUpdatesPanel items={keyUpdates} className="xl:w-[640px] xl:shrink-0" />
             </div>
           </div>
         </Card>
@@ -1587,7 +1776,7 @@ function Overview({
                     coach={coach}
                     completedPhases={completedPhases}
                     dates={dates}
-                    currentModule={inProgress ? moduleTitle(inProgress.moduleId) : undefined}
+                    currentModule={inProgress ? numberedModuleTitle(inProgress.moduleId) : undefined}
                   />
                 </div>
               </div>
@@ -1808,6 +1997,35 @@ function ZoomSessions({ coach, completedPhases }: { coach: Coach; completedPhase
  * and the state is never carried by colour alone: complete has a tick glyph,
  * current has a ring plus its own label.
  */
+/**
+ * Each stage column's width, as a percentage of the rail.
+ *
+ * ⚠️ **This is a geometry constraint, not a taste choice, and 20 was wrong.**
+ * Stages sit at `i / (count - 1)` of the rail, so consecutive stages are
+ * `100 / (count - 1)` apart — 25% for the five COACH stages. A middle column is
+ * centred on its stage, but the **first and last are pinned flush** to the
+ * rail's ends (which is the whole point of the percentage layout: no dead space
+ * at either edge). A pinned end column therefore sits entirely on the inward
+ * side of its stage instead of straddling it, and reaches `COLUMN_PCT` into the
+ * gap where a centred one would reach only half that.
+ *
+ * So the no-overlap condition is `COLUMN_PCT + COLUMN_PCT / 2 <= spacing`, i.e.
+ * `1.5 x COLUMN_PCT <= 25`, giving a **16.67% ceiling**. At the old 20% the end
+ * columns overlapped their neighbours by 50px *by construction* — invisible for
+ * as long as the stage names were one short word, and immediately visible on
+ * 2026-09-21 when they became the Notion brief's full names: measured at 1440px,
+ * "Peer community feedback" ended at x=1227 and "Hands-on assessment
+ * (Placement 2)" began at x=1205, a 22px overlap that rendered as one run-on
+ * string. Raising the rail's `min-w` does not help, because both terms are
+ * percentages of that same rail.
+ *
+ * 16 leaves a little headroom under the ceiling; `px-3` on each column turns
+ * the remaining gap into a real gutter. The marginLeft that centres a middle
+ * column is derived from this value rather than written beside it, which is how
+ * the two silently disagreed before.
+ */
+const COLUMN_PCT = 16
+
 function StageTimeline({
   coach,
   completedPhases,
@@ -1832,7 +2050,14 @@ function StageTimeline({
     // timeline that is supposed to span the section. Here stage `i` sits at
     // `i / (count - 1)` of the width, so the first is flush left, the last
     // flush right, and every connector segment is the same length.
-    <ol className="relative min-w-[720px] pb-1">
+    /* `min-w-[880px]` is a floor, not a target: the rail is a block and fills
+       its scroller, which is 894px inside the card's `px-12` at a 1440px
+       viewport. 960 was tried first and measured a 1056px scrollWidth in a
+       990px scroller — a 66px horizontal scroll that cut "Hands-on assessment
+       (Placement 2)" off on load, which is a worse read than letting a long
+       stage name wrap to two lines. Below ~976px the rail hits its floor and
+       scrolls, which is what the floor is for. */
+    <ol className="relative min-w-[880px] pb-1">
       {/* Connector track, drawn behind the markers so no segment can break
           between two stages whose labels differ in length. Sits at the
           markers' own vertical midpoint: half of the 48px marker, less half
@@ -1859,12 +2084,20 @@ function StageTimeline({
           <li
             key={phase.number}
             className={cn(
-              'absolute top-0 flex w-[20%] flex-col',
-              first && 'left-0 items-start text-left',
-              last && 'right-0 items-end text-right',
+              'absolute top-0 flex flex-col px-3',
+              first && 'left-0 items-start pl-0 text-left',
+              last && 'right-0 items-end pr-0 text-right',
               !first && !last && 'items-center text-center',
             )}
-            style={first || last ? undefined : { left: `${(i / lastIndex) * 100}%`, marginLeft: '-10%' }}
+            style={{
+              width: `${COLUMN_PCT}%`,
+              ...(first || last
+                ? {}
+                : {
+                    left: `${(i / lastIndex) * 100}%`,
+                    marginLeft: `${-COLUMN_PCT / 2}%`,
+                  }),
+            }}
           >
             <span className="relative z-10 flex size-12 shrink-0 items-center justify-center">
               {/* Live pulse on the stage in progress — a ring expanding out
@@ -1912,8 +2145,28 @@ function StageTimeline({
                 // drops to `fine`/`ink-muted` rather than competing with the
                 // live stage. Upcoming stays plain `caption`/`ink`.
                 done && 'text-fine text-ink-muted',
-                current && 'text-caption-medium text-primary',
-                !done && !current && 'text-caption text-ink',
+                // Purple, deliberately NOT `primary` (direct instruction,
+                // 2026-09-21): `primary` is now the blue #3a00ad, and the
+                // in-progress stage should read as its own accent rather than
+                // as another brand-coloured link.
+                // `purple-700`, not `purple-500`. Measured on this card's own
+                // band (#f5f5f7), `purple-500` #8447ff lands at **4.46:1** and
+                // misses AA for 14px text by 0.04 — the ramp has no purple-600
+                // to fall back to, so the next readable step is 700, which
+                // measures 8.10:1. Not eyeballed: 4.46 and 4.5 are
+                // indistinguishable on screen and only a rasterised read tells
+                // them apart.
+                current && 'text-caption-medium text-purple-700',
+                // "Not started" is the quietest of the three states and was
+                // rendering at full `ink`, the same weight of colour as the
+                // stage name above it — so four upcoming stages read as loudly
+                // as the one the trainee is actually on. Grey demotes it
+                // (direct instruction, 2026-09-21).
+                // `ink-faint`, measured at **4.75:1** on this card's #f5f5f7
+                // band — it clears AA and actually reads grey. `ink-muted` was
+                // tried first and measured 11.6:1, which is barely lighter than
+                // the `ink` it was replacing and did not look demoted at all.
+                !done && !current && 'text-caption text-ink-faint',
               )}
             >
               {done
@@ -1934,13 +2187,31 @@ function StageTimeline({
           </li>
         )
       })}
-      {/* Reserves the height the absolutely-positioned stages need — four text
-          lines under a 36px marker. */}
-      <li aria-hidden="true" className="invisible flex flex-col">
+      {/* Reserves the height the absolutely-positioned stages need.
+          ⚠️ This must carry the **same classes and the same width** as a live
+          column and render the **longest real label**, not `&nbsp;`. The
+          previous version reserved four single lines at a fixed width, which
+          was correct only while every stage name fitted on one line; the
+          longer names settled on 2026-09-21 wrap to two, and a sizer that
+          reserves one would let the tallest column overlap the card beneath
+          it. `text-balance` is deliberately absent here and on the live label
+          for the same reason — a balanced line and an unbalanced one can
+          differ in height. */}
+      <li
+        aria-hidden="true"
+        className="invisible flex flex-col px-3"
+        style={{ width: `${COLUMN_PCT}%` }}
+      >
         <span className="size-12" />
-        <p className="mt-6 text-body font-semibold">&nbsp;</p>
-        <p className="text-caption">&nbsp;</p>
-        <p className="mt-2 text-caption font-medium">&nbsp;</p>
+        <p className="mt-6 text-body-md">{stageShortName(PIPELINE_PHASES[0].number)}</p>
+        <p className="text-caption">
+          {PIPELINE_PHASES.reduce(
+            (longest, p) => (p.shortLabel.length > longest.length ? p.shortLabel : longest),
+            '',
+          )}
+        </p>
+        <p className="mt-2 text-caption-medium">Completed on: 00 Xxx 0000</p>
+        <p className="mt-1 text-caption">&nbsp;</p>
       </li>
     </ol>
   )
@@ -2481,8 +2752,13 @@ function SipteaBreakdownCard({ coach }: { coach: Coach }) {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'flex size-11 shrink-0 items-center justify-center rounded-full text-[20px]',
-                    SIPTEA_LETTER_STYLE[item.letter],
+                    // Byte-identical treatment to the training module's own
+                    // chapter-intro disc (`BlockRenderer.tsx`): the token fill,
+                    // a white `font-medium` initial. Only the disc and type
+                    // size differ (44/20 here against 88/40 there), because
+                    // this one sits in a table row rather than a slide.
+                    'flex size-11 shrink-0 items-center justify-center rounded-full text-[20px] leading-none font-medium text-white',
+                    SIPTEA_BG[item.letter],
                   )}
                 >
                   {item.letter}
@@ -3607,8 +3883,17 @@ export function CoachProfilePage() {
          No bottom padding: the band's bottom edge IS the active tab's underline,
          which is why the shell's tab-seam mode (no `heroNoSeam`) is correct here
          and why the frame measures exactly 257px tall. */
-      heroClassName="bg-purple-700 px-6 pt-10 md:px-20 md:pt-10"
-      topBanner={coach.inviteStatus === 'pending' ? <PendingInviteBanner coach={coach} /> : undefined}
+      heroClassName="bg-primary px-6 pt-10 md:px-20 md:pt-10"
+      /* Withdrawal wins over a pending invite: a withdrawn trainee whose
+         invite was never accepted is withdrawn, and showing the amber "hasn't
+         accepted yet" banner would read as though they were still expected. */
+      topBanner={
+        coach.status === 'withdrawn' ? (
+          <WithdrawnBanner coach={coach} />
+        ) : coach.inviteStatus === 'pending' ? (
+          <PendingInviteBanner coach={coach} />
+        ) : undefined
+      }
       hero={
         <>
           {/* `-my-3 py-3` is deliberate: the frame draws this link as a bare
@@ -3697,7 +3982,7 @@ export function CoachProfilePage() {
                       /* `yellow-300` (`Yellow/300` #ffcc4d) — the frame's active
                          underline. The yellow is the only warm accent on the
                          band, so it is what marks the selected tab; `primary`
-                         would be invisible against `purple-700`. */
+                         would be invisible against the `primary` hero band. */
                       className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-300"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
@@ -3709,19 +3994,14 @@ export function CoachProfilePage() {
         </>
       }
     >
-      {/* Withdrawn banner */}
-      {coach.status === 'withdrawn' && coach.withdrawalNote && (
-        <Card className="mt-8 gap-0 rounded-lg bg-pearl py-0">
-          <div className="p-5">
-            <p className="text-caption font-semibold text-ink-muted">
-              {coach.fullName} withdrew from the study.
-            </p>
-            <p className="mt-1 text-caption text-ink-faint">
-              {coach.withdrawalNote}
-            </p>
-          </div>
-        </Card>
-      )}
+      {/* The `pearl` "withdrew from the study" notice card that used to sit here
+          is gone (2026-09-21). `WithdrawnBanner` now carries that state in
+          `topBanner`, above the hero and on every tab — the same placement the
+          Consumer Portal uses — and the full note with its reason is still on
+          the Personal details card's Status row. Keeping the card as well put
+          the same sentence on screen three times, twice within 200px of each
+          other, and its `bg-pearl` was a cool grey sitting directly on the warm
+          page canvas, which this project's own rules call out. */}
 
       <div
         role="tabpanel"

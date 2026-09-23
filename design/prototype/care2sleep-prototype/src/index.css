@@ -123,6 +123,27 @@
     --color-yellow-300: #ffcc4d;
     --color-yellow-400: #ffb600;
 
+    /* SIPTEA component colours — the six-row "SIPTEA color table" frame
+       (`2614:1044`) on the Figma block library page, added 2026-09-16.
+       One fixed hue per component, used wherever a component is shown as
+       itself rather than as running text: today the Chapter intro block's
+       initial discs.
+
+       These are deliberately NOT on the purple/yellow brand ramps. They are a
+       categorical scale — six things that must be told apart — and a ramp
+       cannot do that job, which is the same reason `plan-module`/`plan-catchup`
+       exist outside the ramps.
+
+       ⚠️ White on these clears 3:1 (so it is legal on the 40px initial, which
+       is WCAG "large") on five of six and FAILS on `p` at 2.04:1. Measured, not
+       calculated. See `data/siptea.ts`, which owns the mapping. */
+    --color-siptea-s: #c85a32; /* terracotta       — Shared understanding */
+    --color-siptea-i: #2e8f82; /* deep teal        — Implementation intent */
+    --color-siptea-p: #dfa934; /* golden amber     — Problem identification */
+    --color-siptea-t: #c4547c; /* berry rose       — Tailoring */
+    --color-siptea-e: #4a90c4; /* cornflower blue  — Emotion navigation */
+    --color-siptea-a: #7c9a3a; /* moss green       — Action and goals */
+
     /* Round 21, direct instruction ("for red, use a more pastel colour to
        share alerts") — the softer alert red for the Research Dashboard Home
        page's attention section: the alert-circle icons and the "N alerts"
@@ -251,6 +272,22 @@
     --color-pearl: #f5f5f7;
     --color-hairline: #e0e0e0;
     --color-divider-soft: #f5f5f7;
+    /* The boundary between committed watercolour artwork and the page.
+       Added 2026-09-18 on direct instruction: with the chapter intro band's
+       purple wave removed, the cover art is warm off-white paper sitting on a
+       warm off-white canvas and it genuinely disappeared into it.
+
+       ⚠️ This is the palette's ONLY brown, and it is deliberate that it is not
+       `parchment`/`pearl`: those are `#f5f5f7`, a COOL grey, and this file's own
+       standing rule records that pearl reads as a foreign patch on the warm
+       `#fffcfa` canvas. A cool hairline around warm paper has the same problem.
+
+       Derived, not picked: the average warm mid-tone actually present across the
+       three Module 6 covers is `#9f846d` (1,253 sampled pixels in the warm-hue,
+       mid-value band), mixed 45% toward the page. Measured 1.63:1 against
+       `#fffcfa` — a visible edge, well short of a frame. It is a non-text
+       boundary, so 1.63:1 is the intent, not an AA failure. */
+    --color-art-edge: #d4c6bb;
     --color-header: #000000;
     --color-on-dark-muted: #cccccc;
     /* Was #2997ff. Purple Lighter 3 — the lightest ramp step that still
@@ -546,6 +583,16 @@
     --text-display-md--line-height: normal;
     --text-display-md--letter-spacing: -0.374px;
     --text-display-md--font-weight: 500;
+    /* The Your turn multiple-choice question stem, from the MCQ frames
+       (`2666:23995` / `2666:24168`). 28px is an unnamed local override in
+       Figma — it carries no published text style — but it is 4px off
+       `display-md` and 8px off `title`, which this file's own rule calls a
+       different typographic system rather than a near-miss, so it is added as
+       its own step with the frame's weight and spacing. */
+    --text-display-sm: 28px;
+    --text-display-sm--line-height: normal;
+    --text-display-sm--letter-spacing: 0;
+    --text-display-sm--font-weight: 500;
     /* Added to the Figma styles after the Round 21.3 migration had already
        run, and it is effectively the removed `subtitle` step (20/400)
        returning under a name that says what it is for: the sub-line under a
@@ -555,10 +602,22 @@
        resize, for those. Use it ONLY for hero sub-copy; a card's sub-line is
        `caption`.
        Round 28: 20px -> 18px, matching the Figma style's own edit. */
+    /* Round 51 (2026-09-16): weight 400 -> 500, resyncing to Figma's own
+       published `sub-greeting` text style, which is Inter **Medium (500)** at
+       18px. The app had carried 400 since Round 28 moved this step 20px ->
+       18px; that was drift, not a decision — nothing in Figma has ever been
+       18/400. Found while reading `getLocalTextStylesAsync()` to settle what
+       "Sub title -> 18md" meant: "md" is Medium, and Figma already had exactly
+       that step under this name.
+
+       10 call sites move with it (research hero sub-copy, the trainee
+       onboarding body, and several delivery page sub-lines) — all of them
+       wanted Figma's `sub-greeting`, so they get more correct, not different
+       for its own sake. */
     --text-sub-greeting: 18px;
     --text-sub-greeting--line-height: normal;
     --text-sub-greeting--letter-spacing: 0;
-    --text-sub-greeting--font-weight: 400;
+    --text-sub-greeting--font-weight: 500;
 
     /* Round 38: the semibold partner to `sub-greeting`, added for the Plan
        Sessions wizard's step heading, which moved off `display-md` (32px) on
@@ -575,7 +634,11 @@
        No other step in the scale is 20px, so nothing collides and the token
        keeps its name. `title` is used in the hundreds across all 4 portals. */
     --text-title: 20px;
-    --text-title--line-height: normal;
+    /* 140% (2026-09-16, direct instruction; Figma's own `title` style updated
+       to match). A sanctioned exception to Round 23's "every step is `normal`"
+       rule, the same way `body` and `caption` are — and like those, it is the
+       Figma style that moved first. 20 x 1.4 = 28px. */
+    --text-title--line-height: 1.4;
     --text-title--letter-spacing: 0;
     --text-title--font-weight: 500;
     --text-body-md: 16px;
@@ -583,13 +646,24 @@
     --text-body-md--letter-spacing: 0;
     --text-body-md--font-weight: 600;
     --text-body: 16px;
-    /* 140%, matching the Figma style's own edit (Round 38, direct
+    /* **150% as of 2026-09-16 (direct instruction).** Moved 140% -> 145% ->
+       150% over the same session; the 140% note below is history, not the
+       current value.
+
+       Applying it exposed that eight block call sites were overriding this
+       token by hand at 1.4 / 1.5 / 1.55 / 1.6 — so `body` did not have one
+       line height at all, and changing the token alone would have reached
+       almost none of them. The overrides are gone; the token is now the single
+       source. Figma's own `body` style still reads 140% and is the one
+       remaining divergence.
+
+       140%, matching the Figma style's own edit (Round 38, direct
        instruction). A deliberate, sanctioned exception to Round 23's
        "every step is `normal`" rule — the same way `caption` went back to
        130% in Round 24 — not a drift back to the pre-Round-23 ratios. Wide
        reach: `body` is used in the hundreds across all four portals, so
        multi-line copy everywhere gets looser. */
-    --text-body--line-height: 1.4;
+    --text-body--line-height: 1.5;
     --text-body--letter-spacing: 0;
     --text-body--font-weight: 400;
     /* Round 28, direct instruction: Figma's own style moved from Semi Bold
@@ -609,11 +683,23 @@
     --text-caption: 14px;
     /* Round 24, direct instruction: Figma's own `caption` style moved from
        AUTO to 130%, so this one step is now an explicit ratio again while
-       every other step stays on `normal` (Round 23, §67). 14 x 1.3 = 18.2px
-       against `normal`'s ~17px, so multi-line `caption` copy gains ~1px per
-       line — deliberate, and the only step that does. `caption-medium` is a
-       separate Figma style and is NOT included; it still reports AUTO. */
-    --text-caption--line-height: 130%;
+       every other step stays on `normal` (Round 23, §67). `caption-medium` is a
+       separate Figma style and is NOT included; it still reports AUTO.
+
+       **2026-09-17: 130% -> 140%**, direct instruction ("increase line height
+       to 140%, I have updated same in figma"). Verified as a real style change
+       before touching the token rather than taken on trust: the published
+       `caption` style read `lineHeight: 1.2999999` earlier the same session and
+       reads `1.3999999` now, so this is a resync and not a local override.
+
+       14 x 1.4 = 19.6px against `normal`'s ~17px, so multi-line `caption` copy
+       now gains ~2.6px per line. It reaches **704 call sites across 62 files**
+       in all four portals — quote bubbles, table meta cells, chips, timestamps,
+       card sub-copy. That is the intended scope, not collateral, but it is the
+       widest-reaching leading change since Round 23 set every other step to
+       `normal`, and anything relying on a `caption` block's exact height should
+       be re-measured rather than assumed. */
+    --text-caption--line-height: 140%;
     --text-caption--letter-spacing: -0.224px;
     --text-caption--font-weight: 400;
     /* Round 23, frame `152:176`: **600, not 400** — direct instruction
@@ -719,7 +805,36 @@
        any threshold. `--ring` (#5300fa) stays brighter than this, and
        `--color-primary-hover` (#200061, purple-900) stays darker, so the
        focus-ring-on-primary and hover relationships both still hold. */
-    --primary: #4A278F;
+
+    /* **2026-09-16 reverses that, by direct instruction: `--primary` is
+       #3a00ad again** — "primary purple is no longer the key token, it is
+       3A00AD". This is the value Round 21 originally set and Round 23 moved
+       away from, so the app returns to one brand purple rather than carrying
+       two nearly-identical ones. It also collapses the app/consumer divergence
+       `consumer-tokens.css` documents: `--color-consumer-primary` is the same
+       #3a00ad, so the two portals now share a hex while keeping separate
+       tokens (the Consumer Portal's own scale and brand stay its own — this
+       changes what `--primary` points at, not who may reference which token).
+
+       Asked as a phased, trainee-module-first rollout and answered at the
+       token instead, which is app-wide in one step and was chosen knowing
+       that. Recorded because the phasing was the original framing.
+
+       Contrast, recomputed from the hex rather than carried over: white on
+       #3a00ad is **11.82:1**, up from #4A278F's 10.62:1, so no filled control
+       regresses. `--ring` (#5300fa) is still brighter and
+       `--color-primary-hover` (#200061) still darker, so both relationships
+       the note above depends on continue to hold. */
+
+    /* ⚠️ **SETTLED 2026-09-18 — do not move this token again.** Direct
+       instruction: "from now on #3a00ad is the primary, not purple 700". The
+       two comment blocks above are a full round trip (#3a00ad -> #4A278F ->
+       #3a00ad) and the reason it moved the first time was a set of frames
+       painting everything `Purple/700`. That is no longer an argument: a frame
+       using `Purple/700` is a call site to map onto `--primary`, not a reason
+       to repoint it. `--color-purple-700` (#4A278F) stays on the ramp for
+       anything that genuinely wants that step. */
+    --primary: #3a00ad;
     --primary-foreground: #ffffff;
     --secondary: #f5f5f7;
     --secondary-foreground: #333333;

@@ -829,6 +829,32 @@ export interface ConsumerDyad {
    *  directly rather than any further action happening in-app. */
   optedOut?: { reason: string; date: string }
   /**
+   * Set when the consumer has **asked** to leave but the research team has not
+   * yet actioned it (2026-09-21, direct instruction: *"add a use case for
+   * withdrawal requested also, as consumers can also do same from their own
+   * view"*).
+   *
+   * Deliberately a separate field from `optedOut` rather than a third value on
+   * it: "asked to leave" and "has left" are different states with different
+   * consequences — a requested withdrawal still has portal access, still counts
+   * as an active consumer, and is a **task for the researcher**, whereas
+   * `optedOut` is a closed record. Collapsing them would make the roster's
+   * Active/Withdrawn tabs lie in one direction or the other.
+   *
+   * Cleared by `setDyadOptOut` when the researcher confirms — a request that
+   * has been actioned is not still outstanding.
+   *
+   * ⚠️ **The Consumer Portal's own opt-out flow is deliberately NOT rewired to
+   * set this.** `ConsumerAccountPage` still writes `optedOut` directly, and six
+   * consumer pages gate banners and Zoom access on that field. Routing the
+   * consumer through a request-then-confirm handshake is the coherent end
+   * state, but it changes signed-off Consumer Portal behaviour that was not in
+   * this round's scope. The state is seeded on `dyad-012` so the researcher
+   * side is demonstrable; wiring the consumer end is a one-line swap to
+   * `requestDyadWithdrawal` when asked.
+   */
+  withdrawalRequested?: { date: string; note?: string }
+  /**
    * The date the consumer last submitted the sleep diary **through the portal**
    * (Round 45). Drives Home's completed-diary card.
    *
@@ -1053,6 +1079,22 @@ export const consumerDyads: ConsumerDyad[] = [
   },
   {
     id: 'dyad-011',
+    /* The demo case for the researcher's withdrawal-request queue.
+       **Moved here from `dyad-012` on 2026-09-21, direct instruction:** *"do not
+       disable view study progress for someone who has requested for
+       withdrawal"*. That CTA is gated on the assigned coach having a SPACES
+       record, and `dyad-012`'s coach (Mei-Ling Chen) is certified but not yet
+       onboarded — so the button was disabled for a reason that has nothing to
+       do with withdrawal, and the record read as though requesting withdrawal
+       had taken the researcher's access away. Bruce & Joan are assigned to
+       Helen Zhang, who is onboarded, so the CTA works.
+       It also demonstrates the point of the state better: this is the dyad with
+       a session plan and three sessions held, which is exactly the case where
+       "they asked to leave but still have access" matters. */
+    withdrawalRequested: {
+      date: '2026-09-18',
+      note: 'Joan called the study line: Bruce has had two hospital admissions this month and she cannot commit to the remaining sessions.',
+    },
     coachId: 'helen-zhang',
     // Two days after consent (20 Jun), before the 24 Jun planning session —
     // consistent with the order the arc actually runs in.

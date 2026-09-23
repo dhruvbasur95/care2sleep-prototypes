@@ -84,13 +84,13 @@ function dyadTitle(dyad: ConsumerDyad): string {
   return dyad.patient ? `${dyad.patient.name} & ${dyad.carer.name}` : dyad.carer.name
 }
 
-/** Shared item shape — also reused by `ResearchNotificationHub.tsx` (Research
+/** Shared item shape — also reused by `ResearchNotificationHub.tsx` (deleted; the Research
  *  Dashboard "My Home", Round 20), which builds a study-wide notice list
  *  from trainees/consumers instead of one coach's caseload but renders
  *  through the exact same carousel/card/dismiss chassis below.
  *
  *  `severity` (Round 20.2) is a Research-Dashboard-only addition: a
- *  red/amber/green traffic-light classification `ResearchNotificationHub.tsx`
+ *  red/amber/green traffic-light classification the deleted `ResearchNotificationHub.tsx`
  *  sets to both color and re-sort its 5 notice categories by researcher
  *  priority. It's additive and optional precisely so this file's own
  *  `buildNotifications` below — the Coach Delivery Portal's generator, which
@@ -632,7 +632,7 @@ function EmptyState() {
 /** Generic presentational chassis — the green-tinted card, header, dismiss
  *  live-region, and carousel/empty-state switch. Takes an already-built item
  *  list, so it has no opinion on *what* produced the notices; `NotificationHub`
- *  below (coach caseload) and `ResearchNotificationHub.tsx` (study-wide,
+ *  below (coach caseload) and the deleted `ResearchNotificationHub.tsx` (study-wide,
  *  Round 20) each supply their own `buildNotifications`-style function and
  *  header copy, then render through this one shared shell. */
 export function NotificationHubView({

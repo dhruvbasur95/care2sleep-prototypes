@@ -75,7 +75,7 @@ export interface ResearchStore {
    *  written into the coach's `withdrawalNote`, which the profile card renders
    *  back. Optional so the trainee record page's own withdraw action (which
    *  has no reason step) keeps working unchanged. */
-  withdrawCoach: (coachId: string, reason?: string) => void
+  withdrawCoach: (coachId: string, reason?: string, date?: string) => void
   updateContact: (coachId: string, patch: { email: string; phone: string }) => void
   /** Completed COACH phase numbers per coach id (Round 2.2 phase pipeline). */
   phaseCompletion: Record<string, number[]>
@@ -239,7 +239,10 @@ export interface ResearchStore {
   updateCoachNotificationPreferences: (coachId: string, prefs: NotificationPreferences) => void
   updateDyadNotificationPreferences: (dyadId: string, prefs: NotificationPreferences) => void
   /** Consumer-initiated study withdrawal from the Account tab's opt-out card. */
-  setDyadOptOut: (dyadId: string, reason: string) => void
+  setDyadOptOut: (dyadId: string, reason: string, date?: string) => void
+  /** Records a consumer-initiated request to leave, without withdrawing them.
+   *  See `ConsumerDyad.withdrawalRequested`. */
+  requestDyadWithdrawal: (dyadId: string, note?: string) => void
 }
 
 /** Placeholder Zoom meeting id/link generator (session planning, Round 14) —
@@ -347,13 +350,19 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     [coaches],
   )
 
+  /** `date` is the researcher-entered **date of withdrawal** (Notion brief,
+   *  2026-09-21) — the day the person actually left, which is not always the
+   *  day the record was updated. Optional so the SPACES coach flow, which has
+   *  no date field yet, keeps its existing behaviour byte-identical and falls
+   *  back to today. */
   const withdrawCoach = useCallback(
-    (coachId: string, reason?: string) => {
+    (coachId: string, reason?: string, date?: string) => {
       patchCoach(coachId, (c) => ({
         ...c,
         status: 'withdrawn',
+        withdrawnOn: date || TODAY,
         withdrawalNote: [
-          `Withdrawn by the research coordinator on ${formatDate(TODAY)} (prototype demo action).`,
+          `Withdrawn by the research coordinator, effective ${formatDate(date || TODAY)} (prototype demo action).`,
           reason ? `Reason: ${reason.replace(/\.$/, '')}.` : null,
           'Records retained per consent.',
         ]
@@ -853,9 +862,28 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const setDyadOptOut = useCallback((dyadId: string, reason: string) => {
+  /* `date` added 2026-09-21 to match `withdrawCoach`, so the researcher's
+     "Date of withdrawal" field is actually recorded rather than being a control
+     whose value the store throws away. Optional, so the Consumer Portal's own
+     opt-out (which has no date picker — it happens now, by definition) is
+     unchanged.
+
+     Confirming also clears `withdrawalRequested`: the request has been
+     actioned, and leaving it set would keep the consumer in the researcher's
+     "needs a decision" queue forever. */
+  const setDyadOptOut = useCallback((dyadId: string, reason: string, date?: string) => {
     setConsumerDyads((prev) =>
-      prev.map((d) => (d.id === dyadId ? { ...d, optedOut: { reason, date: TODAY } } : d)),
+      prev.map((d) =>
+        d.id === dyadId
+          ? { ...d, optedOut: { reason, date: date || TODAY }, withdrawalRequested: undefined }
+          : d,
+      ),
+    )
+  }, [])
+
+  const requestDyadWithdrawal = useCallback((dyadId: string, note?: string) => {
+    setConsumerDyads((prev) =>
+      prev.map((d) => (d.id === dyadId ? { ...d, withdrawalRequested: { date: TODAY, note } } : d)),
     )
   }, [])
 
@@ -908,6 +936,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       updateCoachNotificationPreferences,
       updateDyadNotificationPreferences,
       setDyadOptOut,
+      requestDyadWithdrawal,
     }),
     [
       coaches,
@@ -956,6 +985,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       updateCoachNotificationPreferences,
       updateDyadNotificationPreferences,
       setDyadOptOut,
+      requestDyadWithdrawal,
     ],
   )
 

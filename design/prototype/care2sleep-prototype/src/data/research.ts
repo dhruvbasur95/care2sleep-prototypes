@@ -50,14 +50,48 @@ export interface StudyPhase {
   shortLabel: string
 }
 
+/**
+ * ⚠️ **Researcher-facing stage names, settled 2026-09-21 from the Notion brief**
+ * ("Researcher dashboard open items to be confirmed" -> Learning progress page ->
+ * "Confirmation on stage management terminologies"). These replace the older
+ * short words (Learning / Group Practice / Community Practice / Waiting final
+ * assessment) everywhere a researcher reads a stage.
+ *
+ * Two things about this list are deliberate and easy to get wrong later:
+ *
+ * 1. **`name` and `shortLabel` are now identical for the five COACH stages.**
+ *    They used to differ because the long names did not fit a table column.
+ *    The brief names one term per stage, so carrying two spellings would let
+ *    the roster and the pathway timeline disagree about what a stage is
+ *    called — this project's most-repeated bug class. One term, one field pair,
+ *    both set to it.
+ *
+ * 2. **The stage names are audience-dependent, exactly like consumer/client.**
+ *    The brief gives a *second*, friendlier set for the trainee's own portal:
+ *      Stage C  -> Learning the basics
+ *      Stage O  -> Observing and practice with peers
+ *      Stage A  -> Your first placement
+ *      Stage CP -> Peer community feedback
+ *      Stage H  -> Your second placement (hands-on assessment)
+ *    Those are NOT in this file and must never leak into it: this constant is
+ *    read only by the Research Dashboard. The trainee portal draws its own rail
+ *    from `data/coachPathway.ts`, which is a different six-stage list
+ *    (Content Learning / Guided Group Practice / Peer Role-Play / Hands-on
+ *    Assessment / My Reflection / Live Intervention) and does **not** map
+ *    one-to-one onto these five — so the trainee-side rename is a separate
+ *    piece of work and is recorded as outstanding, not quietly applied here.
+ *
+ * Sentence case per CLAUDE.md, so the brief's "Observation and Role-play"
+ * is spelled "Observation and role-play".
+ */
 export const STUDY_PHASES: StudyPhase[] = [
   { number: 1, name: 'Recruitment', shortLabel: 'Recruitment' },
   { number: 2, name: 'Enrolment and platform access', shortLabel: 'Enrolment and platform access' },
-  { number: 3, name: 'Content learning', stageCode: 'C', shortLabel: 'Learning' },
-  { number: 4, name: 'Guided group practice', stageCode: 'O', shortLabel: 'Group Practice' },
-  { number: 5, name: 'Placement 1', stageCode: 'A', shortLabel: 'Placement 1' },
-  { number: 6, name: 'Community of practice', stageCode: 'CP', shortLabel: 'Community Practice' },
-  { number: 7, name: 'Placement 2 and certification', stageCode: 'H', shortLabel: 'Waiting final assessment' },
+  { number: 3, name: 'Content learning', stageCode: 'C', shortLabel: 'Content learning' },
+  { number: 4, name: 'Observation and role-play', stageCode: 'O', shortLabel: 'Observation and role-play' },
+  { number: 5, name: 'Application (Placement 1)', stageCode: 'A', shortLabel: 'Application (Placement 1)' },
+  { number: 6, name: 'Peer community feedback', stageCode: 'CP', shortLabel: 'Peer community feedback' },
+  { number: 7, name: 'Hands-on assessment (Placement 2)', stageCode: 'H', shortLabel: 'Hands-on assessment (Placement 2)' },
   { number: 8, name: 'Entry into SPACES delivery', shortLabel: 'Entry into SPACES delivery' },
 ]
 
@@ -553,6 +587,10 @@ export interface Coach {
   currentPhase: number
   /** Present for withdrawn coaches */
   withdrawalNote?: string
+  /** ISO date the trainee/coach actually left the study, entered by the
+   *  researcher on withdrawal (Notion brief, 2026-09-21). Distinct from when
+   *  the record was edited — a withdrawal is often recorded after the fact. */
+  withdrawnOn?: string
   /* Round 21 — `needsSupport` / `supportRaisedDate` removed entirely on direct
      instruction ("get rid of any need support data, no longer needed"). They
      drove a roster column, a KPI tile, a dismissible profile banner and a

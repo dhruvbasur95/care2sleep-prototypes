@@ -60,22 +60,44 @@ export interface TrainingModuleV2 {
   /** 0–100; only meaningful for in-progress modules. */
   progress: number
   /** [wash, top-left bloom, bottom-right bloom] — same `moduleArt()` gradient
-   *  wash technique every other module card in this app uses. */
+   *  wash technique every other module card in this app uses.
+   *
+   *  `image` is a real generated cover illustration where one exists, painted
+   *  over the gradient rather than instead of it (see `moduleArt`). Only the
+   *  one module with authored player content has one; the other ten keep the
+   *  wash, which is deliberate — a cover invented for a module whose content
+   *  does not exist yet would be the fabricated photography this app's own
+   *  rules forbid. */
   cover: {
     colors: readonly [string, string, string]
+    image?: string
   }
   estimatedMinutes: number
 }
 
 export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
   {
+    // Hosts the real Module 6 content for review — see `DEMO_PLAYER_REDIRECTS`
+    // in `pathway.ts` for why this card and not module 2's, and why the id
+    // stays `portal-orientation` while the copy does not.
     id: 'portal-orientation',
-    title: 'Know the project, know your client',
+    // Both strings are the source's own, from `Modules/Module 6.md`'s MODULE
+    // SETUP table — the title from "Module name / number" (which carries the
+    // leading "The"), the description from "Core message". They are NOT
+    // written here: a first pass invented a hero sub-line and it was caught.
+    title: 'The Building Blocks of Good Sleep',
     description:
-      "Get to know the Care2Sleep project and the people you'll be supporting — coaches, consumers, and their carers.",
-    status: 'completed',
-    progress: 100,
-    cover: { colors: ['#1c2b4a', '#5b7fa6', '#f0d9a8'] },
+      'Understand the key foundations of good, consistent sleep, what sleep drive is, and simple ways to strengthen your body\u2019s natural drive for sleep.',
+    // `not-started`, not `completed`: the card is the way into content a
+    // reviewer is meant to actually play, and `livePlayerStatus()` overrides
+    // this from the real store the moment they do. Leaving it `completed`
+    // showed a finished module nobody had opened.
+    status: 'not-started',
+    progress: 0,
+    cover: {
+      colors: ['#1c2b4a', '#5b7fa6', '#f0d9a8'],
+      image: `${import.meta.env.BASE_URL}illustrations/modules/building-blocks-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
