@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { consumerModuleCover } from '@/data/spaces'
 import { type ConsumerDyad } from '@/data/spaces'
 import { cn } from '@/lib/utils'
 import { moduleLesson } from '@/data/consumerLessonContent'
@@ -127,7 +128,9 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
         427.7 of a 1115.9px-tall image, whose centre is 331.7 / 1115.9.
       */}
       <img
-        src="/illustrations/consumer-home/lesson-cover.jpg"
+        // The module's own cover, not the one photo every consumer surface
+        // used to share. See `ConsumerModule.cover`.
+        src={consumerModuleCover(view.id)}
         alt=""
         aria-hidden="true"
         className="h-[192px] w-full shrink-0 object-cover"
@@ -150,11 +153,19 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
             chip (`787:1442`); in the other two states it sits alone.
           */}
           <div className="flex items-start justify-between gap-4">
-            <p className="text-consumer-eyebrow text-white">
-              {state === 'complete'
-                ? "This week's module"
-                : "Complete this week's module"}
-            </p>
+            {/* ⚠️ The eyebrow is now the **module number**, not an
+                instruction (direct instruction: "make this module number, and
+                get rid of module label from above the title"). It took the
+                number's place, and the separate number line that used to sit
+                between this row and the title is gone — the card said "Module
+                4" once as a label and once as a line, two rows apart.
+
+                This supersedes the state-dependent copy the frames drew
+                (`787:1156` / `787:1185` "Complete this week's lesson" while
+                outstanding, `787:1438` "This week's lesson" once done). A
+                module's number does not change with its state, so the branch
+                went with the copy. */}
+            <p className="text-consumer-eyebrow text-white">{lessonLabel}</p>
 
             {state === 'complete' && (
               <span className="flex shrink-0 items-center gap-1 rounded-[32px] bg-consumer-lesson-complete py-1 pr-3 pl-1">
@@ -196,8 +207,6 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
                 track. The new frame drops that arrangement, so it goes.
           */}
           <div className={cn('flex flex-col', state === 'resume' ? 'gap-4' : 'gap-2')}>
-            <p className="text-consumer-lesson text-white">{lessonLabel}</p>
-
             <p className="text-consumer-card-title text-white">{current.title}</p>
 
             {state === 'start' && (
@@ -225,7 +234,12 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
           state={state}
           title={current.title}
           to={href}
-          className="mt-auto w-full bg-white text-consumer-primary focus-visible:ring-white focus-visible:ring-offset-consumer-primary min-[1281px]:w-64"
+          // Full-bleed CTA: the `min-[1281px]:w-64` desktop cap is gone (direct
+          // instruction: "the 3 cards, call buttons make same width i.e. 100% of
+          // card width excluding coach card"). Module, diary and next-session
+          // CTAs are now all `w-full` at every width; the coach card's Read
+          // More is deliberately left alone.
+          className="mt-auto w-full bg-white text-consumer-primary focus-visible:ring-white focus-visible:ring-offset-consumer-primary"
         />
 
         {/* The `role="status"` live region that used to sit here went with the

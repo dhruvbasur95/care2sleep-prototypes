@@ -7,7 +7,6 @@ import {
   ConsumerContentReveal,
   ConsumerPageHero,
 } from '@/components/consumer/ConsumerCanvasWave'
-import { ConsumerWaveRule } from '@/components/consumer/ConsumerWaveRule'
 import { FeaturedLessonCard, PreviousLessonCard } from '@/components/consumer/LessonCards'
 import { NUMBERED_LESSON_COUNT, releasedLessons } from '@/components/consumer/lessons'
 import { moduleLesson } from '@/data/consumerLessonContent'
@@ -118,9 +117,10 @@ export function ConsumerLessonsPage() {
             <>
               {/* Mobile draws the rule as its own full-width divider above the
                   heading; desktop runs it out to the right of the heading
-                  instead. Two placements of one asset, so each is rendered
-                  where its own frame puts it. */}
-              <ConsumerWaveRule className="lg:hidden" />
+                  instead. Two placements of ONE divider — which is why this one
+                  went straight as well: leaving it wavy would have given the
+                  same rule two different shapes depending on width. */}
+              <hr className="border-t border-consumer-primary lg:hidden" />
 
               <section className="flex flex-col gap-4 lg:gap-6">
                 <div className="flex items-center gap-6">
@@ -131,12 +131,18 @@ export function ConsumerLessonsPage() {
                   <h2 className="text-consumer-heading whitespace-nowrap text-ink">
                     Previous weeks&rsquo; modules
                   </h2>
-                  {/* `min-w-0` on the flex child, or the 920px export sizes the
-                      row and pushes the page into horizontal scroll — the
-                      failure this project has shipped three times. */}
-                  <span className="hidden min-w-0 flex-1 lg:block">
-                    <ConsumerWaveRule />
-                  </span>
+                  {/* A plain 1px rule in `consumer-primary`, not the hand-drawn `ConsumerWaveRule`
+                      (direct instruction: "remove the wavy stroke after
+                      previous week modules, and change with a straight line").
+
+                      `min-w-0` is kept for the same reason it was there for the
+                      wave: it is the flex child that fills the row, and without
+                      it a wide child sizes the track and pushes the page into
+                      horizontal scroll — the failure this project has shipped
+                      three times. A border cannot overflow the way the 920px
+                      SVG export could, but the guard costs nothing and the rule
+                      it protects is about the container, not the content. */}
+                  <span className="hidden min-w-0 flex-1 border-t border-consumer-primary lg:block" />
                 </div>
 
                 {/* 64px between rows on desktop. Frame `786:4211` draws 48;

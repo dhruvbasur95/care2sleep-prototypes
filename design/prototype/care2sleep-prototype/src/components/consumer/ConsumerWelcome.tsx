@@ -624,6 +624,34 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
       className="bg-consumer-canvas relative flex min-h-[calc(100vh-96px)] flex-col items-center overflow-clip px-6 pb-4 md:px-20 min-[1200px]:pb-10"
       style={{ paddingTop: SECTION_PAD_TOP - ART_LIFT }}
     >
+      {/* ── Skip ────────────────────────────────────────────────────────────
+          Direct instruction: "add skip button top right, outline style".
+
+          Placed on the section rather than inside the step track, so it is one
+          control that stays put across all four steps — the steps themselves go
+          `inert` as they leave, and anything inside them would stop being
+          reachable.
+
+          It runs the same `leave()` the final CTA runs, not a bare
+          `onContinue`: that is what plays the exit fade and what guards against
+          a second press, so skipping and finishing leave the screen the same
+          way. Skipping only dismisses this welcome — it does not mark the
+          onboarding tour as seen, which is a separate flag the shell owns.
+
+          The app's canonical outline pill as the rest of this portal already
+          draws it (`ConsumerHeader`'s account trigger, `CoachCard`'s Read
+          More): white fill, 2px `consumer-primary` border, purple label. That
+          reads on the purple wave behind it and on the cream canvas below,
+          which matters because the wave's height changes with the breakpoint.
+          `z-10` puts it over the wave, which is painted by absolutely
+          positioned siblings further down this file. */}
+      <button
+        type="button"
+        onClick={leave}
+        className="text-consumer-body-strong absolute top-5 right-6 z-10 flex h-11 items-center justify-center rounded-3xl border-2 border-consumer-primary bg-white px-5 text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 md:right-20"
+      >
+        Skip
+      </button>
       {/* The wave (frame `761:3137`), anchored by its TOP rather than stretched
           to the container: its crest has to land a fixed distance below the
           header regardless of how tall the viewport is, and a percentage height

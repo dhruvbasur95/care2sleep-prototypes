@@ -1,5 +1,5 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { NotebookPen, Video } from 'lucide-react'
+import { MessageCircleQuestionMark, NotebookPen, Video } from 'lucide-react'
 import { useState } from 'react'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { CoachCard } from '@/components/consumer/CoachCard'
@@ -17,7 +17,6 @@ import {
   ConsumerPageHero,
 } from '@/components/consumer/ConsumerCanvasWave'
 import {
-  SPACES_CATCHUP_COUNT,
   displaySessionNumber,
   dyadFirstNames,
   type ConsumerDyad,
@@ -116,29 +115,6 @@ const CTA =
 /* Today's date                                                              */
 /* ------------------------------------------------------------------------ */
 
-/**
- * "Monday, 31 August" — the frame's format, split so the weekday can sit in the
- * regular weight and the date heavier, which is how `761:3287` sets it.
- *
- * Reads the **real** current date, not the app's frozen demo `TODAY`
- * (`2026-07-22`). That was the first pass and it was wrong on screen: a line
- * that literally says "Today is" and then names a date three weeks in the past
- * is the one place in this app where the demo constant cannot stand in for the
- * clock, because the reader can check it against their own calendar.
- *
- * ⚠️ The consequence, and it is a data-layer one this round deliberately did not
- * touch: every *other* date on this page still derives from `TODAY`, so a
- * session dated 22 July now reads as past relative to this greeting. The fix is
- * to move the seed's `TODAY` forward (or make it dynamic), which is a change
- * felt across all four portals — flagged, not taken here.
- */
-function todayParts(): { weekday: string; date: string } {
-  const d = new Date()
-  return {
-    weekday: d.toLocaleDateString('en-AU', { weekday: 'short' }),
-    date: d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }),
-  }
-}
 
 /**
  * A session's end time, for the frame's "10:00am to 11:00am" row.
@@ -158,7 +134,6 @@ function addOneHour(time: string): string {
 /* ------------------------------------------------------------------------ */
 
 function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
-  const { weekday, date } = todayParts()
   // Both dyad members, carer first, matching the frame's two-name greeting.
   // Shared with the onboarding tour's own greeting via `dyadFirstNames` — two
   // surfaces greeting the same two people must not hold two copies of the rule.
@@ -173,13 +148,67 @@ function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
     //
     // Semi-bold on the date, not bold (direct instruction): 600 against the
     // line's own 400 is a clear enough step at 20px, and 700 next to a 40px
-    // display heading directly above competed with it.
+    // display heading directly above competed with it. Moot while the line is
+    // hidden, kept so restoring it is deleting one class.
+    //
+    // The hero's sub line. It has been three things: the frame's "Today is
+    // {date}", then that same node hidden with `invisible` to keep its box
+    // while losing the date, and now a plain welcome (direct instruction:
+    // "below hello name / Add Welcome, to your dashboard ... i.e. unhide the
+    // time and chanhe it").
+    //
+    // So this is the *same* node unhidden and re-copied, not a new one — which
+    // is why the spacing below the greeting is unchanged: the box that was
+    // being reserved is now simply carrying visible text again.
+    //
+    // The stray comma in the instruction's "Welcome, to your dashboard" is
+    // dropped: there is no name after it (the names are in the `<h1>` directly
+    // above), so the comma would be punctuating nothing.
     <ConsumerPageHero
-      title={`Hello ${names}`}
-      sub={
-        <>
-          Today is <strong className="font-semibold">{`${weekday}, ${date}`}</strong>
-        </>
+      /* Trailing comma after the names (direct instruction), so the greeting
+         runs on into the sub line as one sentence rather than reading as two
+         unrelated statements. `names` is "Joan & Bruce" — the comma goes after
+         the whole pair, not after each name. */
+      title={`Hello ${names},`}
+      /* "You will find your to-do tasks for today and this week below" (direct
+         instruction, chosen from the /ux-copy options).
+
+         Replaces "Welcome to your dashboard": the greeting above is already the
+         welcome, and "dashboard" was a second name for a page whose own nav tab
+         says Home — a product word for an audience this portal explicitly notes
+         is not digitally literate.
+
+         "today and this week" is the reader's-side phrasing of the two real
+         rhythms on the page: the sleep diary is daily, the module is weekly.
+
+         Measured for the no-orphans rule at 375 / 414 / 768 / 1024 / 1281 /
+         1680: two lines on a phone with four words on the last, one line from
+         768 up. No single-word last line at any width. */
+      sub="You will find your to-do tasks for today and this week below"
+      /* Direct instruction: "introduce a Need Help button on right, that opens
+         help page. Simple outline style in red semantic."
+
+         `destructive` is this app's red semantic token (#d70015, measured
+         4.80:1 on white, so the label clears AA). Outline rather than filled:
+         a solid red block at this size reads as an error state, where the
+         control is an offer of help.
+
+         Geometry is the portal's own outline pill — 48px, 28px radius, 16px
+         label — the same one `Read profile` and the header's account trigger
+         use, so this is the established control in a different colour rather
+         than a fourth button shape.
+
+         Label and destination both match the header's existing "Need help" menu
+         item (`/consumer/:dyadId/help`), which is the same page: two entry
+         points, one name. */
+      action={
+        <Link
+          to={`/consumer/${dyad.id}/help`}
+          className="text-body-md flex h-12 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-destructive outline-none transition-colors hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+        >
+          <MessageCircleQuestionMark aria-hidden="true" className="size-5" />
+          Need help
+        </Link>
       }
     />
   )
@@ -264,26 +293,39 @@ function DiaryTaskCard({ dyadId }: { dyadId: string }) {
         </div>
       ) : (
       <div className="flex flex-col gap-6 text-ink">
-        {/* "Fill sleep diary", not the frames' noun "Sleep Diary" (direct
-            instruction) — every other eyebrow in this row heads a task, and the
-            section above them both says "Your tasks for today". */}
-        <p className="text-consumer-eyebrow">Fill sleep diary</p>
+        {/* No eyebrow of its own. The section heading directly above this card
+            now reads "Your sleep diary" (direct instruction: "remove fill sleep
+            diary label from card"), so an in-card "Fill sleep diary" was the
+            same words twice, one line apart. */}
         <div className="flex flex-col gap-2">
           <p className="text-consumer-card-title">How did you sleep last night?</p>
           {/* The frame's 18/400 at 1.4. The app's `sub-greeting` token is the
               right size and weight but `normal` line height, so 1.4 is applied
               locally — the same call the trainee welcome flow made rather than
               moving a token every portal hero reads. */}
-          {/* Extended on direct instruction ("add after 5 mins. It is important
-              for both of you to fill this fix english"). The added clause is
-              true to the data model, not just encouragement: this app keeps a
-              separate diary row for the PLE and the carer, so "each" is
-              accurate. The frame's own "roughly 5mins" is corrected to "about 5
-              minutes" as part of the same instruction — plain, unabbreviated
-              wording is also what this portal's audience note asks for. */}
+          {/* Direct instruction, supplied as: "Please fill in your sleep diary.
+              It only takes about 5-10mins. It is important that everyone who
+              iis part of this study fills it." with "make sure grammer is
+              correct" — so three fixes were applied and none of the meaning
+              was touched: the typo "iis" -> "is", "5-10mins" -> "5 to 10
+              minutes" (this portal's own rule is plain unabbreviated wording,
+              which is why the previous line already said "about 5 minutes"
+              rather than the frame's "roughly 5mins"), and "fills it" ->
+              "fills it in", since you fill *in* a diary and the sentence
+              before it uses that same verb.
+
+              ⚠️ One nuance from the old wording is gone: "you each fill in your
+              own" stated that the PLE and the carer keep *separate* diaries,
+              which is true of the data model. "everyone who is part of this
+              study" says who must do it but no longer says they each have one
+              of their own. Flagged, not re-added — the replacement was given
+              in full.
+
+              Measured for orphans at 280 / 320 / 380 / 460 and at the card's
+              live width: worst case is five words on the last line. */}
           <p className="text-consumer-eyebrow">
-            Please fill in your sleep diary. It takes about 5 minutes, and it is important that
-            you each fill in your own.
+            Please fill in your sleep diary. It only takes about 5 to 10 minutes. It is important
+            that everyone who is part of this study fills it in.
           </p>
         </div>
       </div>
@@ -368,19 +410,29 @@ function NextSessionCard({
     year: 'numeric',
   })
 
-  // Internal session 1 is "Planning", which has no number — `displaySessionNumber`
-  // would render it as "0 of 6". The 6 numbered catch-ups are internal 2-7.
-  // `nextPlannedSession` already filters the planning row out, so this guard is
-  // belt-and-braces rather than a reachable state; it is kept because the card
-  // renders `upcoming.session` directly and a future caller might not.
+  /* The heading names the session (direct instruction: "change the next session
+     scheduled date to Session <x> scheduled for:"), which puts back the number
+     frame `2926:13206` had dropped when it replaced "Coaching session: N of 6"
+     with a flat "Next session scheduled details".
+
+     Internal session 1 is "Planning" and has no number — `displaySessionNumber`
+     would render it as "Session 0" — so it gets its own wording rather than a
+     bad ordinal. `nextPlannedSession` already filters the planning row out, so
+     this is belt-and-braces, kept because the card reads `upcoming.session`
+     directly and a future caller might not. The `SPACES_CATCHUP_COUNT` import
+     stays gone: the heading names the session but no longer says "of 6". */
   const isPlanning = upcoming.session === 1
-  const shownNumber = displaySessionNumber(upcoming.session)
+  const sessionHeading = isPlanning
+    ? 'Planning session scheduled for:'
+    : `Session ${displaySessionNumber(upcoming.session)} scheduled for:`
 
   return (
-    /* Frame `761:3447` (rebuilt): the flat "Session date and time:" eyebrow and
-       single date line are replaced by a titled, ruled block — which session this
-       is out of six, then its status, then the date and time as labelled rows. */
-    <div className={`${CARD_HAIRLINE} ${CARD_PAD} flex flex-1 flex-col gap-8 bg-white`}>
+    /* Frame `2926:13206` ("Home / Next session card"), which supersedes
+       `761:3447`. Three things go: the "Coaching session: N of 6" title, the
+       rule under it, and the "Scheduled" eyebrow. What is left is the frame's
+       own shape — glyph pinned top, then a heading over a Date/Time pair, then
+       the CTA on the bottom edge, with `justify-between` doing the spacing. */
+    <div className={`${CARD_HAIRLINE} ${CARD_PAD} flex flex-1 flex-col justify-between gap-8 bg-white`}>
       {/* Frame `771:3701` — the icon slot. See `CardIcon`. */}
       <CardIcon icon={Video} />
 
@@ -388,35 +440,31 @@ function NextSessionCard({
           rather than directly under its own copy — the session and coach cards
           stretch to a shared row height, and without this their two CTAs land at
           different heights (reported at tablet). */}
-      <div className="flex flex-1 flex-col gap-8">
-        <div className="flex flex-col gap-6">
-          {/* Frame `787:1110`: the count is the one brand-coloured span in the
-              title, so "which session is this" is what the eye lands on. */}
-          <p className="text-consumer-card-title text-ink">
-            Coaching session:{' '}
-            <span className="text-consumer-primary">
-              {isPlanning ? 'Planning' : `${shownNumber} of ${SPACES_CATCHUP_COUNT}`}
-            </span>
-          </p>
+      <div className="flex flex-1 flex-col justify-end gap-8">
+        {/* The frame's "When" block: heading and the date pair, 16px apart
+            (`2926:13213`, gap 16 inside a py-16 box). */}
+        <div className="flex flex-col gap-4">
+          {/* `2926:13214` — 20/500. That is `consumer-lesson` exactly (its clamp
+              tops out at 20/500), so no new step was added; the frame's literal
+              20px is this token evaluated at the frame's own width. */}
+          <p className="text-consumer-lesson text-ink">{sessionHeading}</p>
 
-          {/* Frame `787:1125` draws a 1px `#e0e0e0` rule — this app's `hairline`,
-              as a real border rather than the frame's exported SVG. */}
-          <hr className="border-t border-hairline" />
+          {/* `2926:13215`: label in ink, value in brand purple, 4px apart. Still
+              a real `<dl>` — this project's standing rule for every label/value
+              pair, and the frame's two rows are exactly that.
 
-          <div className="flex flex-col gap-4">
-            <p className="text-consumer-eyebrow text-ink-muted">Scheduled</p>
-            {/* Frame `787:1130`: label in ink, value in brand purple, 4px apart.
-                A real `<dl>` — this project's standing rule for every
-                label/value pair. */}
-            <dl className="flex flex-col gap-1">
+              The frame's 25.236px is not a new size either: it is
+              `consumer-card-title`'s own clamp (22 -> 28) evaluated at the
+              frame's width, so the token is reused rather than pinned. */}
+          <dl className="flex flex-col gap-1">
               <div className="text-consumer-card-title flex flex-wrap gap-x-2">
-                <dt className="text-ink">For:</dt>
+                <dt className="text-ink">Date:</dt>
                 <dd className="text-consumer-primary">
                   {weekday}, {date}
                 </dd>
               </div>
               <div className="text-consumer-card-title flex flex-wrap gap-x-2">
-                <dt className="text-ink">At:</dt>
+                <dt className="text-ink">Time:</dt>
                 {/*
                   ⚠️ **The end time is derived, not stored.** `UpcomingSession`
                   carries a start `time` and nothing else, so the frame's
@@ -431,7 +479,6 @@ function NextSessionCard({
                 </dd>
               </div>
             </dl>
-          </div>
         </div>
 
         {/*
@@ -453,7 +500,10 @@ function NextSessionCard({
         <button
           type="button"
           onClick={onToggleSessionFeedback}
-          className={`${CTA} mt-auto w-full bg-consumer-primary text-white min-[1281px]:w-64`}
+          // `w-full` at every width now — see the note on `LearningTaskCard`'s
+          // own CTA. The two cards carried the same 256px desktop cap and had
+          // to lose it together, or the row would still be uneven.
+          className={`${CTA} mt-auto w-full bg-consumer-primary text-white`}
         >
           Join video call
         </button>
@@ -557,14 +607,21 @@ export function ConsumerHomePage() {
         {/* Only this block animates on a tab change — the wave, the mascot and
             the greeting above it hold still. See `ConsumerContentReveal`. */}
         <ConsumerContentReveal className="flex w-full flex-col gap-14">
-          <section className="flex flex-col gap-6">
-            <h2 className="text-consumer-heading text-ink">Your tasks for today</h2>
+          {/* ── Row 1: one title per card ───────────────────────────────
+              Direct instruction: "add title above sleep diary also, Say Your
+              sleep diary ... This way each card will have an individual title
+              starting with Your."
 
-            {/* Frames `930:5484` / `930:5313`. **Inside** the tasks section,
-                under its heading — direct instruction, reversing an earlier
-                placement above the title. `mb-4` on top of the section's own
-                24px gap makes the space between this and the cards the frame's
-                own 40px, while the heading keeps the section's normal rhythm. */}
+              The shared "Your tasks for today" heading is gone. Both cards now
+              carry their own `<h2>`, which makes this row structurally
+              identical to the session/coach row below it — every card on the
+              page is introduced by its own "Your …" title, and the page has no
+              heading that spans two cards. The banner keeps its place above
+              both, since it belongs to the row rather than to either card. */}
+          <div className="flex flex-col gap-6">
+            {/* Frames `930:5484` / `930:5313`. Above both cards and below no
+                heading now: with the shared section title removed there is
+                nothing left for it to sit "under", so it heads the row. */}
             {showSessionFeedback && (
               <SessionFeedbackBanner
                 sessionOrdinal={finishedSessionOrdinal}
@@ -578,20 +635,56 @@ export function ConsumerHomePage() {
                 diary card's now-four-line copy 19px past its own
                 `overflow-hidden` edge — measured, after `mt-auto` alone did not
                 fix it. The row grows to its tallest card and `items-stretch`
-                brings the other up to match. */}
+                brings the other up to match.
+
+                ⚠️ **Equal columns.** The desktop `min-[1281px]:grid-cols-[744px_1fr]`
+                override is deliberately gone (direct instruction: "make the
+                module and sleep diarr cards equal width") — it gave the module
+                card 744px against the diary card's ~337px at 1281. Plain
+                `grid-cols-2` matches the session/coach row below, so all four
+                cards on this page now share one column width. */}
             <div
               className={cn(
-                'grid grid-cols-1 gap-6 sm:gap-10 min-[1024px]:items-stretch min-[1024px]:grid-cols-2 min-[1281px]:grid-cols-[744px_1fr]',
+                'grid grid-cols-1 gap-6 sm:gap-10 min-[1024px]:items-stretch min-[1024px]:grid-cols-2',
                 // The frame puts 40px between the banner and the cards; the
-                // section's own gap is 24, so the row makes up the difference
-                // only while the banner is there.
+                // row's own gap is 24, so it makes up the difference only
+                // while the banner is there.
                 showSessionFeedback && 'mt-4',
               )}
             >
-              <LearningTaskCard dyad={dyad} />
-              <DiaryTaskCard dyadId={dyad.id} />
+              {/* `min-w-0` on both cells, for the reason the row below spells
+                  out: a grid item defaults to `min-width: auto`, and this
+                  project has shipped a real horizontal page scroll from exactly
+                  that omission three times. */}
+              <section className="flex min-w-0 flex-col gap-6">
+                {/* ── Numbered sections ────────────────────────────────
+                    Direct instruction: "add number before module, sleep diary,
+                    zoom session, and coach". The numbers run in the page's own
+                    reading order and are part of the heading *text*, not a
+                    decorative marker, so a screen reader announces "1. Your
+                    module" and the sequence survives without sight.
+
+                    They pair with the new hero sub line ("you will find your
+                    to-do tasks for today and this week below"), which promises
+                    a list — these are what make it read as one.
+
+                    ⚠️ The fifth section, "Your coaching session plan"
+                    (`SessionPlanStrip`), is deliberately NOT numbered: the
+                    instruction named four, and that strip is a reference view
+                    of the whole arc rather than something to do now. Flagged
+                    because 1-4 followed by an unnumbered heading is a visible
+                    asymmetry — if it should be 5, it is one string in
+                    `SessionPlanStrip.tsx`. */}
+                <h2 className="text-consumer-heading text-ink">1. Your module</h2>
+                <LearningTaskCard dyad={dyad} />
+              </section>
+
+              <section className="flex min-w-0 flex-col gap-6">
+                <h2 className="text-consumer-heading text-ink">2. Your sleep diary</h2>
+                <DiaryTaskCard dyadId={dyad.id} />
+              </section>
             </div>
-          </section>
+          </div>
 
           {/* Frame `761:3444` (updated): the two sections now sit **side by
               side** — 540.5px each with a 40px gap inside the 1121px column —
@@ -623,7 +716,7 @@ export function ConsumerHomePage() {
               {/* Frame `761:3445`: "Your next session details", where it read
                   "Your next session" — the card under it now carries the
                   session number, status, date and time rather than one line. */}
-              <h2 className="text-consumer-heading text-ink">Your next session details</h2>
+              <h2 className="text-consumer-heading text-ink">3. Your next session details</h2>
               <NextSessionCard
                 dyad={dyad}
                 onToggleSessionFeedback={() => setShowSessionFeedback((v) => !v)}
@@ -631,7 +724,13 @@ export function ConsumerHomePage() {
             </section>
 
             <section className="flex min-w-0 flex-col gap-6">
-              <h2 className="text-consumer-heading text-ink">Meet your coach</h2>
+              {/* "Your coach details", not the frame's "Meet your coach" and
+                  not the "Your Coach" a first pass used (two direct
+                  instructions, in that order). It pairs with "Your next session
+                  details" beside it, and it avoids colliding with the card's
+                  own "Your Coach" eyebrow one line below, which labels the
+                  name. */}
+              <h2 className="text-consumer-heading text-ink">4. Your coach details</h2>
               <CoachCard dyad={dyad} />
             </section>
           </div>

@@ -107,7 +107,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       "The core coaching skills, tools and resources you'll draw on throughout every session.",
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#e8dcc8', '#c98a5e', '#8fa89a'] },
+    cover: {
+      colors: ['#e8dcc8', '#c98a5e', '#8fa89a'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/population-understanding-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -117,7 +126,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Introduction to the SIPTEA coaching framework and how to apply it throughout the program.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#2e2a4d', '#8b7fc7', '#c9b8e8'] },
+    cover: {
+      colors: ['#2e2a4d', '#8b7fc7', '#c9b8e8'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/program-structure-onboarding-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -127,7 +145,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       "Get comfortable with the platform interface and the tools you'll use throughout your training.",
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#e9f2ec', '#6fa88a', '#e8c9a0'] },
+    cover: {
+      colors: ['#e9f2ec', '#6fa88a', '#e8c9a0'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/siptea-framework-v2-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -137,7 +164,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Core concepts of sleep science, sleep cycles, and what healthy sleep looks like.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#f3e4e2', '#c97b6e', '#e8b98f'] },
+    cover: {
+      colors: ['#f3e4e2', '#c97b6e', '#e8b98f'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/understanding-sleep-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -147,7 +183,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Foundational habits and behaviours that support consistent, quality sleep.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#f2e6c8', '#e0a458', '#6b5b45'] },
+    cover: {
+      colors: ['#f2e6c8', '#e0a458', '#6b5b45'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/building-blocks-good-sleep-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -157,7 +202,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Techniques for strengthening the association between the bed and sleep.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#dce8ec', '#5a8ca3', '#a7c4b8'] },
+    cover: {
+      colors: ['#dce8ec', '#5a8ca3', '#a7c4b8'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/retraining-brain-sleep-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -167,7 +221,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Strategies for aligning circadian rhythms and improving sleep-wake timing.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#232838', '#4a6fa1', '#7fd1c9'] },
+    cover: {
+      colors: ['#232838', '#4a6fa1', '#7fd1c9'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/resetting-body-clock-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -177,7 +240,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Creating the right environment and routine to prepare for restful sleep.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#eef0e6', '#8a9a5b', '#d8c7a1'] },
+    cover: {
+      colors: ['#eef0e6', '#8a9a5b', '#d8c7a1'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/setting-stage-sleep-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -187,7 +259,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Recognising fatigue, its impact, and practical management strategies for carers.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#f0e2e6', '#b4728f', '#e8c9a8'] },
+    cover: {
+      colors: ['#f0e2e6', '#b4728f', '#e8c9a8'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/managing-fatigue-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
   {
@@ -197,7 +278,16 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
       'Maintaining progress, troubleshooting setbacks, and sustaining healthy sleep habits.',
     status: 'not-started',
     progress: 0,
-    cover: { colors: ['#1e2f2b', '#3f6d5e', '#a8d8c9'] },
+    cover: {
+      colors: ['#1e2f2b', '#3f6d5e', '#a8d8c9'],
+      // Module cover, generated with Nano Banana Pro in the series'
+      // established watercolour-and-ink style and recurring cast. 1600x893,
+      // the exact size of `building-blocks-cover.webp`, which is the
+      // reference this set was matched to. `colors` stays as the wash
+      // behind it — `moduleArt()` layers the image OVER the gradient, so it
+      // is still what paints while the image loads.
+      image: `${import.meta.env.BASE_URL}illustrations/modules/keeping-sleep-on-track-cover.webp`,
+    },
     estimatedMinutes: 35,
   },
 ]

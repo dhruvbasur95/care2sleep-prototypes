@@ -762,8 +762,14 @@ export function ConsumerMascotFigure({
  * It moves the *content*, never the wave, which is absolutely positioned and not
  * in this block's flow.
  */
+/* ⚠️ The trailing constant is 248.15, not the derived 208.15 — a deliberate
+   **40px lift** (direct instruction: "move avatar + hello and welcome title up a
+   little"). The derivation above still stands; this just sits the block 40px
+   above the crest rather than exactly on it, which is the look that was asked
+   for now that the hero is left-aligned and no longer centred over the crest.
+   To put it back on the crest, restore 208.15 — that is the whole change. */
 export const CONSUMER_CREST_TRACKING =
-  'sm:mt-[calc(0.95711*max(18.657vw,239px)-208.15px)]'
+  'sm:mt-[calc(0.95711*max(18.657vw,239px)-248.15px)]'
 
 /**
  * The space between a page's hero block and the content under it.
@@ -790,15 +796,27 @@ export const CONSUMER_HERO_TO_CONTENT = 'gap-12 lg:gap-[72px]'
  * have done in home section". Home's own greeting now renders through this, so
  * "the same hero" is enforced by the module graph rather than by care.
  *
- * The alignment split is Home's and is deliberate: left-aligned on a phone
- * where a centred column of two long lines reads as a poster, centred from `sm`
- * where the mascot sits over the wave's crest. The `sm:gap-12` is also Home's
- * (a direct instruction) rather than either frame's 32 — at 32 the mascot's own
- * drop shadow nearly touches the cap height of the title below it.
+ * ⚠️ **Left-aligned at every width** (direct instruction: "we will need to left
+ * align the avatar + copy below it, the background weavy can remain where it
+ * is"). This replaces the old split — left on a phone, centred from `sm` — so
+ * the mascot no longer sits over the wave's crest on desktop; it and the copy
+ * share the content column's left edge instead. The wave is untouched, which is
+ * the point: it is painted by `ConsumerCanvasWave` behind this block, not by
+ * this block, so moving the hero does not move it.
+ *
+ * This is the shared hero, so the change lands on all four consumer pages at
+ * once — Home, My Modules, My Profile and Need Help. That is the component
+ * doing its job rather than a side effect: it exists precisely so those four
+ * cannot drift apart.
+ *
+ * The `sm:gap-12` is still Home's (a direct instruction) rather than either
+ * frame's 32 — at 32 the mascot's own drop shadow nearly touches the cap height
+ * of the title below it.
  */
 export function ConsumerPageHero({
   title,
   sub,
+  action,
   withPencil = false,
   withQuestion = false,
 }: {
@@ -811,19 +829,45 @@ export function ConsumerPageHero({
    * which reads as a mistake rather than as a deliberate omission.
    */
   sub?: ReactNode
+  /**
+   * Optional control on the right of the title row (Home's "Need help").
+   *
+   * A slot rather than a baked-in button: only Home asks for one, and the Help
+   * page itself must not offer a link to where it already is. It stacks under
+   * the title below `sm` and sits opposite it from `sm` up.
+   */
+  action?: ReactNode
   /** My Lessons' avatar carries a pencil — see `ConsumerMascot`. */
   withPencil?: boolean
   /** Need Help's avatar carries a question-mark bubble — see `ConsumerMascot`. */
   withQuestion?: boolean
 }) {
   return (
-    <div className="flex w-full max-w-[1057px] flex-col items-start gap-4 sm:items-center sm:gap-12">
+    /* ⚠️ **No `max-w` of its own** (direct instruction: "remove the side
+       padding to make sure the avatar + text align with other contents on the
+       page"). It used to carry `max-w-[1057px]`, which was harmless while the
+       block was centred but became a visible inset the moment it went
+       left-aligned: the parent content column is 1320 wide, so a 1057 cap
+       centred inside it pushed the mascot and copy 132px right of every section
+       heading below them, measured at 1680.
+
+       The readable-line-length job that cap was doing belongs to the copy, not
+       to the block — these are one short title and one short sub line, and the
+       page's own column is already the measure everything else obeys.
+
+       (This comment is a plain block comment, not `{...}`-wrapped: it sits
+       between `return (` and the JSX, which is an expression position. A JSX
+       expression comment here is a second expression and does not parse.) */
+    <div className="flex w-full flex-col items-start gap-4 sm:gap-12">
       <ConsumerMascotFigure withPencil={withPencil} withQuestion={withQuestion} />
-      <div className="flex w-full flex-col gap-2 text-left sm:text-center">
-        {/* `consumer-display` (28 -> 40), not the app-wide `display-lg`: that
-            token is a flat 40px, which is 12px too large on a 375px screen. */}
-        <h1 className="text-consumer-display text-ink">{title}</h1>
-        {sub !== undefined && <p className="text-consumer-lead text-ink-muted">{sub}</p>}
+      <div className="flex w-full flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+        <div className="flex min-w-0 flex-col gap-2 text-left">
+          {/* `consumer-display` (28 -> 40), not the app-wide `display-lg`: that
+              token is a flat 40px, which is 12px too large on a 375px screen. */}
+          <h1 className="text-consumer-display text-ink">{title}</h1>
+          {sub !== undefined && <p className="text-consumer-lead text-ink-muted">{sub}</p>}
+        </div>
+        {action !== undefined && <div className="shrink-0">{action}</div>}
       </div>
     </div>
   )

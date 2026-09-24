@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { consumerModuleCover } from '@/data/spaces'
 import { Link } from 'react-router-dom'
 import { Check, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,10 +51,17 @@ import type { LessonState, LessonView } from './lessons'
  * `consumer-tokens.css` and both surfaces move together.
  */
 
-/** Every card in these frames uses the same photo. There is no per-lesson cover
- *  art in the data, and inventing six would be inventing content — so this is
- *  the one committed cover, shared with Home's own lesson card. */
-const LESSON_COVER = '/illustrations/consumer-home/lesson-cover.jpg'
+/* The single shared cover photo is gone. Its note said there was no per-module
+   cover art in the data and that inventing six would be inventing content —
+   both true at the time. There is now real per-module art
+   (`ConsumerModule.cover`, seven illustrations in the series' own
+   watercolour-and-ink style), so each card resolves its own through
+   `consumerModuleCover(view.id)` and no two modules share a picture.
+
+   Worth knowing why this mattered beyond variety: the retired photo was a
+   666x1000 PORTRAIT and every box it fed is landscape — the featured tile is
+   1920/1080 and the week card 399/306 — so `object-cover` threw most of it away
+   at every size. The replacements are 1600x893, the featured tile's own ratio. */
 
 /**
  * CTA labels.
@@ -306,8 +314,8 @@ export function FeaturedLessonCard({ view, to }: { view: LessonView; to?: string
       {/* Round 43, direct instruction: "add shadow also to all images including
           the current lesson". `lg:` only — on mobile this photo is flush inside
           the filled card, which carries the shadow itself. */}
-      <div className="aspect-[1920/1080] w-full shrink-0 overflow-hidden bg-white lg:w-[61%] lg:rounded-lg lg:border-4 lg:border-consumer-primary lg:shadow-card">
-        <img src={LESSON_COVER} alt="" aria-hidden="true" className="size-full object-cover" />
+      <div className="aspect-[1920/1080] w-full shrink-0 overflow-hidden bg-white lg:w-[61%] lg:rounded-lg lg:border lg:border-consumer-primary lg:shadow-card">
+        <img src={consumerModuleCover(view.id)} alt="" aria-hidden="true" className="size-full object-cover" />
       </div>
 
       <div className="flex flex-1 flex-col gap-6 px-4 pt-4 pb-6 lg:gap-10 lg:p-0">
@@ -435,8 +443,8 @@ export function PreviousLessonCard({ view, to }: { view: LessonView; to?: string
           keyboard user gets the same pairing — a hover-only affordance is
           invisible to them, and this portal's audience is the one this project
           has an explicit note about. */}
-      <div className="hidden aspect-[399/306] w-[326px] shrink-0 overflow-hidden rounded-lg border-[3px] border-hairline bg-white shadow-card transition-colors group-has-[button:hover]:border-consumer-primary group-has-[button:focus-visible]:border-consumer-primary lg:block">
-        <img src={LESSON_COVER} alt="" aria-hidden="true" className="size-full object-cover" />
+      <div className="hidden aspect-[399/306] w-[326px] shrink-0 overflow-hidden rounded-lg border border-hairline bg-white shadow-card transition-colors group-has-[button:hover]:border-consumer-primary group-has-[button:focus-visible]:border-consumer-primary lg:block">
+        <img src={consumerModuleCover(view.id)} alt="" aria-hidden="true" className="size-full object-cover" />
       </div>
 
       {/* Frame `786:4176`: the content column is `gap-24 py-8` on desktop, and

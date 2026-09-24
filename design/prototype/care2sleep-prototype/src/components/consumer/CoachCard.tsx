@@ -11,8 +11,11 @@ import type { ConsumerDyad } from '@/data/spaces'
  * `761:3578`) and simplifies it in three ways that between them delete most of
  * what was hard about it:
  *
- * - **The yellow blob is gone.** The top region is a flat `yellow-200` band,
- *   104px tall. All of the rotated-bbox derivation, the per-breakpoint
+ * - **The yellow blob is gone.** The top region is a flat `purple-50` band,
+ *   104px tall. (It was `yellow-200` until a direct instruction moved it:
+ *   "change yellow to purple 50". `purple-50` #f3efff already carries 14 other
+ *   consumer surfaces, so this is the portal's own pale purple rather than a
+ *   tint borrowed from another portal.) All of the rotated-bbox derivation, the per-breakpoint
  *   placements, the corner-gap inset and the stroke-width edit existed to serve
  *   that shape and go with it. (The blob's export stays committed at
  *   `/illustrations/consumer-welcome/coach-card-blob.svg` — unreferenced now,
@@ -45,21 +48,15 @@ import type { ConsumerDyad } from '@/data/spaces'
  * before this reaches a participant.
  */
 
-/** Frame `771:3668` — the flat band the portrait straddles. */
-const BAND_H = 104
-/**
- * Frame `771:3688`, resized — 104 square at top 51.33, up from 90.658 at 58.
- *
- * `left` is the card's own 32px content inset rather than the frame's 32.5px or
- * the 6.38% this used before: at the frame's 540.5px card those all land within
- * 2px of each other, but only the inset keeps the portrait's left edge on the
- * same vertical as the name and contact rows beneath it at *every* card width.
- */
-const PORTRAIT = { size: 104, left: 32, top: 51.33 }
-/** The export is larger than the circle because of its own white ring and
- *  shadow (116.564 against 104); centred on the circle, not aligned to it. The
- *  ratio is unchanged from the smaller frame — 1.1208 either way — so the
- *  resize is a single number, not a re-derivation. */
+/* `BAND_H` and `PORTRAIT` were deleted with the banded layout (frame
+   `2931:18660` draws no band and centres the portrait), grep-confirmed at zero
+   readers. Only the export ratio below survives them. */
+
+/** The export is larger than its own circle because of the white ring and
+ *  shadow baked into it (116.564 against 104) and is centred on the circle, not
+ *  aligned to it. The ratio is what matters, not either number — it held when
+ *  the portrait was 90.658, when it was 104, and it holds now the compact frame
+ *  draws it at 88. */
 const PORTRAIT_EXPORT_SCALE = 116.564 / 104
 
 function ContactRow({ icon: Icon, value }: { icon: typeof Phone; value: string }) {
@@ -97,17 +94,17 @@ function ContactRow({ icon: Icon, value }: { icon: typeof Phone; value: string }
  * placements below are toggled by `hidden` / `min-[1281px]:flex`, and a base
  * `inline-flex` here silently beat the `hidden` — display utilities carry equal
  * specificity, so the winner is decided by stylesheet order, not by the order
- * they appear in the attribute. The result was **Read More rendering twice**,
+ * they appear in the attribute. The result was **the button rendering twice**,
  * reported from the live page. Display stays the call site's business.
  */
-function ReadMoreButton({ onClick, className }: { onClick: () => void; className?: string }) {
+function ReadProfileButton({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`h-12 items-center justify-center rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary outline-none transition-colors hover:bg-consumer-primary/5 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 ${className ?? ''}`}
     >
-      Read More
+      Read profile
     </button>
   )
 }
@@ -118,128 +115,95 @@ export function CoachCard({ dyad }: { dyad: ConsumerDyad }) {
   const [profileOpen, setProfileOpen] = useState(false)
 
   return (
-    /* `flex-1` so the two cards in the frame's side-by-side row match heights —
-       the frame draws both at 365 (`761:3447` and `771:3667`), where their own
-       content is 315 and 368. Without it the row is as tall as the taller card
-       and the shorter one floats with a gap beneath it. */
-    <div className="flex w-full flex-1 flex-col overflow-hidden rounded-lg border border-hairline bg-white shadow-card">
-      {/* The band is **not** the clipping element. The portrait's white ring
-          extends past its own box, and clipping at the band sliced the bottom of
-          that ring flat — reported twice as "the avatar is getting clipped", and
-          found by measuring the ring's overhang rather than by looking. The
-          card's own `overflow-hidden` keeps everything inside the rounded
-          corners; nothing else needs to clip. */}
-      <div className="relative w-full bg-yellow-200" style={{ height: BAND_H }}>
-        <div
-          className="absolute"
-          style={{
-            left: PORTRAIT.left,
-            top: PORTRAIT.top,
-            width: PORTRAIT.size,
-            height: PORTRAIT.size,
-          }}
-        >
-          <img
-            src="/illustrations/consumer-welcome/coach-portrait-placeholder.png"
-            alt=""
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: `${((1 - PORTRAIT_EXPORT_SCALE) / 2) * 100}%`,
-              top: `${((1 - PORTRAIT_EXPORT_SCALE) / 2) * 100}%`,
-              width: `${PORTRAIT_EXPORT_SCALE * 100}%`,
-              height: `${PORTRAIT_EXPORT_SCALE * 100}%`,
-              maxWidth: 'none',
-            }}
-          />
-        </div>
-      </div>
+    <>
+      {/* `flex-1` so the two cards in this row match heights. The frame draws
+          both at a flat 380px; they stretch here instead, because this portal's
+          CTA is 48px where the frame's is 36 and a pinned height would push the
+          taller card's content past its own edge — the trap this project's
+          standing rules already record once. */}
+      {/* Frame `2931:18660` ("Coach Card Compact"), which supersedes `771:3667`.
 
-      {/* pt 72 clears the portrait's 51.33px overhang (it was 64 against a
-          44.66px overhang, before the portrait grew to 104). Padding steps
-          `px-4 pb-6` -> `px-8 pb-10` between the mobile frame (`787:1555`) and
-          the desktop one (`771:3671`); pt is 72 at both. */}
-      <div className="flex flex-1 flex-col px-4 pt-[72px] pb-6 sm:px-8 sm:pb-10">
-        {/* Frame `771:3673`: the name block and the Read More control share one
-            row on desktop, name block flexible and the button holding its width.
-            On mobile (`787:1557`) the row holds the name alone — see the
-            full-width button below the contact rows. */}
-        <div className="flex flex-col gap-8">
-        <div className="flex items-center gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            {/* "Your Coach", not the frame's "Meet your coach" (direct
-                instruction) — the section heading directly above already says
-                "Meet your coach", so the card was repeating it. */}
-            <p className="text-consumer-eyebrow text-ink-muted">Your Coach</p>
-            {/* The frame's `<Full name>` is a placeholder; this reads the dyad's
-                real assigned coach. A dyad with no coach yet is a real state in
-                this app, so it says so rather than rendering an empty line. */}
-            {/* 20px on desktop (direct instruction), scaling down with the rest
-                of the system rather than being pinned there. `consumer-lesson`
-                is already the 18 -> 20 ramp at 1.3, so this reuses it with a
-                weight override instead of adding a second token whose only
-                difference from it would be 600 — the size ramp is the thing
-                worth naming once. Mobile lands at 18, which is the same
-                proportional step every other pair on this page takes. */}
-            <p className="text-consumer-lesson truncate font-semibold text-ink">
-              {coach ? coach.fullName : 'Not assigned yet'}
-            </p>
-          </div>
-          {/* Frame `771:3707` — new (direct instruction: "I have also added a
-              read more button to coach profile card"). This is exactly this
-              app's canonical **primary outline** pill: same 28px radius, same
-              1px brand border, same brand label. The frame draws it 40px tall;
-              it renders at 44 here, since the 36px floor is a minimum and this
-              portal's audience is the one with the explicit big-targets note.
+          ⚠️ **The coloured band is gone.** This card used to open with a 104px
+          tinted band (`yellow-200`, then `purple-50` earlier today) carrying a
+          portrait that overhung it; the compact frame draws none of that. The
+          band, `BAND_H`, the overhang padding and the portrait's absolute
+          placement all went with it, and so did the reason this file needed
+          `overflow-hidden`.
 
-              No destination — there is no coach profile page on the consumer
-              side — so it is a focusable `aria-disabled` control with an
-              `sr-only` cue, per this project's standing rule. It is only
-              rendered when there is a coach to read about. */}
-          {coach && (
-            <ReadMoreButton
-              onClick={() => setProfileOpen(true)}
-              className="hidden shrink-0 min-[1281px]:flex"
+          ⚠️ **This must stay a JSX expression comment, brace-wrapped.** It sits
+          inside a fragment, where a bare block comment is not a comment at all
+          — it is a JSX text child, and it rendered this whole paragraph onto
+          the card. Note also that the close-comment sequence cannot appear in
+          the prose: writing it out terminates the comment early, which is how
+          this note broke the build on its first attempt. Same family as the
+          attribute-list trap this project already records. */}
+      {/* Gaps are 32, not the frame's 24 (direct instruction: "increase gap",
+          annotated at name -> contact and contact -> CTA). Both the card's own
+          gap and the identity/contact wrapper's moved together: those are the
+          two the annotation marked, and leaving one at 24 would have made the
+          card's vertical rhythm uneven. `justify-between` makes 32 a floor
+          rather than a fixed step, since the row stretches both cards to the
+          taller of the two and any slack lands in these gaps. */}
+      <div className="flex w-full flex-1 flex-col justify-between gap-8 rounded-lg border border-hairline bg-white px-8 pt-8 pb-10 shadow-card">
+      <div className="flex flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-2">
+          {/* `2931:18662` — an 88px circle (the frame's `rounded-[44px]` on an
+              88px box is a full round). The export is wider than its own circle,
+              which is why it is placed at `PORTRAIT_EXPORT_SCALE` inside an
+              `overflow-hidden` round rather than dropped in at 100%: that ratio
+              is what keeps the face framed the way every other surface frames
+              it. Clipping here is safe now that there is no ring overhanging a
+              band to slice. */}
+          <div className="relative size-[88px] shrink-0 overflow-hidden rounded-full">
+            <img
+              src={`${import.meta.env.BASE_URL}illustrations/consumer-welcome/coach-portrait-placeholder.png`}
+              alt=""
+              aria-hidden="true"
+              className="absolute max-w-none"
+              style={{
+                left: `${((1 - PORTRAIT_EXPORT_SCALE) / 2) * 100}%`,
+                top: `${((1 - PORTRAIT_EXPORT_SCALE) / 2) * 100}%`,
+                width: `${PORTRAIT_EXPORT_SCALE * 100}%`,
+                height: `${PORTRAIT_EXPORT_SCALE * 100}%`,
+              }}
             />
-          )}
-        </div>
+          </div>
 
-        {/* The frame draws a 1px `#e0e0e0` line, which is this app's own
-            `hairline` — a real border rather than the frame's exported SVG. */}
-        <hr className="border-t border-hairline" />
+          {/* `2931:18664` — 20/500, which is `consumer-lesson`'s own top of
+              clamp. The `font-semibold` this line used to carry is gone: the
+              frame is Medium, and 600 here was a holdover from the banded
+              layout. The "Your Coach" eyebrow above it is gone too — the
+              section heading now reads "Your coach details", so the card was
+              saying it a third time. */}
+          <p className="text-consumer-lesson max-w-full truncate text-ink">
+            {coach ? coach.fullName : 'Not assigned yet'}
+          </p>
+        </div>
 
         {coach ? (
-          <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="flex flex-col items-center gap-2">
             <ContactRow icon={Phone} value={coach.phone} />
             <ContactRow icon={Mail} value={coach.email} />
           </div>
         ) : (
-          <p className="text-body text-ink-muted">
+          <p className="text-consumer-eyebrow text-center text-ink-muted">
             You will see your coach&rsquo;s name and how to reach them here once you are matched.
           </p>
         )}
-        </div>
-
-        {/* Frame `787:1571` — on mobile the control leaves the name row and
-            becomes a full-width button at the foot of the card, 48px below the
-            contact block (`787:1555`'s own gap). Desktop keeps it inline beside
-            the name, which is `771:3707`.
-
-            Rendered as a second instance rather than moved with `order`,
-            because the two placements are structurally different: on desktop it
-            is a child of the name row, on mobile a sibling of the whole contact
-            section, and no amount of reordering nests an element into a row it
-            is not in. `hidden` is `display: none`, so exactly one of the two is
-            in the accessibility tree at any width — this is not two buttons. */}
-        {/* `mt-auto` pins it to the card's bottom edge so it lines up with the
-            session card's CTA beside it; `pt-12` on the wrapper keeps the frame's
-            48px minimum gap when there is no slack to consume. */}
-        {coach && (
-          <div className="mt-auto pt-12 min-[1281px]:hidden">
-            <ReadMoreButton onClick={() => setProfileOpen(true)} className="flex w-full" />
-          </div>
-        )}
       </div>
+
+      {/* `2926:13255` — a 1px `#e0e0e0` rule, this app's `hairline`, as a real
+          border rather than the frame's exported rectangle. */}
+      <hr className="border-t border-hairline" />
+
+      {/* `2931:18679` — full width now, and one control at every width. The old
+          card had two instances of this button (inline beside the name on
+          desktop, full width on mobile) because the name row and the button
+          shared a row above 1281; the compact frame stacks everything, so the
+          desktop instance had nothing left to sit beside and the pair collapsed
+          to one. */}
+      {coach && <ReadProfileButton onClick={() => setProfileOpen(true)} className="flex w-full" />}
+    </div>
 
       <CoachProfileModal
         open={profileOpen}
@@ -247,6 +211,6 @@ export function CoachCard({ dyad }: { dyad: ConsumerDyad }) {
         dyadId={dyad.id}
         coach={coach}
       />
-    </div>
+    </>
   )
 }

@@ -694,19 +694,44 @@ export interface ConsumerModule {
   title: string
   /** Matches the coach-training slide count (6) so completion-rate math stays consistent app-wide. */
   slideCount: number
+  /** This module's own cover art.
+   *
+   *  Every consumer surface used to share ONE photo
+   *  (`consumer-home/lesson-cover.jpg`) because, as `LessonCards` put it, there
+   *  was no per-module art in the data and inventing six would be inventing
+   *  content. There now is per-module art: seven illustrations generated in the
+   *  series' established watercolour-and-ink style with the portal's own
+   *  recurring pair, so the field exists and the shared photo is retired.
+   *
+   *  1600x893 each, matching the trainee module covers, because both the
+   *  featured card (1920/1080) and the week card (399/306) are landscape and
+   *  the old shared photo was a 666x1000 PORTRAIT being cropped to nothing in
+   *  both. Read it through `consumerModuleCover()`, never by building the path
+   *  at a call site. */
+  cover: string
+}
+
+/** A consumer module's cover art URL, base-path aware.
+ *
+ *  `import.meta.env.BASE_URL` matters here: this app is served from
+ *  `/care2sleep-prototypes/prototype/`, and a root-relative `/illustrations/...`
+ *  404s under it — the bug commit 1dac61b already fixed once elsewhere. */
+export function consumerModuleCover(moduleId: string): string {
+  const m = CONSUMER_MODULES.find((x) => x.id === moduleId)
+  return `${import.meta.env.BASE_URL}illustrations/consumer-modules/${m?.cover ?? 'getting-started-cover.webp'}`
 }
 
 export const CONSUMER_MODULES: ConsumerModule[] = [
   // Index 0 — the always-unlocked pre-module (session planning, Round 14):
   // available from enrolment, no session or plan needed to unlock it. Its
   // own follow-up is Session 1 (Onboarding). See `moduleUnlockState`.
-  { id: 'getting-started', title: 'Getting started with Care2Sleep', slideCount: 6 },
-  { id: 'understanding-sleep-dementia', title: 'Understanding sleep and dementia', slideCount: 6 },
-  { id: 'calming-bedtime-routine', title: 'Building a calming bedtime routine', slideCount: 6 },
-  { id: 'managing-nighttime-waking', title: 'Managing nighttime waking', slideCount: 6 },
-  { id: 'daytime-habits', title: 'Daytime habits that support sleep', slideCount: 6 },
-  { id: 'carer-own-sleep', title: "Looking after your own sleep", slideCount: 6 },
-  { id: 'using-sleep-data', title: 'Using your sleep diary and Fitbit data', slideCount: 6 },
+  { id: 'getting-started', title: 'Getting started with Care2Sleep', slideCount: 6, cover: 'getting-started-cover.webp' },
+  { id: 'understanding-sleep-dementia', title: 'Understanding sleep and dementia', slideCount: 6, cover: 'understanding-sleep-dementia-cover.webp' },
+  { id: 'calming-bedtime-routine', title: 'Building a calming bedtime routine', slideCount: 6, cover: 'calming-bedtime-routine-cover.webp' },
+  { id: 'managing-nighttime-waking', title: 'Managing nighttime waking', slideCount: 6, cover: 'managing-nighttime-waking-cover.webp' },
+  { id: 'daytime-habits', title: 'Daytime habits that support sleep', slideCount: 6, cover: 'daytime-habits-cover.webp' },
+  { id: 'carer-own-sleep', title: "Looking after your own sleep", slideCount: 6, cover: 'carer-own-sleep-cover.webp' },
+  { id: 'using-sleep-data', title: 'Using your sleep diary and Fitbit data', slideCount: 6, cover: 'using-sleep-data-cover.webp' },
 ]
 
 /** A module's position in the unlock sequence (0 = pre-module, 1-6 = the
