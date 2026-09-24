@@ -796,18 +796,20 @@ export const CONSUMER_HERO_TO_CONTENT = 'gap-12 lg:gap-[72px]'
  * have done in home section". Home's own greeting now renders through this, so
  * "the same hero" is enforced by the module graph rather than by care.
  *
- * ⚠️ **Left-aligned at every width** (direct instruction: "we will need to left
- * align the avatar + copy below it, the background weavy can remain where it
- * is"). This replaces the old split — left on a phone, centred from `sm` — so
- * the mascot no longer sits over the wave's crest on desktop; it and the copy
- * share the content column's left edge instead. The wave is untouched, which is
- * the point: it is painted by `ConsumerCanvasWave` behind this block, not by
- * this block, so moving the hero does not move it.
+ * ⚠️ **Alignment is per page, via `align`.**
  *
- * This is the shared hero, so the change lands on all four consumer pages at
- * once — Home, My Modules, My Profile and Need Help. That is the component
- * doing its job rather than a side effect: it exists precisely so those four
- * cannot drift apart.
+ * Home is `left` (direct instruction: "we will need to left align the avatar +
+ * copy below it"), which is what lets its greeting sit opposite the Need help
+ * button. My Modules and Need Help stay `center`, the original treatment
+ * (direct instruction: "in module page, the avatar + copy can be centre aligned
+ * in desktop ... same for need help").
+ *
+ * `center` is not centred at every width — it is the original split: left on a
+ * phone, where a centred column of two long lines reads as a poster, and
+ * centred from `sm`, where the mascot sits over the wave's crest.
+ *
+ * The wave never moves either way: it is painted by `ConsumerCanvasWave` behind
+ * this block, not by this block.
  *
  * The `sm:gap-12` is still Home's (a direct instruction) rather than either
  * frame's 32 — at 32 the mascot's own drop shadow nearly touches the cap height
@@ -817,6 +819,7 @@ export function ConsumerPageHero({
   title,
   sub,
   action,
+  align = 'center',
   withPencil = false,
   withQuestion = false,
 }: {
@@ -837,6 +840,12 @@ export function ConsumerPageHero({
    * the title below `sm` and sits opposite it from `sm` up.
    */
   action?: ReactNode
+  /**
+   * Where the mascot and copy sit from `sm` up. Defaults to `center`, the
+   * original treatment, so a page opts *in* to the left-aligned variant rather
+   * than inheriting it. Below `sm` both are left-aligned regardless.
+   */
+  align?: 'left' | 'center'
   /** My Lessons' avatar carries a pencil — see `ConsumerMascot`. */
   withPencil?: boolean
   /** Need Help's avatar carries a question-mark bubble — see `ConsumerMascot`. */
@@ -858,10 +867,27 @@ export function ConsumerPageHero({
        (This comment is a plain block comment, not `{...}`-wrapped: it sits
        between `return (` and the JSX, which is an expression position. A JSX
        expression comment here is a second expression and does not parse.) */
-    <div className="flex w-full flex-col items-start gap-4 sm:gap-12">
+    <div
+      className={cn(
+        'flex w-full flex-col items-start gap-4 sm:gap-12',
+        align === 'center' && 'sm:items-center',
+      )}
+    >
       <ConsumerMascotFigure withPencil={withPencil} withQuestion={withQuestion} />
+      {/* The title row. `justify-between` only matters when there is an
+          `action` to sit opposite the copy, which today is Home alone. */}
       <div className="flex w-full flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-        <div className="flex min-w-0 flex-col gap-2 text-left">
+        {/* ⚠️ `w-full` on the centred variant is load-bearing. `min-w-0` alone
+            lets the block shrink to its content, so `text-center` then centres
+            the copy inside that shrunken box — which parks it left of the page
+            rather than on its centre line. This regressed exactly that way when
+            the row was introduced for Home's Need help button. */}
+        <div
+          className={cn(
+            'flex min-w-0 flex-col gap-2 text-left',
+            align === 'center' && 'w-full sm:text-center',
+          )}
+        >
           {/* `consumer-display` (28 -> 40), not the app-wide `display-lg`: that
               token is a flat 40px, which is 12px too large on a 375px screen. */}
           <h1 className="text-consumer-display text-ink">{title}</h1>

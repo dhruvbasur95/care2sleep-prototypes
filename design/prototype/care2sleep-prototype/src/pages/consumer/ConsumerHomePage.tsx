@@ -165,6 +165,11 @@ function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
     // dropped: there is no name after it (the names are in the `<h1>` directly
     // above), so the comma would be punctuating nothing.
     <ConsumerPageHero
+      /* Home is the ONLY consumer page that opts into the left-aligned hero
+         (direct instruction: "only in home page on left is fine"). It is what
+         lets the greeting sit opposite the Need help button; My Modules, Need
+         Help and My Profile keep the default centred treatment. */
+      align="left"
       /* Trailing comma after the names (direct instruction), so the greeting
          runs on into the sub line as one sentence rather than reading as two
          unrelated statements. `names` is "Joan & Bruce" — the comma goes after
