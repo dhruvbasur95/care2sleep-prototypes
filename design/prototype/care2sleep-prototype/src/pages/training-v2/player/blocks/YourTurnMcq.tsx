@@ -214,6 +214,9 @@ export function YourTurnMcq({
   const pending = useRef<'stem' | 'feedback' | null>(null)
   const stemRef = useRef<HTMLParagraphElement>(null)
   const feedbackRef = useRef<HTMLDivElement>(null)
+  /** Set only by `go()` — see the scroll note in the effect below. */
+  const scrollToTop = useRef(false)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!pending.current) return
@@ -237,6 +240,33 @@ export function YourTurnMcq({
     // `h-screen`, so it should never be, and if it is then a focus move
     // anywhere on the slide will move the page.
     target?.focus({ preventScroll: true })
+
+    // ⚠️ Moving to a NEXT/PREVIOUS case is the one transition that must move the
+    // viewport, and `preventScroll` above is why it did not.
+    //
+    // Reported 2026-09-28: *"the next case does not auto scroll up by default
+    // when I go to next scenario, I have to scroll up again"*. On a case
+    // scenario block the conversation is tall, so the reader finishes a case
+    // near the bottom of the slide; replacing the content in place left them
+    // looking at the new case's footer with its conversation off-screen above.
+    //
+    // Deliberately NOT applied on submit: the feedback panel renders BELOW the
+    // options, so scrolling to the top of the block would push the answer the
+    // coach just earned out of view. `pending` distinguishes the two.
+    //
+    // An explicit `scrollTo` on the player's own `<main>`, never
+    // `scrollIntoView` — this project has fixed three separate bugs caused by
+    // that call scrolling an unexpected ancestor (Rounds 7.1.2, 18, 19), and
+    // `ScrollCue` avoids it for the same reason.
+    if (scrollToTop.current) {
+      scrollToTop.current = false
+      const block = rootRef.current
+      const scroller = block?.closest('main')
+      if (block && scroller) {
+        const delta = block.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+        scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + delta - SCROLL_GAP_PX), behavior: 'smooth' })
+      }
+    }
   })
 
   const question = questions[index]
@@ -274,6 +304,7 @@ export function YourTurnMcq({
 
   function go(to: number) {
     pending.current = 'stem'
+    scrollToTop.current = true
     setIndex(to)
   }
 
@@ -289,7 +320,7 @@ export function YourTurnMcq({
     // The footer keeps the frames' own 72px through its `mt-12`: the instruction
     // named the avatar gap, and pulling the Previous/Next bar up with it would
     // be a change nobody asked for.
-    <div className="flex flex-col gap-6" aria-labelledby={labelledBy}>
+    <div ref={rootRef} className="flex flex-col gap-6" aria-labelledby={labelledBy}>
       <div className="flex flex-col gap-10">
         {renderHeader?.(index)}
 
@@ -597,6 +628,10 @@ export function YourTurnMcq({
 /** The width a set button occupies, so an absent one can still hold its place
  *  in the `justify-between` bar rather than letting its partner drift across. */
 const SET_BUTTON_WIDTH = 'w-[248px] max-w-full'
+
+/** Breathing room left above the block when a new case scrolls into place, so
+ *  its first line is not flush against the top of the scroll area. */
+const SCROLL_GAP_PX = 24
 
 /** The footprint of a button that is deliberately not rendered — the boundary
  *  cases, where there is no previous or no next question to offer. Purely
