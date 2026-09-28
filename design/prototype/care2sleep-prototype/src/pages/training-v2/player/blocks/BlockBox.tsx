@@ -94,6 +94,26 @@ export function BlockBox({
  */
 export const NO_VERTICAL_PADDING_BLOCK_TAGS = new Set(['video', 'sub-title', 'body'])
 
+/**
+ * Tags whose box keeps its top padding but drops its **bottom** padding.
+ *
+ * Direct instruction, 2026-09-28: *"for all know how block, remove bottom
+ * padding ... remember this rule for know how padding"*.
+ *
+ * A Know How block is an intro to the thing directly beneath it — a scenario
+ * video, or now a Case scenario block — not a section that stands on its own.
+ * Its own 40px bottom inset sat on top of the column's 40px gap, so the eyebrow
+ * and title read as detached from what they introduce. Removing only the bottom
+ * keeps the block spaced from whatever precedes it while closing the gap to the
+ * thing it belongs to.
+ *
+ * ⚠️ Deliberately `know-how` only. `know-what` and `know-why` are the same
+ * shape, but the instruction named Know How, and Know Why in particular carries
+ * its own body and genuinely ends a section. **A standing rule, not a one-off:
+ * any new Know How-shaped block goes in here.**
+ */
+export const NO_BOTTOM_PADDING_BLOCK_TAGS = new Set(['know-how'])
+
 /** Tags whose renderer draws its own `BlockBox`es instead of being wrapped in
  *  one. Keep this the single source — `BlockSlide` reads it, so adding a tag
  *  here is the whole change. */
@@ -107,6 +127,9 @@ export const COMPOUND_BLOCK_TAGS = new Set([
   // to, because a surfaced interactive block carries its own 40px inset inside
   // its tint, and a wrapper box's 40px outside it would double to 80.
   'interactive',
+  // Same reason as `interactive`: it draws its own 40px inset inside its
+  // `yellow-50` tint, and a wrapper box's 40px outside it would double to 80.
+  'case-scenario',
   'module-intro',
   'chapter-intro',
   'chapter-opening',

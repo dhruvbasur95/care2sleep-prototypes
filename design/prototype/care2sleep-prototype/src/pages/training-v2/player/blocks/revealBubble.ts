@@ -61,8 +61,16 @@ export const SPARKLE_STROKE_W = 2.5
 
 /**
  * The outline the three chat bubbles carry, read off `bubble-1/2/3.svg` rather
- * than guessed: `#333333`, 3.5 wide, round caps and joins, miter limit 2 —
+ * than guessed: `#333333`, **2.5** wide, round caps and joins, miter limit 2 —
  * identical on all three.
+ *
+ * ⚠️ **This constant tracks those exports and must be re-read whenever they are
+ * re-exported.** It moved 3.5 -> 2.5 on 2026-09-28 when the bubbles were
+ * re-exported at the thinner stroke (direct instruction: *"all these chat
+ * bubbles (organic shaped ones) I have reduce black outline stroke to 2.5px
+ * down from 3.5px"*). Leaving it at 3.5 would have put a heavier outline on the
+ * answer blob than on the bubble it answers — which is the exact mismatch this
+ * constant was introduced to fix.
  *
  * Direct instruction, 2026-09-17: *"add the same stroke we have to chat bubble
  * to this blob."* The answer blob shipped without one, so the two halves of the
@@ -75,4 +83,4 @@ export const SPARKLE_STROKE_W = 2.5
  * never does.
  */
 export const BUBBLE_STROKE = '#333333'
-export const BUBBLE_STROKE_W = 3.5
+export const BUBBLE_STROKE_W = 2.5

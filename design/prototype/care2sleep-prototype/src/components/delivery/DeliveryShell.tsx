@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AppHeader } from '@/components/AppHeader'
 import { DeliveryOnboarding } from '@/components/delivery/DeliveryOnboarding'
+import { isOnboardingDismissed, markOnboardingSeen } from '@/components/delivery/onboardingState'
 import { DeliverySidebar } from '@/components/delivery/DeliverySidebar'
 import { CoachStageSwitcher } from '@/components/delivery/CoachStageSwitcher'
 import { useCoachStage } from '@/data/coachStage'
@@ -24,8 +25,11 @@ import { cn } from '@/lib/utils'
  * the destination page mounted a fresh shell, read `false`, and replayed the
  * whole welcome flow. A module-level flag survives in-app navigation and still
  * resets on a real page load, which is exactly the intended behaviour.
+ *
+ * ⚠️ The flag itself moved to `onboardingState.ts` on 2026-09-28, because the
+ * Coach Training Portal's module pages — which live outside this shell — have
+ * to set it too. See that file.
  */
-let onboardingDismissed = false
 
 /**
  * The dashboard's arrival, in seconds after the welcome flow has unmounted.
@@ -139,7 +143,7 @@ export function DeliveryShell({
   const navigate = useNavigate()
   const stage = useCoachStage()
   const reduceMotion = useReducedMotion()
-  const [onboarded, setOnboarded] = useState(() => onboardingDismissed)
+  const [onboarded, setOnboarded] = useState(() => isOnboardingDismissed())
 
   // The welcome flow leaves a little quicker than the dashboard arrives, so the
   // handoff reads as one movement rather than two equal halves.
@@ -181,7 +185,7 @@ export function DeliveryShell({
   // Skip, which just reveals whichever page the coach is already on.
   const completeOnboarding = useCallback(
     (to?: string) => {
-      onboardingDismissed = true
+      markOnboardingSeen()
       setOnboarded(true)
       if (to) navigate(to)
       // Round 32: the first-run tour starts here, and only from the final CTA.

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { Block } from '@/data/moduleContent'
-import { ComingUpNextCard, type OutroActions } from './blocks/BlockRenderer'
+import { ComingUpNextCard } from './blocks/BlockRenderer'
 import { BlockBox } from './blocks/BlockBox'
 import { SLIDE_COLUMN_COLLAPSED_PX, SLIDE_COLUMN_OPEN_PX } from './BlockSlide'
 import type { OnReadyChange } from './ModulePlayerFooter'
@@ -38,7 +38,6 @@ export function ModuleCompleteScreen({
   moduleNumber,
   outroBlocks,
   railOpen = true,
-  actions,
   onReadyChange,
 }: {
   module: { title: string }
@@ -48,7 +47,6 @@ export function ModuleCompleteScreen({
   moduleNumber?: number
   outroBlocks?: Block[]
   railOpen?: boolean
-  actions?: OutroActions
   onReadyChange?: OnReadyChange
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -119,7 +117,7 @@ export function ModuleCompleteScreen({
             column's own gap already provides. */}
         {outro && (
           <BlockBox className="py-0">
-            <ComingUpNextCard block={outro} actions={actions} />
+            <ComingUpNextCard block={outro} />
           </BlockBox>
         )}
       </div>

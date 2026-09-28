@@ -127,7 +127,7 @@ export function SlideOverPanel({
                 type="button"
                 onClick={onClose}
                 aria-label="Close consumer details"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted outline-none transition-colors hover:bg-purple-100 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted outline-none transition-colors hover:bg-purple-200 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X aria-hidden="true" className="size-5" />
               </button>

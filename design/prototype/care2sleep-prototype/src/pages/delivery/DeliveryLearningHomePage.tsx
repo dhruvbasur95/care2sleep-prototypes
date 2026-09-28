@@ -142,17 +142,29 @@ function ModuleCard({
     ? `Approx. ${Math.max(1, Math.round((module.estimatedMinutes * (100 - progress)) / 100))} min left`
     : `Approx. ${module.estimatedMinutes} min`
 
-  // The same two labels the module overview page uses, and the same casing
+  // The same labels the module overview page uses, and the same casing
   // (direct instruction, 2026-09-18: *"always say start or resume module"*,
-  // then *"dont say resume module, say resume learning"*). This card had a
-  // third, `Restart Module`, and Title Case on all three — so the one action
-  // read three ways here and two more ways on the page it opens.
+  // then *"dont say resume module, say resume learning"*). This card once had
+  // Title Case on all three — so the one action read three ways here and two
+  // more ways on the page it opens.
   //
-  // `Restart` is gone for the reason it went from the outline: it throws away
-  // progress, which is the opposite of the resume this control now promises. A
-  // finished module keeps the same label; re-entering it lands on its last
-  // step, which is where a coach returning to revise would want to be anyway.
-  const ctaLabel = inProgress || complete ? 'Resume learning' : 'Start module'
+  // ⚠️ **`Restart learning` is back for the completed case, and the reasoning
+  // recorded here previously was wrong.** It said a finished module "keeps the
+  // same label; re-entering it lands on its last step, which is where a coach
+  // returning to revise would want to be anyway". In practice that is a dead
+  // end: the last step is the Module complete screen, so "Resume learning" on
+  // a 100% card reopened the player on a screen with nothing left to resume.
+  // Reported directly, 2026-09-28 — first on the overview page (*"remains
+  // stuck at last slide with Resume learning button"*), then here (*"learning
+  // page button still says resume learning, even though I have completed it
+  // 100%"*).
+  //
+  // Three labels, one per state, still one control — the thing the two-label
+  // rule was protecting against was five labels for the *same* state, not a
+  // distinct label for a distinct one. Kept identical to
+  // `ModuleOverviewPage`'s own ladder so the card and the page it opens cannot
+  // disagree, which is what this whole block exists to guarantee.
+  const ctaLabel = complete ? 'Restart learning' : inProgress ? 'Resume learning' : 'Start module'
 
   return (
     <div

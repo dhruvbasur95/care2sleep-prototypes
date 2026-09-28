@@ -3,7 +3,12 @@ import type { Slide } from '@/data/moduleContent'
 import { SlideGateProvider, type SlideGateState } from './slideGate'
 import { cn } from '@/lib/utils'
 import { BlockView } from './blocks/BlockRenderer'
-import { BlockBox, COMPOUND_BLOCK_TAGS, NO_VERTICAL_PADDING_BLOCK_TAGS } from './blocks/BlockBox'
+import {
+  BlockBox,
+  COMPOUND_BLOCK_TAGS,
+  NO_BOTTOM_PADDING_BLOCK_TAGS,
+  NO_VERTICAL_PADDING_BLOCK_TAGS,
+} from './blocks/BlockBox'
 import { OUTLINE_RAIL_COLLAPSED_PX, OUTLINE_RAIL_OPEN_PX } from './ModulePlayerNav'
 
 /**
@@ -211,7 +216,13 @@ export function BlockSlide({
             // carry no padding at all — every seam was one uniform 24px gap,
             // identical whether a heading met a paragraph or a video met an
             // interactive.
-            <BlockBox key={i} className={cn(NO_VERTICAL_PADDING_BLOCK_TAGS.has(block.tag) && 'py-0')}>
+            <BlockBox
+              key={i}
+              className={cn(
+                NO_VERTICAL_PADDING_BLOCK_TAGS.has(block.tag) && 'py-0',
+                NO_BOTTOM_PADDING_BLOCK_TAGS.has(block.tag) && 'pb-0',
+              )}
+            >
               {view}
             </BlockBox>
           )

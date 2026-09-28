@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useSlideGate } from '../slideGate'
 import { ChevronLeft, ChevronRight, Circle, CircleCheck, CircleX } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -74,11 +74,36 @@ function parseOptions(raw: string[]): ParsedOption[] {
   })
 }
 
+/**
+ * Splits a `correctAnswer` cell into one segment per answer.
+ *
+ * ⚠️ **Two separators, both real and both in Module 6.** The Your turn tables
+ * join multiple answers with `+` (`"B. Sleep Drive + C. Body Clock"`); the Case
+ * scenario table simply runs them together (`"C. Reflective listening D.
+ * Validation and empathy"`), which on a `+`-only split is one segment whose
+ * leading letter is `C` — so `D` was silently dropped and a fully correct
+ * answer graded wrong. Four of Chapter 2's eight cases are multi-answer, so
+ * this was not an edge case.
+ *
+ * Splitting on `+` first, then on any option-letter prefix, handles both and
+ * leaves every existing single-separator cell byte-identical — a `+`-joined
+ * cell has a letter at the start of each segment anyway, so the second split
+ * finds nothing new. **Never "fix" the separator in the source**:
+ * `Modules/*.md` is read-only.
+ */
+function answerSegments(correctAnswer: string): string[] {
+  return correctAnswer
+    .split('+')
+    .flatMap((part) => part.split(/(?=\b[A-Za-z]\s*[.)]\s)/))
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
 /** The indices of the options the author marked correct. */
 function correctIndices(correctAnswer: string, options: ParsedOption[]): number[] {
   const found = new Set<number>()
 
-  for (const segment of correctAnswer.split('+')) {
+  for (const segment of answerSegments(correctAnswer)) {
     const trimmed = segment.trim()
     if (!trimmed) continue
 
@@ -119,10 +144,44 @@ const DENSE_OPTION_CHARS = 48
 export function YourTurnMcq({
   questions,
   labelledBy,
+  renderHeader,
+  renderOutcomeFooter,
+  optionVariant = 'pill',
 }: {
   questions: YourTurnQuestion[]
   /** The container's title, so the set is labelled without repeating it. */
   labelledBy: string
+  /**
+   * Replaces the pagination pills with the caller's own header for the current
+   * question — the case scenario block's `Case scenario 3/8` eyebrow above its
+   * conversation image.
+   *
+   * ⚠️ **Replaces, not precedes.** Frames `3214:3164`/`3214:19765` draw no
+   * pills: the eyebrow already carries the position, and two progress cues for
+   * the same set is one more than the set has positions. The `sr-only`
+   * "Question N of M" goes with them, so a header that replaces the pills owes
+   * a screen reader the same fact — which `CaseScenarioBlock` supplies in the
+   * eyebrow's own visible text.
+   *
+   * Absent on a Your turn block, so the three existing callers are untouched.
+   */
+  renderHeader?: (index: number) => ReactNode
+  /** Rendered inside the answer outcome's purple container, under the message.
+   *  The case scenario block's `Skills covered:` chips. */
+  renderOutcomeFooter?: (index: number) => ReactNode
+  /**
+   * How an option is drawn.
+   *
+   * `pill` (the default) is the rounded answer pill every Your turn MCQ uses.
+   * `bubble` is `<Case scenario block_2>`'s: each option is a line the coach
+   * could say, so it renders as a chat bubble matching the conversation above
+   * it — one full-width column, never a grid. Direct instruction, 2026-09-28:
+   * *"use only one style i.e. whatsapp chat style"*.
+   *
+   * A prop rather than a fork: the grading, the focus moves, the slide gate and
+   * the set navigation are identical, and only the chrome differs.
+   */
+  optionVariant?: 'pill' | 'bubble'
 }) {
   const groupName = useId()
   const [index, setIndex] = useState(0)
@@ -182,7 +241,10 @@ export function YourTurnMcq({
 
   const question = questions[index]
   const options = parseOptions(question.options ?? [])
-  const correct = correctIndices(question.correctAnswer, options)
+  // `correctAnswer` became optional on `YourTurnQuestion` when the free-text
+  // table lost its Model answer column (2026-09-28). An MCQ always authors
+  // one; defaulting keeps the type honest without throwing if one is missing.
+  const correct = correctIndices(question.correctAnswer ?? '', options)
   const multiple = /multiple/i.test(question.selectMode ?? '')
   const selected = chosen[index] ?? []
   const isSubmitted = submitted[index] ?? false
@@ -190,7 +252,11 @@ export function YourTurnMcq({
 
   // Direct instruction — one question means no set to move through.
   const showSet = questions.length > 1
-  const dense = options.every((option) => option.label.length <= DENSE_OPTION_CHARS)
+  const bubbles = optionVariant === 'bubble'
+  // Frame `3214:21083` draws block_2's options as a TWO-column grid of tailed
+  // bubbles, not a single full-width column — `Frame 9064` is HORIZONTAL with
+  // two VERTICAL columns inside it. Height hugs, so a long option simply grows.
+  const dense = bubbles || options.every((option) => option.label.length <= DENSE_OPTION_CHARS)
 
   function toggle(optionIndex: number) {
     if (isSubmitted) return
@@ -225,7 +291,9 @@ export function YourTurnMcq({
     // be a change nobody asked for.
     <div className="flex flex-col gap-6" aria-labelledby={labelledBy}>
       <div className="flex flex-col gap-10">
-        {showSet && (
+        {renderHeader?.(index)}
+
+        {showSet && !renderHeader && (
           <div className="flex items-center gap-2">
             {questions.map((_, pill) => (
               <span
@@ -264,7 +332,19 @@ export function YourTurnMcq({
           </div>
 
           <div className="flex flex-col gap-8">
-            <div className={cn('grid gap-4', dense ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1')}>
+            <div
+              className={cn(
+                'grid',
+                // The frame's own two gaps: 32 between the columns, 16 between
+                // the rows inside one. They are not the same number.
+                // 32 between the columns, **24** between the rows — the row
+                // gap was 16 in the frame and updated to 24 there, because the
+                // 18px tail hung into the option below it at 16. Read from the
+                // frame, not chosen here.
+                bubbles ? 'gap-x-8 gap-y-6' : 'gap-4',
+                dense ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1',
+              )}
+            >
               {options.map((option, optionIndex) => {
                 const isChosen = selected.includes(optionIndex)
                 // Direct instruction, 2026-09-17: *"on submitting answers, show
@@ -278,6 +358,17 @@ export function YourTurnMcq({
                 // no longer disagree.
                 const showAsCorrect = isSubmitted && correct.includes(optionIndex)
                 const gotItWrong = isSubmitted && isChosen && !correct.includes(optionIndex)
+                // Direct instruction, 2026-09-28: once an answer is in, the
+                // options that are neither right nor wrongly-chosen recede, so
+                // attention lands on the two that carry the feedback — *"still
+                // visible"*, just not competing.
+                //
+                // ⚠️ Not `opacity`. Round 14.5 measured the `opacity-60`
+                // shortcut on a disabled control at **2.35:1** and had to undo
+                // it; fading a pill fades its text with it. This dims the
+                // border and the label to `ink-faint` instead, which is a real
+                // token with a known contrast — measured on this surface below.
+                const isMuted = isSubmitted && !showAsCorrect && !gotItWrong
                 const Glyph = gotItWrong ? CircleX : showAsCorrect || isChosen ? CircleCheck : Circle
 
                 return (
@@ -310,17 +401,38 @@ export function YourTurnMcq({
                       // clipping row widened the whole document — same cause,
                       // vertical instead of horizontal.
                       'relative',
-                      'flex min-h-12 min-w-0 cursor-pointer items-center gap-4 rounded-[28px] border px-5 py-[10px] text-body-md transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                      dense ? 'justify-center text-center' : 'text-left',
+                      'flex min-w-0 cursor-pointer text-body-md transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                      // ⚠️ The frame's bubble has **no stroke** — white fill and
+                      // a shadow, nothing else. Inheriting the pill's border is
+                      // the purple outline reported as not matching Figma.
+                      //
+                      // Geometry straight off `Frame 9034`: 56 min height, 16
+                      // padding, 12 radius, 32 between label and glyph, and
+                      // top-aligned so a two-line option keeps its glyph on the
+                      // first line instead of floating to the middle.
+                      bubbles
+                        // ⚠️ `mb-[18px]` reserves the TAIL. The tail is
+                        // absolutely positioned, so it sits outside the label's
+                        // box and was eating the 24px row gap — leaving 6px and
+                        // making the gap look unapplied even though it measured
+                        // 24. Figma models this as a 90px wrapper (56 bubble +
+                        // 34 tail) with the gap *after* it; this margin is the
+                        // same idea, so the 24 lands where the frame puts it.
+                        ? 'mb-[18px] min-h-14 items-start gap-8 rounded-[12px] border-0 p-4 shadow-[0_9px_25px_rgba(6,28,61,0.08)]'
+                        : 'min-h-12 items-center gap-4 rounded-[28px] border px-5 py-[10px]',
+                      dense && !bubbles ? 'justify-center text-center' : 'text-left',
                       isSubmitted && 'cursor-default',
                       showAsCorrect && 'border-success bg-success text-white',
                       gotItWrong && 'border-destructive bg-destructive text-white',
                       isChosen &&
                         !isSubmitted &&
                         'border-primary bg-primary text-white',
+                      isMuted &&
+                        (bubbles ? 'bg-white text-ink-faint' : 'border-hairline bg-white text-ink-faint'),
                       !isChosen &&
                         !showAsCorrect &&
-                        'border-primary bg-white text-primary' +
+                        !isMuted &&
+                        (bubbles ? 'bg-white text-primary' : 'border-primary bg-white text-primary') +
                           (isSubmitted ? '' : ' hover:bg-purple-50'),
                     )}
                   >
@@ -347,9 +459,33 @@ export function YourTurnMcq({
                       aria-hidden="true"
                       className={cn(
                         'size-6 shrink-0',
-                        !isChosen && !showAsCorrect && 'text-primary',
+                        isMuted && 'text-ink-faint',
+                        !isChosen && !showAsCorrect && !isMuted && 'text-primary',
                       )}
                     />
+                    {/* The frame's own tail, bottom-left. Drawn with a border
+                        trick rather than an asset so it inherits nothing and
+                        can be tinted per state via `currentColor` on a wrapper
+                        that already matches the bubble's fill. */}
+                    {bubbles && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          // Left-aligned (direct instruction), and at the same
+                          // 20px inset the conversation bubbles use — one tail
+                          // position across the block rather than two. The
+                          // frame's own 28.5% is superseded.
+                          'absolute left-5 top-full size-0 border-x-[12px] border-t-[18px] border-x-transparent',
+                          showAsCorrect
+                            ? 'border-t-success'
+                            : gotItWrong
+                              ? 'border-t-destructive'
+                              : isChosen && !isSubmitted
+                                ? 'border-t-primary'
+                                : 'border-t-white',
+                        )}
+                      />
+                    )}
                   </label>
                 )
               })}
@@ -390,7 +526,8 @@ export function YourTurnMcq({
       {isSubmitted && (
         <AnswerOutcome
           panelRef={feedbackRef}
-          message={isCorrect ? question.correctMessage : question.wrongMessage}
+          message={isCorrect ? question.correctMessage : (question.wrongMessage ?? question.correctMessage)}
+          below={renderOutcomeFooter?.(index)}
         />
       )}
 
@@ -420,6 +557,34 @@ export function YourTurnMcq({
               disabled={!isSubmitted}
               onClick={() => go(index + 1)}
             />
+          ) : isSubmitted ? (
+            /* The last question, once it has been answered. The bar otherwise
+               ended on an empty half — "Previous question" and nothing else —
+               which reads as a dead end rather than as "this set is finished"
+               (direct instruction, 2026-09-28: *"the lower footer i.e. within
+               the block just says previous questions, but does not provide with
+               futher instructions, add a line (inplace of where next button
+               usually is) Click next slide to continue. Just text is fine
+               (body_md)"*).
+
+               Plain text, not a button: the control it points at is the
+               player's own footer, and a second control that only says
+               "somewhere else" is the repetitive-button problem the outro card
+               already had deleted once. It takes `SetButton`'s footprint so the
+               bar's `justify-between` still holds Previous on its own side.
+
+               Gated on `isSubmitted` for the same reason the Next button is:
+               before the answer is in, telling the coach to move on would be
+               inviting them past a question the slide's own gate still counts
+               as outstanding. */
+            <p
+              className={cn(
+                'flex h-12 shrink items-center justify-center text-center text-body-md text-ink',
+                SET_BUTTON_WIDTH,
+              )}
+            >
+              Click next slide to continue
+            </p>
           ) : (
             <SetSpacer />
           )}

@@ -66,11 +66,42 @@ function trailingSlack(el: Element | null) {
 export function ScrollCue({
   containerRef,
   variant = 'consumer',
+  size = 'default',
+  label = 'Scroll to see more',
   className,
 }: {
   /** The element that actually scrolls. Omit to measure the window. */
   containerRef?: RefObject<HTMLElement | null>
   variant?: 'consumer' | 'app'
+  /**
+   * `default` is the full 56px pill — correct when it floats over a whole page
+   * or slide, which is every caller that predates this.
+   *
+   * `compact` is for a cue pinned inside a *component* rather than a page: the
+   * case scenario block's conversation box is 464px tall, and a 56px pill on it
+   * covers a line and a half of the chat it is pointing at. Reported directly,
+   * 2026-09-28: *"Scroll to see more label is huge"*.
+   */
+  size?: 'default' | 'compact'
+  /**
+   * What this cue scrolls, as a sentence the coach reads.
+   *
+   * Defaults to the wording every caller that predates this one uses, so the
+   * consumer portal and the player's own slide cue are untouched.
+   *
+   * It exists because **two cues can be on screen at once**: the module player
+   * pins one to its `<main>` for the whole slide, and a case scenario block
+   * pins one inside its own conversation box. Same label, same component, two
+   * different scrollers — and in some scroll positions the inner one sits over
+   * a chat bubble, so a coach reads one pill twice and cannot tell which
+   * thing either of them moves. Reported 2026-09-28; resolved by direct
+   * instruction to relabel one rather than suppress or drop either, so the
+   * inner one names the conversation and the slide-level one stays generic.
+   *
+   * Keep it short: the compact pill is 36px tall, and its text is the only
+   * thing setting the pill's width.
+   */
+  label?: string
   className?: string
 }) {
   const reduceMotion = useReducedMotion()
@@ -205,7 +236,12 @@ export function ScrollCue({
             // viewport's. The container side needs a positioned ancestor — the
             // player wraps its <main> in `relative` for exactly this.
             containerRef ? 'absolute' : 'fixed',
-            'right-6 bottom-6 z-20 flex h-14 items-center gap-2 rounded-3xl border border-parchment bg-white px-6 text-body-md shadow-float outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-offset-2',
+            'z-20 flex items-center gap-2 rounded-3xl border border-parchment bg-white shadow-float outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-offset-2',
+            size === 'compact'
+              // Still above the 36px control floor, which is why this is a
+              // smaller pill and not a bare chevron.
+              ? 'right-3 bottom-3 h-9 px-4 text-caption-medium'
+              : 'right-6 bottom-6 h-14 px-6 text-body-md',
             variant === 'consumer'
               ? 'text-consumer-primary focus-visible:ring-consumer-primary'
               : 'text-primary focus-visible:ring-ring',
@@ -216,7 +252,7 @@ export function ScrollCue({
           exit={{ opacity: 0, y: 8 }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         >
-          Scroll to see more
+          {label}
           {/* The bob lives on the glyph, not the button — see the doc note. 5px
               over 1.5s: enough to read as movement on a 20px chevron without
               turning a quiet hint into a bouncing badge. */}
@@ -227,7 +263,7 @@ export function ScrollCue({
               reduceMotion ? undefined : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
             }
           >
-            <ChevronDown aria-hidden="true" className="size-6" />
+            <ChevronDown aria-hidden="true" className={size === 'compact' ? 'size-4' : 'size-6'} />
           </motion.span>
         </motion.button>
       )}

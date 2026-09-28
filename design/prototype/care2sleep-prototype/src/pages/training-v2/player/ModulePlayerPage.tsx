@@ -14,11 +14,11 @@ import {
   OUTLINE_RAIL_OPEN_PX,
 } from './ModulePlayerNav'
 import { ModulePlayerFooter, type FooterReadyState, type OnReadyChange } from './ModulePlayerFooter'
+import { markOnboardingSeen } from '@/components/delivery/onboardingState'
 import { useScrollGate, type SlideGateState } from './slideGate'
 import { BlockSlide } from './BlockSlide'
 import { ModuleFeedbackSlide } from './ModuleFeedbackSlide'
 import { ModuleCompleteScreen } from './ModuleCompleteScreen'
-import { nextModuleFromOutro } from './blocks/BlockRenderer'
 
 /** The row's own inset, frame `665:942`. The wash is measured from the rail's
  *  right edge, which is this plus the rail's width. */
@@ -163,6 +163,9 @@ export function ModulePlayerPage() {
   }, [currentKind, stepIndex, slideGate.ready, slideGate.reason])
 
   function exitToTimeline() {
+    // Only the fallback branch leaves the Coach Training Portal, but marking it
+    // unconditionally is harmless and avoids a second, subtly-different rule.
+    markOnboardingSeen()
     navigate(fromModuleId ? `/training-v2/module/${fromModuleId}/overview` : '/delivery/learning')
   }
 
@@ -174,6 +177,11 @@ export function ModulePlayerPage() {
    *  overview the player was opened from. This control names a destination, so
    *  it goes there. */
   function goToLearning() {
+    // ⚠️ Without this the welcome flow plays on arrival — see
+    // `markOnboardingSeen`. `/training-v2` sits outside the delivery shell, so
+    // a coach who opened the player directly has never set the flag, and
+    // finishing a module handed them the four-screen first-run flow.
+    markOnboardingSeen()
     navigate('/delivery/learning')
   }
 
@@ -270,19 +278,10 @@ export function ModulePlayerPage() {
             moduleNumber={PATHWAY_MODULES_V2.findIndex((m) => m.id === module!.id) + 1}
             outroBlocks={content!.outroSlide.blocks}
             railOpen={outlineOpen}
-            // Into the module the card names — its id comes from the same
-            // helper the card's own copy reads, so the button and the line
-            // above it cannot point at different modules. Falls back to the
-            // module list if the number does not resolve.
-            actions={{
-              onContinueNextModule: () => {
-                const next = nextModuleFromOutro(
-                  content!.outroSlide.blocks.find((b) => b.tag === 'chapter-outro') as never,
-                )
-                if (next) navigate(`/training-v2/module/${next.id}/overview`)
-                else exitToTimeline()
-              },
-            }}
+            // No `actions`: the card's "Continue with next module" was
+            // unlinked on 2026-09-28 by direct instruction, so there is no
+            // destination left to pass down. `nextModuleFromOutro` still runs
+            // inside the card itself, for the line that names the module.
             onReadyChange={onReadyChange}
           />
         )

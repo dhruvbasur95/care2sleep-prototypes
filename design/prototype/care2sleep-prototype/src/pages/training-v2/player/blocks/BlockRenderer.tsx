@@ -1,6 +1,7 @@
 import {
   Blocks,
   BookOpen,
+  ChevronRight,
   ClipboardList,
   CookingPot,
   Dumbbell,
@@ -40,6 +41,12 @@ import { PILLOW_SHAPES } from './pillowFrame'
 import { RevisionFlipCards } from './RevisionFlipCards'
 import { HearPairRevealList } from './HearPairReveal'
 import { YourTurnMcq } from './YourTurnMcq'
+import { CaseScenarioBlock } from './CaseScenarioBlock'
+
+/** The Know How block's own heading id. A `case-scenario` block always follows
+ *  one on the same slide and is labelled by it — the frames draw no title of
+ *  their own, and one slide never carries two Know How blocks. */
+const KNOW_HOW_TITLE_ID = 'know-how-title'
 import { YourTurnFreeText } from './YourTurnFreeText'
 import { YourTurnRanking } from './YourTurnRanking'
 /* The animated pillow, imported from the Consumer Portal rather than copied
@@ -136,10 +143,13 @@ const TRANSITION_ICONS: Record<TransitionIcon, LucideIcon> = {
  * framework", which is true of chapter 1 only.
  */
 export const PRACTICE_SKILLS_INTRO =
-  // Exact wording given 2026-09-18 ("the skills", not "the following skills").
+  // ⚠️ No longer build-side chrome. The 2026-09-28 module revision AUTHORS this
+  // line in the Core skills cell, so it is now transcribed copy like any other
+  // and the 2026-09-18 instruction ("the skills", not "the following skills")
+  // is superseded by the source itself.
   // Exported at its second caller — the module overview page's Core skills
   // card — rather than copied, so the two surfaces cannot drift apart.
-  "Then we'll explore the skills that make up SIPTEA in practice:"
+  "Then we'll explore the following skills that make up SIPTEA in practice:"
 
 /**
  * The "Know ..." section eyebrow: a glyph and a `title`-step label.
@@ -376,14 +386,26 @@ export function BlockView({
 
           {/* Block 2 — the quotes. Byte-identical treatment to the chapter
               opening's own quote block, because the two frames draw the same
-              thing: same intro step, same wrapping row, same 56/24 gaps. */}
+              thing: same intro step, same wrapping row, same 56/24 gaps —
+              and, since 2026-09-28, the same neutral avatar face. */}
           <BlockBox className="flex flex-col gap-10">
             <p className="text-center text-sub-greeting leading-[1.4] text-ink-muted">
               {block.transitionCopy}
             </p>
             <div className="flex flex-wrap items-start justify-center gap-x-14 gap-y-6">
               {block.quotes.map((quote, i) => (
-                <QuoteBubble key={i} quote={quote} variant={variants[i]} index={i} />
+                // Extended here a few minutes after the chapter opening
+                // (direct instruction, 2026-09-28: *"the new avatar face
+                // update make it also to module intro block, I have updatd
+                // figma already"*). Verified rather than assumed: this frame's
+                // own avatar node (`3214:21285`) exports the **same asset
+                // hash** as the chapter opening's (`2594:21577`), so the two
+                // blocks are genuinely showing one drawing.
+                //
+                // Still an opt-in rather than a new default: You Might Also
+                // Hear and AnswerOutcome keep the smiling face, and neither
+                // was asked about.
+                <QuoteBubble key={i} quote={quote} variant={variants[i]} index={i} face="neutral" />
               ))}
             </div>
           </BlockBox>
@@ -706,7 +728,13 @@ export function BlockView({
             </p>
             <div className="flex flex-wrap items-start justify-center gap-x-14 gap-y-6">
               {block.quotes.map((quote, i) => (
-                <QuoteBubble key={i} quote={quote} variant={variants[i]} index={i} />
+                // `neutral`, and **only here** (direct instruction, 2026-09-28:
+                // *"for chapter opening block avatar face needs to be made more
+                // neutral. I have updated figma, just do it for this block
+                // only"*). The module intro's own quote row a few hundred lines
+                // above renders the same component and deliberately keeps the
+                // smiling face, as do You Might Also Hear and AnswerOutcome.
+                <QuoteBubble key={i} quote={quote} variant={variants[i]} index={i} face="neutral" />
               ))}
             </div>
           </BlockBox>
@@ -774,6 +802,11 @@ export function BlockView({
         <div>
           <SectionEyebrow icon={MessagesSquare} label={block.label} />
           <Heading
+            /* So a `case-scenario` block on the same slide can point
+               `aria-labelledby` here rather than repeating a title the frames
+               deliberately do not draw. Harmless on the two Know How slides
+               that carry a video instead — an unreferenced id. */
+            id={KNOW_HOW_TITLE_ID}
             data-slide-heading={isFirst || undefined}
             tabIndex={isFirst ? -1 : undefined}
             className="mt-10 font-display text-display-md text-balance outline-none"
@@ -784,6 +817,28 @@ export function BlockView({
             {block.subtitle}
           </p>
         </div>
+      )
+
+    case 'case-scenario':
+      // Sits inside the same `InteractiveBlock` shell and the same `yellow-50`
+      // `content` surface the MCQ block uses, so the two read as one family —
+      // but with **no title above the tint**. Frames `3214:3164`/`3214:19765`
+      // have no title row at all: this block always follows a Know How block,
+      // whose own Title and Sub-title introduce it, and a second heading
+      // repeating that is chrome. So the container is skipped entirely rather
+      // than passed an empty `title`, and the interaction is labelled by the
+      // Know How heading above it.
+      return (
+        <BlockBox>
+          <div className="rounded-[16px] bg-yellow-50 p-10">
+            <CaseScenarioBlock
+              label={block.label}
+              cases={block.cases}
+              labelledBy={KNOW_HOW_TITLE_ID}
+              variant={block.variant}
+            />
+          </div>
+        </BlockBox>
       )
 
     case 'know-why':
@@ -1192,10 +1247,15 @@ export function BlockView({
  * Removed on 2026-09-18 and **put back the same day**, once the card landed on
  * the Module complete screen where leaving is the only thing left to do.
  *
- * ## One CTA
- * **"Continue with next module"** opens the module this card names — the
- * destination and the copy both come from `nextModuleFromOutro`, so they
- * cannot disagree.
+ * ## One CTA, and it no longer goes anywhere
+ * **"Continue with next module"** used to open the module this card names.
+ * Unlinked 2026-09-28 by direct instruction (*"Do not make it interactive,
+ * i.e. unlink from next module"*), and given a trailing chevron in the same
+ * breath. It now renders through `OutroButton`'s unwired path — focusable,
+ * `aria-disabled`, with an `sr-only` "(coming soon)".
+ *
+ * `nextModuleFromOutro` is **still used**, by the card's own copy: the line
+ * naming Module 7 reads it. Only the destination is gone, not the lookup.
  *
  * The frame draws a second pill beside it and **it was deleted** on
  * 2026-09-18: whatever it was called, it said the same thing as the player
@@ -1222,11 +1282,6 @@ export function BlockView({
  * the transition slide's icon: a template field with no authoring column
  * behind it. See workflow §6.1.
  */
-export interface OutroActions {
-  /** Into the module this card names. */
-  onContinueNextModule: () => void
-}
-
 /**
  * The module this outro's "Coming up next" row points at.
  *
@@ -1240,13 +1295,7 @@ export function nextModuleFromOutro(block: Extract<Block, { tag: 'chapter-outro'
   return Number.isFinite(number) ? PATHWAY_MODULES_V2[number - 1] : undefined
 }
 
-export function ComingUpNextCard({
-  block,
-  actions,
-}: {
-  block: Extract<Block, { tag: 'chapter-outro' }>
-  actions?: OutroActions
-}) {
+export function ComingUpNextCard({ block }: { block: Extract<Block, { tag: 'chapter-outro' }> }) {
   const nextModuleName = nextModuleFromOutro(block)?.title
 
   return (
@@ -1344,11 +1393,21 @@ export function ComingUpNextCard({
               2026-09-18, annotated on this exact button): inside a card whose
               whole job is to name Module 7, the primary control carries you
               into Module 7. The footer keeps its own label and its own move. */}
-          <OutroButton
-            onClick={actions?.onContinueNextModule}
-            className="bg-white text-primary hover:bg-purple-50"
-          >
+          {/* **Deliberately unwired** (direct instruction, 2026-09-28: *"add
+              chevron right arrow. Do not make it interactive, i.e. unlink from
+              next module"*). No `onClick`, so `OutroButton` renders it
+              focusable + `aria-disabled` with its `sr-only` "(coming soon)"
+              cue — this project's standing rule for a control the design draws
+              but which has no write path, never a silently dead button and
+              never a dropped one.
+
+              The chevron is `lucide-react`, this project's own icon library,
+              at the app's own conventions rather than a Figma-exported vector.
+              `aria-hidden` because the label beside it already says where it
+              goes. */}
+          <OutroButton className="gap-2 bg-white text-primary hover:bg-purple-50">
             Continue with next module
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
           </OutroButton>
         </div>
       </div>

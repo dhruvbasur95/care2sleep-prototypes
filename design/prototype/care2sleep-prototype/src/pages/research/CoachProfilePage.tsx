@@ -2319,7 +2319,7 @@ function TrackerSection({
           // expanded section reads as "active" against its still-`parchment`
           // collapsed siblings, rather than every header looking identical
           // regardless of state.
-          open ? 'bg-purple-50 hover:bg-purple-100' : 'bg-parchment hover:bg-parchment/70',
+          open ? 'bg-purple-50 hover:bg-purple-200' : 'bg-parchment hover:bg-parchment/70',
           isFirst && 'rounded-t-lg',
           // Only round the header's own bottom corners when it's both the
           // last section AND collapsed — i.e. only when it's actually the

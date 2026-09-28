@@ -3,17 +3,15 @@ import { cn } from '@/lib/utils'
 import { motion, useReducedMotion } from 'framer-motion'
 import type { HearPair } from '@/data/moduleContent'
 import { useRevealVerb } from './useRevealVerb'
+import { CONVERSATION_GROUND } from './conversationGround'
 import { AVATAR_OVERHANG, AVATAR_W, BUBBLES, pickBubbles } from './QuoteBubble'
 import {
   ANSWER_CLOSED_D,
   ANSWER_H,
   ANSWER_OPEN_D,
-  ANSWER_SPARKLES,
   ANSWER_VIEWBOX,
-  ANSWER_W,
   BUBBLE_STROKE,
   BUBBLE_STROKE_W,
-  SPARKLE_STROKE_W,
 } from './revealBubble'
 
 /**
@@ -92,11 +90,17 @@ const ARROW_MAX_W = 146
  * entirely** — reported as "arrow is missing", and invisible as an overflow
  * because the row simply looked tight.
  *
- * Narrowing it trades width for height, which the same instruction allowed
- * ("you can alter height also"): a long answer now grows downward instead of
- * sideways, and nothing else has to move.
+ * Narrowing it traded width for height, which that instruction allowed ("you
+ * can alter height also"): a long answer grew downward instead of sideways.
+ *
+ * ⚠️ **Widened to 460 on 2026-09-28** (direct instruction: *"can we increase
+ * width also"*). 300 was only tenable while the shape was a stretched blob that
+ * hid how tall it got; as a real container the longest answer ran to 438px of
+ * height in a 300px column — a narrow ribbon of text. 460 brings the same copy
+ * down to a readable block, and the row still fits it beside the 290px client
+ * bubble and the 146px arrow inside the slide column.
  */
-const ANSWER_MAX_W = 300
+const ANSWER_MAX_W = 460
 
 export function HearPairReveal({
   pair,
@@ -138,7 +142,18 @@ export function HearPairReveal({
           (direct instruction), and the row grows to whichever bubble's copy is
           longer. `pb-8` balances the frame's `pt-4` now that the avatar hangs
           below its bubble rather than sitting in flow. */}
-      {/* The painterly purple wash behind every pair (direct instruction,
+      {/* ⚠️ **SUPERSEDED 2026-09-28**: this row now uses `CONVERSATION_GROUND`,
+          the same cream-to-lilac gradient the case scenario conversations sit
+          on (direct instruction: *"re-use the same gradient background you have
+          used for case scenario 1, 2 for this interactive block style"*). The
+          `hear-pair-wash.webp` asset is no longer referenced here.
+
+          The note below is kept because its findings still apply to any future
+          painterly asset on this surface — two attempts failed on contrast and
+          visibility before the shipped one worked, and re-measuring both numbers
+          is the lesson, not the asset.
+
+          The painterly purple wash behind every pair (direct instruction,
           2026-09-18: *"add a painterly style background in the parent container
           that is currently just purple 50. use same across, make sure its using
           hues of purple"*).
@@ -171,10 +186,15 @@ export function HearPairReveal({
           `purple-50`. Passing one and failing the other is how this went wrong
           twice. */}
       <div
-        className="flex flex-wrap items-center justify-center rounded-[16px] bg-purple-50 bg-cover bg-center px-8 pt-4 pb-8"
-        style={{
-          backgroundImage: `url("${import.meta.env.BASE_URL}illustrations/module/hear-pair-wash.webp")`,
-        }}
+        className={cn(
+          // `flex-nowrap`: at 460 the answer no longer fitted beside the 290
+          // client bubble and the 146 arrow on a narrower column, so the row
+          // broke and the answer dropped underneath — reported as *"they should
+          // not wrap to second line"*. The three stay on one line and the
+          // answer gives up width instead (see its own `flex-1 min-w-0`).
+          'flex flex-nowrap items-center justify-center rounded-[16px] px-8 pt-4 pb-8',
+          CONVERSATION_GROUND,
+        )}
       >
         {/* ── The client's line ───────────────────────────────────────────── */}
         <figure
@@ -201,7 +221,12 @@ export function HearPairReveal({
             className="relative flex flex-col justify-center px-8 pt-7 pb-14"
             style={{ minHeight: BUBBLE_MIN_H }}
           >
-            <p className="text-caption text-ink italic">{pair.clientSays}</p>
+            {/* `body` (16/400/1.5), not `caption` (direct instruction,
+                2026-09-28: *"Use body size for the client might say chat
+                bubble, this can remain in italics"*). Italics stay — this is
+                the client's own voice, and it is the one half of the pair that
+                keeps them. */}
+            <p className="text-body text-ink italic">{pair.clientSays}</p>
           </blockquote>
           {/* Placed against this blob's own measured tail tip, exactly as the
               chapter opening's quotes are — not in flow at the left edge. */}
@@ -288,20 +313,66 @@ export function HearPairReveal({
           // on it would keep promising something that has already happened. The
           // control stays a real toggle — it just stops advertising.
           className={cn(
-            'relative flex shrink-0 items-center justify-center rounded-[16px] px-10 py-8 text-center text-purple-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'relative flex min-w-0 flex-1 items-center justify-center rounded-[16px] px-10 py-8 text-center text-purple-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             !revealed && 'hover:text-purple-300',
+            // ⚠️ Once open, a real container instead of the drawn blob — see
+            // the SVG below for why.
+            //
+            // `border-solid` + a colour only — the **width comes from
+            // `BUBBLE_STROKE_W` in the style prop below**, the same constant
+            // the closed state's SVG stroke reads. It was a flat `border`
+            // (1px) against the blob's 2.5, so the outline visibly thinned the
+            // moment a pair was opened (direct instruction, 2026-09-28: *"the
+            // clicked state for click to see interaction type -> outline stroke
+            // is not consistent. Both default and selected states should be
+            // 2.5px outline stroke"*).
+            //
+            // Derived rather than retyped as `border-[2.5px]`: these are one
+            // outline drawn two ways, and this project has shipped the
+            // two-transcriptions bug often enough to have a rule about it.
+            // `border-ink-muted` is the right colour by construction —
+            // `BUBBLE_STROKE` is `#333333`, which is that token's own hex.
+            revealed && 'border-solid border-ink-muted bg-purple-200',
           )}
           // No fixed width or height — both are minima, so the bubble grows
           // with its answer on either axis. The closed state always lands on
           // exactly the frame's 290x178, because "Click to see" never reaches
           // those bounds.
-          style={{ minWidth: ANSWER_W, maxWidth: ANSWER_MAX_W, minHeight: ANSWER_H }}
+          // ⚠️ `flex-1 min-w-0` on THIS column only. The arrow column stays
+          // `shrink-0` at a fixed width — making that one flexible is what
+          // collapsed it to zero once (see its own note). Here it is what lets
+          // the answer absorb a narrow row rather than wrapping out of it.
+          // `minWidth` is dropped for the same reason: a floor that cannot be
+          // met is what forces a wrap.
+          style={{
+            maxWidth: ANSWER_MAX_W,
+            minHeight: ANSWER_H,
+            // Only when open: closed, the outline is the SVG path's own stroke.
+            borderWidth: revealed ? BUBBLE_STROKE_W : undefined,
+          }}
         >
-          {/* Inline, so `currentColor` carries the hover from the button.
-              `preserveAspectRatio="none"` matches every other bubble here: the
-              shape is a background that stretches to its copy. `overflow-visible`
-              lets the revealed state's sparkles paint outside the cropped
-              viewBox, where they are drawn. */}
+          {/* ⚠️ **Closed state only.** Reported 2026-09-28: *"on select state the
+              chat bubble is abnormally skewed"*.
+
+              The shape is one organic path stretched with
+              `preserveAspectRatio="none"`. Closed, that is safe — "Click to see"
+              never exceeds the drawn 290x178, which is why the note below says
+              the closed state always lands on exactly those bounds. Open, the
+              longest answer here runs ~500 characters and stretches the same
+              path to roughly three times its drawn height: the corner curvature
+              and the bows scale with the box, so it reads as a smeared blob
+              rather than a bubble.
+
+              This is the identical failure `AnswerOutcome` hit, and the
+              resolution is the one given then (direct instruction, 2026-09-18:
+              *"just use a simple purple container instead of this skewed box
+              behind the message"*) — a plain rounded container with a real
+              border, which is a constant weight at every size. Same fill, same
+              stroke colour, only the geometry changes.
+
+              The revealed sparkles go with it: they were drawn in the path's own
+              coordinate space, so they only made sense on the stretched blob. */}
+          {!revealed && (
           <svg
             aria-hidden="true"
             viewBox={ANSWER_VIEWBOX}
@@ -320,28 +391,21 @@ export function HearPairReveal({
               strokeMiterlimit={2}
               vectorEffect="non-scaling-stroke"
             />
-            {revealed &&
-              ANSWER_SPARKLES.map((d) => (
-                <path
-                  key={d}
-                  d={d}
-                  stroke="var(--color-primary)"
-                  strokeWidth={SPARKLE_STROKE_W}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                  // The sparkles are drawn in the blob's own coordinate space,
-                  // so a stretched viewBox would smear them along with it.
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
           </svg>
+          )}
+          {/* **No italics on this half** (direct instruction, 2026-09-28: *"for
+              click to see part, remove italics, and use body copy"*). The pair
+              is a client utterance and a coaching note about it, and only the
+              first is speech — italicising both made the guidance read as a
+              second quote. Both states take `body` so the panel does not change
+              type size when it opens.
+
+              `font-bold` survives on the closed state: it is a control label
+              rather than copy, and weight was not part of the instruction. */}
           {revealed ? (
-            <span className="relative text-caption text-ink italic">
-              {pair.youCanSay}
-            </span>
+            <span className="relative text-body text-ink">{pair.youCanSay}</span>
           ) : (
-            <span className="relative text-caption font-bold text-ink">{verb} to see</span>
+            <span className="relative text-body font-bold text-ink">{verb} to see</span>
           )}
         </button>
       </div>

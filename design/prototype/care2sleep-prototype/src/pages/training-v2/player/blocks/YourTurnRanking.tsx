@@ -377,7 +377,7 @@ export function YourTurnRanking({
       {submitted && (
         <AnswerOutcome
           panelRef={outcomeRef}
-          message={allCorrect ? question.correctMessage : question.wrongMessage}
+          message={allCorrect ? question.correctMessage : (question.wrongMessage ?? question.correctMessage)}
         />
       )}
 

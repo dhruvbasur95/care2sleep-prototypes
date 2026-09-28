@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils'
 import { PATHWAY_MODULES_V2 } from '@/data/trainingPathwayV2'
 import { MODULE_OVERVIEW_CONTENT } from '@/data/moduleOverviewContent'
 import { MODULE_CONTENT } from '@/data/moduleContent'
-import { PRACTICE_SKILLS_INTRO } from './player/blocks/BlockRenderer'
 import { livePlayerStatus, realPlayerContentId } from './pathway'
 import { SIPTEA_BG, SIPTEA_INITIALS, splitChapterSkills } from '@/data/siptea'
 import { getModuleStepIndex } from './moduleProgressStore'
+import { markOnboardingSeen } from '@/components/delivery/onboardingState'
 import { rangeProgress, sectionRanges } from './playerSteps'
 
 /**
@@ -181,6 +181,9 @@ export function ModuleOverviewPage() {
   }, [moduleId])
 
   function backToTimeline() {
+    // See `markOnboardingSeen`: this page is outside the delivery shell, so
+    // without it "Back to Learning" can land on the first-run welcome flow.
+    markOnboardingSeen()
     navigate('/delivery/learning')
   }
 
@@ -241,8 +244,6 @@ export function ModuleOverviewPage() {
      * deliberately asymmetric and both halves are quoted instructions: you
      * start a *module*, and you resume your *learning*.
      */
-    const resumeLabel = stepIndex > 0 ? 'Resume learning' : 'Start module'
-
     /**
      * Whole-module progress for the hero, shown only once the coach has
      * actually started (direct instruction, 2026-09-18: *"I want to know how
@@ -254,9 +255,54 @@ export function ModuleOverviewPage() {
      * the identical formula `ModulePlayerPage` feeds its outline rail. Three
      * surfaces now report one number from one function — the rail inside the
      * player, the My Learning card, and this hero — so they cannot drift.
+     *
+     * Read **before** the label below, because a third label now switches on
+     * it — see `moduleComplete`.
      */
     const live = livePlayerStatus(thisModuleId)
     modulePercent = live && live.progress > 0 ? live.progress : undefined
+
+    /**
+     * Has the coach reached the end of the module?
+     *
+     * ⚠️ **This cannot be derived from `rangeProgress` on the summary range,
+     * and that is the whole bug.** Progress is stored as the *highest index
+     * reached*, so it tops out at `steps.length - 1` — which is the summary
+     * range's own `end`. `rangeProgress` only reports `completed` for
+     * `stepIndex > end`, a value that can never occur, so the summary row is
+     * permanently `current`: the page offered "Resume learning" forever and
+     * that button reopened the player on the final slide. Reported directly,
+     * 2026-09-28: *"After I have completed the module, it does not go back to
+     * Restart learning, remains stuck at last slide with Resume learning
+     * button"*.
+     *
+     * `livePlayerStatus` already models the end correctly (`stepIndex >=
+     * lastIndex`), and it is the same function the hero percentage, the My
+     * Learning card and the timeline all read — so "finished" means the same
+     * thing on every surface rather than being recomputed here.
+     */
+    const moduleComplete = live?.status === 'completed'
+
+    /**
+     * A **third** label, and a deliberate amendment to the two-label rule
+     * above: a finished module is a state neither "Start" nor "Resume"
+     * describes, and offering "Resume" for it is what produced the stuck
+     * button. Restart is the only thing left to do once there is nothing left
+     * to resume, so this does not reintroduce the five-labels-for-one-action
+     * problem — the page still shows exactly one control, and it still says
+     * exactly one thing per state.
+     */
+    const resumeLabel = moduleComplete
+      ? 'Restart learning'
+      : stepIndex > 0
+        ? 'Resume learning'
+        : 'Start module'
+
+    /** Restart throws progress away and reopens at slide 1; resume names no
+     *  step and lets the player open at the stored index. The player already
+     *  understood `?restart=1` — `goToPlayer({ restart: true })` simply had no
+     *  caller until now. */
+    const openPlayer = () => goToPlayer(moduleComplete ? { restart: true } : undefined)
 
     /**
      * Where it goes is unchanged and is the other half of the instruction:
@@ -275,12 +321,26 @@ export function ModuleOverviewPage() {
         ? ['Module introduction', 'Completed', overview.introDurationLabel]
         : ['Module introduction', overview.introDurationLabel],
       state: introDone ? 'completed' : 'current',
-      // No `Restart` once the intro is behind them: restarting is the opposite
-      // of resuming, and a control that throws away progress does not belong
-      // in a row whose only job is "pick up where you are".
-      cta: introDone
-        ? undefined
-        : { label: resumeLabel, variant: 'primary', onClick: () => goToPlayer() },
+      // Two different controls can land here.
+      //
+      // Before the intro is behind them it is the ordinary Start/Resume, and
+      // `Restart` deliberately does NOT appear: restarting is the opposite of
+      // resuming, and a control that throws away progress does not belong in a
+      // row whose only job is "pick up where you are".
+      //
+      // Once the whole module is complete it is **Restart**, and it belongs on
+      // *this* row rather than the last one. It first shipped on the summary
+      // row (2026-09-28) because that is where the current-section control
+      // normally sits, and that was wrong twice over — reported the same day:
+      // *"re-start learning does not start from part one, and incorrectly
+      // shows after module sumary"*. A control that reopens the module at
+      // slide 1 reads as an instruction to redo the section it sits beside, so
+      // on row 5 it promised to replay the summary. Row 1 is where it actually
+      // takes you.
+      cta:
+        moduleComplete || !introDone
+          ? { label: resumeLabel, variant: 'primary', onClick: openPlayer }
+          : undefined,
     }
 
     const chapterRows: OutlineRow[] = overview.chapters.map((chapter, i) => {
@@ -304,7 +364,7 @@ export function ModuleOverviewPage() {
         progressPercent,
         cta:
           state === 'current'
-            ? { label: resumeLabel, variant: 'primary', onClick: () => goToPlayer() }
+            ? { label: resumeLabel, variant: 'primary', onClick: openPlayer }
             : undefined,
         lockHint: state === 'locked' ? `Complete ${previousLabel} to unlock` : undefined,
       }
@@ -313,7 +373,12 @@ export function ModuleOverviewPage() {
     // The outro slide, the feedback step and the completion screen are one
     // "Summary" range in the step machine — the same grouping the player's
     // outline rail uses, so both surfaces agree.
-    const summaryState = rangeProgress(stepIndex, ranges.summary).state
+    // `|| moduleComplete` on both: `rangeProgress` can never return
+    // `completed` for this range (see `moduleComplete` above), so without it
+    // the last row reads "current" under a hero saying 100% — two surfaces
+    // disagreeing about one fact, on the same screen.
+    const summaryState =
+      moduleComplete ? 'completed' : rangeProgress(stepIndex, ranges.summary).state
     const lastChapterNumber = overview.chapters[overview.chapters.length - 1]?.number
     const summaryRow: OutlineRow = {
       key: 'summary',
@@ -323,9 +388,11 @@ export function ModuleOverviewPage() {
           ? ['Module summary and feedback', 'Completed', overview.outroDurationLabel]
           : ['Module summary and feedback', overview.outroDurationLabel],
       state: summaryState,
+      // Never once the module is complete — Restart moved to the intro row
+      // above, which is where it actually takes you.
       cta:
-        summaryState === 'current'
-          ? { label: resumeLabel, variant: 'primary', onClick: () => goToPlayer() }
+        summaryState === 'current' && !moduleComplete
+          ? { label: resumeLabel, variant: 'primary', onClick: openPlayer }
           : undefined,
       lockHint:
         summaryState === 'locked' ? `Complete Chapter ${lastChapterNumber} to unlock` : undefined,
@@ -575,13 +642,24 @@ export function ModuleOverviewPage() {
                     separately from the initial, and the disc now carries the
                     letter the prefix used to. */}
                 {(() => {
-                  const { components, practice } = splitChapterSkills(overview.coreSkills)
+                  const { components } = splitChapterSkills(overview.coreSkills)
                   /**
                    * Build-side chrome, exactly like `BlockRenderer`'s own
                    * `PRACTICE_SKILLS_INTRO` (direct instruction, 2026-09-18).
                    * It deliberately does NOT live in `moduleContent.ts`:
                    * module.md has no row for it, so `verify-transcription.py`
                    * would correctly fail it for not appearing in the source.
+                   *
+                   * ⚠️ This card used to carry a **second** half below the
+                   * components — `PRACTICE_SKILLS_INTRO` over a bulleted list
+                   * of the practice skills. Removed 2026-09-28 by direct
+                   * instruction (*"from module outline page remove content
+                   * from Then we'll explore the skills that make up SIPTEA in
+                   * practice: onwards, no longer needed"*). The constant is
+                   * still exported and still renders on the **chapter intro
+                   * block**, which is the caller it was written for; only this
+                   * page's copy of it is gone. `splitChapterSkills()` still
+                   * returns `practice` for that caller.
                    *
                    * **"all six" is derived, not written.** SIPTEA has exactly
                    * six components, but a module need not name all of them —
@@ -627,58 +705,6 @@ export function ModuleOverviewPage() {
                             </li>
                           ))}
                         </ul>
-                      )}
-
-                      {practice.length > 0 && (
-                        /* `mt-4` on top of the card's own `gap-4`, so the break
-                           between the two halves of this card is 32px against
-                           the 16px rhythm inside each half (direct instruction,
-                           2026-09-18: *"increase vertical spacing"*, annotated
-                           on exactly this gap). A wrapper rather than a bigger
-                           card gap: the card gap also separates the heading and
-                           the two lists, and widening all of it would space out
-                           rows that are meant to read as one group. */
-                        <div className="mt-4 flex min-w-0 flex-col gap-4">
-                          {/* Same step as the SIPTEA lead above it — the two
-                              are a matched pair of section leads in one card,
-                              so they take one type step. */}
-                          <p className="text-body-md leading-[1.4] text-ink-muted">
-                            {PRACTICE_SKILLS_INTRO}
-                          </p>
-                          {/* Plain dot bullets (direct instruction,
-                              2026-09-18: *"dont use pillows here for pointsers,
-                              use simple bullets"*). The chapter-intro block's
-                              own rows use `bullet-square.svg`, the pillow mark,
-                              which earns its place on a full slide and reads as
-                              a row of icons in a 376px card.
-
-                              The dot is this app's existing one — `size-1.5
-                              shrink-0 rounded-full` with a small top margin, as
-                              `ResourceCard` and `ModuleSummaryCards` draw it —
-                              on `bg-primary` rather than their
-                              `bg-consumer-primary`, since that token must never
-                              leak out of the Consumer Portal. The margin sits
-                              it on the first line rather than centring it
-                              against a label that may wrap to three lines.
-
-                              One column, not that block's two: this card is
-                              376px and its longest skill already wraps. The
-                              `min-w-0` pair is why it wraps at all — a flex item
-                              defaults to `min-width: auto`, so the longest
-                              label would size the row instead of wrapping in
-                              it. */}
-                          <ul className="flex min-w-0 flex-col gap-3">
-                            {practice.map((skill) => (
-                              <li key={skill.raw} className="flex min-w-0 items-start gap-3">
-                                <span
-                                  aria-hidden="true"
-                                  className="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary"
-                                />
-                                <span className="min-w-0 text-caption text-ink">{skill.name}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
                       )}
                     </>
                   )

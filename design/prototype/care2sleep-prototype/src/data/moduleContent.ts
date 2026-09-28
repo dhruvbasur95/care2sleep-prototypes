@@ -38,6 +38,8 @@
  *    never rendered in the player.
  */
 
+import type { SipteaInitial } from './siptea'
+
 /** One attributed quote — the `Quotes_` atom (`2584:1049`). */
 export interface Quote {
   text: string
@@ -81,11 +83,13 @@ export interface AccordionImageItem {
 export interface KnowledgeVideoRow {
   topic: string
   content: string
-  /** The source's "Format — select all that apply" column, verbatim and
-   *  unresolved: no selection is marked in module.md, so nothing here
-   *  decides anything yet. */
-  format: string
   notes?: string
+  //
+  // ⚠️ `format` is GONE (2026-09-28). It mirrored the source's
+  // "Format — select all that apply" column, which the module revision
+  // removed outright. Nothing ever read it — a `<Video block>` is only its
+  // YouTube id, and `brief` is production material for whoever shoots the
+  // film (CLAUDE.md). Do not reintroduce it.
 }
 
 /** The three `<Interactive block>` patterns. None has a Figma template, so
@@ -182,14 +186,67 @@ export interface HearPair {
 
 /** Your turn — one question. `interactionType` is chosen per scenario in
  *  module.md, not per question. */
+/**
+ * One case in a `<Case scenario block_1>` — a short slice of coach/client
+ * conversation, then one question about the skills the coach just used.
+ *
+ * It **extends** `YourTurnQuestion` rather than redeclaring its fields, because
+ * the question half is the same question a Your turn MCQ asks and is graded by
+ * the same component. The two additions are the whole delta: the conversation
+ * the learner reads first, and the SIPTEA components the case teaches, which
+ * the outcome panel shows back as chips once the answer is in.
+ */
+/** One line of a case's conversation, attributed. */
+export interface ConversationTurn {
+  who: 'coach' | 'carer'
+  text: string
+}
+
+export interface CaseScenarioCase extends YourTurnQuestion {
+  /** The conversation for this case, verbatim from module.md's `Case copy`.
+   *
+   *  ⚠️ This is the copy that will be **set as artwork** — the image block
+   *  renders a rendered conversation, not live text (direct instruction,
+   *  2026-09-28: *"in the image block, we will need to show image ... just keep
+   *  it as placeholder block for now"*). It is held here so the artwork brief
+   *  and the slide cannot disagree about what the conversation says, and so the
+   *  placeholder has something real to stand in with. */
+  conversation: string
+  /** Asset STEM for the conversation artwork once it exists, the same
+   *  convention `chapter-intro`'s hero uses. Absent everywhere today — every
+   *  case renders the placeholder. */
+  image?: string
+  /**
+   * The conversation split by speaker, for a case rendered as a LIVE chat
+   * rather than artwork (`variant: 'block-2'`).
+   *
+   * Block_1's cases have `image` instead: their 1-3 turn conversations are
+   * bespoke compositions and work as one flattened export. Chapter 3's run to
+   * eight turns, where an export's type ends up at 0.725 scale — so those are
+   * components, and this is the structure they need.
+   */
+  turns?: ConversationTurn[]
+  /** The SIPTEA components this case teaches — module.md's own `Tags` column,
+   *  shown as `Skills covered:` chips in the answer outcome. */
+  tags: SipteaInitial[]
+}
+
 export interface YourTurnQuestion {
   type: string
   question: string
   selectMode?: string
   options?: string[]
-  correctAnswer: string
+  /** ⚠️ Optional since 2026-09-28. The revised source removed the "Model
+   *  answer" column from the Chapter 3 free-text table, so a free-text
+   *  question now has no model answer to carry. Multiple-choice and ranking
+   *  questions still require one in practice — the looseness is for free text
+   *  alone. */
+  correctAnswer?: string
   correctMessage: string
-  wrongMessage: string
+  /** ⚠️ Optional since 2026-09-28, for the same reason as `correctAnswer`:
+   *  free text has no wrong answer, and the source stopped carrying the
+   *  placeholder column that used to say so. */
+  wrongMessage?: string
 }
 
 export type Block =
@@ -336,6 +393,43 @@ export type Block =
     }
   | {
       /**
+       * `<Case scenario block_1>` (2026-09-28, direct instruction) — the Know
+       * How slide's interaction, built from frames `3214:3164` (default) and
+       * `3214:19765` (answer submitted).
+       *
+       * It is the Your turn multiple-choice block plus exactly two things: an
+       * image above each question, and the SIPTEA skills the case teaches shown
+       * inside the answer outcome. So it renders through `YourTurnMcq` with two
+       * additive props rather than forking 478 lines of grading, focus and
+       * scroll handling that took three rounds to get right.
+       *
+       * It is its own tag rather than another `interactive` pattern because it
+       * is not a `Your turn`: it replaces the **scenario video** on a Know How
+       * slide (direct instruction: *"swap the video only block below the know
+       * how block"*), and Chapter 2's Know How therefore has no transcript any
+       * more — the conversation is what the learner reads, case by case.
+       */
+      tag: 'case-scenario'
+      /**
+       * Which of the two authored blocks this is.
+       *
+       * `block-1` (the default) is Chapter 2's: read the conversation, then
+       * answer which skills the coach used. `block-2` is Chapter 3's "what
+       * would you say" — the coach's next line is missing and the learner picks
+       * it, so the options are things a coach could *say* and render as chat
+       * bubbles rather than answer pills.
+       *
+       * One tag with a variant rather than two tags: the image, the question,
+       * the grading, the SIPTEA chips, the gate and the footer are all the same
+       * block. Only the option chrome differs.
+       */
+      variant?: 'block-1' | 'block-2'
+      /** The eyebrow above the image, numbered per case: `Case scenario 3/8`. */
+      label: string
+      cases: CaseScenarioCase[]
+    }
+  | {
+      /**
        * Know Why's own block (2026-09-16, direct instruction). Previously a
        * `text-2` plus a separate `body` block, which put the body in its own
        * 40px box a 40px gap away; the section reads as one thought, so the
@@ -440,7 +534,7 @@ const M6_SETUP: ModuleSetup = {
   name: 'Module 6 - The Building Blocks of Good Sleep',
   coreMessage:
     'Understand the key foundations of good, consistent sleep, what sleep drive is, and simple ways to strengthen your body’s natural drive for sleep.',
-  coreSkillsIntro: 'In this module, you\'ll learn about these core skills:',
+  coreSkillsIntro: 'In this module, we\'ll look at all six parts of the SIPTEA framework:',
   coreSkills: [
     'S - Shared Understanding',
     'I - Implementation Intent',
@@ -448,19 +542,6 @@ const M6_SETUP: ModuleSetup = {
     'T - Tailoring',
     'E - Emotion Navigation',
     'A - Action and Goals',
-    'Active Listening',
-    'Reflective Listening - Paraphrasing, rephrasing, summarising, Checking Understanding',
-    'Building Rapport - Positivity, Coordination',
-    'Open Questions',
-    'Closed Questions',
-    'Validation',
-    'Normalisation',
-    'Empathy',
-    'Communication - Clear, simple language',
-    'Person-Centred Communication',
-    'Non-judgemental Communication',
-    'Rapport Building - Positivity and Coordination',
-    'Goal-Setting',
   ],
 }
 
@@ -526,18 +607,18 @@ const M6_CHAPTER_1: ChapterContent = {
           chapterTitle: 'The Foundations of Good Sleep',
           whatYouWillLearn:
             'In this chapter, you\'ll learn about the three ingredients behind healthy sleep and how they work together.',
-          coreSkillsIntro: 'In this chapter, you\'ll learn about these core skills:',
+          coreSkillsIntro: 'We\'ll look at all three parts of the SIPTEA framework:',
           coreSkills: [
             'S - Shared Understanding',
             'T - Tailoring',
             'E - Emotion Navigation',
-            'Building Rapport - Positivity, Coordination',
+            'Building Rapport — Positivity, Coordination',
             'Open Questions',
+            'Reflective Listening — Paraphrasing',
             'Validation',
             'Normalisation',
             'Empathy',
-            'Reflective Listening - Paraphrasing',
-            'Communication - Clear, simple language',
+            'Communication — Clear, simple language',
             'Person-Centred Communication',
           ],
         },
@@ -552,9 +633,9 @@ const M6_CHAPTER_1: ChapterContent = {
           tag: 'chapter-opening',
           keyTopicsIntro: 'Here’s what you\'ll learn:',
           keyTopics: [
-            { text: 'Introduce The Good Sleep Recipe', icon: 'cooking-pot' },
-            { text: 'Brief introduction to each of the ingredient', icon: 'layers' },
-            { text: 'Understand how these ingredients work together to support good quality sleep', icon: 'puzzle' },
+            { text: 'The Good Sleep Recipe', icon: 'cooking-pot' },
+            { text: 'Each ingredient in the Good Sleep Recipe', icon: 'layers' },
+            { text: 'How these ingredients work together to support good quality sleep', icon: 'puzzle' },
           ],
           quotesIntro:
             'A small glimpse of the kinds of things your clients might say about these topics:',
@@ -573,7 +654,7 @@ const M6_CHAPTER_1: ChapterContent = {
             },
           ],
           transition:
-            'None of these come down to one thing going wrong. For one person, it\'s the getting to sleep in the first place. For another, it\'s watching their partner drop straight off while they\'re still lying there wide awake. For someone else, it\'s a mind that just won\'t switch off. Sleep isn\'t something you can just try harder at. It depends on three things lining up together. That\'s what this chapter introduces: the Good Sleep Recipe, three ingredients that work together to help someone fall asleep and stay asleep. Now you\'ll learn about the science behind the Good Sleep Recipe.',
+            'None of these come down to one thing going wrong. For one person, it\'s getting to sleep in the first place. For another, it\'s watching their partner drop straight off while they\'re still lying there wide awake. For someone else, it\'s a mind that just won\'t switch off. Sleep isn\'t something you can just try harder at. It depends on three things lining up together. That\'s what this chapter introduces: the Good Sleep Recipe, three ingredients that work together to help someone fall asleep and stay asleep. Now you\'ll learn about the science behind the Good Sleep Recipe.',
         },
       ],
     },
@@ -587,11 +668,7 @@ const M6_CHAPTER_1: ChapterContent = {
           label: 'Know What',
           title: 'Learn about the Good Sleep Recipe',
           subtitle:
-            'The three ingredients behind good sleep and how they come together to help your clients sleep better.',
-        },
-        {
-          tag: 'sub-title',
-          copy: 'Good sleep depends on a few key ingredients that work together to help individuals fall asleep and stay asleep. Now let\'s watch a video to learn more about the Good Sleep Recipe.',
+            'Good sleep depends on a few key ingredients that work together to help individuals fall asleep and stay asleep. Now let\'s watch a video to learn more about the Good Sleep Recipe.',
         },
         {
           tag: 'video',
@@ -604,14 +681,12 @@ const M6_CHAPTER_1: ChapterContent = {
               topic: 'The Good Sleep Recipe',
               content:
                 'One of the core messages of the Care2Sleep program is that good sleep depends on a few key ingredients that work together to help individuals fall asleep and stay asleep. These include building sleep drive, keeping the body clock in sync, and calming the mind and body before bed.',
-              format: 'Video  Website text  Audio only',
               notes: 'Optional',
             },
             {
               topic: 'Video_K1_Sleep Drive',
               content:
                 'This is our hunger for sleep. From the moment we wake, this drive (or hunger) gradually builds, getting stronger the longer we stay awake. The more it builds, the easier it is to fall asleep. Ideally, we want to be very “hungry” for sleep when we get into bed each night!',
-              format: 'Video  Website text  Audio only',
               notes:
                 'If an image or graphic is used for the three ingredients, then I would suggest the same visual be used across modules (e.g., Body Clock in Module 8, Calm, Mind and Body in Module 9, etc.',
             },
@@ -619,7 +694,6 @@ const M6_CHAPTER_1: ChapterContent = {
               topic: 'Video_K1_Body Clock',
               content:
                 'Also known as our circadian rhythms. This is the part of our brain that sends our body signals when it is time to be awake and when it is time to be asleep. Our body clock is mainly regulated by light and keeps us in tune with the outside world on a roughly 24-hour routine.',
-              format: 'Video  Website text  Audio only',
               notes:
                 'If an image or graphic is used for the three ingredients, then I would suggest the same visual be used across modules (e.g., Body Clock in Module 8, Calm, Mind and Body in Module 9, etc.',
             },
@@ -627,7 +701,6 @@ const M6_CHAPTER_1: ChapterContent = {
               topic: 'Video_K1_Calm Mind and Body',
               content:
                 'A busy mind or tense body can make it hard to fall asleep. Think of it like an internal alarm system. Stress, worry, and heightened alertness can interfere with sleep by keeping the brain and body in a state of “readiness”. This is sometimes called hyperarousal - when the mind and body remain more activated than is helpful for sleep.',
-              format: 'Video  Website text  Audio only',
               notes:
                 'If an image or graphic is used for the three ingredients, then I would suggest the same visual be used across modules (e.g., Body Clock in Module 8, Calm, Mind and Body in Module 9, etc.',
             },
@@ -635,7 +708,6 @@ const M6_CHAPTER_1: ChapterContent = {
               topic: 'Video_K1_Bringing the ingredients together',
               content:
                 'These three ingredients work together so that sleep is best when we: Are hungry for sleep Sleep at a time consistent with our body clock Have a calm mind and body',
-              format: 'Video  Website text  Audio only',
               notes:
                 'The initial part could be part of the video, together with the three ingredients above, but then the rest of this content (e.g., From',
             },
@@ -663,7 +735,7 @@ const M6_CHAPTER_1: ChapterContent = {
                 icon: 'gauge',
                 art: 'sleep-drive',
                 definition:
-                  'The body\'s natural, increasing need for sleep that builds the longer we remain awake. The longer we are awake, the stronger it gets.',
+                  'The body\'s natural, increasing need or hunger for sleep that builds the longer we remain awake. The longer we are awake, the stronger it gets.',
               },
               {
                 term: 'Body Clock',
@@ -677,7 +749,7 @@ const M6_CHAPTER_1: ChapterContent = {
                 icon: 'wind',
                 art: 'calm-mind-body',
                 definition:
-                  'A busy mind or tense body can make it hard to fall asleep. Stress, worry, and heightened alertness interfere with sleep by keeping the brain and body in a state of "readiness.',
+                  'A busy mind or tense body can make it hard to fall asleep. Stress, worry, and heightened alertness interfere with sleep by keeping the brain and body in a state of "readiness”.',
               },
               {
                 term: 'Hyperarousal',
@@ -685,13 +757,6 @@ const M6_CHAPTER_1: ChapterContent = {
                 art: 'hyperarousal',
                 definition:
                   'When the mind and body remain more activated than is helpful for sleep (the state caused by stress, worry, or heightened alertness working against a calm mind and body).',
-              },
-              {
-                term: 'Adenosine',
-                icon: 'flask-conical',
-                art: 'adenosine',
-                definition:
-                  'A naturally occurring chemical in the brain that gradually builds up the longer we\'re awake. As it accumulates, our drive for sleep becomes stronger, making us feel increasingly sleepy.',
               },
               {
                 term: 'The Three Ingredients Working Together',
@@ -719,17 +784,19 @@ const M6_CHAPTER_1: ChapterContent = {
           label: 'Know How',
           title: 'Coaching in Action',
           subtitle:
-            'Watch how a coach explains the three sleep ingredients in a real conversation, and which skills they use to do it',
-        },
-        {
-          tag: 'sub-title',
-          copy: 'Now you\'ll watch a video of the coach explaining the three sleep ingredients to the dyad. As you watch, look out for the tags showing which core skill is being used at each moment.',
+            'Watch the sleep coach in a real conversation with their clients, and notice which skills they use. In this video, the coach explains the three sleep ingredients to a dyad.',
         },
         {
           tag: 'video',
           variant: 'scenario',
-          // Chapter 1's Know How scenario video ('Dyad').
-          youtubeId: 'Tz9kXuPkudY',
+          // Chapter 1's Know How scenario video ('Dyad'). Re-shot; link
+          // replaced 2026-09-28. The 11-character id, never the share URL —
+          // `verify-transcription.py` checks every 25+ character literal
+          // against module.md, and a share link is 28+ and would be reported
+          // as a transcription failure (CLAUDE.md). The `si=` parameter is
+          // dropped for the same reason it always is: it identifies the share,
+          // not the video.
+          youtubeId: 'PY2yDVoYUWg',
           scenario: 'Dyad',
           script:
             'Coach (S - Shared Understanding; Open Questions): This week your module talked about the Good Sleep Recipe. I thought we could spend a few minutes just checking in on it together. How did you find that part of the module? / Care Partner: I remember there were three things, but I can’t remember all of them. / Person Living with Dementia: Something about sleep hunger and the body clock, but I’m not sure about the third one. / Coach (S - Shared Understanding; Building Rapport - Positivity, Coordination): That’s a great start! There’s quite a bit of information in the modules, let’s go over the three ingredients now. / Coach: So, the three ingredients are sleep drive, your body clock, and a calm mind and body. They each play a part in helping us get ready for and maintain sleep. / Coach (S - Shared Understanding; Open Questions): Thinking about those three, what do you remember what sleep drive means? / Care Partner: Is that how tired you are? / Coach (S - Shared Understanding; Building Rapport - Positivity, Coordination): Yes, that’s a good way of thinking about it. Sleep drive is like our hunger for sleep. It builds the longer we’re awake, helping us feel ready to sleep. / Coach (S - Shared Understanding; Communication - Clear, simple language): The second ingredient is the body clock. This is our internal timing system that helps tell our body when it’s time to be awake and when it’s time to sleep. Light is one of the main things that helps keep that clock in sync. / Person Living with Dementia: And the third one is keeping calm? / Coach (S - Shared Understanding; Building Rapport - Positivity, Coordination): Exactly. The third ingredient is a calm mind and body. If we’re worried, stressed or physically tense, our brain and body can stay more alert, which can make it harder to settle into sleep. / Care Partner: I do tend to worry about things once I get into bed. / Coach (S - Shared Understanding; E - Emotion Navigation; Validation, Normalisation, Empathy): That makes sense. It’s very common for worries to feel stronger at bedtime, when the day quiets down and there’s more space to notice what’s on your mind. / Coach: So, the three ingredients work together: We want to build up enough hunger for sleep, have our sleep occurring at a time that fits with our body clock, and help the mind and body settle for sleep. / Coach (S - Shared Understanding; I - Implementation Intent; T - Tailoring; Open Questions, Person-Centred Communication): Looking at those three ingredients, which one do you think might be most relevant to what you’ve been experiencing with sleep? / Care Partner: Probably the calm mind and body one. I seem to start worrying as soon as I get into bed. / Coach (S Shared Understanding; Reflective Listening - Paraphrasing): It sounds like your body is ready for bed, but your mind can still be quite active, making it hard to settle into sleep. / Coach: That gives us somewhere useful to start. We’ll keep coming back to these three ingredients throughout the program and explore which strategies might help strengthen one or more of them.',
@@ -853,22 +920,20 @@ const M6_CHAPTER_2: ChapterContent = {
           chapterTitle: 'Understanding Sleep Drive and Our Hunger for Sleep',
           whatYouWillLearn:
             'In this chapter, you\'ll learn about the science of sleep drive and what can quietly wear it down before bedtime.',
-          coreSkillsIntro: 'In this chapter, you\'ll learn about these core skills:',
+          coreSkillsIntro: 'We\'ll look at all five parts of the SIPTEA framework:',
           coreSkills: [
             'S - Shared Understanding',
             'I - Implementation Intent',
             'P - Problem Identification',
             'T - Tailoring',
             'E - Emotion Navigation',
-            'Reflective Listening — Paraphrasing',
-            'Reflective Listening - Summarising',
-            'Reflective Listening - Checking Understanding',
-            'Empathy',
-            'Validation',
+            'Active Listening',
+            'Reflective Listening — Paraphrasing, Summarising, Checking understanding',
             'Open Questions',
             'Closed Questions',
             'Clarifying Questions',
-            'Active Listening',
+            'Empathy',
+            'Validation',
             'Non-judgemental Communication',
           ],
         },
@@ -883,8 +948,8 @@ const M6_CHAPTER_2: ChapterContent = {
           tag: 'chapter-opening',
           keyTopicsIntro: 'Here’s what you\'ll learn:',
           keyTopics: [
-            { text: 'Introduction to the Two-Process Model of Sleep Regulation', icon: 'workflow' },
-            { text: 'Describe Sleep Drive (Process S) and how it creates the natural “hunger for sleep”', icon: 'gauge' },
+            { text: 'The Two-Process Model of Sleep Regulation', icon: 'workflow' },
+            { text: 'What Sleep Drive (Process S) is, and how it creates the natural “hunger for sleep”', icon: 'gauge' },
             { text: 'How to assess and identify factors that influence sleep drive', icon: 'clipboard-list' },
           ],
           quotesIntro:
@@ -913,11 +978,7 @@ const M6_CHAPTER_2: ChapterContent = {
           tag: 'know-what',
           label: 'Know What',
           title: 'What Builds (and Drains) Sleep Drive',
-          subtitle: 'The science of sleep drive and what quietly wears it down before bedtime',
-        },
-        {
-          tag: 'sub-title',
-          copy: 'Sleep drive is one of the key ingredients behind good sleep, our natural, building drive to fall asleep and stay asleep. Now let’s watch a video to learn more about sleep drive.',
+          subtitle: 'Sleep drive is one of the key ingredients behind good sleep, our natural, building drive to fall asleep and stay asleep. Now let’s watch a video to learn more about sleep drive.',
         },
         {
           tag: 'video',
@@ -929,21 +990,18 @@ const M6_CHAPTER_2: ChapterContent = {
               topic: 'Understand the link between what sleep is and how it is regulated',
               content:
                 'In the last module, we explored what sleep is, why it’s important for physical and mental health, and what can happen when we don’t get enough of it. But this raises an important question: how does the body know when it is time to be awake and when it is time to sleep? That is where one of our good sleep ingredients comes into play: Sleep Drive. Sleep Drive is one of two key processes integral to the Two-Process Model of Sleep Regulation.',
-              format: 'Video  Website text  Audio only',
               notes: 'Optional',
             },
             {
               topic: 'Video_K2_Two-Process Model of Sleep Regulation',
               content:
                 'Developed more than 40 years ago, the Two-Process Model of Sleep Regulation describes how sleep is controlled by two interacting systems: Process S (sleep drive), which builds the longer we stay awake, and Process C (the body clock or circadian rhythm), which helps determine the timing of sleep and wakefulness across the 24-hour day. Together, these two processes interact to influence when we feel sleepy, when we wake up, and how alert we feel during the day. Understanding how sleep drive and the body clock work together can help explain many common sleep difficulties, and guide the strategies you\'ll support your client to try throughout this program. In this module, we will focus on Process S (sleep drive). For more information about Process C (the body clock or circadian rhythm), visit Module 8 - Resetting the Body Clock.',
-              format: 'Video  Website text  Audio only',
               notes: 'Optional',
             },
             {
               topic: 'Video_K2_Process S (Sleep Drive)',
               content:
                 'Process S refers to homeostatic sleep pressure, or as it’s also known as, Sleep Drive. Sleep drive is the body\'s natural, increasing need for sleep that builds the longer we remain awake. It works much like hunger: the longer we go without food, the hungrier we become, and once we eat, that hunger is satisfied. Similarly, from the moment we wake up, our sleep drive gradually builds throughout the day, reaching its peak by bedtime, before decreasing again while we sleep. This process is driven in part by the gradual build-up of a naturally occurring chemical in the brain, called adenosine. As adenosine accumulates, our drive for sleep becomes stronger, making us feel increasingly sleepy the longer we stay awake. For most people, around 16 hours of wakefulness will build up enough sleep drive to be able to sleep for around 8 hours. However, that means that reducing “sleep hunger” during the day, such as by napping, going to bed too early, or sleeping in, can lower the amount of sleep drive someone has at bedtime. Ideally, we want “sleep hunger” to be at its highest when a person gets into bed, so that falling and staying asleep is easier.',
-              format: 'Video  Website text  Audio only',
               notes: 'Optional',
             },
           ],
@@ -957,7 +1015,7 @@ const M6_CHAPTER_2: ChapterContent = {
         {
           tag: 'interactive',
           pattern: 'revision',
-          title: '<Add copy here>',
+          title: 'Now that you\'ve gone through the video, let\'s revise some of the key words. Tap on each word card to reveal more information about it.',
           revision: {
             terms: [
               {
@@ -979,7 +1037,7 @@ const M6_CHAPTER_2: ChapterContent = {
                 icon: 'trending-up',
                 art: 'process-s',
                 definition:
-                  'Homeostatic sleep pressure. It is another name for sleep drive. Builds the longer we stay awake.',
+                  'Homeostatic sleep pressure. It is another name for a sleep drive. Builds the longer we stay awake.',
               },
               {
                 term: 'Process C',
@@ -1026,6 +1084,21 @@ const M6_CHAPTER_2: ChapterContent = {
       ],
     },
     {
+      /**
+       * Chapter 2's Know How, rebuilt 2026-09-28 (direct instruction). It used
+       * to be the standard shape — intro, a framing paragraph, and a scenario
+       * video carrying a SIPTEA-tagged transcript. The instruction was *"swap
+       * the video only block below the know how block"*, so the video and the
+       * paragraph that introduced it are both gone and the conversation is now
+       * something the coach **reads**, one slice at a time, answering a
+       * question about the coach's skills after each one.
+       *
+       * ⚠️ **There is no transcript on this slide any more.** The dialogue that
+       * lived in the video block's `script` is now the eight cases' own
+       * `conversation` fields — learner-facing copy, not production material.
+       * The `Module 6_Temp 1.md` content is the source; Module 6's other two
+       * Know How slides are untouched and still carry their videos.
+       */
       id: 's13-ch2-know-how',
       navLabel: 'Know how',
       fixedTemplate: false,
@@ -1035,20 +1108,197 @@ const M6_CHAPTER_2: ChapterContent = {
           label: 'Know How',
           title: 'Coaching in Action',
           subtitle:
-            'Watch how a coach explores what\'s affecting sleep drive at bedtime in a real conversation, and which skills they use to do it.',
+            'A care partner has come to this session concerned that the person she cares for no longer seems tired at bedtime. You\'ll read this conversation in short sections. After each one, you\'ll be asked which skill the coach just used. Let\'s choose which skills the coach is showing, and see why.',
         },
         {
-          tag: 'sub-title',
-          copy: 'Now you\'ll watch a video of the coach exploring how daytime naps, time in bed, daily routines, and overnight caregiving may affect the person living with dementia’s sleep drive at bedtime. As you watch, look out for the tags showing which core skill is being used at each moment.',
-        },
-        {
-          tag: 'video',
-          variant: 'scenario',
-          // Chapter 2's Know How scenario video ('Carer supporting').
-          youtubeId: 'EZhldtopOxk',
-          scenario: 'Carer supporting',
-          script:
-            'Care Partner: They just don\'t seem tired at bedtime anymore. Some nights they\'re awake for ages before they finally fall asleep. / Coach (S - Shared Understanding; E - Emotion Navigation; Reflective Listening - Paraphrasing; Empathy; Validation): It sounds like bedtime has become quite difficult, particularly when they\'re not seeming sleepy. / Coach (S - Shared Understanding; Open Questions): I\'d like to understand a little more about what happens across their whole day, because what happens during the day can affect how much sleep hunger builds by bedtime. What does a typical day and night look like for them at the moment? / Care Partner: They usually get up around 8, have breakfast, and then sit in their chair for most of the morning. After lunch they usually fall asleep for a while. / Coach (S - Shared Understanding; Active Listening; Clarifying Questions): Hmm, okay. And when they fall asleep after lunch, roughly what time does that happen and how long would they usually sleep for? / Care Partner: Probably around 1:30. Sometimes it\'s half an hour, sometimes it\'s two hours. / Coach (S - Shared Understanding; Reflective Listening - Summarising/Paraphrasing, Checking Understanding): So there\'s quite a bit of variation in both the timing and length of that daytime sleep. And what time would they usually go to bed in the evening? / Care Partner: Around 8pm. That\'s always been their bedtime. / Coach (S - Shared Understanding; Clarifying Questions): And at 8pm, do they usually seem sleepy and ready to go to bed, or is it more that it\'s their usual routine? / Care Partner: Usually they\'re not that sleepy. We put them to bed because it\'s 8 o\'clock, but then they can be awake until 10. / Coach (S - Shared Understanding; Reflective Listening - Summarising/Paraphrasing, Checking Understanding): That helps me understand the pattern. They may be spending quite a long time in bed before they\'re actually ready to sleep, and the daytime sleep may also be reducing some of the sleep hunger that would otherwise build by the evening. / Care Partner: I hadn\'t thought about the nap affecting bedtime. I thought they needed it because they were tired. / Coach (E - Emotion Navigation; T - Tailoring; Validation; Empathy; Non-judgemental Communication): That makes sense. The nap may well be meeting a genuine need for rest, so I wouldn\'t want to assume it needs to be removed. / Coach (S - Shared Understanding; I - Implementation Intent; Closed/Clarifying Questions): Before we think about changing anything, I\'d also like to understand what the caring role looks like overnight. Do you need to wake them, or change your own routine around them? / Care Partner: Yes, sometimes they\'re awake at 2 or 3 in the morning, and I\'m up with them. It can be so exhausting. / Coach (S - Shared Understanding; P- Problem Identification; E - Emotion Navigation; Validation; Empathy; Reflective Listening - Summarising): That sounds important. Their sleep pattern isn\'t happening in isolation, what happens overnight affects you both, and your routines need to be realistic around the care you\'re providing. / Coach (I - Implementation Intent; P - Problem Identification; T - Tailoring; Person-centred Communication): From what you\'ve described, there are a few things we could keep an eye on: the variable daytime naps, the long period between getting into bed and actually falling asleep, and how consistently they wake and go to bed. We can use that information to work out what, if anything, is worth changing.',
+          tag: 'case-scenario',
+          label: 'Case scenario',
+          cases: [
+            {
+              type: 'Case scenario',
+              image: 'case-1',
+              conversation:
+                'Care partner: They just don’t seem tired at bedtime anymore. Some nights they’re awake for ages before they finally fall asleep. Coach: It sounds like bedtime has become quite difficult, particularly when they’re not seeming sleepy.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Open question',
+                'B. Clarifying question',
+                'C. Reflective listening',
+                'D. Validation and empathy',
+                'E. Non-judgemental communication',
+              ],
+              correctAnswer:
+                'C. Reflective listening D. Validation and empathy',
+              correctMessage:
+                'Correct. The coach reflects back what has just been said before asking anything, which is paraphrasing. Saying that bedtime has become difficult also validates the experience, so the line does two things at once.',
+              wrongMessage:
+                'The answer is reflective listening together with validation and empathy. The coach reflects back what has just been said before asking anything, which is paraphrasing. Saying that bedtime has become difficult also validates the experience, so the line does two things at once.',
+              tags: ['S', 'E'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-2',
+              conversation:
+                'Coach: I’d like to understand a little more about what happens across their whole day, because what happens during the day can affect how much sleep hunger builds by bedtime. What does a typical day and night look like for them at the moment? Care partner: They usually get up around 8, have breakfast, and then sit in their chair for most of the morning. After lunch they usually fall asleep for a while.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Open question',
+                'B. Clarifying question',
+                'C. Reflective listening',
+                'D. Person-centred communication',
+                'E. Active listening',
+              ],
+              correctAnswer:
+                'A. Open question',
+              correctMessage:
+                'Correct. The question is wide open, so the care partner can answer it however they like. The coach also mentions why they are asking the question.',
+              wrongMessage:
+                'This one is an open question. The question is wide open, so the care partner can answer it however they like. The coach also mentions why they are asking the question.',
+              tags: ['S'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-3',
+              conversation:
+                'Coach: Hmm, okay. And when they fall asleep after lunch, roughly what time does that happen and how long would they usually sleep for? Care partner: Probably around 1:30. Sometimes it’s half an hour, sometimes it’s two hours.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Person-centred communication',
+                'B. Clarifying question',
+                'C. Reflective listening',
+                'D. Validation and empathy',
+                'E. Active listening',
+              ],
+              correctAnswer:
+                'B. Clarifying questions E. Active listening',
+              correctMessage:
+                'Correct. The care partner said "for a while", so the coach asked for the time and the length. Noticing that vague phrase is active listening, and the question narrows it down to limited options, a time and a duration, which is what makes it clarifying.',
+              wrongMessage:
+                'The answer is clarifying questions and active listening. The care partner said "for a while", so the coach asked for the time and the length. Noticing that vague phrase is active listening, and the question narrows it down to limited options, a time and a duration, which is what makes it clarifying.',
+              tags: ['S'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-4',
+              conversation:
+                'Coach: So there’s quite a bit of variation in both the timing and length of that daytime sleep. And what time would they usually go to bed in the evening? Care partner: Around 8pm. That’s always been their bedtime',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Non-judgemental communication',
+                'B. Clarifying question',
+                'C. Reflective listening',
+                'D. Validation and empathy',
+                'E. Active listening',
+              ],
+              correctAnswer:
+                'C. Reflective listening',
+              correctMessage:
+                'Correct. It is reflective listening, especially summarising, paraphrasing and checking understanding. Nothing new is added. The coach names the pattern in what has been described, which lets the care partner correct it if it isn’t right.',
+              wrongMessage:
+                'This one is reflective listening, especially summarising, paraphrasing and checking understanding. Nothing new is added. The coach names the pattern in what has been described, which lets the care partner correct it if it isn’t right.',
+              tags: ['S'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-5',
+              conversation:
+                'Coach: And at 8pm, do they usually seem sleepy and ready to go to bed, or is it more that it’s their usual routine? Care partner: Usually they’re not that sleepy. We put them to bed because it’s 8 o’clock, but then they can be awake until 10.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Open question',
+                'B. Clarifying question',
+                'C. Reflective listening',
+                'D. Non-judgemental communication',
+                'E. Active listening',
+              ],
+              correctAnswer:
+                'B. Clarifying questions',
+              correctMessage:
+                'Correct. The coach offers two possible answers, which makes it easy to reply to and clarifies something important: whether 8pm is when sleep comes, or just when bedtime happens.',
+              wrongMessage:
+                'This one is a clarifying question. The coach offers two possible answers, which makes it easy to reply to and clarifies something important: whether 8pm is when sleep comes, or just when bedtime happens.',
+              tags: ['S'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-6',
+              conversation:
+                'Coach: That helps me understand the pattern. They may be spending quite a long time in bed before they’re actually ready to sleep, and the daytime sleep may also be reducing some of the sleep hunger that would otherwise build by the evening. Care partner: I hadn’t thought about the nap affecting bedtime. I thought they needed it because they were tired. Coach: That makes sense. The nap may well be meeting a genuine need for rest, so I wouldn’t want to assume it needs to be removed.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Clarifying questions',
+                'B. Reflective listening',
+                'C. Validation and empathy',
+                'D. Active listening',
+                'E. Non-judgemental communication',
+              ],
+              correctAnswer:
+                'C. Validation and empathy E. Non-judgemental communication',
+              correctMessage:
+                'Correct. The care partner has just realised the nap may have been part of the problem. The coach heads off the self-blame before it takes hold, and makes clear nothing is being taken away, which keeps the response free of judgement.',
+              wrongMessage:
+                'This one is validation and empathy, and non-judgemental communication. The care partner has just realised the nap may have been part of the problem. The coach heads off the self-blame before it takes hold, and makes clear nothing is being taken away, which keeps the response free of judgement.',
+              tags: ['E', 'T'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-7',
+              conversation:
+                'Coach: Before we think about changing anything, I’d also like to understand what the caring role looks like overnight. Do you need to wake them, or change your own routine around them? Care partner: Yes, sometimes they’re awake at 2 or 3 in the morning, and I’m up with them. It can be so exhausting. Coach: That sounds important. Their sleep pattern isn’t happening in isolation, what happens overnight affects you both, and your routines need to be realistic around the care you’re providing.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Clarifying questions',
+                'B. Reflective listening',
+                'C. Validation and empathy',
+                'D. Active listening',
+                'E. Non-judgemental communication',
+              ],
+              correctAnswer:
+                'B. Reflective listening C. Validation and empathy',
+              correctMessage:
+                'Correct. The care partner’s own exhaustion has entered the conversation. The coach responds to what they are carrying, and at the same time summarises how the two sleep patterns affect each other.',
+              wrongMessage:
+                'This one is reflective listening together with validation and empathy. The care partner’s own exhaustion has entered the conversation. The coach responds to what they are carrying, and at the same time summarises how the two sleep patterns affect each other.',
+              tags: ['S', 'P', 'E'],
+            },
+            {
+              type: 'Case scenario',
+              image: 'case-8',
+              conversation:
+                'Coach: From what you’ve described, there are a few things we could keep an eye on: the variable daytime naps, the long period between getting into bed and actually falling asleep, and how consistently they wake and go to bed. We can use that information to work out what, if anything, is worth changing.',
+              question:
+                'Which skills is the coach using in the highlighted line? Select all that apply.',
+              selectMode: 'Select multiple',
+              options: [
+                'A. Clarifying questions',
+                'B. Reflective listening',
+                'C. Person-centred communication',
+                'D. Active listening',
+                'E. Non-judgemental communication',
+              ],
+              correctAnswer:
+                'C. Person-centred communication',
+              correctMessage:
+                'Correct. The coach names what they have noticed, then hands the decision about whether to change anything back to the care partner.',
+              wrongMessage:
+                'This one is person-centred communication. The coach names what she has noticed, then hands the decision about whether to change anything back to the care partner.',
+              tags: ['E', 'T'],
+            },
+          ],
         },
       ],
     },
@@ -1145,7 +1395,7 @@ const M6_CHAPTER_2: ChapterContent = {
       blocks: [
         {
           tag: 'sub-title',
-          copy: 'Once you can recognise the patterns that may be influencing sleep drive, the next step is to use that information to work with the client on changes that are realistic, meaningful and sustainable..',
+          copy: 'Once you can recognise the patterns that may be influencing sleep drive, the next step is to use that information to work with the client on changes that are realistic, meaningful and sustainable.',
           icon: 'search',
         },
       ],
@@ -1195,8 +1445,8 @@ const M6_CHAPTER_3: ChapterContent = {
           heroArt: 'm06-ch3-cover',
           chapterTitle: 'Strengthening Sleep Drive',
           whatYouWillLearn:
-            'In this chapter, you will learn about practical strategies for strengthening sleep drive, and how to adapt them to each client’s circumstances.',
-          coreSkillsIntro: 'In this chapter, you will learn about these core skills:',
+            'In this chapter, you\'ll learn about practical strategies for strengthening sleep drive, and how to adapt them to each client’s circumstances.',
+          coreSkillsIntro: 'We\'ll look at all six parts of the SIPTEA framework:',
           coreSkills: [
             'S - Shared Understanding',
             'I - Implementation Intent',
@@ -1205,15 +1455,15 @@ const M6_CHAPTER_3: ChapterContent = {
             'E - Emotion Navigation',
             'A - Action and Goals',
             'Active Listening',
-            'Reflective Listening - Paraphrasing, rephrasing, summarising, checking understanding',
+            'Reflective Listening — Paraphrasing, Rephrasing, Summarising, Checking understanding',
+            'Building Rapport — Positivity, Coordination',
             'Open Questions',
             'Empathy',
             'Validation',
             'Normalisation',
-            'Non-judgemental Communication',
+            'Communication — Clear, simple language',
             'Person-Centred Communication',
-            'Communication - Clear, simple language',
-            'Rapport Building - Positivity and Coordination',
+            'Non-judgemental Communication',
             'Goal-Setting',
           ],
         },
@@ -1226,10 +1476,10 @@ const M6_CHAPTER_3: ChapterContent = {
       blocks: [
         {
           tag: 'chapter-opening',
-          keyTopicsIntro: 'Here’s what you will learn:',
+          keyTopicsIntro: 'Here’s what you\'ll learn:',
           keyTopics: [
             { text: 'Identify practical strategies for strengthening sleep drive', icon: 'dumbbell' },
-            { text: 'Apply sleep drive strategies to individual circumstances', icon: 'sliders-horizontal' },
+            { text: 'Applying sleep drive strategies to individual circumstances', icon: 'sliders-horizontal' },
             { text: 'Recognise common barriers to using sleep drive strategies and ways to adapt strategies', icon: 'route' },
           ],
           quotesIntro:
@@ -1241,7 +1491,7 @@ const M6_CHAPTER_3: ChapterContent = {
             },
             {
               text: 'It’s very hard to change a habit, especially when everyone sleeps so differently.',
-              attribution: 'Person with lived exoerience',
+              attribution: 'Person with lived experience',
             },
           ],
           transition:
@@ -1259,7 +1509,7 @@ const M6_CHAPTER_3: ChapterContent = {
           label: 'Know What',
           title: 'Learn about the ways to build stronger Sleep Drive',
           subtitle:
-            'Practical, everyday strategies for helping a client strengthening their sleep drive',
+            'There are practical, everyday strategies a client can use to strengthen their sleep drive. Now let\'s have a look at these strategies.',
         },
         {
           // The slide's four `<Text block_3>` strategies, presented as one
@@ -1281,6 +1531,16 @@ const M6_CHAPTER_3: ChapterContent = {
       ],
     },
     {
+      /**
+       * Chapter 3's first Know How, rebuilt 2026-09-28 (direct instruction:
+       * *"This one replaces know how 1 for chapter 3"*). Same move Chapter 2's
+       * Know How made — the scenario video goes, the conversation is read — but
+       * with `<Case scenario block_2>`, the "what would you say" variant: the
+       * coach's own next line is missing and the learner picks it.
+       *
+       * Source is `Module 6_Temp 2.md`. Five cases, all single-select, three
+       * options each.
+       */
       id: 's21-ch3-know-how-1',
       navLabel: 'Know how',
       fixedTemplate: false,
@@ -1290,25 +1550,151 @@ const M6_CHAPTER_3: ChapterContent = {
           label: 'Know How',
           title: 'Coaching in Action',
           subtitle:
-            'Watch how a coach puts these strategies into practice in a real conversation, and which skills they use to do it.',
+            'The same care partner is now talking about the daytime nap. You\'ll read this conversation in short sections, and along the way the coach\'s next line is missing and you choose what to say. Pick the response you would give to see how it worked and continue.',
         },
-        // The source's `<Text block_3>` scenario lead-in — "Scenario 1: Carer
-        // Supporting" and its paragraph — is **deliberately not rendered**
-        // (direct instruction, 2026-09-17, annotated on the live slide: *"get
-        // rid of this for now"*). The Know How block above already frames the
-        // video, and the lead-in repeated it.
-        //
-        // "For now" is the operative word: this is a display decision, not a
-        // content one. module.md is read-only and still carries the copy, so
-        // restoring it is re-adding the block below, nothing more.
         {
-          tag: 'video',
-          variant: 'scenario',
-          // Chapter 3's first Know How scenario video ('Carer supporting').
-          youtubeId: 'AsxjB4KoMJ0',
-          scenario: 'Carer supporting',
-          script:
-            'Coach (S - Shared Understanding; Open Questions): You mentioned that they need to nap during the day. Tell me a little more about what the naps look like. / Care Partner: They’re exhausted by lunchtime, so I usually let them sleep. Sometimes they’ll sleep for an hour or two. / Coach (S - Shared Understanding; Reflective Listening - Paraphrasing; Empathy): It sounds like you’re trying to respond to how tired they are and make sure they get the rest they need. / Care Partner: Exactly. And if they don’t nap, then they can be really irritable and confused. But then at night they can take ages to fall asleep, and sometimes they’re awake for hours. / Coach (E - Emotion Navigation; Validation; Empathy): That sounds frustrating, especially when the nap seems to help during the day but then the night can become more difficult. / Coach (S — Shared Understanding; Communication - Clear, simple language): One thing that may help us understand this is the idea of sleep drive. Sleep drive is like a hunger for sleep. It builds the longer we’re awake, and when it’s strong, it helps us fall asleep more easily. / Coach (S — Shared Understanding; Communication - Clear, simple language): A longer or later nap can take some of that sleep drive away. So, even though the person may feel better after the nap, they may have less sleep drive when bedtime comes around. / Care Partner: So are you saying they shouldn\'t nap at all? / Coach (I - Implementation Intent; T - Tailoring; Non-judgemental Communication): Not necessarily. A nap isn\'t automatically a problem, and we don\'t want to assume that stopping naps is the right answer for everyone. / Coach (S - Shared Understanding; P - Problem Identification; Open Questions): What we\'re interested in is whether the timing and length of the nap might be affecting their sleep at night. It would be useful for us to look at when they nap, how long they sleep for, and what happens to their night-time sleep afterwards. / Care Partner: Usually it\'s around one or two o\'clock, but sometimes they fall asleep earlier. Could be 1-2 hours. If they’ve had a bad night, I tend to let them sleep for longer. / Coach (E - Emotion Navigation; Validation; Empathy; Reflective Listening - Rephrasing): In that kind of situation, you\'re responding to a difficult night and trying to help them recover. / Care Partner: But if I think about it, if they have a really long nap, they\'re more likely to be awake at night. / Coach (S - Shared Understanding; Reflective Listening - Paraphrasing; Active Listening): That\'s useful information. It suggests the longer nap might sometimes be reducing the amount of sleep drive they have at bedtime. / Coach (S - Shared Understanding; I - Implementation Intent; Person-Centred Communication; Non-judgemental Communication): We don\'t need to assume that every nap needs changing, though. If the nap is helping them feel better and participate in the day, that matters too. If you\'re comfortable, you could experiment with some small changes and see what happens. / Care Partner: I wouldn\'t want to stop them resting altogether. / Coach (S - Shared Understanding; E - Emotion Navigation; Empathy; Reflective Listening - Paraphrasing): It sounds like making sure they get the rest they need is really important to you. / Coach (I - Implementation Intent; T - Tailoring; Person-centred Communication; Open Questions): If that’s the case, based on what you\'ve noticed, one option we could try is reducing the daytime nap, or on some days seeing whether they can manage without a nap, to give more sleep drive a chance to build by bedtime. How would that feel for you? / Care Partner: I don\'t know if I could do that. They\'re so exhausted by lunchtime, and if they don\'t sleep they\'re really irritable. / Coach (P - Problem Identification; E - Emotion Navigation; Validation; Empathy; Reflective Listening - Paraphrasing): That sounds difficult. You’re seeing that the nap helps them get through the day, so I can understand why stopping it altogether might not feel realistic. / Coach (P - Problem Identification; Open Questions; Person-centred Communication): What do you think would happen if we tried a shorter nap, or tried keeping them awake on a day when they seem a little less tired? / Care Partner: I think a shorter nap might be possible, but I wouldn\'t want to stop it completely. Maybe even bring it a little earlier and see what happens. / Coach (T - Tailoring; Reflective Listening - Paraphrasing; Person-Centred Communication): So keeping some daytime rest feels important, but you might be comfortable experimenting with reducing the amount of sleep rather than removing the nap altogether. / Care Partner: Yeah, I think so. / Coach (I - Implementation Intent; T - Tailoring; A - Action and Goals; Rapport Building - Positivity, Coordination): That sounds like a good place to start. It\'s about finding a balance that gives them the rest they need while allowing enough sleep drive to build for the night. / Coach (P - Problem Identification; T - Tailoring; A - Action and Goals; Open Questions): What do you think would be a realistic change to start with: shortening the nap, bringing it a little earlier, or trying one day without a nap when they\'re not as tired? / Care Partner: Maybe we could try making it earlier first. / Coach (I - Implementation Intent; P - Problem Identification; Empathy; Validation; Open Questions): I can see why you’d want to let them rest when they’re that tired, particularly if the nap helps them get through the day. What do you think would be a realistic time for a nap on a usual day? / Care Partner: Maybe around 12 o\'clock rather than 1:30 or 2. / Coach (T - Tailoring; E - Emotion Navigation; A - Action and Goals; Reflective Listening - Summarising/Paraphrasing; Rapport Building - Positivity; Goal-Setting): That sounds like a reasonable place to start. We could try an earlier nap for the next week and see whether it changes how sleepy they are at bedtime, while also keeping an eye on how they manage during the day. / Coach (I - Implementation Intent; A - Action and Goals; Open Questions; Goal-Setting): And, what might a shorter nap look like in practice? How long do you think would feel manageable for them? / Care Partner: Maybe 30 minutes. I think they could manage that. / Coach (I - Implementation Intent; T - Tailoring; Open Questions): Okay. And when would be the easiest time to try that? / Care Partner: Around 12 o’clock would probably work. / Coach (A - Action and Goals; I - Implementation Intent; Reflective Listening - Summarising; Goal-Setting): So, for the next week, you\'ll aim for a 30-minute nap around 12 o’clock, rather than letting them sleep for one or two hours. / Care Partner: Yes, I think we could try that. And you know, if they’re coping okay, maybe we try no nap at all. / Coach (S - Shared Understanding; A - Action and Goals; I - Implementation Intent; Rapport Building - Positivity): That’s a good thought. We could see how they manage with the earlier and shorter nap first, and if they’re coping well during the day, we can consider whether trying a day without a nap might be useful.',
+          tag: 'case-scenario',
+          variant: 'block-2',
+          label: 'Case scenario',
+          cases: [
+            {
+              type: 'Case scenario',
+              turns: [
+                { who: 'coach', text: 'Tell me a little more about what the naps look like.' },
+                { who: 'carer', text: 'They\'re exhausted by lunchtime, so I let them sleep. Sometimes an hour or two. If they don\'t nap they\'re really irritable. But then at night they can take ages to fall asleep.' },
+                { who: 'coach', text: 'That sounds frustrating, when the nap helps during the day but the night becomes more difficult.' },
+                { who: 'coach', text: 'Sleep drive is like a hunger for sleep. It builds the longer we\'re awake. A longer or later nap takes some of that away, so they may have less sleep drive at bedtime.' },
+                { who: 'carer', text: 'So are you saying they shouldn\'t nap at all?' },
+              ],
+              conversation:
+                'Coach: Tell me a little more about what the naps look like. Care partner: They\'re exhausted by lunchtime, so I let them sleep. Sometimes an hour or two. If they don\'t nap they\'re really irritable. But then at night they can take ages to fall asleep. Coach: That sounds frustrating, when the nap helps during the day but the night becomes more difficult. Coach: Sleep drive is like a hunger for sleep. It builds the longer we\'re awake. A longer or later nap takes some of that away, so they may have less sleep drive at bedtime. Care partner: So are you saying they shouldn\'t nap at all?',
+              question:
+                'The care partner has heard this as an instruction to stop the naps. What would you say?',
+              selectMode: 'Select one',
+              options: [
+                'A. “Not necessarily. A nap isn\'t automatically a problem.”',
+                'B. “Ideally yes. Cutting it is the quickest way to build sleep drive.”',
+                'C. “That\'s completely up to you.”',
+              ],
+              correctAnswer:
+                'A. “Not necessarily. A nap isn\'t automatically a problem.”',
+              correctMessage:
+                'Correct. Saying the nap isn\'t automatically a problem is non-judgemental communication, so the care partner doesn\'t have to defend it. They have already said the nap prevents irritability, so telling them to cut it means they either go against their own judgement or stop mentioning things.',
+              wrongMessage:
+                'The answer is A. Saying the nap isn\'t automatically a problem is non-judgemental communication, so the care partner doesn\'t have to defend it. They have already said the nap prevents irritability, so telling them to cut it means they either go against their own judgement or stop mentioning things.',
+              tags: ['I', 'T'],
+            },
+            {
+              type: 'Case scenario',
+              turns: [
+                { who: 'coach', text: 'What we\'re interested in is whether the timing and length might be affecting their sleep at night.' },
+                { who: 'carer', text: 'Usually around one or two o\'clock, for one to two hours. If they\'ve had a bad night I let them sleep longer. But if I think about it, if they have a really long nap, they\'re more likely to be awake at night.' },
+              ],
+              conversation:
+                'Coach: What we\'re interested in is whether the timing and length might be affecting their sleep at night. Care partner: Usually around one or two o\'clock, for one to two hours. If they\'ve had a bad night I let them sleep longer. But if I think about it, if they have a really long nap, they\'re more likely to be awake at night.',
+              question:
+                'The care partner has just made the connection themselves. What would you say?',
+              selectMode: 'Select one',
+              options: [
+                'A. “Exactly. So let\'s cut it to twenty minutes.”',
+                'B. “That\'s what the research shows too.”',
+                'C. “That\'s useful. It suggests the longer nap might sometimes be reducing their sleep drive at bedtime.”',
+              ],
+              correctAnswer:
+                'C. “That\'s useful. It suggests the longer nap might sometimes be reducing their sleep drive at bedtime.”',
+              correctMessage:
+                'Correct. The care partner worked the connection out for themselves, and saying it back, which is paraphrasing, keeps it theirs. Picking up on what they noticed is active listening. Don\'t move to a specific change straight away.',
+              wrongMessage:
+                'The answer is C. The care partner worked the connection out for themselves, and saying it back, which is paraphrasing, keeps it theirs. Picking up on what they noticed is active listening. Don\'t move to a specific change straight away.',
+              tags: ['S'],
+            },
+            {
+              type: 'Case scenario',
+              turns: [
+                { who: 'coach', text: 'We don\'t need to assume that every nap needs changing, though. If the nap is helping them feel better and participate in the day, that matters too. If you\'re comfortable, you could experiment with some small changes and see what happens.' },
+                { who: 'carer', text: 'I wouldn\'t want to stop them resting altogether.' },
+                { who: 'coach', text: 'It sounds like making sure they get the rest they need is really important to you.' },
+                { who: 'coach', text: 'If that\'s the case, based on what you\'ve noticed, one option we could try is reducing the daytime nap, or on some days seeing whether they can manage without a nap, to give more sleep drive a chance to build by bedtime. How would that feel for you?' },
+                { who: 'carer', text: 'I don\'t know if I could do that. They\'re so exhausted by lunchtime, and if they don\'t sleep they\'re really irritable.' },
+              ],
+              conversation:
+                'Coach: We don\'t need to assume that every nap needs changing, though. If the nap is helping them feel better and participate in the day, that matters too. If you\'re comfortable, you could experiment with some small changes and see what happens. Care partner: I wouldn\'t want to stop them resting altogether. Coach: It sounds like making sure they get the rest they need is really important to you. Coach: If that\'s the case, based on what you\'ve noticed, one option we could try is reducing the daytime nap, or on some days seeing whether they can manage without a nap, to give more sleep drive a chance to build by bedtime. How would that feel for you? Care partner: I don\'t know if I could do that. They\'re so exhausted by lunchtime, and if they don\'t sleep they\'re really irritable.',
+              question:
+                'The care partner has just said no to the suggestion. What would you say?',
+              selectMode: 'Select one',
+              options: [
+                'A. That sounds difficult. I can understand why stopping it altogether might not feel realistic.',
+                'B. It\'s hard for the first few days, but it usually settles.',
+                'C. That\'s fine, let\'s look at the evening routine instead.',
+              ],
+              correctAnswer:
+                'A. That sounds difficult. I can understand why stopping it altogether might not feel realistic.',
+              correctMessage:
+                'Correct. Validation and empathy come first, and paraphrasing back what they are seeing shows it has been heard. Reassuring them before the concern is acknowledged can feel dismissive. Changing the subject isn\'t the answer either, since they have already said the nap is affecting the nights.',
+              wrongMessage:
+                'The answer is A. Validation and empathy come first, and paraphrasing back what they are seeing shows it has been heard. Reassuring them before the concern is acknowledged can feel dismissive. Changing the subject isn\'t the answer either, since they have already said the nap is affecting the nights.',
+              tags: ['P', 'E'],
+            },
+            {
+              type: 'Case scenario',
+              turns: [
+                { who: 'coach', text: 'What do you think would happen if we tried a shorter nap, or tried keeping them awake on a day when they seem a little less tired?' },
+                { who: 'carer', text: 'I think a shorter nap might be possible, but I wouldn\'t want to stop it completely. Maybe even bring it a little earlier and see what happens.' },
+                { who: 'coach', text: 'So keeping some daytime rest feels important, but you might be comfortable experimenting with reducing the amount of sleep rather than removing the nap altogether.' },
+                { who: 'carer', text: 'Yeah, I think so.' },
+                { who: 'coach', text: 'That sounds like a good place to start. It\'s about finding a balance that gives them the rest they need while allowing enough sleep drive to build for the night.' },
+                { who: 'coach', text: 'What do you think would be a realistic change to start with: shortening the nap, bringing it a little earlier, or trying one day without a nap when they\'re not as tired?' },
+                { who: 'carer', text: 'Maybe we could try making it earlier first.' },
+              ],
+              conversation:
+                'Coach: What do you think would happen if we tried a shorter nap, or tried keeping them awake on a day when they seem a little less tired? Care partner: I think a shorter nap might be possible, but I wouldn\'t want to stop it completely. Maybe even bring it a little earlier and see what happens. Coach: So keeping some daytime rest feels important, but you might be comfortable experimenting with reducing the amount of sleep rather than removing the nap altogether. Care partner: Yeah, I think so. Coach: That sounds like a good place to start. It\'s about finding a balance that gives them the rest they need while allowing enough sleep drive to build for the night. Coach: What do you think would be a realistic change to start with: shortening the nap, bringing it a little earlier, or trying one day without a nap when they\'re not as tired? Care partner: Maybe we could try making it earlier first.',
+              question:
+                'The care partner has chosen a direction but no specifics. What would you say?',
+              selectMode: 'Select one',
+              options: [
+                'A. Good. Let\'s say eleven o\'clock from tomorrow.',
+                'B. I can see why you\'d want to let them rest when they\'re that tired, particularly if the nap helps them get through the day. What do you think would be a realistic time for a nap on a usual day?',
+                'C. Great. Let\'s aim for about 20 to 30 minutes, since that\'s the length we usually recommend.',
+              ],
+              correctAnswer:
+                'B. I can see why you\'d want to let them rest when they\'re that tired, particularly if the nap helps them get through the day. What do you think would be a realistic time for a nap on a usual day?',
+              correctMessage:
+                'Correct. Asking what time would be realistic is an open question, and it keeps the plan with the care partner. A time they name is one they can adjust when the week doesn\'t go to plan. If the coach sets the exact time instead, it becomes the coach\'s plan to follow rather than theirs to manage, and it may not fit a day the coach hasn\'t seen.',
+              wrongMessage:
+                'The answer is B. Asking what time would be realistic is an open question, and it keeps the plan with the care partner. A time they name is one they can adjust when the week doesn\'t go to plan. If the coach sets the exact time instead, it becomes the coach\'s plan to follow rather than theirs to manage, and it may not fit a day the coach hasn\'t seen.',
+              tags: ['I', 'A'],
+            },
+            {
+              type: 'Case scenario',
+              turns: [
+                { who: 'carer', text: 'Maybe around 12 o\'clock rather than 1:30 or 2.' },
+                { who: 'coach', text: 'That sounds like a reasonable place to start. We could try an earlier nap for the next week and see whether it changes how sleepy they are at bedtime, while also keeping an eye on how they manage during the day.' },
+                { who: 'coach', text: 'And, what might a shorter nap look like in practice? How long do you think would feel manageable for them?' },
+                { who: 'carer', text: 'Maybe 30 minutes. I think they could manage that.' },
+                { who: 'coach', text: 'Okay. And when would be the easiest time to try that?' },
+                { who: 'carer', text: 'Around 12 o\'clock would probably work.' },
+                { who: 'coach', text: 'So, for the next week, you\'ll aim for a 30-minute nap around 12 o\'clock, rather than letting them sleep for one or two hours.' },
+                { who: 'carer', text: 'Yes, I think we could try that. And you know, if they\'re coping okay, maybe we try no nap at all.' },
+              ],
+              conversation:
+                'Care partner: Maybe around 12 o\'clock rather than 1:30 or 2. Coach: That sounds like a reasonable place to start. We could try an earlier nap for the next week and see whether it changes how sleepy they are at bedtime, while also keeping an eye on how they manage during the day. Coach: And, what might a shorter nap look like in practice? How long do you think would feel manageable for them? Care partner: Maybe 30 minutes. I think they could manage that. Coach: Okay. And when would be the easiest time to try that? Care partner: Around 12 o\'clock would probably work. Coach: So, for the next week, you\'ll aim for a 30-minute nap around 12 o\'clock, rather than letting them sleep for one or two hours. Care partner: Yes, I think we could try that. And you know, if they\'re coping okay, maybe we try no nap at all.',
+              question:
+                'The care partner has chosen a direction but no specifics. What would you say?',
+              selectMode: 'Select one',
+              options: [
+                'A. Let\'s not get ahead of ourselves. Stick to the plan we\'ve agreed for now.',
+                'B. That\'s great. Let\'s book a nap-free day for week two, and if that goes well we can bring the 30 minutes down further as well.',
+                'C. That\'s a good thought. We could see how they manage with the earlier and shorter nap first, and if they\'re coping well during the day, we can consider whether trying a day without a nap might be useful.',
+              ],
+              correctAnswer:
+                'C. That\'s a good thought. We could see how they manage with the earlier and shorter nap first, and if they\'re coping well during the day, we can consider whether trying a day without a nap might be useful.',
+              correctMessage:
+                'Correct. The idea is welcomed rather than shut down or locked in, which is rapport building and goal setting together. Keeping one change at a time means the week can actually be read afterwards. Dismissing the suggestion discourages the care partner from bringing ideas forward, and committing to it now sets a goal before there is anything to base it on.',
+              wrongMessage:
+                'The answer is C. The idea is welcomed rather than shut down or locked in, which is rapport building and goal setting together. Keeping one change at a time means the week can actually be read afterwards. Dismissing the suggestion discourages the care partner from bringing ideas forward, and committing to it now sets a goal before there is anything to base it on.',
+              tags: ['S', 'A'],
+            },
+          ],
         },
       ],
     },
@@ -1326,18 +1712,18 @@ const M6_CHAPTER_3: ChapterContent = {
             {
               clientSays: 'If I don\'t let them nap, they\'re miserable for the rest of the day.',
               youCanSay:
-                'Validate the carer\'s concern. Explore what happens when the person doesn\'t nap, rather than suggesting they simply stop. Observe whether naps improve or worsen night-time sleep. Consider whether the timing or length of the nap could be adjusted while still meeting their need for rest. Aim for naps earlier in the day where possible, rather than late afternoon or evening. Also consider shorter naps (for example, 20–30-minutes) if longer naps appear to affect night-time sleep. Pair this with maintaining a consistent wake-up time where possible to support the build-up of sleep drive.',
+                'Validate the carer\'s concern, and explore what happens when the person doesn\'t nap rather than suggesting they stop napping altogether. Check whether naps help or worsen night-time sleep, and adjust timing or length accordingly. Aim for earlier, shorter naps (20-30 minutes) instead of late afternoon or evening, paired with a consistent wake-up time to support sleep drive.',
             },
             {
               clientSays: 'They fall asleep whenever they sit down. I can\'t keep them awake.',
               youCanSay:
-                'Avoid framing this as a failure of the carer or something they must prevent. Explore when this happens, how long they sleep and whether there are patterns across the day. Identify small, realistic changes to the timing or length of rest rather than trying to prevent all daytime sleep. Also consider what “rest” involves and the types of activities they do during this time that might make it more likely that they will fall asleep (e.g., sitting in their favourite chair watching TV). Explore whether the type of activity needs to change.',
+                'Avoid framing daytime sleep as something the carer must prevent or as their failure. Explore when it happens, how long it lasts, and whether a pattern exists across the day. Look for small, realistic changes to timing or length rather than eliminating it entirely. Also consider what "rest" looks like, since certain activities, like sitting in a favourite chair watching TV, may make it easier to drift off, and whether that activity needs to change.',
             },
             {
               clientSays:
                 'It’s not just the person I care for. I need a nap during the day because I am exhausted.',
               youCanSay:
-                'Validate the care partners need for rest. Explain that the same idea about sleep drive can apply to them: If a nap is needed, keep it short (around 20–30-minutes where possible) and aim for earlier naps rather than late afternoon or evening sleep. Consider alternatives such as a quiet rest period, relaxation, or a brief walk. Focus on improving night-time sleep rather than relying on long daytime sleep.',
+                'Validate the care partner\'s own need for rest, and note that the same sleep drive principle applies to them too. If a nap is needed, keep it short (around 20-30 minutes) and earlier in the day rather than late afternoon or evening. Consider alternatives like quiet rest, relaxation, or a brief walk, focusing on improving night-time sleep.',
             },
           ],
         },
@@ -1360,12 +1746,8 @@ const M6_CHAPTER_3: ChapterContent = {
               question:
                 'What is the main reason for considering daytime naps in relation to sleep drive?',
               selectMode: 'N/A',
-              correctAnswer:
-                'Long or late naps can reduce the amount of sleep drive/hunger that has built at bedtime.',
               correctMessage:
                 'Sleep drive builds during time awake, so daytime sleep can sometimes affect how much sleep hunger has built by bedtime. The aim isn\'t to avoid all naps. It\'s to consider whether the timing or duration of daytime sleep is affecting the sleep drive needed for night-time sleep.',
-              wrongMessage:
-                'N/A',
             },
           ],
         },
@@ -1432,14 +1814,14 @@ const M6_CHAPTER_3: ChapterContent = {
           label: 'Know How',
           title: 'Scenario 2: Carer\'s own issue',
           subtitle:
-            'Now you\'ll watch another video of the coach talking with a care partner after a poor night’s sleep, hoping to recover lost sleep and manage tiredness during the day. As you watch, look out for the tags showing which core skill is being used at each moment.',
+            'Watch the sleep coach in a real conversation with their clients, and notice which skills they use. In this video, the coach talks with a care partner after a poor night’s sleep, hoping to recover lost sleep and manage tiredness during the day.',
         },
         {
           tag: 'video',
           variant: 'scenario',
           // Chapter 3's second Know How scenario video ('Carer’s own issue').
           youtubeId: 'CyZ945jJJZc',
-          scenario: 'Carer’s own issue',
+          scenario: 'Carer\'s own issue',
           script:
             'Care Partner: I sleep in after a bad night. If I\'ve been up a lot with them, I just can\'t face getting up at my usual time. / Coach (S - Shared Understanding; Reflective Listening - Paraphrasing; Empathy; Non-judgemental Communication): That makes a lot of sense. When you\'ve had a broken night, sleeping in can feel like the best way to recover and get through the day. / Care Partner: Exactly. And if I don\'t sleep in, I\'m worried I\'ll be exhausted all day. / Coach (S - Shared Understanding; E - Emotion Navigation; Reflective Listening - Rephrasing; Empathy): It sounds like there\'s a real tension between needing to recover from a difficult night and wanting to sleep better the following night. / Care Partner: Yes. But sometimes I don\'t really have a choice. Their sleep can be so unpredictable. / Coach (S - Shared Understanding; E - Emotion Navigation; Validation; Empathy; Reflective Listening - Paraphrasing) : Absolutely. With caring responsibilities, you may not be able to control when you\'re awake during the night, so following a routine perfectly feels impossible. / Coach (S - Shared Understanding; Communication - Clear, simple language) : One thing we do know is that sleeping in for a long time after a bad night can reduce the amount of sleep hunger that builds during the day. That can make it harder to sleep the following night. / Care Partner: So I\'m supposed to get up even when I\'m exhausted? / Coach (E - Emotion Navigation; Validation; Empathy; Non-judgemental Communication): I can see why that feels difficult, especially when you\'ve already had a disrupted night and need to function during the day. / Coach (I - Implementation Intent; Communication, Clear, simple language): Where it\'s realistic, you could try keeping your usual wake-up time within about 30 minutes, rather than having a long sleep-in. Then, during the day, you could use things like getting some daylight, light activity, or taking a brief rest break to help manage the tiredness. / Care Partner: I\'m not sure I could do that every day. / Coach (P - Problem Identification; T - Tailoring; Open Questions): That\'s okay, we don\'t need to aim for perfection. What might be the smallest change that feels manageable for you, perhaps keeping your wake-up time within 30 minutes on the weekdays when you can? / Care Partner: I think I could try that when the night hasn\'t been completely awful. / Coach (I - Implementation Intent; T - Tailoring; A - Action and Goals; Normalisation; Person-centred Communication) : That sounds like a reasonable place to start. The aim isn\'t to ignore how tired you are or to expect you to manage every night perfectly. It\'s about finding a small, realistic way to rebuild sleep hunger during the day, so your body has more opportunity to sleep the following night. / Care Partner: That feels more manageable than being told I can\'t sleep in at all. / Coach (S - Shared Understanding; T - Tailoring; E - Emotion Navigation; Validation; Reflective Listening - Paraphrasing): It sounds like having some flexibility makes the strategy feel more realistic for your caring role.',
         },
@@ -1587,7 +1969,7 @@ export const CONTENT_FLAGS: string[] = [
   'Ch3 Your turn 1 is split across two <Interactive block> tables with different interaction types (Free Text, then Ranking). The template’s own instruction says not to mix interaction types within one scenario. The Free Text table’s two message columns were also merged into one on 2026-09-17 (direct instruction: free text has no right or wrong answer), so its header no longer matches the template’s.',
   'Ch1 Know What revision, "Calm Mind and Body": the definition ends mid-quote — a state of "readiness. — with no closing quote.',
   'Ch3 opening quote 2 is attributed to a "Person with lived exoerience" (typo for experience).',
-  'Ch2 Know What Text block_3 body begins "you’ll go through how to do sleep assessment" mid-sentence with a lowercase y after a full stop.',
+  'Ch2 Know What Text block_3 body begins "you\'ll go through how to do sleep assessment" mid-sentence with a lowercase y after a full stop.',
   'Ch2 transition slide copy ends with a double full stop ("...and sustainable..").',
   'Ch3 opening transition says "three practical strategies" but the Know What slide that follows lists four <Text block_3> entries (one framing block plus three named strategies) — consistent if the framing block is not counted, worth confirming.',
   'Module core skills list contains near-duplicates: "Building Rapport - Positivity, Coordination" and "Rapport Building - Positivity and Coordination".',

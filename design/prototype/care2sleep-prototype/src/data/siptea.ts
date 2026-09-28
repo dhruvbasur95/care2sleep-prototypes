@@ -65,3 +65,39 @@ export function splitChapterSkills(skills: string[]) {
     practice: classified.filter((s) => s.kind === 'practice'),
   }
 }
+
+/**
+ * The component name behind each initial, in this project's own sentence case.
+ *
+ * module.md authors these in Title Case ("Emotion Navigation") and the Figma
+ * chip drew a third spelling ("Emotional Navigation"); CLAUDE.md's terminology
+ * table settles it, so the name is read from here and never transcribed from
+ * whichever surface happens to be in front of you.
+ */
+export const SIPTEA_NAMES: Record<SipteaInitial, string> = {
+  S: 'Shared understanding',
+  I: 'Implementation intent',
+  P: 'Problem identification',
+  T: 'Tailoring',
+  E: 'Emotion navigation',
+  A: 'Action and goals',
+}
+
+/**
+ * The initials in a module.md **Tags** cell.
+ *
+ * The column is free text and is punctuated three different ways within one
+ * table — `"S — Shared Understanding E — Emotion Navigation"`,
+ * `"E — Emotion Navigation, T — Tailoring"` — so this anchors on the one thing
+ * that is consistent: a single SIPTEA capital followed by a dash. Order is the
+ * author's, deduplicated, never re-sorted into SIPTEA order: the cell lists the
+ * skills in the order the coach uses them in that line.
+ */
+export function parseSipteaTags(raw: string): SipteaInitial[] {
+  const found: SipteaInitial[] = []
+  for (const match of raw.matchAll(/\b([SIPTEA])\s*[—–-]/g)) {
+    const initial = match[1] as SipteaInitial
+    if (!found.includes(initial)) found.push(initial)
+  }
+  return found
+}

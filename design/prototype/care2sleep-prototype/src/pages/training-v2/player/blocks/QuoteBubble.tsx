@@ -97,7 +97,45 @@ export function pickBubbles(count: number, seedSource: string[]): number[] {
   return Array.from({ length: count }, (_, i) => (offset + i) % BUBBLES.length)
 }
 
-export function QuoteBubble({ quote, variant, index }: { quote: Quote; variant: number; index: number }) {
+/**
+ * Which pillow face the avatar wears.
+ *
+ * `smiling` is the original `avatar.svg`, and is what three of this component's
+ * four render sites still use — the module intro's own quote row, You Might
+ * Also Hear (`HearPairReveal`) and `AnswerOutcome`.
+ *
+ * `neutral` is a **separate Figma export** (`2594:21577`, re-exported
+ * 2026-09-28), not a recolour or an edit of the first: the mouth path
+ * `Vector_5` is a near-straight line where the original draws a curve, and the
+ * ground ellipse moves from purple `#C2A3FF` to a warm `#EADECC`. Taken whole
+ * from the frame per the never-redraw-an-asset rule.
+ *
+ * ⚠️ It is a **second file rather than a replacement** because the instruction
+ * was scoped: *"for chapter opening block avatar face needs to be made more
+ * neutral ... just do it for this block only"* (2026-09-28). Overwriting
+ * `avatar.svg` would have changed all four sites at once, three of them out of
+ * scope and none of them looked at.
+ */
+export type AvatarFace = 'smiling' | 'neutral'
+
+const AVATAR_SRC: Record<AvatarFace, string> = {
+  smiling: 'avatar.svg',
+  neutral: 'avatar-neutral.svg',
+}
+
+export function QuoteBubble({
+  quote,
+  variant,
+  index,
+  face = 'smiling',
+}: {
+  quote: Quote
+  variant: number
+  index: number
+  /** Defaults to the original face, so every caller that does not ask is
+   *  byte-identical to before. */
+  face?: AvatarFace
+}) {
   const reduceMotion = useReducedMotion()
   const bubble = BUBBLES[variant % BUBBLES.length]
   const base = `${import.meta.env.BASE_URL}illustrations/quote-bubbles/`
@@ -126,7 +164,7 @@ export function QuoteBubble({ quote, variant, index }: { quote: Quote; variant: 
       {/* The pillow avatar rests on this blob's own tail, which is why its x
           comes from the bubble rather than being one shared number. */}
       <motion.img
-        src={`${base}avatar.svg`}
+        src={`${base}${AVATAR_SRC[face]}`}
         alt=""
         aria-hidden="true"
         // Pushed below the bubble's own tail tip (direct instruction). Growing

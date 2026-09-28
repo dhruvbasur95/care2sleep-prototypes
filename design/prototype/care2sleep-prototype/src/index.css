@@ -765,6 +765,16 @@
        offset down-and-right, a visibly different direction of light. Added so
        the frame is reproduced as drawn rather than approximated. */
     --shadow-notice-card: 4px 4px 12px 0 rgba(0, 0, 0, 0.06);
+
+    /* The SIPTEA skill chip's own shadow, transcribed from the `siptea-banner`
+       node in frame `3214:19765`: `2px 10px 16px rgba(102, 51, 153, 0.2)`.
+
+       Its own token rather than `--shadow-card`, for the reason that one exists
+       for: a chip sits on the outcome panel's `purple-200`, and the warm gold
+       `--shadow-card` reads as a smudge on purple. Same call Round 30 made for
+       the module cards on `purple-50`. Deeper and more offset than either — a
+       chip is a small raised object, not a page-level surface. */
+    --shadow-siptea-chip: 2px 10px 16px 0 rgba(102, 51, 153, 0.2);
 }
 
 :root {
