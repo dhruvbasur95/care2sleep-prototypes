@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ConversationTurn } from '@/data/moduleContent'
 import { ScrollCue } from '@/components/shared/ScrollCue'
 import { cn } from '@/lib/utils'
@@ -63,6 +63,27 @@ const RUN_WIDTHS = ['max-w-[82%]', 'max-w-[70%]', 'max-w-[78%]', 'max-w-[74%]']
  */
 export function ConversationChat({ turns }: { turns: ConversationTurn[] }) {
   const boxRef = useRef<HTMLDivElement>(null)
+
+  // ⚠️ Send the chat back to its first line whenever the case changes.
+  //
+  // This box is its own scroller, and React reuses the same DOM node between
+  // cases — only `turns` changes — so `scrollTop` survives the swap. A coach
+  // who reads case 4 to the end and presses Next lands on case 5 already
+  // scrolled part-way down it, with the opening lines above the fold.
+  // Measured before the fix: case 5 arrived at `scrollTop: 888`, exactly where
+  // case 4 was left, on the same node.
+  //
+  // Reported 2026-09-28: *"the next case does not auto scroll up by default
+  // when I go to next scenario"* — *"since its a chat style block with chat
+  // inside scroller window"*. The slide-level scroll is a separate fix in
+  // `YourTurnMcq`; BOTH are needed, because they are two different scrollers.
+  //
+  // Not `key={index}` on the caller: remounting would throw away the node and
+  // replay the entrance animation on every case. Resetting one number does
+  // exactly what is wanted and nothing else.
+  useEffect(() => {
+    if (boxRef.current) boxRef.current.scrollTop = 0
+  }, [turns])
 
   // Group consecutive lines from one speaker. The avatar belongs to the RUN,
   // not to every line — eight turns cannot each carry their own portrait.
