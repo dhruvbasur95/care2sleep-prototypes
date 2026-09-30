@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
  *
  * ## The row is the attention-list row, deliberately
  * The row vocabulary is `ResearchPrioritiesSection`'s (Home) and, through it,
- * the coach portal's `PrioritiesSection`: a `purple-50` card, a
+ * the coach portal's `PrioritiesSection`: a `parchment` card, a
  * `caption-medium` title over a `body` line, and a kebab opening a one-item
  * Dismiss menu. Three surfaces, one row treatment — which is what the
  * instruction asked for. The old row was a bottom-ruled `label: value` line
@@ -143,7 +143,13 @@ export function KeyUpdatesPanel({
           {visible.map((u) => (
             <li
               key={u.id}
-              className="flex shrink-0 items-start justify-between gap-3 rounded-xs bg-purple-50 p-3"
+              /* `parchment`, not `purple-50` (direct instruction). Matches
+                 `ResearchPrioritiesSection`'s rows, so every attention row a
+                 researcher sees — Home, coach profile, trainee record, consumer
+                 record — is one surface. No hover here, deliberately: these rows
+                 are not clickable (the panel has no row link), and a hover state
+                 on an inert row claims an affordance that does not exist. */
+              className="flex shrink-0 items-start justify-between gap-3 rounded-xs bg-parchment p-3"
             >
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="text-caption-medium text-ink">{u.label}</span>
@@ -183,7 +189,7 @@ export function KeyUpdatesPanel({
                       type="button"
                       role="menuitem"
                       onClick={() => dismiss(u.id)}
-                      className="flex h-9 w-full items-center rounded-xs px-3 text-caption-medium text-ink outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full items-center rounded-xs px-3 text-caption-medium text-ink outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       Dismiss
                     </button>

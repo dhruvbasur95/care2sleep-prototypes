@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MoreVertical } from 'lucide-react'
+import { CircleCheck, MoreVertical } from 'lucide-react'
 import { Chip } from '@/components/research/StatusChip'
 import { TablePager } from '@/components/shared/TablePager'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { cn } from '@/lib/utils'
 
 /**
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils'
  * on direct instruction: match the coach portal's own
  * `components/delivery/PrioritiesSection.tsx` (Round 40) rather than keep a
  * second, differently-shaped attention pattern in the researcher portal. The
- * row shape is that component's exactly — a `purple-50` card, a
+ * row shape is that component's exactly — a neutral `parchment` card, a
  * `caption-medium` title over a `body` note, a kebab that opens a one-item
  * Dismiss menu — so the two portals now read as one system.
  *
@@ -62,8 +63,13 @@ export interface ResearchPriorityItem {
   title: string
   /** One sentence: who it concerns, and what has happened. */
   note: string
-  /** Where the row goes when opened. */
-  to: string
+  /** Where the row goes when opened. Omit when the destination is on the page
+   *  the row already sits on — pass `onSelect` instead. */
+  to?: string
+  /** In-page destination, e.g. switching the record page's own tab. Additive:
+   *  a row with neither `to` nor `onSelect` renders as plain text rather than
+   *  a control that goes nowhere. */
+  onSelect?: () => void
 }
 
 const priorityTone = { High: 'destructive', Medium: 'warning' } as const
@@ -72,10 +78,18 @@ const priorityTone = { High: 'destructive', Medium: 'warning' } as const
  *  the two panels are about the same height. */
 const PAGE_SIZE = 4
 
+/** Shared by the row's three title treatments so the link, the button and the
+ *  plain-text case cannot drift apart. The `after:` overlay makes the whole row
+ *  the hit area. */
+const ROW_TITLE =
+  'text-caption-medium text-ink outline-none after:absolute after:inset-0 after:rounded-xs'
+
 export function ResearchPrioritiesSection({
   items,
   onEmptyChange,
   fillHeight = false,
+  emptyCopy,
+  surfacePadding = 'sm',
 }: {
   items: ResearchPriorityItem[]
   /** Lets Home drop the margin this section owns once it hides itself — the
@@ -100,7 +114,32 @@ export function ResearchPrioritiesSection({
    * past the row instead of scrolling inside it.
    */
   fillHeight?: boolean
+  /**
+   * Additive, default undefined, so Research Home stays byte-identical —
+   * without it this component still returns `null` when it has nothing to show,
+   * which is what lets Home collapse the gap behind it via `onEmptyChange`.
+   *
+   * Set it where the section owns a box it cannot vacate: on the Coach
+   * profile's Study progress tab it is absolutely positioned to match the KPI
+   * column's height, so returning `null` left a visibly empty bordered card
+   * with no explanation of why (direct instruction: *"when there are no items
+   * that need attention, show an empty state container with message"*).
+   *
+   * One short line, per `EmptyState`'s own rule — a resting state, not an error
+   * and not a call to action.
+   */
+  emptyCopy?: string
+  /**
+   * Card padding under `fillHeight`. `'sm'` (16px) is the default and what the
+   * Coach profile uses, where the card sits beside a bare KPI grid. `'lg'`
+   * (24px) matches this app's own card convention and is for rows where the
+   * sibling is a real `Card` — the trainee record Overview pairs it with the
+   * learning-journey card, and an 8px padding difference between two cards on
+   * one row reads as a mistake. Additive; existing callers are unchanged.
+   */
+  surfacePadding?: 'sm' | 'lg'
 }) {
+  const pad = surfacePadding === 'lg' ? 'p-6' : 'p-4'
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set())
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [page, setPage] = useState(0)
@@ -123,11 +162,52 @@ export function ResearchPrioritiesSection({
     setDismissed((prev) => new Set(prev).add(id))
     setOpenMenu(null)
     onEmptyChange?.(remaining === 0)
-    if (remaining > 0) headingRef.current?.focus({ preventScroll: true })
+    /* `emptyCopy` keeps the section on screen after the last dismiss, so the
+       heading is still a real target and focus stays where the user was
+       working. Without it the section unmounts and the heading goes with it,
+       so focus has to leave for `#main-content` — `<main>` carries
+       `tabIndex={-1}` for exactly this. Either way it never reaches `<body>`. */
+    if (remaining > 0 || emptyCopy) headingRef.current?.focus({ preventScroll: true })
     else document.getElementById('main-content')?.focus({ preventScroll: true })
   }
 
-  if (visible.length === 0) return null
+
+  /* Empty, but the caller has asked for a resting state rather than a collapse.
+     Same shell as the populated section so the box does not change size, shape
+     or border when the last row is dismissed — only its contents. The count
+     pill is deliberately absent: it is an *alert* count on `alert-pastel`, and
+     a red "0 alerts" contradicts the all-clear it would be sitting above. */
+  if (visible.length === 0) {
+    /* No resting copy asked for: collapse, so Home can close the gap behind
+       this section via `onEmptyChange`, exactly as before. */
+    if (!emptyCopy) return null
+    return (
+      <section
+        className={cn(
+          'flex flex-col gap-4',
+          fillHeight && cn('h-full rounded-lg border border-parchment bg-white shadow-card', pad),
+        )}
+      >
+        <div className="flex min-h-9 items-center justify-between gap-6">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="min-w-0 font-display text-title text-ink outline-none"
+          >
+            Items that need your attention
+          </h2>
+        </div>
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 items-center justify-center',
+            !fillHeight && cn('rounded-lg border border-parchment bg-white shadow-card', pad),
+          )}
+        >
+          <EmptyState icon={CircleCheck} copy={emptyCopy} />
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section
@@ -166,7 +246,7 @@ export function ResearchPrioritiesSection({
           fillHeight
             ? /* Chrome lives on the section above; this is just the scroller. */
               'flex min-h-0 flex-1 flex-col overflow-y-auto'
-            : 'rounded-lg border border-parchment bg-white p-4 shadow-card',
+            : cn('rounded-lg border border-parchment bg-white shadow-card', pad),
         )}
       >
         <div className="flex flex-col gap-4">
@@ -178,30 +258,70 @@ export function ResearchPrioritiesSection({
                  the row, because the kebab is a real button and nesting one
                  inside a link is invalid and unreachable by keyboard. The kebab
                  sits above that overlay on `z-10`. */
-              className="relative flex shrink-0 items-start justify-between gap-3 rounded-xs bg-purple-50 p-3 transition-colors hover:bg-purple-200 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring"
+              className="relative flex shrink-0 items-start justify-between gap-3 rounded-xs bg-parchment p-3 transition-colors hover:bg-hairline has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring"
             >
+              {/* Direct instruction — the row reads label / space / title /
+                  copy, top to bottom. The priority chip used to share a line
+                  with the title, which made the title start at a different x on
+                  every row (the chip's width follows its word) and left the
+                  eye no single column to scan down. On its own line the chip is
+                  a band label, the title is the headline, and all three
+                  left-align. The 12px gap after the chip is the "space"; title
+                  and copy sit 4px apart as one block. */}
               <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* The chip sits on a white backing rather than directly on
-                      the row. `<Chip>`'s fills are 8% tints, and a
-                      `destructive/8` tint composited over this row's
-                      `purple-50` paints a pink `rgb(241,220,236)` against
-                      which `destructive` text measures **4.15:1** — under AA,
-                      and the identical failure Round 23 found and fixed on the
-                      `purple-50` table band. Over white the same tint measures
-                      5.38:1. `rounded-full` + `w-fit` so the backing is exactly
-                      the chip's own shape and nothing shows around it. */}
-                  <span className="inline-flex w-fit rounded-full bg-white">
-                    <Chip tone={priorityTone[item.priority]} label={item.priority} />
-                  </span>
-                  <Link
-                    to={item.to}
-                    className="text-caption-medium text-ink outline-none after:absolute after:inset-0 after:rounded-xs"
-                  >
-                    {item.title}
-                  </Link>
+                {/* The chip sits on a white backing rather than directly on
+                    the row. `<Chip>`'s fills are 8% tints, and a
+                    `destructive/8` tint composited over a tinted row paints a
+                    colour against which `destructive` text measured **4.15:1**
+                    — under AA, the identical failure Round 23 found on the
+                    `purple-50` table band. Over white the same tint measures
+                    5.38:1. Kept now the row is `parchment`, and re-measured
+                    rather than assumed. `rounded-full` + `w-fit` so the backing
+                    is exactly the chip's own shape. */}
+                <span className="inline-flex w-fit rounded-full bg-white">
+                  <Chip tone={priorityTone[item.priority]} label={item.priority} />
+                </span>
+                <div className="flex min-w-0 flex-col gap-1">
+                  {/* Three cases, deliberately: a route (`to`), an in-page
+                      destination (`onSelect` — e.g. switching this record
+                      page's own tab), or neither, in which case the title is
+                      plain text. A row whose only destination is the page it
+                      is already on would be a silently dead control. */}
+                  {item.to ? (
+                    <Link
+                      to={item.to}
+                      className={ROW_TITLE}
+                    >
+                      {item.title}
+                    </Link>
+                  ) : item.onSelect ? (
+                    <button
+                      type="button"
+                      onClick={item.onSelect}
+                      /* Its own ring rather than the row's `has-[a:…]` overlay:
+                         that selector cannot tell this button from the kebab,
+                         which owns a ring of its own. */
+                      /* `min-h-9` + a cancelling negative margin — the same
+                         trick the kebab beside it uses. The row-wide `::after`
+                         overlay already gives this control a 466x108 hit area
+                         (measured: every corner of the row resolves to it), but
+                         the element's own box was 17px and `layout-audit.js`
+                         reads boxes, not overlays. It never fired on the `<a>`
+                         variant only because the check ignores anchors. Fixing
+                         the markup keeps the audit honest rather than teaching
+                         it to ignore a real class of defect. */
+                      className={cn(
+                        ROW_TITLE,
+                        'flex min-h-9 -my-2.5 items-center text-left focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
+                    >
+                      {item.title}
+                    </button>
+                  ) : (
+                    <span className="text-caption-medium text-ink">{item.title}</span>
+                  )}
+                  <span className="text-body text-ink">{item.note}</span>
                 </div>
-                <span className="text-body text-ink">{item.note}</span>
               </div>
 
               {/* A kebab opening a one-item menu, not a bare dismiss button: a
@@ -228,7 +348,7 @@ export function ResearchPrioritiesSection({
                       type="button"
                       role="menuitem"
                       onClick={() => dismiss(item.id)}
-                      className="flex h-9 w-full items-center rounded-xs px-3 text-caption-medium text-ink outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full items-center rounded-xs px-3 text-caption-medium text-ink outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       Dismiss
                     </button>

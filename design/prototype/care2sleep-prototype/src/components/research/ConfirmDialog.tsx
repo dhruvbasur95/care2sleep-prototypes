@@ -36,6 +36,7 @@ export function ConfirmDialog({
   variant = 'app',
   hideHeader = false,
   hideFooter = false,
+  headerAction,
 }: {
   open: boolean
   title: string
@@ -116,6 +117,17 @@ export function ConfirmDialog({
    * backdrop are otherwise the only ones.
    */
   hideFooter?: boolean
+  /**
+   * Optional control on the title row, right-aligned. Additive — without it the
+   * header is byte-identical for every existing caller.
+   *
+   * For a dialog that shows a document rather than asking a question: the
+   * researcher reading a reflection or a transcript wants to keep a copy, and
+   * "Download" belongs beside the title, not in the footer where a Close button
+   * would make it read as a choice between the two (direct instruction: "in
+   * view mode, add option to download also (in header top right)").
+   */
+  headerAction?: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
@@ -224,20 +236,28 @@ export function ConfirmDialog({
             >
               {!hideHeader && (
               <>
-              <h2
-                id={titleId}
-                className={cn(
-                  'shrink-0 text-ink',
-                  consumer ? 'text-consumer-heading' : 'font-display text-title',
-                )}
-              >
-                {title}
-              </h2>
+              <div className="flex shrink-0 items-start justify-between gap-4">
+                <h2
+                  id={titleId}
+                  className={cn(
+                    'min-w-0 text-ink',
+                    consumer ? 'text-consumer-heading' : 'font-display text-title',
+                  )}
+                >
+                  {title}
+                </h2>
+                {headerAction && <div className="shrink-0">{headerAction}</div>}
+              </div>
               {/* Round 40, direct instruction: 4px under the title (was 12px),
                   and the sub-line is `body` regular (was `caption`). Applied on
                   the shared chassis rather than one dialog, so every modal in
                   the app keeps one title/sub-line treatment — the alternative
                   is the drift this component exists to prevent. */}
+              {/* Conditional so a dialog whose content carries its own framing
+                  can pass `body=""` without leaving an empty paragraph and its
+                  margin behind. Every other caller passes a real sentence and
+                  renders byte-identically. */}
+              {body && (
               <p
                 id={bodyId}
                 className={cn(
@@ -250,6 +270,7 @@ export function ConfirmDialog({
               >
                 {body}
               </p>
+              )}
               </>
               )}
 

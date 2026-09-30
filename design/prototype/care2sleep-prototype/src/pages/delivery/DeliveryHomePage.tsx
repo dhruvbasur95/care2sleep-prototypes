@@ -2045,6 +2045,44 @@ function PlacementFeedbackCard() {
           action="View"
           icon={MessageSquare}
         />
+
+        {/* The community-of-practice feedback report, as the trainee sees it.
+            The researcher attaches this to close Stage CP (`StagePipeline`'s
+            `FeedbackReportDialog`), and this is the other end of that.
+
+            ⚠️ **DUMMY, and nothing is generated** — direct instruction: *"just
+            show an uploaded doc of feedback, do not create any doc."* So the
+            filename below is a fixed dummy string and the control is this
+            app's documented unwired treatment: focusable, `aria-disabled`, with
+            an `sr-only` cue, rather than a button that silently does nothing or
+            hands back a fabricated file. Nothing is stored on either side, so
+            there is no real document to reach for.
+
+            ⚠️ This sits on **Stage 4 (Hands-on Assessment)** by direct
+            instruction, on the understanding that slot becomes Stage CP later.
+            The trainee rail is a different six-stage list from the researcher's
+            five COACH stages and has no Peer-community-feedback slot today, so
+            the card currently shows a CP artefact under an H heading. Moving it
+            is a one-line change of which `*_STAGE_INDEX` this block lives
+            under. */}
+        <div className="flex items-center gap-3 rounded-sm border border-yellow-100 bg-yellow-50 px-4 py-3">
+          <FileText aria-hidden="true" className="size-5 shrink-0 text-primary" />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <p className="truncate text-caption-medium text-ink">Feedback report</p>
+            <p className="truncate text-fine text-ink-muted">
+              community-of-practice-feedback.pdf
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-disabled="true"
+            className="inline-flex h-9 shrink-0 cursor-not-allowed items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Download
+            <span className="sr-only"> the feedback report (coming soon)</span>
+          </button>
+        </div>
+
         {/* This stage has a scheduled session too (direct instruction), so it
             takes the same locked Zoom CTA as Stages 2 and 3. */}
         <LockedSessionCta label="Join assessment session" />

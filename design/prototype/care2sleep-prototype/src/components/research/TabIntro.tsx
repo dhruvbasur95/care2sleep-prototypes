@@ -23,7 +23,7 @@
  * colours — deliberate, and it reads correctly: the title restates the tab you
  * already clicked, while the sub copy is the new information.
  */
-export function TabIntro({ title, subtitle }: { title: string; subtitle: string }) {
+export function TabIntro({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     // `pt-4` (16px) keeps this block's own breathing room below the tab row.
     // No bottom padding: the parent tabpanel's `gap-14` (56px) already spaces
@@ -36,7 +36,10 @@ export function TabIntro({ title, subtitle }: { title: string; subtitle: string 
           the markup shipped `text-ink` — so the intent was documented and then
           not implemented. Corrected against the frame. */}
       <h2 className="font-display text-title text-ink-muted">{title}</h2>
-      <p className="text-body text-ink">{subtitle}</p>
+      {/* Optional (direct instruction): a title that heads a KPI row drops its
+          sub copy — the tiles label themselves, so the line only pushed them
+          down. Additive; every caller that passes a subtitle is unchanged. */}
+      {subtitle && <p className="text-body text-ink">{subtitle}</p>}
     </div>
   )
 }

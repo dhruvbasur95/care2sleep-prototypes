@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Clock,
   Download,
+  FileText,
   LayoutDashboard,
   Link2,
   Lock,
@@ -23,6 +24,7 @@ import {
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { SupervisionRecords } from '@/pages/research/SpacesCoachProfilePage'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
+import { FeedbackReportDialog } from '@/components/research/FeedbackReportDialog'
 import { CertificationChip, Chip } from '@/components/research/StatusChip'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
@@ -35,7 +37,6 @@ import {
 } from '@/components/research/RecordFields'
 import { SIPTEA_BG } from '@/data/siptea'
 import { FEEDBACK_MOODS, FeedbackPillow } from '@/components/shared/FeedbackPillow'
-import { KeyUpdatesPanel, type KeyUpdateItem } from '@/components/research/KeyUpdatesPanel'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import {
@@ -53,6 +54,10 @@ import {
   type ModuleQuestionBank,
   type ModuleRecord,
 } from '@/data/research'
+import {
+  ResearchPrioritiesSection,
+  type ResearchPriorityItem,
+} from '@/components/research/ResearchPrioritiesSection'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
 
@@ -1367,126 +1372,104 @@ function dueAfterStage(dueAfterPhase: number): string {
 }
 
 /**
- * The "Key updates" list on the Overview tab (frame `152:375`, node `152:608`).
+ * "Items that need your attention" for one trainee, as `ResearchPriorityItem[]`.
  *
- * The frame draws five rows, but three of its five are invented placeholder copy
- * ("Action items: Next steps for sleep improvement", "Sleep hygiene: Optimizing
- * your environment", "Weekly check-in: Progress and reflections") — none of
- * which is a real Care2Sleep concept, and two of which describe *consumer* sleep
- * content rather than anything on a trainee's record. So the panel's shape is
- * taken from the frame and every row is **project-specific and derived**: COACH
- * stage, module progress, knowledge-check accuracy, SIPTEA coverage, the three
- * annotated-SIPTEA-guide timepoints, and the next booked session. Nothing is
- * fabricated, and nothing is hardcoded.
+ * Direct instruction: the Overview's single card splits into two, and the right
+ * half reuses the shared attention component rather than the bespoke Key
+ * updates panel — so a trainee record and the researcher Home now speak the
+ * same attention vocabulary.
  *
- * Two deliberate properties:
- * - **Every figure is read through the helper that already owns it**
- *   (`averageAccuracy`/`completedModulesWithBank`, `sipteaBreakdown`,
- *   `stageZoomSession`, `stageLabel`), never recomputed locally. This panel now
- *   restates facts the Learning Progress tab and the sessions table below also
- *   show, and this project's most-repeated bug class is exactly two surfaces
- *   rendering the same fact off two different fields.
- * - **A not-yet-reached annotation timepoint still renders a row**, saying which
- *   stage unlocks it. "Not due yet" and "due but missing" are different things
- *   to a researcher and only one needs chasing; omitting the row collapses them.
+ * **Every row is derived, nothing is seeded.** Sources, and why each is here:
+ *  - Inactivity and accuracy-below-threshold come straight from the Notion
+ *    alert classification ("Trainee not active for 7 days" High,
+ *    "Trainee knowledge-check accuracy below threshold" Medium, under 60%).
+ *  - Overdue annotation summaries reuse `ANNOTATION_TIMEPOINTS` and the same
+ *    "past the stage it is due after, nothing submitted" test the old Key
+ *    updates panel used, so the two never disagreed and now cannot.
+ *  - The three learning flags come from `learningFlags()`, which already
+ *    existed and had no caller since its card was removed from the Learning
+ *    Progress tab.
  *
- * That reaches 6-8 rows for an active trainee and 5-6 for one still in Content
- * learning, so the frame's full, scrolling list reads correctly on real data.
- *
- * Terminology follows CLAUDE.md, not the frame: the frame's "Baseline review"
- * is an **annotation summary** — the project's own term, and the one used
- * everywhere else in this app.
+ * Rows carry `onSelect`, not `to`: every destination is a tab on this same
+ * page, and a `<Link>` pointing at the route you are already on is a control
+ * that does nothing.
  */
-function overviewKeyUpdates(coach: Coach): KeyUpdateItem[] {
-  const updates: KeyUpdateItem[] = []
+function traineePriorityItems(
+  coach: Coach,
+  goToTab: (tab: Tab) => void,
+): ResearchPriorityItem[] {
+  const items: ResearchPriorityItem[] = []
 
-  // No "Current stage" row, though it was the obvious first one to add: the
-  // white sub-panel 24px to the left of this list already says "Current Stage:
-  // Stage C", and `stageLabel` renders "Stage C: Learning", so the row read
-  // "Current stage: Stage C: Learning" — a double colon restating the fact
-  // immediately beside it. The stage still frames the "Due after…" rows below;
-  // it just doesn't need saying twice on one card.
-
-  // 1. What they are working through right now, and what they last finished.
-  const inProgress = coach.moduleRecords.find((r) => r.status === 'in-progress')
-  if (inProgress)
-    updates.push({
-      id: 'ongoing-module',
-      label: 'Ongoing module',
-      value: numberedModuleTitle(inProgress.moduleId),
-      strong: true,
-    })
-
-  const completed = coach.moduleRecords.filter((r) => r.status === 'completed')
-  const lastCompleted = completed[completed.length - 1]
-  if (lastCompleted)
-    updates.push({
-      id: 'last-completed-module',
-      label: 'Last completed module',
-      value: numberedModuleTitle(lastCompleted.moduleId),
-      strong: true,
-    })
-
-  // 3. The two learning-quality figures the Learning Progress tab already
-  //    publishes. Derived through the SAME helpers that tab uses
-  //    (`averageAccuracy`/`completedModulesWithBank`, `sipteaBreakdown`) rather
-  //    than recomputed here — two surfaces showing the same fact must read the
-  //    same field, which is a bug class this project has shipped more than once.
-  const accuracy = averageAccuracy(completedModulesWithBank(coach))
-  if (accuracy !== null)
-    updates.push({ id: 'accuracy', label: 'Avg. knowledge check accuracy', value: `${accuracy}%` })
-
-  const sipteaAssessed = sipteaBreakdown(coach).filter((s) => s.averageAccuracy !== null).length
-  if (sipteaAssessed > 0)
-    updates.push({
-      id: 'siptea-assessed',
-      label: 'SIPTEA components assessed',
-      value: `${sipteaAssessed} of 6`,
-    })
-
-  // 4. The annotated SIPTEA guide's real timepoints. A timepoint the trainee
-  //    has not reached yet says so, naming the stage that unlocks it, rather
-  //    than being silently absent — "not due" and "due but missing" are
-  //    different things to a researcher, and only one of them needs chasing.
-  for (const { timepoint, label, dueAfterPhase } of ANNOTATION_TIMEPOINTS) {
-    const summary = coach.annotationSummaries.find((a) => a.timepoint === timepoint)
-    if (summary) {
-      updates.push({
-        id: timepoint,
-        label,
-        value: summary.shared ? 'Shared' : 'Approved, not shared',
+  // 1. Inactivity — High, per the classification.
+  if (coach.lastActive) {
+    const days = Math.floor(
+      (new Date(TODAY).getTime() - new Date(coach.lastActive).getTime()) / 86_400_000,
+    )
+    if (days >= 7)
+      items.push({
+        id: 'inactive',
+        priority: 'High',
+        title: 'Not active for 7 days',
+        note: `Last signed in ${formatDate(coach.lastActive)}, ${days} days ago.`,
+        onSelect: () => goToTab('Learning Progress'),
       })
-    } else if (coach.currentPhase < dueAfterPhase) {
-      // "Due after X", not "Not due until X": a trainee at Stage C is *inside*
-      // Content learning, and "Not due until Content learning" reads as though
-      // they haven't started it. "Due after" is true at every phase.
-      updates.push({ id: timepoint, label, value: `Due after ${dueAfterStage(dueAfterPhase)}` })
-    } else {
-      // Overdue — the trainee is past the stage this reflection is due after
-      // and nothing has been submitted. Flagged the same way Consumer's own
-      // key-updates list flags an at-risk state (Round 25's `tone` field),
-      // rather than rendering identically to every routine update above it.
-      updates.push({ id: timepoint, label, value: 'Not submitted yet', tone: 'text-destructive' })
-    }
   }
 
-  // 5. What is booked next, if anything. Same `stageZoomSession` source the
-  //    sessions table below reads, so the two cannot disagree.
-  const nextSession = stageZoomSession(coach).find((s) => s.phase >= coach.currentPhase)
-  if (nextSession)
-    updates.push({
-      id: 'next-session',
-      label: 'Next session',
-      // The stage's own short label ("Group practice", "Placement 2"), not
-      // `session.title` — the real titles carry their own colon ("Group
-      // practice 5: Consolidation and readiness check"), so putting one in the
-      // label and another in the title gave a row with three colons in it. The
-      // short label is also exactly what the sessions table below prints in its
-      // Session column, so the two name the same thing the same way.
-      value: `${stageLabel(nextSession.phase).split(': ')[1] ?? stageLabel(nextSession.phase)} · ${formatDate(nextSession.date)} · ${formatTime(nextSession.time)}`,
-    })
+  // 2. Knowledge-check accuracy under the 60% threshold, per module.
+  for (const entry of completedModulesWithBank(coach)) {
+    if (entry.accuracy < 60)
+      items.push({
+        id: `accuracy-${entry.moduleId}`,
+        priority: 'Medium',
+        title: 'Knowledge-check accuracy below threshold',
+        note: `${numberedModuleTitle(entry.moduleId)} scored ${entry.accuracy}%, under the 60% threshold.`,
+        onSelect: () => goToTab('Learning Progress'),
+      })
+  }
 
-  return updates
+  // 3. Annotation summaries that are due and missing. Same test the Key
+  //    updates panel used, so the figure cannot drift between the two.
+  for (const { timepoint, label, dueAfterPhase } of ANNOTATION_TIMEPOINTS) {
+    const summary = coach.annotationSummaries.find((a) => a.timepoint === timepoint)
+    if (!summary && coach.currentPhase >= dueAfterPhase)
+      items.push({
+        id: `annotation-${timepoint}`,
+        priority: 'High',
+        title: `${label} not submitted`,
+        note: `Due after ${dueAfterStage(dueAfterPhase)}, which this trainee has passed.`,
+        onSelect: () => goToTab('Stage Management'),
+      })
+  }
+
+  // 4. The learning flags that already had a derivation and no caller.
+  for (const flag of learningFlags(coach)) {
+    if (flag.kind === 'missed-question')
+      items.push({
+        id: `missed-${flag.moduleId}`,
+        priority: 'Medium',
+        title: 'Knowledge-check question missed',
+        note: `${flag.moduleTitle}: at least one answer was wrong.`,
+        onSelect: () => goToTab('Learning Progress'),
+      })
+    else if (flag.kind === 'short-response')
+      items.push({
+        id: `short-${flag.moduleId}`,
+        priority: 'Medium',
+        title: 'Very short scenario response',
+        note: `${flag.moduleTitle}: ${flag.length} characters submitted.`,
+        onSelect: () => goToTab('Learning Progress'),
+      })
+    else
+      items.push({
+        id: `drop-${flag.toModuleTitle}`,
+        priority: 'Medium',
+        title: 'Accuracy dropped between modules',
+        note: `Down ${flag.dropPoints} points from ${flag.fromModuleTitle} to ${flag.toModuleTitle}.`,
+        onSelect: () => goToTab('Learning Progress'),
+      })
+  }
+
+  return items
 }
 
 function Overview({
@@ -1517,10 +1500,8 @@ function Overview({
   const modulesDone = coach.moduleRecords.filter((r) => r.status === 'completed').length
   const totalModules = PATHWAY_MODULES_V2.length
   // Still read here for the pathway timeline's `currentModule` label; the
-  // annotation summaries it used to sit beside moved into `overviewKeyUpdates`.
   const inProgress = coach.moduleRecords.find((r) => r.status === 'in-progress')
 
-  const keyUpdates = overviewKeyUpdates(coach)
 
   return (
     // Round 23, frame `152:176`: the three sections are 24px apart (`Frame 108`
@@ -1641,7 +1622,18 @@ function Overview({
           `parchment` panels 24px apart: a flex-1 "Progress:" panel and a fixed
           640px "Key updates" panel. Title is the frame's own
           "Trainee's learning journey progress". */}
-      <section>
+      {/* Direct instruction: one card became TWO sibling cards — the learning
+          journey on the left (carrying the "View more" CTA, which used to head
+          both panels) and the shared attention component on the right. 40px
+          apart, the same seam every other card row on this dashboard uses.
+          `items-stretch` is required, not cosmetic: the attention cell holds an
+          absolutely-positioned panel, so with `items-start` that cell had no
+          height of its own and `inset-0` resolved to a 0px box (measured: the
+          card rendered 34px tall beside a 384px sibling). Under `stretch` the
+          cell takes the ROW height — and because an absolute child contributes
+          nothing, the row height is the journey card's own. So the journey card
+          stays the height authority and the panel fills exactly its box. */}
+      <section className="grid grid-cols-1 items-stretch gap-10 xl:grid-cols-2">
         <Card className="gap-0 rounded-lg border border-parchment bg-card py-0 shadow-card">
           <div className="flex flex-col gap-6 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1657,13 +1649,11 @@ function Overview({
               </button>
             </div>
 
-            {/* Splits at `xl`, not `lg`: the right panel is 640px and the left
-                needs ~409px beside it, so a two-column row only actually fits
-                once the content column is past ~1100px. Below that they stack
-                rather than squeezing the stats row's two columns into a wrap. */}
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
+            {/* Now a single column: the Key updates panel that used to sit
+                beside it is the second card. */}
+            <div className="flex flex-col gap-6">
               {/* Progress panel (`152:381`) */}
-              <div className="flex min-w-0 flex-1 flex-col gap-6 rounded-sm bg-parchment p-4">
+              <div className="flex min-w-0 flex-col gap-6 rounded-sm bg-parchment p-4">
                 {/* `h-6`: the frame gives this label an explicit 24px box
                     (node `152:488`), 5px more than its 19px line — that extra
                     is what makes the panel 254px rather than 249px. */}
@@ -1720,11 +1710,34 @@ function Overview({
                 </div>
               </div>
 
-              {/* Key updates panel (`152:525`) */}
-              <KeyUpdatesPanel items={keyUpdates} className="xl:w-[640px] xl:shrink-0" />
             </div>
           </div>
         </Card>
+
+        {/* The second card. Shared component, so this row and researcher Home
+            read as one pattern. `surfacePadding="lg"` because its sibling here
+            is a real Card at 24px — the Coach profile's copy sits beside a bare
+            KPI grid and keeps the 16px default.
+
+            `absolute inset-0` is load-bearing, and the same trick the Coach
+            profile's Study progress row uses: the journey card is the height
+            authority (direct instruction), so this panel must contribute
+            NOTHING to the row height or a long alert list would stretch the
+            row and put dead space back under the progress panel. Absolutely
+            positioned, it fills exactly the journey card's box and scrolls
+            inside it (`fillHeight`). `xl:` only — below that they stack, where
+            filling a sibling's height would just clip alerts. */}
+        <div className="relative min-w-0">
+          <div className="xl:absolute xl:inset-0">
+            <ResearchPrioritiesSection
+              key={`trainee-priorities-${coach.id}`}
+              fillHeight
+              surfacePadding="lg"
+              emptyCopy="Nothing needs your attention for this trainee."
+              items={traineePriorityItems(coach, onGoToTab)}
+            />
+          </div>
+        </div>
       </section>
 
       {/* Title, sub copy and CTA all live inside the card, matching the two
@@ -3231,11 +3244,54 @@ interface PendingPhaseAction {
   action: 'complete' | 'incomplete'
 }
 
+/** Stage CP — the one stage whose completion is gated on a document. */
+const FEEDBACK_REPORT_PHASE = 6
+
 function StagePipeline({ coach }: { coach: Coach }) {
   const { phaseCompletion, togglePhase } = useResearch()
   const completed = phaseCompletion[coach.id] ?? []
   const firstName = coach.fullName.split(' ')[0]
   const [pending, setPending] = useState<PendingPhaseAction | null>(null)
+  /* Marking a stage complete UNMOUNTS the button that triggered it — the row
+     swaps its "Mark complete" for the completed row's kebab — so
+     `ConfirmDialog`'s own restore has nothing to return to and focus lands on
+     `<body>`. Measured, not assumed. This header is the deliberate landing
+     spot: it names the region whose contents just changed. */
+  const headingRef = useRef<HTMLParagraphElement>(null)
+  /* Focused TWICE, and the second one is the load-bearing half. `ConfirmDialog`
+     runs its own focus-restore as it animates out, aimed at the control that
+     opened it — and that control has just unmounted, so the restore lands on
+     `<body>`. A single `requestAnimationFrame` here fires BEFORE that restore
+     and gets overwritten; measured failing exactly that way. The second pass
+     runs after the exit has finished and is what actually holds. */
+  const returnFocus = () => {
+    const land = () => headingRef.current?.focus({ preventScroll: true })
+    window.requestAnimationFrame(land)
+    window.setTimeout(land, 350)
+  }
+  /** Which phase's upload dialog is open, or null. */
+  const [reportFor, setReportFor] = useState<number | null>(null)
+  /* ⚠️ Held in memory, never stored — direct instruction that nothing an
+     uploader picks gets saved. It survives navigation within the page's life
+     and is gone on reload, at which point the completed row retires its
+     download rather than handing back a document nobody attached. */
+  const [report, setReport] = useState<File | null>(null)
+  const reportUrl = useRef<string | null>(null)
+  useEffect(() => () => {
+    if (reportUrl.current) URL.revokeObjectURL(reportUrl.current)
+  }, [])
+
+  const downloadReport = () => {
+    if (!report) return
+    // The actual bytes the researcher attached, handed straight back. No
+    // document is generated: there is nothing to generate it from.
+    if (reportUrl.current) URL.revokeObjectURL(reportUrl.current)
+    reportUrl.current = URL.createObjectURL(report)
+    const a = document.createElement('a')
+    a.href = reportUrl.current
+    a.download = report.name
+    a.click()
+  }
 
   // Index of the first pipeline row that renders a "Mark complete" button —
   // the same `!done` condition the row itself uses below. -1 when every stage
@@ -3264,7 +3320,13 @@ function StagePipeline({ coach }: { coach: Coach }) {
           "one hairline under every card title" rule.
           `ink-muted` on this band measures 11.19:1 — AAA. */}
       <div className="flex items-center justify-between rounded-t-lg bg-purple-50 p-6">
-        <p className="w-[180px] text-caption-medium text-ink-muted">Stage &amp; progress</p>
+        <p
+          ref={headingRef}
+          tabIndex={-1}
+          className="w-[180px] text-caption-medium text-ink-muted outline-none"
+        >
+          Stage &amp; progress
+        </p>
         <p className="w-[160px] text-center text-caption-medium text-ink-muted">Action</p>
       </div>
 
@@ -3331,17 +3393,44 @@ function StagePipeline({ coach }: { coach: Coach }) {
                       i === 0 ? 'bg-transparent' : done ? 'bg-success/80' : 'bg-ink-faint/80',
                     )}
                   />
+                  {/* Three marker states, not two. The ongoing stage used to
+                      render byte-identical to the not-started stages beneath
+                      it, so the row the "Ongoing" chip names had no marker of
+                      its own and the timeline read as "nothing has started".
+                      It is a pure colour swap on the not-started geometry —
+                      same 28px outer diameter, same 1px stroke, same 8px
+                      centre dot — because that shape is already the ring the
+                      brief asks for, and the diameter is what the connector
+                      above and below meets. `primary` (#3a00ad), the settled
+                      brand token; the same purple the "Ongoing" `next` chip on
+                      this row already carries, so marker and label agree. */}
                   <span
                     aria-hidden="true"
                     className={cn(
                       'flex size-7 shrink-0 items-center justify-center rounded-full',
-                      done ? 'bg-success text-white' : 'border border-ink-faint bg-card',
+                      done
+                        ? 'bg-success text-white'
+                        : ongoing
+                          ? 'border border-primary bg-card'
+                          : 'border border-ink-faint bg-card',
                     )}
                   >
                     {done ? (
                       <Check className="size-4" />
                     ) : (
-                      <span className="size-2 rounded-full bg-divider-soft" />
+                      <span
+                        className={cn(
+                          'size-2 rounded-full',
+                          /* Direct instruction: the small circle INSIDE the
+                             ring, on `purple-200`. It was `divider-soft`
+                             #f5f5f7, all but identical to the white disc it
+                             sits on. Still a light tint (1.37:1 on white) and
+                             decorative either way — the `ink-faint` ring is the
+                             real indicator at 5.17:1, so this dot carries no
+                             state on its own. */
+                          ongoing ? 'bg-primary' : 'bg-purple-200',
+                        )}
+                      />
                     )}
                   </span>
                   <span
@@ -3358,49 +3447,86 @@ function StagePipeline({ coach }: { coach: Coach }) {
 
                 {/* Phase label + explicit action (never toggled by clicking the dot) */}
                 <div className="flex flex-1 items-center justify-between gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    {/* Direct instruction: the status label sits on the stage
-                        *title's* line, 16px after it — not centred against the
-                        whole two-line block, where it floated between the two
-                        lines and belonged to neither. */}
-                    <div className="flex items-center gap-4">
-                      {/* 15/700 and 13/400 per the frame — neither is a named
-                          step in the scale (15px is the app's button/tab
-                          convention; 13px was retired in Round 21.3), so both
-                          are stated inline rather than minting tokens for one
-                          row.
-                          No `leading-none`: a first pass collapsed both lines
-                          to their font size, which measured 30px against the
-                          frame's own 36px label block and read visibly cramped.
-                          Natural leading gives 18 + 2 + 16 = 36 — the frame's
-                          number exactly, with the 2px gap kept. */}
-                      <p className="text-[15px] font-bold whitespace-nowrap text-ink">
-                        {stageShortName(phase.number)}
-                      </p>
-                      {/* The shared `<Chip>`, not a local pill.
-                          The frame draws these in raw `#d9f2de`/`#218c21` at
-                          11/700 in a 19px pill — which is (a) off this app's
-                          palette, (b) only 3.66:1, an AA failure at 11px, and
-                          (c) a fourth status-chip geometry in an app that
-                          already has one. So the frame decides the placement
-                          and the wording here and `Chip` decides how it looks,
-                          per this project's own standing rule.
-                          Tones: `success` for Complete, and — direct
-                          instruction — `next` for Ongoing, which is the same
-                          purple the Overview tab's "Ready now" already uses for
-                          a stage the trainee has reached but not finished, so
-                          both tabs describe the same state identically.
-                          Trade-off worth knowing: this makes the label 27px
-                          rather than the frame's 19px. It fits — the row is
-                          64px — and consistency with every other status chip in
-                          the app is worth the 8px. */}
+                  <div className="flex flex-col items-start gap-1">
+                    {/* Direct instruction: the stage code and its name are ONE
+                        line at ONE size ("Stage C - Content learning"), and the
+                        status chip drops to its own line underneath. This
+                        replaces the earlier split of a 15/700 code with the
+                        chip beside it over a smaller 13/400 grey name.
+                        Only the code carries the heavier weight — it is the
+                        same `font-bold` it already had, and the name after the
+                        hyphen is regular, so the row keeps one type size and
+                        uses weight alone to separate code from name. Both
+                        halves are therefore `text-ink`: a single line reading
+                        as two colours was what made the old name look like a
+                        subtitle rather than part of the same phrase.
+                        15px is stated inline rather than minted as a token —
+                        it is the app's button/tab convention and this is the
+                        one row that uses it (unchanged from the previous pass).
+                        A plain hyphen, never an em dash: the app-wide em-dash
+                        removal pass and this project's own "Stage X: Word"
+                        format both rule that out.
+                        Both strings still come from `stageShortName()` and the
+                        phase record — never written as literals, which is the
+                        drift `RosterPage`'s filters and the trainee Overview
+                        had both already shipped once. */}
+                    <p className="text-[15px] text-ink">
+                      <span className="font-bold">{stageShortName(phase.number)}</span>{' '}
+                      - {phase.shortLabel}
+                    </p>
+                    {/* The shared `<Chip>`, not a local pill.
+                        The frame draws these in raw `#d9f2de`/`#218c21` at
+                        11/700 in a 19px pill — which is (a) off this app's
+                        palette, (b) only 3.66:1, an AA failure at 11px, and
+                        (c) a fourth status-chip geometry in an app that
+                        already has one. So the frame decides the placement
+                        and the wording here and `Chip` decides how it looks,
+                        per this project's own standing rule.
+                        Tones: `success` for Complete, and — direct
+                        instruction — `next` for Ongoing, which is the same
+                        purple the Overview tab's "Ready now" already uses for
+                        a stage the trainee has reached but not finished, so
+                        both tabs describe the same state identically. It is
+                        also the purple the ongoing marker now carries, so
+                        marker, chip and row all name one state. */}
+                    {/* Direct instruction: the status chip comes first, and
+                        Stage CP's feedback report sits beside it on the same
+                        line — a `purple-50` label rather than a link, so the
+                        row reads as two badges describing the stage rather
+                        than a status followed by an action.
+
+                        Only while the file is still in memory: nothing is
+                        stored, so after a reload there is no document to hand
+                        back and a fabricated stand-in would be worse than an
+                        honest absence. */}
+                    <div className="flex flex-wrap items-center gap-2">
                       {(done || ongoing) && (
-                        <Chip tone={done ? 'success' : 'next'} label={done ? 'Complete' : 'Ongoing'} />
+                        <Chip
+                          tone={done ? 'success' : 'next'}
+                          label={done ? 'Complete' : 'Ongoing'}
+                        />
+                      )}
+                      {done && phase.number === FEEDBACK_REPORT_PHASE && report && (
+                        /* The pill is the app's 27px chip geometry, but it is
+                           also a download — so the *button* is 36px and the
+                           pill is drawn inside it. Shrinking the hit area to
+                           the pill would put a real control under this app's
+                           enforced floor, which `layout-audit.js` caught here.
+                           The row is `min-h-16`, so the taller target costs no
+                           height. */
+                        <button
+                          type="button"
+                          onClick={downloadReport}
+                          className="group inline-flex h-9 max-w-[260px] items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="inline-flex h-[27px] min-w-0 items-center gap-1.5 rounded-full bg-purple-50 px-3 text-fine text-primary transition-colors group-hover:bg-purple-200">
+                            <FileText aria-hidden="true" className="size-3.5 shrink-0" />
+                            <span className="truncate">{report.name}</span>
+                          </span>
+                          <span className="sr-only">, download the feedback report</span>
+                        </button>
                       )}
                     </div>
-                    <p className="text-[13px] whitespace-nowrap text-ink-faint">
-                      {phase.shortLabel}
-                    </p>
                   </div>
 
                   {done && lockedByPass ? (
@@ -3441,24 +3567,55 @@ function StagePipeline({ coach }: { coach: Coach }) {
                         </Menu.Positioner>
                       </Menu.Portal>
                     </Menu.Root>
-                  ) : (
+                  ) : ongoing ? (
+                    /* Stages complete in order (direct instruction), and a
+                       stage that is not next simply has no action — the button
+                       is absent rather than drawn in a disabled state, which
+                       read as broken chrome. Nothing is hidden by it: the row
+                       above is visibly the one waiting. */
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        /* Stage CP is the one stage with a precondition: the
+                           community-of-practice feedback report has to be
+                           attached before the trainee moves to Stage H. Every
+                           other stage keeps the plain confirm. */
+                        if (phase.number === FEEDBACK_REPORT_PHASE) {
+                          setReportFor(phase.number)
+                          return
+                        }
                         setPending({
                           phase: phase.number,
                           name: phase.shortLabel,
                           action: 'complete',
                         })
-                      }
+                      }}
                       // Frame node `172:1229`: same utility-button family the app
                       // already uses here, with the frame's own 18px side
                       // padding and bold label.
-                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                      //
+                      // Hover is `hairline`, NOT the utility button's canonical
+                      // `hover:bg-divider-soft`. That canonical is a no-op here
+                      // and the reason this button was reported as having no
+                      // hover state at all: Round 21.3 collapsed the app's two
+                      // orphan greys onto one off-white, so `--color-pearl` and
+                      // `--color-divider-soft` are now *both* `#f5f5f7` — the
+                      // class was in the DOM painting a zero-pixel change.
+                      // `hairline` `#e0e0e0` is the neutral ramp's next step
+                      // down, so the button stays in its own neutral family
+                      // (rather than picking up a purple tint that would read
+                      // as a different kind of control) and the shift is a real
+                      // 21-per-channel move instead of the ~9 that this
+                      // project's own standing rule already calls invisible.
+                      // Measured composited: rest #f5f5f7 -> hover #e0e0e0.
+                      // NOTE: every other utility button in the app inherits
+                      // the same dead canonical hover. Deliberately not fixed
+                      // here — that is an app-wide sweep, not this component.
+                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-hairline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                     >
                       Mark complete
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             )
@@ -3484,8 +3641,24 @@ function StagePipeline({ coach }: { coach: Coach }) {
         onConfirm={() => {
           if (pending) togglePhase(coach.id, pending.phase)
           setPending(null)
+          returnFocus()
         }}
         onClose={() => setPending(null)}
+      />
+
+      {/* Stage CP's own gate. Separate from the confirm above rather than a
+          mode of it: this one carries a required attachment, a progress state
+          and a removable file, none of which a yes/no confirm should grow. */}
+      <FeedbackReportDialog
+        open={reportFor !== null}
+        traineeFirstName={firstName}
+        onConfirm={(file) => {
+          setReport(file)
+          if (reportFor !== null) togglePhase(coach.id, reportFor)
+          setReportFor(null)
+          returnFocus()
+        }}
+        onClose={() => setReportFor(null)}
       />
     </Card>
   )
@@ -3655,18 +3828,24 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
             re-assessment after remediation (Round 2.2.9), so the outcome
             isn't a one-way dead end. */}
         {cert.outcome !== 'pass' && (
-          <div className="mt-5 flex flex-wrap gap-3">
+          /* Direct instruction: both full width, stacked. They are the two
+             halves of one decision, so sizing them differently made the
+             secondary read as an afterthought rather than the other answer.
+             Remediation is now this app's outline button in the `destructive`
+             semantic — an outcome that sends a trainee back, not a neutral
+             utility action, which is what `bg-pearl`/`ink-muted` said. */
+          <div className="mt-5 flex flex-col gap-3">
             <button
               type="button"
               onClick={() => setPendingOutcome('pass')}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className="inline-flex h-9 w-full items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
             >
               Record Pass
             </button>
             <button
               type="button"
               onClick={() => setPendingOutcome('remediation-required')}
-              className="inline-flex h-9 items-center gap-2 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className="inline-flex h-9 w-full items-center justify-center rounded-full border border-destructive px-[18px] text-caption-medium text-destructive outline-none transition-all hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
             >
               Record remediation required
             </button>

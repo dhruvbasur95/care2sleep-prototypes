@@ -288,10 +288,17 @@
        `#fffcfa` — a visible edge, well short of a frame. It is a non-text
        boundary, so 1.63:1 is the intent, not an AA failure. */
     --color-art-edge: #d4c6bb;
-    --color-header: #000000;
+    /* **Never #000000** (direct instruction, 2026-09-30: *"make sure we never
+       use #000000. refer to black color 1A1A1A"*). This is the app's one black
+       surface and it now holds the same value as `--color-ink`, which the
+       neutral ramp already calls `neutral/black` — see the note above, where
+       the same #000000-vs-#1a1a1a disagreement was resolved the same way. The
+       two stay separate tokens: one is a surface, the other is text. */
+    --color-header: #1a1a1a;
     --color-on-dark-muted: #cccccc;
     /* Was #2997ff. Purple Lighter 3 — the lightest ramp step that still
-       reads as the brand hue against the black header (8.0:1 on #000). */
+       reads as the brand hue against the black header. Re-measured on
+       #1a1a1a after the token moved off #000000. */
     --color-link-on-dark: #a070ff;
     /* Round 1.1 — full-bleed backdrop for the Coach Training Portal's
        mocked Okta Verify sign-in screen only. A deep navy in the same

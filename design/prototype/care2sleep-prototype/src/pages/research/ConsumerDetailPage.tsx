@@ -178,24 +178,31 @@ function WithdrawalRequestedBanner({ dyad }: { dyad: ConsumerDyad }) {
 /**
  * The reasons a research coordinator withdraws a consumer.
  *
+ * **Supplied directly (2026-09-30) and used verbatim** — this is the study's
+ * own list. It replaces a longer clinical set ("Moved into residential aged
+ * care", "Bereavement", "Unable to be contacted", "Research team decision")
+ * that had been written here rather than given, so do not re-derive it from
+ * the domain: if it needs to change, it changes upstream first.
+ *
  * Deliberately **not** the trainee/coach list (`CoachProfilePage`'s
  * `WITHDRAWAL_REASONS`), which is about employment — "Left their aged care
  * employer", "No longer has capacity to continue training". A consumer is a
- * person living with dementia and their carer; they leave for clinical and
- * caregiving reasons, and offering a researcher "Left their aged care employer"
- * on this dialog would be noise at best.
+ * person living with dementia and their carer, so an employment reason would
+ * be noise on this dialog.
  *
- * "Withdrew at their own request" is first among the real reasons because it is
- * the one the withdrawal-request flow lands on.
+ * Note there is no longer a "withdrew at their own request" option, and that
+ * is not a gap: when `requested` is true this dialog already shows the
+ * consumer's own words directly above the dropdown, so the researcher records
+ * *why* they left rather than restating *that* they asked.
+ *
+ * "Other" is what the free-text box below is for — Confirm stays disabled
+ * until it is filled.
  */
 const CONSUMER_WITHDRAWAL_REASONS = [
-  'Withdrew from the study at their own request',
-  'Health or care needs have changed',
-  'Moved into residential aged care',
-  'Carer no longer able to take part',
-  'Unable to be contacted',
-  'Bereavement',
-  'Research team decision',
+  'Health or care situation has changed',
+  'Not enough time',
+  'Program didn’t suit their needs',
+  'They see no benefit of the program',
   'Other',
 ]
 
@@ -1458,10 +1465,21 @@ export function ProfileDetailsSections({
               ? `Confirm withdrawal for ${dyadTitle(dyad)}?`
               : `Withdraw ${dyadTitle(dyad)} from the study?`
           }
+          /* Two branches, two different jobs.
+
+             Actioning a request: no copy at all (direct instruction). The two
+             read-only containers below carry the facts the researcher is
+             deciding on, and a paragraph restating them was copy for its own
+             sake.
+
+             Starting one from the research team's own end: one short sentence,
+             because nothing else on screen says what withdrawing does. Kept
+             deliberately plain (direct instruction) — the Zoom-access clause
+             and the "reversible in the prototype only" line are both gone. */
           body={
             requested
-              ? "They asked to leave the study. Confirming records the withdrawal: their status changes to withdrawn, they lose access to Zoom session links, and their records are kept per their consent. This is reversible in the prototype only."
-              : "Their status changes to withdrawn and their records are kept per their consent. They'll lose access to Zoom session links. This is reversible in the prototype only."
+              ? ''
+              : 'Their status changes to withdrawn and their records are kept per their consent.'
           }
           confirmLabel={requested ? 'Confirm withdrawal' : 'Withdraw from study'}
           cancelLabel="Keep active"
@@ -1484,17 +1502,35 @@ export function ProfileDetailsSections({
           onClose={() => setWithdrawOpen(false)}
         >
           <div className="flex flex-col gap-6 py-2">
-            {/* The consumer's own words, shown before the researcher picks a
-                reason rather than after — it is the thing they are deciding
-                on, and asking for a reason while hiding the one already given
-                invites a mismatch between the two records. */}
-            {requested && dyad.withdrawalRequested?.note && (
-              <p className="rounded-sm bg-pearl p-3 text-caption text-ink">
-                <span className="text-caption-medium">
-                  Requested on {formatDate(dyad.withdrawalRequested.date)}:
-                </span>{' '}
-                {dyad.withdrawalRequested.note}
-              </p>
+            {/* What the consumer already told us, as two read-only containers
+                (direct instruction) — the request date and their own stated
+                reason, each labelled, rather than one sentence running the two
+                together. Shown before the researcher's own fields because it
+                is what they are deciding on: asking for a reason while hiding
+                the one already given invites a mismatch between the two
+                records. Stacked rather than side by side — the panel is 440px
+                and a stated reason runs to a couple of lines.
+
+                Only on the request branch. When the research team starts the
+                withdrawal themselves nobody asked to leave, so there is no
+                request date and no consumer-stated reason — two containers
+                reading "Not provided" would be furniture. That branch gets a
+                one-line sub copy under the title instead. */}
+            {requested && dyad.withdrawalRequested && (
+              <div className="flex flex-col gap-3">
+                <div className="rounded-sm bg-pearl p-4">
+                  <p className="text-fine text-ink-faint">Request date</p>
+                  <p className="mt-1 text-caption text-ink">
+                    {formatDate(dyad.withdrawalRequested.date)}
+                  </p>
+                </div>
+                <div className="rounded-sm bg-pearl p-4">
+                  <p className="text-fine text-ink-faint">Reason of withdrawal</p>
+                  <p className="mt-1 text-caption text-ink">
+                    {dyad.withdrawalRequested.note || 'No reason given'}
+                  </p>
+                </div>
+              </div>
             )}
 
             <div className="flex flex-col gap-1">
@@ -1535,7 +1571,7 @@ export function ProfileDetailsSections({
 
             <div className="flex flex-col gap-1">
               <label htmlFor="consumer-withdraw-detail" className="text-fine text-ink-faint">
-                {withdrawReason === 'Other' ? 'What happened?' : 'Anything to add? (optional)'}
+                {withdrawReason === 'Other' ? 'What happened?' : 'Additional comments (optional)'}
               </label>
               <textarea
                 id="consumer-withdraw-detail"
@@ -1868,22 +1904,29 @@ type ToneKey = LearningCycle['tone'] | 'milestone'
  * inside every session card. Nine coloured objects in one row, none of which
  * said which step was live.
  *
- * So the card surface no longer carries state at all. Every node is a white
- * card with a `parchment` stroke; state is carried **only** by the status chips
- * inside it, which is where a researcher should be reading it. The marker
- * separates just two things a colour can honestly say at a glance: reached
- * (`ink-faint`) and not reached yet (`hairline`).
+ * The card surface carries exactly one distinction: **completed** (light green)
+ * vs everything else (neutral grey). Finer state — whether a module was left
+ * incomplete, whether a session is still ahead — stays on the status chips
+ * inside the card, which is where a researcher should read it.
  *
  * The one accent left in the whole timeline is `current`, applied to the single
  * step the pairing is up to. It is the only primary-coloured thing in the row,
  * which is what makes "where are they now" answerable without reading a word.
  */
 const CYCLE_TONE: Record<ToneKey | 'current', { card: string; marker: string; ring: string }> = {
-  /* REACHED — a milestone that happened, or a catch-up that has been held.
-     Neutral grey, the same as every other non-current node. Whether it went
-     well is the chips' job, not the card's. */
-  milestone: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
-  complete: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+  /* COMPLETED — a milestone that happened, or a catch-up that has been held.
+     **Light green** (direct instruction): grey made a reached timepoint look
+     identical to one still ahead, so the timeline carried no completion signal
+     at all except position.
+     The green is composited from the single `--color-success` token rather
+     than a new three-step green ramp the palette does not have — the same
+     derivation the certificate rosette uses. `success/10` for the fill,
+     `success` for the marker and ring. */
+  milestone: { card: 'border-success/30 bg-success/10', marker: 'bg-success', ring: 'border-success' },
+  complete: { card: 'border-success/30 bg-success/10', marker: 'bg-success', ring: 'border-success' },
+  /* NOT completions, so deliberately NOT green — `attention` is a module left
+     incomplete after its session, `ongoing` is still in flight. Turning either
+     green would say the opposite of what it means. They keep the neutral grey. */
   attention: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
   ongoing: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
   /* NOT REACHED — the same neutral grey card as every reached node (direct

@@ -988,7 +988,6 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
   }, [page, lastPage])
 
   const visible = entries.slice(page * NOTES_PER_PAGE, (page + 1) * NOTES_PER_PAGE)
-  const sharedCount = entries.filter((e) => e.shared).length
   const viewing = entries.find((e) => e.id === viewingId) ?? null
 
   return (
@@ -997,14 +996,13 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
         <h2 ref={headingRef} tabIndex={-1} className="font-display text-title text-ink outline-none">
           My reflections
         </h2>
-        {/* Says what the list is and what the coach controls, in two clauses.
-            The share sentence is here rather than only inside the dialog
-            because "who sees this" is the question a coach has *before* they
-            open a row. */}
+        {/* "Who sees this" is still the question a coach has before opening a
+            row — it is just no longer a count, because the answer is now the
+            same for every reflection. */}
         <p className="text-body text-ink-muted">
           {entries.length === 0
             ? 'Your reflections after each session will appear here.'
-            : `Your reflections after each session. ${sharedCount} of ${entries.length} shared with the research team.`}
+            : 'Your reflections after each session. All reflections are shared with the research team.'}
         </p>
       </div>
 
@@ -1029,16 +1027,13 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
                 <th scope="col" className="px-8 py-3.5 text-left font-medium">
                   Reflection
                 </th>
-                {/* Round 40, direct instruction. Both headers were ambiguous
-                    against their own column: "Date" beside a Session column
-                    read as the session's date rather than the reflection's,
-                    and "Shared" over a cell that can say "Private" named one
-                    of the two values instead of the question. */}
+                {/* Round 40, direct instruction: "Date" beside a Session
+                    column read as the session's date rather than the
+                    reflection's. The "Share status" column that sat after it
+                    is gone — every reflection is shared, so the column had one
+                    value on every row. */}
                 <th scope="col" className="w-[150px] px-0 py-3.5 text-left font-medium">
                   Date Added
-                </th>
-                <th scope="col" className="w-[150px] px-0 py-3.5 text-left font-medium">
-                  Share status
                 </th>
                 <th scope="col" className="w-[110px] py-3.5 pr-8 text-left font-medium">
                   Actions
@@ -1066,12 +1061,6 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
                     </span>
                   </td>
                   <td className="py-6 text-ink">{formatDate(entry.date)}</td>
-                  <td className="py-6">
-                    <Chip
-                      tone={entry.shared ? 'success' : 'destructive'}
-                      label={entry.shared ? 'Shared' : 'Private'}
-                    />
-                  </td>
                   <td className="py-6 pr-8">
                     <button
                       type="button"
@@ -1100,14 +1089,13 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
 
       <ReflectionReviewDialog
         entry={viewing}
-        dyadId={dyad.id}
-        onClose={() => setViewingId(null)}
-        onSaved={(message) => {
-          setConfirmation(message)
-          /* The dialog unmounts on save and its trigger — the row's View
-             button — may have re-rendered, so focus goes to the tab's own
-             heading rather than being left on `<body>`. This project's
-             most-repeated defect. */
+        onClose={() => {
+          setViewingId(null)
+          /* The dialog unmounts and its trigger — the row's View button — may
+             have re-rendered, so focus goes to the tab's own heading rather
+             than being left on `<body>`. This project's most-repeated defect.
+             `ConfirmDialog` restores to the trigger when it still can; this is
+             the fallback for when it cannot. */
           headingRef.current?.focus()
         }}
       />
@@ -1118,67 +1106,31 @@ function ReflectionsTab({ dyad }: { dyad: ConsumerDyad }) {
 }
 
 /**
- * A saved reflection, opened from the table (direct instruction: "open just the
- * review part with option to edit", plus "a toggle up top ... to update share
- * settings").
+ * A saved reflection, opened from the table — read-only.
  *
- * It is the wizard's review screen and nothing else — same `ReflectionFields`
- * list, so what a coach approved at the end of the wizard is exactly what they
- * see here. Editing swaps that list for the same six textareas rather than
- * reopening the six-step wizard: re-walking six steps to fix one sentence is
- * the reason the Round 16 "Edit plan" modal was split off the plan wizard, and
- * this is the same shape of problem.
- *
- * The share toggle commits **immediately**, while the answers commit on Save.
- * That split is deliberate. Sharing is one reversible fact a coach may want to
- * change without touching a word of what they wrote, and burying it behind an
- * edit-then-save cycle would make the common case the long one.
+ * It was the wizard's review screen with its six textareas live and a share
+ * toggle above them, so a coach could revise what they wrote and change who
+ * could see it. Both are gone by direct instruction: sharing is mandatory, and
+ * a coach cannot edit a reflection once it has been added. What remains is the
+ * same `ReflectionReviewTable` in its `readOnly` mode, so the record a coach
+ * reads back is laid out exactly as the screen they approved it on.
  */
 function ReflectionReviewDialog({
   entry,
-  dyadId,
   onClose,
-  onSaved,
 }: {
   entry: AnnotationSummaryEntry | null
-  dyadId: string
   onClose: () => void
-  onSaved: (message: string) => void
 }) {
-  const { updateAnnotationSummary } = useResearch()
   // Held rather than read straight through, so the panel keeps its content
   // while `AnimatePresence` plays the exit instead of blanking mid-fade.
   const [shown, setShown] = useState<AnnotationSummaryEntry | null>(entry)
-  const [drafts, setDrafts] = useState<string[]>([])
-
-  /* Keyed on `entry?.id`, not `entry`. The parent now looks the entry up from
-     the store on every render, so toggling share hands down a **new object**
-     for the same reflection — re-seeding on the object would wipe any in-
-     progress edit the moment the coach touched the toggle. */
   useEffect(() => {
-    if (!entry) return
-    setShown(entry)
-    setDrafts(entry.components.map((c) => c.answer))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry?.id])
+    if (entry) setShown(entry)
+  }, [entry])
 
   if (!shown) return null
-
   const live = entry ?? shown
-
-  const handleSave = () => {
-    updateAnnotationSummary(dyadId, live.id, {
-      components: live.components.map((c, i) => ({
-        ...c,
-        // An answer emptied entirely keeps the wizard's own placeholder rather
-        // than becoming a blank field, so a saved reflection always reads as a
-        // record rather than as a half-filled form.
-        answer: drafts[i]?.trim() || '(no response recorded)',
-      })),
-    })
-    onClose()
-    onSaved('Reflection updated.')
-  }
 
   return (
     <ConfirmDialog
@@ -1189,89 +1141,30 @@ function ReflectionReviewDialog({
           : `Your reflection: ${sessionRowLabel(live.session)}`
       }
       body={`${formatDate(live.date)}  ·  ${live.time}`}
-      confirmLabel="Save changes"
-      cancelLabel="Cancel"
+      /* One control, not a Save/Cancel pair: there is nothing to commit.
+         Direct instruction — a coach cannot edit a reflection once it has been
+         added, so this dialog only shows the record. */
+      confirmLabel="Close"
+      cancelLabel="Close"
+      singleAction
       panelClassName="max-h-[85vh] w-full max-w-[860px]"
-      onConfirm={handleSave}
+      onConfirm={onClose}
       onClose={onClose}
     >
       <div className="flex flex-col gap-4">
-        {/* The toggle, up top. `role="switch"` with a real `aria-checked` and a
-            visible on/off label — this app has no Switch primitive, and a
-            colour-only track would be the one state cue, which §1 forbids. */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-hairline bg-parchment p-4">
-          <div className="min-w-0">
-            {/* Round 40, direct instruction: `body-md` over grey `caption`. */}
-            <p className="text-body-md text-ink">Share with the research team</p>
-            <p className="mt-0.5 text-caption text-ink-muted">
-              {live.shared
-                ? 'The research team can read this reflection.'
-                : 'Only you can read this reflection.'}
-            </p>
-          </div>
-          {/* Round 40, direct instruction: the first pass was "too clunky" — a
-              filled purple pill wrapping a track *and* a redundant "Shared"
-              label, three treatments saying one thing. This is the bare track.
-              The 36px hit area is the button; the 24px track is what it draws
-              inside, so the floor is met without a control that looks like a
-              button wearing a switch. State is not carried by colour alone —
-              the sub-line to its left changes with it. */}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={live.shared}
-            onClick={() => updateAnnotationSummary(dyadId, live.id, { shared: !live.shared })}
-            className="inline-flex h-9 shrink-0 items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="sr-only">Share with the research team</span>
-            {/* Round 40, direct instruction: name the outcome, do not leave the
-                track to carry it. It also removes the last colour-only cue —
-                a coach who cannot separate the red from the green now reads
-                the word. Order is track-then-word so the word sits nearest the
-                edge of the card and the two read as one control. */}
-            <span
-              aria-hidden="true"
-              className={cn(
-                /* Round 40, direct instruction: green for shared, red for
-                   private, on the toggle and on the table's own chip so the
-                   two surfaces read the same. Note this is the app's one
-                   place where `destructive` is not an error or a danger — it
-                   marks "not visible to anyone else", which is why the text
-                   beside it says so in words rather than leaving red to
-                   carry a meaning it does not usually have here. */
-                'relative h-6 w-11 rounded-full transition-colors',
-                live.shared ? 'bg-success' : 'bg-destructive',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all',
-                  live.shared ? 'left-[22px]' : 'left-0.5',
-                )}
-              />
-            </span>
-            <span
-              aria-hidden="true"
-              className={cn(
-                'text-caption-medium',
-                live.shared ? 'text-success' : 'text-destructive',
-              )}
-            >
-              {live.shared ? 'Shared' : 'Private'}
-            </span>
-          </button>
-        </div>
-
-        {/* The wizard's own review screen, verbatim — the same shared table,
-            editable in place. Direct instruction: this must not be a different
-            UI from the one the coach approved the reflection on. That also
-            removes the need for a read-only mode and an "Edit reflection"
-            button: the review screen has always been editable, so a saved
-            reflection opening in the same screen simply is the edit path. */}
+        {/* No share control and no edit path. Sharing is mandatory and a saved
+            reflection is a record, so the wizard's own review table renders
+            here read-only rather than as six textareas over a Save button.
+            ⚠️ `updateAnnotationSummary` is now ORPHANED: this dialog was its
+            last caller anywhere (the wizard writes through
+            `submitPostPracticeAnnotation`). Left in the store rather than
+            deleted, because removing it is a data-layer change — but nothing
+            reads it, so it is a deletion candidate. */}
         <ReflectionReviewTable
-          answers={drafts}
+          answers={live.components.map((c) => c.answer)}
           idPrefix={`saved-reflection-${live.id}`}
-          onChange={(i, value) => setDrafts((prev) => prev.map((d, j) => (j === i ? value : d)))}
+          onChange={() => {}}
+          readOnly
         />
       </div>
     </ConfirmDialog>

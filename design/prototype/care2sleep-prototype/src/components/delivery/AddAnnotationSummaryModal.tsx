@@ -149,10 +149,16 @@ export function ReflectionReviewTable({
   answers,
   idPrefix,
   onChange,
+  readOnly = false,
 }: {
   answers: string[]
   idPrefix: string
   onChange: (index: number, value: string) => void
+  /** Renders the answers as text rather than textareas. Additive and off by
+   *  default, so the wizard — which is where a reflection is *written* — is
+   *  byte-identical. Set by the saved-reflection viewer: direct instruction,
+   *  a coach cannot edit a reflection once it has been added. */
+  readOnly?: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
@@ -177,19 +183,34 @@ export function ReflectionReviewTable({
                 scope="row"
                 className="px-4 py-3 text-left align-top text-caption-medium font-medium text-ink"
               >
-                <label htmlFor={`${idPrefix}-${i}`}>
-                  {st.component}: {st.label}
-                </label>
+                {readOnly ? (
+                  <>
+                    {st.component}: {st.label}
+                  </>
+                ) : (
+                  <label htmlFor={`${idPrefix}-${i}`}>
+                    {st.component}: {st.label}
+                  </label>
+                )}
               </th>
               <td className="px-4 py-3 align-top">
-                <textarea
-                  id={`${idPrefix}-${i}`}
-                  value={answers[i] ?? ''}
-                  onChange={(e) => onChange(i, e.target.value)}
-                  rows={3}
-                  placeholder="Not answered yet."
-                  className="w-full resize-y rounded-sm border border-hairline bg-parchment px-3 py-2 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                />
+                {readOnly ? (
+                  /* Plain text, not a disabled textarea: a greyed-out field
+                     still reads as something that ought to be editable, and
+                     this is simply a record now. */
+                  <p className="text-caption whitespace-pre-line text-ink">
+                    {answers[i]?.trim() ? answers[i] : <span className="text-ink-faint">Not answered.</span>}
+                  </p>
+                ) : (
+                  <textarea
+                    id={`${idPrefix}-${i}`}
+                    value={answers[i] ?? ''}
+                    onChange={(e) => onChange(i, e.target.value)}
+                    rows={3}
+                    placeholder="Not answered yet."
+                    className="w-full resize-y rounded-sm border border-hairline bg-parchment px-3 py-2 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                )}
               </td>
             </tr>
           ))}

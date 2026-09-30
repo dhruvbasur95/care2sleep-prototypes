@@ -25,6 +25,11 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { SearchInput } from '@/components/SearchInput'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
+/* The consumer's own five-point scale, imported rather than retyped: the
+   researcher must never read a wording the consumer was never shown. Its
+   source of truth is the post-session feedback flow itself
+   (`components/consumer/SessionFeedbackModal.tsx`). */
+import { FEEDBACK_MOODS } from '@/components/shared/FeedbackPillow'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { PlanSessionsModal } from '@/components/research/PlanSessionsModal'
@@ -53,6 +58,8 @@ import {
   type ResearchPriorityItem,
 } from '@/components/research/ResearchPrioritiesSection'
 import { Separator } from '@/components/ui/separator'
+import { downloadText } from '@/lib/csv'
+import { sessionTranscript, transcriptAsText } from '@/data/transcript'
 import { cn } from '@/lib/utils'
 import { type Coach, type NotificationPreferences } from '@/data/research'
 import {
@@ -66,7 +73,9 @@ import {
   moduleUnlockState,
   nextUpcomingSessionEntry,
   type AnnotationShareState,
+  type AnnotationSummaryEntry,
   type ConsumerDyad,
+  type HealthLogEntry,
   type PersonProfile,
   type SessionCompletionRecord,
   type SessionPlan,
@@ -2553,8 +2562,33 @@ function StudyProgressKpis({ dyad }: { dyad: ConsumerDyad }) {
   )
 }
 
-/** Frame node `297:3495` — three labelled groups of label/value rows, each
- *  group separated by a `hairline` rule. */
+/** Frame node `297:3495` — two labelled groups, separated by a `hairline` rule.
+ *
+ * Round 47. Three direct instructions, all from a live annotation:
+ *   1. **"Average length" removed.** Also the Notion brief's own wording:
+ *      *"we will need to remove the average length from the Sessions and sleep
+ *      data since we won't have the length."* The `durationMin`-derived
+ *      `avgLength` computation went with it rather than being left dead.
+ *   2. **Both group titles are `body-md`, not `caption`**, and renamed to
+ *      "Session details" / "Fitbit and sleep diary details".
+ *   3. **The sleep-data group is a real table.** It used to be two label/value
+ *      rows carrying a third, tiny purple "split" string:
+ *
+ *        Sleep diary        Arthur 0 · Tania 0    0 of 0 nights
+ *
+ *      Reported directly as unscannable, and precisely: *"I do not know what
+ *      number after names, and 0 of 0 night means."* Both objections were fair.
+ *      The name-and-number pairs were a table squeezed into a caption, and
+ *      "0 of 0 nights" put a count and its own denominator in one cell without
+ *      ever saying what the denominator was.
+ *
+ *      The fix is to give each fact its own axis: **people are columns,
+ *      measures are rows, and every cell is a single plain integer.** The
+ *      denominator became its own row ("Nights tracked"), so nothing has to be
+ *      read as a ratio and the unit is stated once instead of four times.
+ *      A dyad with no data yet now reads "Nights tracked 0" — true and
+ *      self-explanatory — which is why there is no separate empty state.
+ */
 function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
   const { sessionCompletion, sessionPlans } = useResearch()
   const completed = sessionCompletion[dyad.id] ?? []
@@ -2562,32 +2596,53 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
 
   const held = catchupSessionsCompleted(completed)
   const rescheduled = (plan?.sessions ?? []).filter((s) => s.rescheduled)
-  const durations = dyad.sessionRecordings.map((r) => r.durationMin).filter((n) => n > 0)
-  const avgLength =
-    durations.length > 0
-      ? `${Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)} min`
-      : 'No recordings'
 
-  const nights = (log: { synced: boolean; diaryEntry?: string }[]) => log.length
-  const diary = (log: { diaryEntry?: string }[]) => log.filter((e) => !!e.diaryEntry).length
-  const synced = (log: { synced: boolean }[]) => log.filter((e) => e.synced).length
-  const totalNights = Math.max(nights(dyad.patientLog), nights(dyad.carerLog))
-  const pleName = dyad.patient?.name.split(' ')[0]
-  const carerName = dyad.carer.name.split(' ')[0]
+  /* Per-person, never merged. The previous version reported
+     `Math.max(patient, carer)` as the headline figure, which is a number
+     neither person actually has — a dyad where the PLE logged 2 nights and the
+     carer 9 read "9", implying the pairing was nine nights in. Each column now
+     carries its own counts and its own denominator, because the two logs are
+     independent records and can legitimately differ in length.
+     **A real figure moved here, and it was a bug.** Both the old rows and this
+     table's first draft counted `diaryEntry` — a free-text note — while the
+     surface that actually renders the sleep diary (`ConsumerDetailPage`'s
+     Consensus grid) reads `diary`, the 9 answered questions. The seed models a
+     missing diary by clearing `diary` and leaving `diaryEntry` in place, so the
+     two disagreed by exactly that night: measured across every dyad, Bruce
+     Whitfield's PLE log is 18 nights with `diaryEntry=18` but `diary=17`, and
+     this card was reporting a full 18 of 18 over a grid showing the gap. Every
+     other person in the dataset scores identically on both fields, which is why
+     it never showed up before. Counting `diary` is what makes the two surfaces
+     read the same field — CLAUDE.md's own non-negotiable, and this project's
+     most-repeated bug class. */
+  /* Names only, no "PLE:" / "Carer:" prefix (direct instruction). The role is
+     already established by the consumer picker at the top of this page, which
+     reads "PLE: Arthur Ngata, Carer: Tania Ngata" a few hundred px above. */
+  const columns = [
+    ...(dyad.patient ? [{ key: 'ple', heading: dyad.patient.name, log: dyad.patientLog }] : []),
+    { key: 'carer', heading: dyad.carer.name, log: dyad.carerLog },
+  ]
 
-  function Group({ title, rows, last }: { title: string; rows: ReactNode; last?: boolean }) {
+  const measures: { key: string; label: string; count: (log: HealthLogEntry[]) => number }[] = [
+    { key: 'tracked', label: 'Nights tracked', count: (log) => log.length },
+    { key: 'diary', label: 'Sleep diary entries', count: (log) => log.filter((e) => !!e.diary).length },
+    { key: 'synced', label: 'Fitbit nights synced', count: (log) => log.filter((e) => e.synced).length },
+  ]
+
+  function Group({ title, children, last }: { title: string; children: ReactNode; last?: boolean }) {
     return (
       <div className={cn('flex flex-col gap-4', !last && 'border-b border-hairline pb-4')}>
-        <p className="text-caption-medium text-ink-muted">{title}</p>
-        <dl className="flex flex-col gap-2">{rows}</dl>
+        {/* `body-md`/`ink` on direct instruction — these were `caption-medium`
+            on `ink-muted`, a step quieter than the rows they label. */}
+        <p className="text-body-md text-ink">{title}</p>
+        {children}
       </div>
     )
   }
-  function Row({ label, value, split }: { label: string; value: string; split?: string }) {
+  function Row({ label, value }: { label: string; value: string }) {
     return (
       <div className="flex items-center gap-3">
         <dt className="min-w-0 flex-1 text-caption text-ink-muted">{label}</dt>
-        {split && <span className="shrink-0 text-fine text-purple-500">{split}</span>}
         <dd className="shrink-0 text-caption-medium text-ink tabular-nums">{value}</dd>
       </div>
     )
@@ -2614,57 +2669,111 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
             the risk of the two disagreeing, which is this project's most
             repeated bug.
             `doneCount` / `inProgress` / `leftIncomplete` went with it. */}
-        <Group
-          title="Sessions"
-          rows={
-            <>
-              <Row label="Held" value={`${held} of ${SPACES_CATCHUP_COUNT} sessions`} />
-              <Row
-                label="Rescheduled"
-                value={
-                  rescheduled.length === 0
-                    ? '0'
-                    : `${rescheduled.length} · ${rescheduled
-                        .map((s) => `Session ${displaySessionNumber(s.session)}`)
-                        .join(', ')}`
-                }
-              />
-              {/* The frame's second row here read "Re-scheduled 0" beside
-                  "Rescheduled 2". Confirmed as a duplicate, not a cancellation
-                  row: there is exactly one reschedule figure, and no
-                  cancellation state exists in the data model at all. Dropped
-                  rather than rendering a hardcoded 0 for a concept the study
-                  does not record. */}
-              <Row label="Average length" value={avgLength} />
-            </>
-          }
-        />
-        <Group
-          title="Sleep data coming in"
-          last
-          rows={
-            <>
-              <Row
-                label="Sleep diary"
-                value={`${diary(dyad.patientLog) + diary(dyad.carerLog) > 0 ? Math.max(diary(dyad.patientLog), diary(dyad.carerLog)) : 0} of ${totalNights} nights`}
-                split={
-                  dyad.patient
-                    ? `${pleName} ${diary(dyad.patientLog)} · ${carerName} ${diary(dyad.carerLog)}`
-                    : `${carerName} ${diary(dyad.carerLog)}`
-                }
-              />
-              <Row
-                label="Fitbit sync"
-                value={`${Math.max(synced(dyad.patientLog), synced(dyad.carerLog))} of ${totalNights} nights`}
-                split={
-                  dyad.patient
-                    ? `${pleName} ${synced(dyad.patientLog)} · ${carerName} ${synced(dyad.carerLog)}`
-                    : `${carerName} ${synced(dyad.carerLog)}`
-                }
-              />
-            </>
-          }
-        />
+        <Group title="Session details">
+          <dl className="flex flex-col gap-2">
+            <Row label="Held" value={`${held} of ${SPACES_CATCHUP_COUNT} sessions`} />
+            {/* Direct instruction: the row must say how many moved AND show each
+                one's planned date against its new date. It used to render
+                "1 · Session 5" — a count and a bare session name, from which a
+                researcher could not tell what moved or by how much.
+                `previousDate` is a real populated field on `SessionPlanRow`, not
+                a stub, so the before/after is derived rather than invented.
+                `sessionRowLabel()` names the session, never a raw number:
+                internal session 6 displays as "Session 5", and the planning
+                session has no number at all. */}
+            <Row
+              label="Rescheduled"
+              value={
+                rescheduled.length === 0
+                  ? '0'
+                  : `${rescheduled.length} ${rescheduled.length === 1 ? 'session' : 'sessions'}`
+              }
+            />
+            {rescheduled.length > 0 && (
+              <div className="flex flex-col gap-2 rounded-xs bg-parchment p-3">
+                {rescheduled.map((r) => (
+                  <div key={r.session} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 flex-1 text-caption text-ink-muted">
+                      {sessionRowLabel(r.session)}
+                    </span>
+                    {/* A row can carry `rescheduled: true` with no
+                        `previousDate` (the flag predates the field), so the
+                        name stands alone rather than rendering "undefined →". */}
+                    {r.previousDate && r.date ? (
+                      <span className="shrink-0 text-caption-medium text-ink tabular-nums">
+                        {formatDate(r.previousDate)}
+                        <span aria-hidden="true" className="px-1.5 text-ink-muted">
+                          &rarr;
+                        </span>
+                        <span className="sr-only">moved to</span>
+                        {formatDate(r.date)}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-caption text-ink-muted">Date not recorded</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* The frame's second row here read "Re-scheduled 0" beside
+                "Rescheduled 2". Confirmed as a duplicate, not a cancellation
+                row: there is exactly one reschedule figure, and no
+                cancellation state exists in the data model at all. Dropped
+                rather than rendering a hardcoded 0 for a concept the study
+                does not record. */}
+          </dl>
+        </Group>
+        <Group title="Fitbit and sleep diary details" last>
+          {/* Nested radius: 8px inside the card's own 16px, `hairline` rather
+              than `parchment`, matching every other contained grid in this
+              dashboard. `min-w-0` on the scroller so a two-column table can
+              never size the card and push the page into horizontal scroll. */}
+          <div className="min-w-0 overflow-x-auto rounded-sm border border-hairline">
+            <table className="w-full min-w-[320px] border-collapse text-left">
+              <caption className="sr-only">
+                Sleep diary and Fitbit coverage for each member of this pairing
+              </caption>
+              <thead>
+                <tr className="bg-purple-50">
+                  {/* An empty corner cell, not a made-up "Measure" header:
+                      the row headers below name themselves. */}
+                  <th scope="col" className="px-4 py-3">
+                    <span className="sr-only">Measure</span>
+                  </th>
+                  {columns.map((c) => (
+                    <th
+                      key={c.key}
+                      scope="col"
+                      className="px-4 py-3 text-right text-caption-medium text-ink"
+                    >
+                      {c.heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {measures.map((m) => (
+                  <tr key={m.key} className="border-t border-hairline align-middle">
+                    <th
+                      scope="row"
+                      className="px-4 py-3 text-left text-caption font-normal text-ink-muted"
+                    >
+                      {m.label}
+                    </th>
+                    {columns.map((c) => (
+                      <td
+                        key={c.key}
+                        className="px-4 py-3 text-right text-caption-medium text-ink tabular-nums"
+                      >
+                        {m.count(c.log)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Group>
       </div>
     </Card>
   )
@@ -2801,18 +2910,17 @@ function dyadPriorityItems(
    pairing") stopped being true the moment the panel could also show Fitbit and
    diary data, and a single line describing both would describe neither. */
 const CONSUMER_SUBTAB_INTRO = {
+  /* No `subtitle` (direct instruction): this title heads the KPI grid, and the
+     five tiles already name themselves. The other two sub-tabs keep theirs —
+     they head a switch and a table, which do need saying. */
   progress: {
     title: 'Study progress for this pairing',
-    subtitle: 'How this consumer and coach are moving through the study together',
   },
-  health: {
-    title: 'Consumer sleep and health data',
-    subtitle: 'Fitbit sync status and sleep diary entries for both members of this dyad',
-  },
-  reflection: {
-    title: "Coach's reflection",
-    subtitle: 'What this coach has reflected on after their sessions with this consumer',
-  },
+  /* `health` and `reflection` had entries here too and neither was ever
+     rendered — only `.progress` is spread (see `ConsumersDetailsTab`). Both
+     sub-tabs carry their own section heading on the canvas instead, and the
+     `reflection` entry had already drifted out of step with the heading it
+     duplicated. Removed rather than corrected. */
 } as const
 
 /** Rows per page in the Coach's reflection table. Six catch-ups means a full
@@ -2827,7 +2935,10 @@ const CONSUMER_SUBTABS = [
      progress stack and onto its own sub-tab, last. It is the one thing on this
      panel authored by the coach rather than derived from the consumer's
      record, so it read oddly as the tail of a column of derived cards. */
-  { id: 'reflection', label: "Coach's reflection" },
+  /* Tab label keeps "and transcripts" (direct instruction). Only the table's
+     own heading dropped it — the heading names who authored what, the tab
+     names everything the panel holds. */
+  { id: 'reflection', label: 'Session reflection and transcripts' },
 ] as const
 type ConsumerSubtab = (typeof CONSUMER_SUBTABS)[number]['id']
 
@@ -2915,8 +3026,12 @@ function ConsumersDetailsTab({
           `auto`, so a wide child (the attention rows' note lines) would grow
           its track past its share and push the sibling down — the same trap
           this tab's own timeline/updates row hit before. */}
+      {/* `gap-10` (40px), matching the two breakdown cards’ own row below
+          (`items-stretch gap-10`) — direct instruction: the column seam should
+          read like the gap between cards, not the 16px gap between tiles
+          inside one card-sized block. 24px matched neither. */}
       {selected && (
-        <div className="grid grid-cols-1 items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+        <div className="grid grid-cols-1 items-stretch gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
           <div className="flex min-w-0 flex-col gap-6">
             <TabIntro {...CONSUMER_SUBTAB_INTRO.progress} />
             <StudyProgressKpis dyad={selected} />
@@ -2940,6 +3055,10 @@ function ConsumersDetailsTab({
               <ResearchPrioritiesSection
                 key={`priorities-${selected.id}`}
                 fillHeight
+                /* This panel is absolutely positioned to match the KPI column's
+                   height, so it cannot collapse the way Home's copy does — an
+                   empty one left a bordered card with nothing in it. */
+                emptyCopy="Nothing needs your attention for this pairing."
                 items={dyadPriorityItems(
                   selected,
                   sessionCompletion[selected.id] ?? [],
@@ -2985,9 +3104,16 @@ function ConsumersDetailsTab({
         </div>
       )}
 
-      {/* The two breakdown cards keep their own equal-width row below. */}
+      {/* The two breakdown cards keep their own equal-width row below.
+          `items-stretch` (direct instruction: "both containers should take
+          equal height"): these two hold different amounts of content — the
+          left is two short groups and a 3-row table, the right is a 7-module
+          list — so under `items-start` each hugged its own content and the row
+          ended in a ragged step. Stretching makes the grid row's height the
+          taller of the two and both cards fill it, so the row closes flush.
+          The cards' own internals are unaffected; only the outer surface grows. */}
       {selected && (
-        <div className="grid grid-cols-1 items-start gap-10 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-10 xl:grid-cols-2">
           <ModulesAndSessionsCard dyad={selected} />
           <ModuleCompletionOverviewCard dyad={selected} />
         </div>
@@ -3139,6 +3265,69 @@ export const annotationStatusLabel: Record<AnnotationShareState, string> = {
   'not-yet': 'Not yet',
 }
 
+/** One consumer's own post-session feedback, as a researcher reads it. */
+type ConsumerSessionFeedback = {
+  /** A `FEEDBACK_MOODS` id — never a label written here. */
+  mood: (typeof FEEDBACK_MOODS)[number]['id']
+  /** The optional free text. Empty when they answered the mood only. */
+  comment: string
+}
+
+/**
+ * ⚠️ **DUMMY DATA.** The consumer's post-session feedback, derived rather than
+ * stored.
+ *
+ * The write path already exists and is signed off:
+ * `components/consumer/SessionFeedbackModal.tsx` asks two questions after a
+ * session — a mood on the fixed five-point `FEEDBACK_MOODS` scale, then an
+ * optional comment — and lets the consumer skip, which is a real answer rather
+ * than a gap. What it does **not** have is an `onSubmit`: nothing is
+ * persisted, and `ConsumerDyad` carries no field for it.
+ *
+ * **What replaces this:** a `sessionFeedback: ConsumerSessionFeedbackEntry[]`
+ * on `ConsumerDyad` (session, mood id, comment, date), written by that modal
+ * and read here instead of `dummyConsumerFeedback`. Delete this function and
+ * the two pools below; nothing else in this file changes, because the mood
+ * *labels* already come from `FEEDBACK_MOODS`.
+ *
+ * Keyed off the dyad id and session number so it is stable across renders and
+ * across the two dialogs that show it — a random draw would let the table and
+ * the viewer disagree about the same session.
+ */
+const DUMMY_FEEDBACK_COMMENTS = [
+  'The breathing wind-down is the part that stuck. We have done it four nights running.',
+  'Helpful, though we ran out of time before getting to the afternoon naps.',
+  'I understood it on the call but could not remember the steps that evening.',
+  'Good to hear that the early waking is normal at this stage. That took the pressure off.',
+  'We talked more about my own sleep this time, which I had not expected to need.',
+]
+
+/** Weighted toward the positive end, with one poor rating in the rotation, so
+ *  a full six-session arc shows the scale's range rather than one value. */
+const DUMMY_FEEDBACK_MOODS = ['very-good', 'good', 'good', 'okay', 'very-good', 'not-great'] as const
+
+function dummyHash(seed: string): number {
+  let h = 0
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) | 0
+  return Math.abs(h)
+}
+
+/** `undefined` means the consumer was asked and skipped — which the flow
+ *  explicitly allows ("We will not ask about this session again"), so it is a
+ *  recorded outcome, not missing data. */
+function dummyConsumerFeedback(dyadId: string, session: number): ConsumerSessionFeedback | undefined {
+  const h = dummyHash(`${dyadId}:${session}`)
+  if (h % 9 === 0) return undefined
+  return {
+    mood: DUMMY_FEEDBACK_MOODS[h % DUMMY_FEEDBACK_MOODS.length],
+    comment: h % 3 === 0 ? '' : DUMMY_FEEDBACK_COMMENTS[h % DUMMY_FEEDBACK_COMMENTS.length],
+  }
+}
+
+/** The consumer's own label for a mood id. Looked up, never written. */
+const moodLabel = (id: ConsumerSessionFeedback['mood']) =>
+  FEEDBACK_MOODS.find((m) => m.id === id)?.label ?? id
+
 /** Direct reuse of the Learning Progress (formerly Training Review)
  *  `engagement-tracker` + `slide-canvas` grammar (design-tokens.md §13
  *  `annotation-vault`) — one consumer's post-practice (Session 1) reflection;
@@ -3157,8 +3346,67 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const firstName = coach.fullName.split(' ')[0]
   const session1Done = (sessionCompletion[dyad.id] ?? []).some((s) => s.session === 1)
   const [viewingId, setViewingId] = useState<string | null>(null)
+  const [transcriptId, setTranscriptId] = useState<string | null>(null)
+  const [feedbackId, setFeedbackId] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
+
+  /* Both document columns offer the same pair of actions, so they share one
+     control style — a text link at the app's 36px control height. */
+  const DOC_ACTION =
+    'inline-flex h-9 items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring'
+
+  /* The dialog's Download is this app's canonical primary-filled pill, not the
+     table's text link (direct instruction). In the table it is one of four
+     equal-weight actions; in the viewer it is the only thing to do besides
+     close, so it carries the weight. */
+  const DOC_ACTION_PRIMARY =
+    'inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
+
+  /* When the session itself was held — the same `sessionCompletion` record the
+     Session Plan writes, so this column and the tracker cannot disagree. An
+     entry with no session mapped, or one whose session is not marked complete,
+     has no held date to show rather than a fabricated one. */
+  const completed = sessionCompletion[dyad.id] ?? []
+
+  const fileStem = (label: string) => label.replace(/\s+/g, '-').toLowerCase()
+
+  /* The transcript is the same dummy conversation for every session — see
+     `data/transcript.ts` for what replaces it. Names are the pairing's own so
+     the document reads as theirs. */
+  const transcriptFor = () =>
+    sessionTranscript({
+      coach: coach.fullName,
+      ple: dyad.patient?.name,
+      carer: dyad.carer.name,
+    })
+
+  const downloadReflection = (label: string, e: AnnotationSummaryEntry) => {
+    const heading = `${coach.fullName} — reflection — ${label} (${formatDate(e.date)})`
+    const body = e.components.map((c) => `${c.label}\n${c.answer}\n`).join('\n')
+    downloadText(`reflection-${dyad.id}-${fileStem(label)}.txt`, `${heading}\n\n${body}`)
+  }
+
+  const downloadTranscript = (label: string) => {
+    const heading = `${dyadTitle(dyad)} — ${label} — session transcript`
+    downloadText(
+      `transcript-${dyad.id}-${fileStem(label)}.txt`,
+      transcriptAsText(transcriptFor(), heading),
+    )
+  }
+
+  /* The consumer's two answers as a plain document, matching the other two
+     downloads on the row. Skipped is written out rather than omitted — a
+     researcher reading the file needs to see that they were asked. */
+  const downloadFeedback = (label: string, f: ConsumerSessionFeedback | undefined) => {
+    const heading = `${dyadTitle(dyad)} — ${label} — consumer feedback`
+    const body = f
+      ? `Session feedback:\n${moodLabel(f.mood)}\n\nAdditional comments:\n${
+          f.comment || 'Nothing added'
+        }\n`
+      : 'The consumer was asked for feedback on this session and chose to skip it.\n'
+    downloadText(`consumer-feedback-${dyad.id}-${fileStem(label)}.txt`, `${heading}\n\n${body}`)
+  }
 
   /* EVERY reflection, not just the shared ones. Direct instruction (Notion,
      study progress tab): "in the session reflection, remove the shared. All
@@ -3170,16 +3418,79 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
      Newest first. The store prepends and the seed is written in that order, so
      this is a stable read rather than a reorder — but sorting anyway means a
      hand-edited seed cannot silently put the list out of order. */
-  const entries = [...dyad.annotationSummaries].sort((a, b) =>
+  const reflections = [...dyad.annotationSummaries].sort((a, b) =>
     `${a.date} ${a.time}` < `${b.date} ${b.time}` ? 1 : -1,
   )
 
-  const lastPage = Math.max(0, Math.ceil(entries.length / REFLECTIONS_PER_PAGE) - 1)
+  /* ── One row per SESSION, not per coach reflection ────────────────────────
+     The row used to be a coach reflection, which was right while the coach was
+     the only author. Now that the consumer shares feedback on the same
+     session, a reflection-keyed row would hide every piece of feedback on a
+     session the coach has not written up yet — the consumer answers within
+     minutes of the call, the coach may take days, so that gap is the normal
+     case rather than an edge one.
+
+     The row set is the union of held sessions and reflections, so neither
+     author can be dropped: a session held with no reflection still appears,
+     and a legacy entry with no session mapped (pre-Round 40, `session
+     === undefined`) keeps its own row rather than being silently merged into
+     one. Newest first, by the session's own held date where it has one. */
+  const sessionKeys = [...new Set(completed.map((c) => c.session))].sort((a, b) => b - a)
+
+  /* ── Every held session has a coach reflection ────────────────────────────
+     Direct instruction: *"Coach reflection is mandatory, they will no longer
+     be able to not share."* So this column has no empty state — a held session
+     without a reflection is not a product state, and rendering a dash there
+     said it was.
+
+     Real reflections are matched by their own `session` first, so the document
+     a researcher opens is genuinely the one the coach wrote. ⚠️ **DUMMY:** the
+     seed predates the mandatory rule and several dyads carry fewer reflections
+     than held sessions (one dyad's single reflection has no `session` at all),
+     so unmapped reflections are dealt out newest-to-newest and any session
+     still short reuses the dyad's first reflection as its document. Once the
+     coach portal enforces one reflection per session, both fallbacks become
+     dead code: delete `spare`/`fallback` and match on `session` alone. */
+  const spare = reflections.filter((r) => r.session === undefined)
+  const fallback = reflections[0]
+  const claimReflection = (n: number) =>
+    reflections.find((r) => r.session === n) ?? spare.shift() ?? fallback
+
+  type ReflectionRow = {
+    key: string
+    session?: number
+    label: string
+    heldDate?: string
+    /** Never absent on a held session — see `claimReflection`. */
+    reflection?: AnnotationSummaryEntry
+    /** Only ever asked for once a session has actually happened. */
+    feedback?: ConsumerSessionFeedback
+    feedbackAsked: boolean
+  }
+
+  const rows: ReflectionRow[] = [
+    ...sessionKeys.map((n) => {
+      const held = completed.find((c) => c.session === n)?.completedDate
+      return {
+        key: `s-${n}`,
+        session: n,
+        label: sessionRowLabel(n),
+        heldDate: held,
+        reflection: claimReflection(n),
+        feedback: held ? dummyConsumerFeedback(dyad.id, n) : undefined,
+        feedbackAsked: !!held,
+      }
+    }),
+  ]
+
+  const lastPage = Math.max(0, Math.ceil(rows.length / REFLECTIONS_PER_PAGE) - 1)
   useEffect(() => {
     if (page > lastPage) setPage(lastPage)
   }, [page, lastPage])
-  const visible = entries.slice(page * REFLECTIONS_PER_PAGE, (page + 1) * REFLECTIONS_PER_PAGE)
-  const viewing = entries.find((e) => e.id === viewingId) ?? null
+  const visible = rows.slice(page * REFLECTIONS_PER_PAGE, (page + 1) * REFLECTIONS_PER_PAGE)
+  const viewing = rows.find((r) => r.key === viewingId) ?? null
+  const transcriptRow = rows.find((r) => r.key === transcriptId) ?? null
+  const feedbackRow = rows.find((r) => r.key === feedbackId) ?? null
 
   return (
     /* Direct instruction: "under coach reflection add back table view as done
@@ -3206,23 +3517,23 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           tabIndex={-1}
           className="font-display text-title text-ink outline-none"
         >
-          Session reflections
+          Session reflections shared by coach and consumer
         </h2>
-        {/* No "shared by" — every reflection reaches the research team, so
-            naming the act would imply a choice the coach no longer makes for
-            the researcher's benefit. */}
-        <p className="text-body text-ink">
-          {entries.length === 0
-            ? `${firstName} has not written a reflection for this consumer yet`
-            : `SIPTEA reflections ${firstName} wrote after each session with this consumer`}
-        </p>
+        {/* No sub label (direct instruction, twice). The heading says what the
+            table is; the columns say what each row holds. Note it deliberately
+            does not name the transcript, which is the session's own record
+            rather than either party's account of it. */}
       </div>
 
-      {entries.length === 0 ? (
+      {rows.length === 0 ? (
         <Card className="gap-0 rounded-lg py-0">
           <EmptyState
             icon={NotebookPen}
-            copy={session1Done ? 'No reflection added yet' : 'Session 1 hasn’t happened yet'}
+            copy={
+              session1Done
+                ? 'No reflections or feedback yet'
+                : 'Session 1 hasn’t happened yet'
+            }
           />
         </Card>
       ) : (
@@ -3235,55 +3546,123 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
             <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
               <thead>
                 <tr className="bg-purple-50">
-                  <th scope="col" className="w-[150px] px-6 py-4 text-caption-medium text-ink">
-                    Session
+                  {/* Even fifths. Every column now holds a short, similar value
+                      — two dates and three action pairs — so there is nothing
+                      variable left to absorb slack and equal tracks read as
+                      balanced. Column names are the study's own (direct
+                      instruction). */}
+                  <th scope="col" className="w-1/5 px-6 py-4 text-caption-medium text-ink">
+                    Session number
                   </th>
-                  <th scope="col" className="px-4 py-4 text-caption-medium text-ink">
-                    Reflection
+                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                    Session held date
                   </th>
-                  <th scope="col" className="w-[150px] px-4 py-4 text-caption-medium text-ink">
-                    Date added
+                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                    Coach reflection
                   </th>
-                  <th scope="col" className="w-[110px] px-4 py-4 text-caption-medium text-ink">
-                    Actions
+                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                    Consumer feedback
+                  </th>
+                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                    Session transcript
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((entry, i) => (
-                  <tr key={entry.id} className={cn('align-top', i > 0 && 'border-t border-parchment')}>
+                {visible.map((row, i) => (
+                  <tr
+                    key={row.key}
+                    className={cn('align-top', i > 0 && 'border-t border-parchment')}
+                  >
                     <td className="px-6 py-5 text-caption-medium text-ink">
-                      {/* Never a bare number — internal 1 is "Planning", and an
-                          entry written before sessions were mapped has none at
-                          all, which is a real absence rather than a zero. */}
-                      {entry.session === undefined ? '—' : sessionRowLabel(entry.session)}
-                    </td>
-                    <td className="px-4 py-5">
-                      {/* The first component's answer as the excerpt: it is the
-                          coach's own opening account of the session, and a
-                          reflection has no title of its own to show instead. */}
-                      <span className="line-clamp-2 text-caption text-ink-muted">
-                        {entry.components[0]?.answer ?? ''}
-                      </span>
+                      {/* Never a bare number — internal 1 is "Planning", and a
+                          reflection written before sessions were mapped has no
+                          session at all, which is a real absence. */}
+                      {row.label}
                     </td>
                     <td className="px-4 py-5 text-caption whitespace-nowrap text-ink-muted">
-                      {formatDate(entry.date)}
+                      {row.heldDate ? formatDate(row.heldDate) : '\u2014'}
                     </td>
+
+                    {/* The three document columns read alike: each is either a
+                        View/Download pair or a single short reason it is
+                        absent. An em dash means nothing has been written yet;
+                        "Skipped" means the consumer was asked and declined,
+                        which is an answer rather than a gap. */}
                     <td className="px-4 py-5">
-                      <button
-                        type="button"
-                        onClick={() => setViewingId(entry.id)}
-                        className="inline-flex h-9 items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        View
-                        <span className="sr-only">
-                          {' '}
-                          reflection for{' '}
-                          {entry.session === undefined
-                            ? formatDate(entry.date)
-                            : sessionRowLabel(entry.session)}
-                        </span>
-                      </button>
+                      {row.reflection ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setViewingId(row.key)}
+                            className={DOC_ACTION}
+                          >
+                            View<span className="sr-only"> coach reflection for {row.label}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadReflection(row.label, row.reflection!)}
+                            className={DOC_ACTION}
+                          >
+                            Download
+                            <span className="sr-only"> coach reflection for {row.label}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-5">
+                      {!row.feedbackAsked ? (
+                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                      ) : row.feedback ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackId(row.key)}
+                            className={DOC_ACTION}
+                          >
+                            View<span className="sr-only"> consumer feedback for {row.label}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadFeedback(row.label, row.feedback)}
+                            className={DOC_ACTION}
+                          >
+                            Download
+                            <span className="sr-only"> consumer feedback for {row.label}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        /* Badge, not plain text (direct instruction), on the
+                           shared `Chip` in its `destructive` tone — this app's
+                           one chip geometry, already contrast-measured. */
+                        <Chip tone="destructive" label="Skipped" />
+                      )}
+                    </td>
+
+                    <td className="px-4 py-5">
+                      {row.heldDate ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setTranscriptId(row.key)}
+                            className={DOC_ACTION}
+                          >
+                            View<span className="sr-only"> transcript for {row.label}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadTranscript(row.label)}
+                            className={DOC_ACTION}
+                          >
+                            Download<span className="sr-only"> transcript for {row.label}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -3293,26 +3672,38 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
         </Card>
       )}
 
-      {entries.length > REFLECTIONS_PER_PAGE && (
+      {rows.length > REFLECTIONS_PER_PAGE && (
         <TablePager
           page={page}
           pageSize={REFLECTIONS_PER_PAGE}
-          total={entries.length}
+          total={rows.length}
           onPageChange={setPage}
-          itemLabel="reflections"
+          itemLabel="sessions"
         />
       )}
 
       <ConfirmDialog
-        open={!!viewing}
-        title={
-          viewing
-            ? viewing.session === undefined
-              ? `${firstName}\u2019s reflection`
-              : `${firstName}\u2019s reflection: ${sessionRowLabel(viewing.session)}`
+        open={!!viewing?.reflection}
+        title={viewing ? `${firstName}\u2019s reflection: ${viewing.label}` : ''}
+        body={
+          viewing?.reflection
+            ? `${formatDate(viewing.reflection.date)}  ·  ${formatTime(viewing.reflection.time)}`
             : ''
         }
-        body={viewing ? `${formatDate(viewing.date)}  ·  ${formatTime(viewing.time)}` : ''}
+        /* Direct instruction: the same Download the row offers, top right of
+           the header — a researcher reading a document wants to keep it
+           without closing and hunting for the row again. */
+        headerAction={
+          viewing?.reflection && (
+            <button
+              type="button"
+              onClick={() => downloadReflection(viewing.label, viewing.reflection!)}
+              className={DOC_ACTION_PRIMARY}
+            >
+              Download<span className="sr-only"> this reflection</span>
+            </button>
+          )
+        }
         confirmLabel="Close"
         cancelLabel="Close"
         /* One control, not a Cancel/Confirm pair: this dialog shows a document
@@ -3331,12 +3722,12 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           headingRef.current?.focus({ preventScroll: true })
         }}
       >
-        {viewing && (
+        {viewing?.reflection && (
           /* Read-only, and the same row shape the expanded cards used before
              this table existed: component name in `primary` on a fixed 180px
              track, the coach's answer beside it. */
           <dl className="rounded-sm border border-hairline">
-            {viewing.components.map((c, i) => (
+            {viewing.reflection.components.map((c, i) => (
               <div
                 key={c.label}
                 className={cn(
@@ -3350,6 +3741,116 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
                 <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">{c.answer}</dd>
               </div>
             ))}
+          </dl>
+        )}
+      </ConfirmDialog>
+
+      {/* Transcript viewer. Same chassis as the reflection viewer so the two
+          documents on this row read alike. Content is the shared dummy Zoom
+          transcript — `data/transcript.ts` records what replaces it. */}
+      <ConfirmDialog
+        open={!!transcriptRow}
+        title={transcriptRow ? `Session transcript: ${transcriptRow.label}` : ''}
+        body={
+          transcriptRow?.heldDate
+            ? `${dyadTitle(dyad)}  ·  ${formatDate(transcriptRow.heldDate)}`
+            : ''
+        }
+        headerAction={
+          transcriptRow && (
+            <button
+              type="button"
+              onClick={() => downloadTranscript(transcriptRow.label)}
+              className={DOC_ACTION_PRIMARY}
+            >
+              Download<span className="sr-only"> this transcript</span>
+            </button>
+          )
+        }
+        confirmLabel="Close"
+        cancelLabel="Close"
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[860px]"
+        onConfirm={() => {
+          setTranscriptId(null)
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+        onClose={() => {
+          setTranscriptId(null)
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+      >
+        {transcriptRow && (
+          <div className="flex flex-col gap-4 rounded-sm border border-hairline p-5">
+            {transcriptFor().map((line, i) => (
+              <div key={i} className="flex flex-col gap-1 sm:flex-row sm:gap-6">
+                <p className="text-fine whitespace-nowrap text-ink-faint sm:w-[168px] sm:shrink-0">
+                  <span className="tabular-nums">{line.time}</span>{' '}
+                  <span className="text-caption-medium text-ink">{line.speaker}</span>
+                </p>
+                <p className="min-w-0 flex-1 text-body leading-[1.5] text-ink">{line.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </ConfirmDialog>
+
+      {/* Consumer feedback viewer. Same chassis as the other two documents on
+          the row, so all three read alike. Its two fields are the consumer's
+          own questions, quoted as they were asked — the researcher should see
+          the prompt, not a researcher-side paraphrase of it. */}
+      <ConfirmDialog
+        open={!!feedbackRow}
+        title={feedbackRow ? `Consumer feedback: ${feedbackRow.label}` : ''}
+        body={
+          feedbackRow?.heldDate
+            ? `${dyadTitle(dyad)}  ·  ${formatDate(feedbackRow.heldDate)}`
+            : ''
+        }
+        headerAction={
+          feedbackRow && (
+            <button
+              type="button"
+              onClick={() => downloadFeedback(feedbackRow.label, feedbackRow.feedback)}
+              className={DOC_ACTION_PRIMARY}
+            >
+              Download<span className="sr-only"> this feedback</span>
+            </button>
+          )
+        }
+        confirmLabel="Close"
+        cancelLabel="Close"
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[860px]"
+        onConfirm={() => {
+          setFeedbackId(null)
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+        onClose={() => {
+          setFeedbackId(null)
+          headingRef.current?.focus({ preventScroll: true })
+        }}
+      >
+        {feedbackRow?.feedback && (
+          <dl className="rounded-sm border border-hairline">
+            <div className="flex flex-col gap-2 px-5 py-5 sm:flex-row sm:gap-6">
+              <dt className="text-caption-medium text-primary sm:w-[180px] sm:shrink-0">
+                Session feedback:
+              </dt>
+              <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">
+                {moodLabel(feedbackRow.feedback.mood)}
+              </dd>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-hairline px-5 py-5 sm:flex-row sm:gap-6">
+              <dt className="text-caption-medium text-primary sm:w-[180px] sm:shrink-0">
+                Additional comments:
+              </dt>
+              <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">
+                {feedbackRow.feedback.comment || (
+                  <span className="text-ink-muted">Nothing added</span>
+                )}
+              </dd>
+            </div>
           </dl>
         )}
       </ConfirmDialog>
@@ -3805,7 +4306,7 @@ export function SpacesCoachProfilePage() {
              below it once the viewport exceeded 1320 + gutters, because the
              centring and the gutter then stack instead of the gutter being
              absorbed by the centring. Measured, not guessed. */
-          <div className="sticky top-12 z-20 bg-purple-50 px-6 shadow-card md:px-20">
+          <div className="sticky top-12 z-20 bg-purple-200 px-6 shadow-card md:px-20">
             {/* Direct instruction, superseding the frame's own centred group:
                 the label + dropdown sit **left**, on the page's content gutter,
                 with the two consumer actions right-aligned on the same row.
@@ -3825,7 +4326,7 @@ export function SpacesCoachProfilePage() {
                   id="dyad-select"
                   value={effectiveDyadId}
                   onChange={(e) => setSelectedDyadId(e.target.value)}
-                  className="h-14 w-full appearance-none rounded-sm border border-hairline bg-card px-3 pr-9 text-body-md text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-9 w-full appearance-none rounded-sm border border-hairline bg-card px-3 pr-9 text-body-md text-ink outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {dyads.map((d) => (
                     <option key={d.id} value={d.id}>
@@ -3855,7 +4356,7 @@ export function SpacesCoachProfilePage() {
                   <button
                     type="button"
                     onClick={() => setTransferOpen(true)}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-primary bg-card px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                   >
                     Transfer consumer
                   </button>
