@@ -2029,7 +2029,10 @@ function ZoomSessions({ coach, completedPhases }: { coach: Coach; completedPhase
  * 2026-09-21 when they became the Notion brief's full names: measured at 1440px,
  * "Peer community feedback" ended at x=1227 and "Hands-on assessment
  * (Placement 2)" began at x=1205, a 22px overlap that rendered as one run-on
- * string. Raising the rail's `min-w` does not help, because both terms are
+ * string. (That CP name was shortened to "Community feedback" on 2026-10-05 —
+ * the measurement above is the historical record of why this ceiling exists,
+ * not a current reading. The ceiling still binds: Stage H's name is unchanged
+ * and is the longer of the two.) Raising the rail's `min-w` does not help, because both terms are
  * percentages of that same rail.
  *
  * 16 leaves a little headroom under the ceiling; `px-3` on each column turns
@@ -2162,13 +2165,13 @@ function StageTimeline({
                 // 2026-09-21): `primary` is now the blue #3a00ad, and the
                 // in-progress stage should read as its own accent rather than
                 // as another brand-coloured link.
-                // `purple-700`, not `purple-500`. Measured on this card's own
-                // band (#f5f5f7), `purple-500` #8447ff lands at **4.46:1** and
-                // misses AA for 14px text by 0.04 — the ramp has no purple-600
-                // to fall back to, so the next readable step is 700, which
-                // measures 8.10:1. Not eyeballed: 4.46 and 4.5 are
-                // indistinguishable on screen and only a rasterised read tells
-                // them apart.
+                // `purple-700` (8.10:1 on this card's #f5f5f7 band). It was
+                // chosen because `purple-500` was then #8447ff and measured
+                // 4.46:1, missing AA for 14px text by 0.04. That reason expired
+                // on 2026-10-01, when `purple-500` became #3A00AD — but so did
+                // the point of using it here, since #3A00AD *is* `primary` and
+                // the line above says this must not read as `primary`. 700
+                // stays, now for the first reason rather than the second.
                 current && 'text-caption-medium text-purple-700',
                 // "Not started" is the quietest of the three states and was
                 // rendering at full `ink`, the same weight of colour as the
@@ -3594,24 +3597,22 @@ function StagePipeline({ coach }: { coach: Coach }) {
                       // already uses here, with the frame's own 18px side
                       // padding and bold label.
                       //
-                      // Hover is `hairline`, NOT the utility button's canonical
-                      // `hover:bg-divider-soft`. That canonical is a no-op here
-                      // and the reason this button was reported as having no
-                      // hover state at all: Round 21.3 collapsed the app's two
-                      // orphan greys onto one off-white, so `--color-pearl` and
-                      // `--color-divider-soft` are now *both* `#f5f5f7` — the
-                      // class was in the DOM painting a zero-pixel change.
-                      // `hairline` `#e0e0e0` is the neutral ramp's next step
-                      // down, so the button stays in its own neutral family
-                      // (rather than picking up a purple tint that would read
-                      // as a different kind of control) and the shift is a real
-                      // 21-per-channel move instead of the ~9 that this
-                      // project's own standing rule already calls invisible.
-                      // Measured composited: rest #f5f5f7 -> hover #e0e0e0.
-                      // NOTE: every other utility button in the app inherits
-                      // the same dead canonical hover. Deliberately not fixed
-                      // here — that is an app-wide sweep, not this component.
-                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-hairline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                      // Hover is an **underline**, not a fill. The canonical
+                      // `hover:bg-divider-soft` is a no-op — Round 21.3
+                      // collapsed the app's orphan greys, so `--color-pearl`
+                      // and `--color-divider-soft` are both `#f5f5f7` and the
+                      // class painted a zero-pixel change.
+                      //
+                      // This button briefly used `hover:bg-hairline` (#e0e0e0)
+                      // instead, and that is now **reverted**: direct
+                      // instruction, 2026-10-05, is that `#e0e0e0`
+                      // (Figma `neutral/lighter-grey`) is an **outline/border
+                      // colour only** and is not to be used as a fill. Every
+                      // utility button in the app now takes the same treatment
+                      // as a ghost button — underline on hover, text colour
+                      // unchanged — applied across all 9 call sites in the
+                      // same pass rather than left as a per-component fix.
+                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-[18px] text-caption-medium text-primary outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                     >
                       Mark complete
                     </button>
@@ -3838,7 +3839,21 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
             <button
               type="button"
               onClick={() => setPendingOutcome('pass')}
-              className="inline-flex h-9 w-full items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              /* Green, not the brand purple (direct instruction, 2026-10-05:
+                 "record pass use green color ... semantic"). Its sibling
+                 already carries the destructive semantic, so a purple Pass
+                 left the pair half-coded: the negative outcome colour-coded,
+                 the positive one a generic CTA. `success` is Figma
+                 `semantic/success` #1F7D37, matched exactly in the app.
+
+                 Stays FILLED so the primary/secondary weight split survives —
+                 Pass is the expected outcome, remediation is the exception.
+                 `/90` on hover is this app's existing convention for a filled
+                 semantic button (see `ConfirmDialog`'s destructive confirm);
+                 it composites rather than inventing a hex, which matters now
+                 that Figma is the strict source of truth and publishes no
+                 success-hover step. */
+              className="inline-flex h-9 w-full items-center justify-center rounded-full bg-success px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-success/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
             >
               Record Pass
             </button>
@@ -3878,7 +3893,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
               <button
                 type="button"
                 onClick={() => setActionMsg(`Certificate emailed to ${coach.email}.`)}
-                className="inline-flex h-9 items-center gap-2 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className="inline-flex h-9 items-center gap-2 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
               >
                 <Mail aria-hidden="true" className="size-4" />
                 Send email
@@ -3911,6 +3926,9 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
             : `${firstName}'s certification is put on hold pending remediation. You can add the assessor's detailed note afterwards.`
         }
         confirmLabel={pendingOutcome === 'pass' ? 'Record Pass' : 'Record remediation required'}
+        /* Green when confirming a Pass, so the dialog agrees with the green
+           button that opened it. Remediation keeps the destructive red. */
+        confirmTone={pendingOutcome === 'pass' ? 'success' : 'destructive'}
         cancelLabel="Cancel"
         onConfirm={() => {
           if (pendingOutcome) recordCertificationOutcome(coach.id, pendingOutcome)

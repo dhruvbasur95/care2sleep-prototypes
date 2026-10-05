@@ -38,7 +38,7 @@ const TONE = {
     field:
       'h-9 text-caption focus-visible:border-ring focus-visible:ring-ring',
     ghost:
-      'h-9 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted hover:bg-divider-soft focus-visible:ring-ring',
+      'h-9 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted hover:underline focus-visible:ring-ring',
     filled:
       'h-9 rounded-full bg-primary px-[18px] text-caption-medium text-white hover:bg-primary-hover focus-visible:ring-ring',
     outline:

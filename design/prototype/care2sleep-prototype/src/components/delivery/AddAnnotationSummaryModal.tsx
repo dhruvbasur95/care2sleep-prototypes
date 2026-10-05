@@ -1,381 +1,539 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, CheckCircle2, Lock, Users } from 'lucide-react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  CalendarClock,
+  CheckCircle2,
+  Image as ImageIcon,
+  ListChecks,
+  PenLine,
+  UploadCloud,
+} from 'lucide-react'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
-import { WizardProgressRail, type WizardRailStep } from '@/components/shared/WizardProgressRail'
-import { STEP_CONTENT_GAP, WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
-import { Separator } from '@/components/ui/separator'
+import {
+  GHOST_BUTTON_MUTED,
+  HELP_BUTTON,
+  PILL_OUTLINE,
+  PILL_PRIMARY,
+} from '@/components/shared/buttonStyles'
+import { FileDropzone, type UploadStage } from '@/components/shared/FileDropzone'
+import { ReflectionReviewTable, rowsFromAnswers } from '@/components/shared/ReflectionReviewTable'
+import { ReflectionStepBar, ReflectionStepStatus } from '@/components/shared/ReflectionStepBar'
+import { ThanksMascot } from '@/components/shared/ThanksMascot'
+import { SipteaSkillChip } from '@/pages/training-v2/player/blocks/SipteaSkillChip'
+import { SIPTEA_INITIALS, SIPTEA_NAMES, type SipteaInitial } from '@/data/siptea'
+import {
+  COACH_REFLECTION_STEP_COUNT,
+  PLANNING_THANKS_BODY,
+  PLANNING_THANKS_HEADING,
+  PLANNING_TRANSCRIPT_SUBCOPY,
+  PLANNING_WELCOME_BLURB,
+  PLANNING_WELCOME_HEADING,
+  clearCoachReflectionDraft,
+  coachDraftKey,
+  saveCoachReflectionDraft,
+  useCoachReflectionDrafts,
+  COACH_SESSION_QUESTIONS,
+  COACH_WELCOME_BLURB,
+  COACH_WELCOME_STEPS,
+  TRANSCRIPT_ACCEPT_LABEL,
+  emptyCoachAnswers,
+} from '@/data/coachReflections'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import { formatDateLong, formatTime } from '@/data/format'
 import type { ReflectionComponentAnswer } from '@/data/spaces'
 
 /**
- * The 6-step SIPTEA post-practice annotation wizard (Round 6.2 — Coach
- * Delivery Portal, My Annotations tab). New pattern: no existing modal in
- * this app is a multi-step wizard, so this component owns its own dialog
- * chassis (backdrop, focus trap, Escape, return-focus, `max-h-[85vh]` panel)
- * rather than reusing `ConfirmDialog` directly — `ConfirmDialog`'s own
- * title/body props are plain strings and its footer is a fixed
- * Cancel/Confirm (or single-action) pair, neither of which fits a screen
- * that changes 7 times within one open/close lifecycle (design-tokens.md
- * §23). The nested "Discard this annotation summary?" confirmation *does*
- * reuse `ConfirmDialog` as-is — that one is a genuine single-screen confirm,
- * layered on top.
+ * The coach's post-session SIPTEA reflection — the gate, six questions, a
+ * review, the session transcript, marking the session held, and a thank-you.
+ *
+ * ## Round 55 rebuilt this onto the trainee wizard's shape
+ * Direct instruction, 2026-10-05: *"re-use SIPTEA pop-up component as we used
+ * trainee reflection i.e. number progress bar at top, SIPTEA label below,
+ * followed by question, and text placeholder to add response"*, plus a welcome
+ * screen, a streamlined review, a thank-you, and a new mandatory transcript
+ * upload. What changed:
+ *
+ *  - **Questions** are Notion's own now, one per component instead of Round
+ *    39's sentence pairs, and they live in `data/coachReflections.ts`.
+ *  - **The vertical `WizardProgressRail` is gone**, replaced by the shared
+ *    horizontal `ReflectionStepBar`. The rail still serves the three research
+ *    wizards; this was never its only caller.
+ *  - **Sharing is mandatory** (Notion: *"all reflections are shared
+ *    compulsorily with the researchers"*), so the "Who can read this
+ *    reflection?" radio pair is deleted along with the `shared` field it wrote.
+ *  - **The transcript is required** and is what gates completion.
+ *
+ * ## Three things that are load-bearing
+ *
+ * 1. **Nothing is written until the final button.** Round 39 saved the
+ *    reflection on the review screen and completed the session two screens
+ *    later. With a mandatory transcript in between, that could produce a
+ *    reflection saved against a session with no transcript and no completion —
+ *    the state the requirement exists to prevent. One commit, at the end, which
+ *    is also what lets every cancel dialog say truthfully that nothing is saved.
+ * 2. **The session is a snapshot, taken by the caller.** It used to be read
+ *    live off `nextPlannedSession()`. The moment `onConfirm` marks this session
+ *    held, that function returns the *next* one — so the thank-you would have
+ *    renamed itself mid-flow, and on the last planned session the whole modal
+ *    would have unmounted mid-click. See `SessionSnapshot`.
+ * 3. **Focus moves on a callback ref, never an effect.** Under
+ *    `AnimatePresence mode="wait"` the incoming screen mounts a commit *later*
+ *    than the step change, so an effect keyed on the step runs while the
+ *    outgoing screen is still the only thing in the tree — it focuses the old
+ *    heading or nothing, and every transition lands on `<body>`. This project
+ *    has shipped the effect version six times. Before this round the coach
+ *    wizard had no per-screen focus at all: clicking a gate option dropped
+ *    focus to `<body>` and nobody had measured it.
  */
 
-const STEPS = [
-  /* Round 39, direct instruction (`/design:ux-copy`): shorter, and **no client
-     names**. Two things changed together:
-       - The "{dyad}" placeholder is gone from every question. The banner and the
-         page header already name who this is about, so repeating it inside each
-         of six questions was the wordiest part of the copy and added nothing.
-       - "Think about your FIRST session" is gone too. It was true when this
-         wizard only ever ran once per client; it now runs from the session
-         debrief banner for whichever session just happened, so naming the first
-         one was simply wrong from Session 2 onward.
-     Each question keeps its reflective pair — one about what happened, one about
-     what was missed — because that pairing is what makes it a reflection rather
-     than a form field. */
-  {
-    component: 'S',
-    label: 'Shared understanding',
-    question:
-      'Where did you land on a shared understanding of the sleep issue and goals? Where did your view differ from theirs?',
-  },
-  {
-    component: 'I',
-    label: 'Implementation intent',
-    question:
-      'How concrete did you get about how the strategy would actually be carried out? What was left vague?',
-  },
-  {
-    component: 'P',
-    label: 'Problem identification',
-    question:
-      'What might make this strategy difficult? Was there anything you suspected but did not raise?',
-  },
-  {
-    component: 'T',
-    label: 'Tailoring',
-    question:
-      'How did you adjust the plan to fit their situation rather than the general advice? What did you let go of?',
-  },
-  {
-    component: 'E',
-    label: 'Emotion navigation',
-    question:
-      'Think of a moment where emotion was present, theirs or yours. How did you navigate it, and what would you do differently?',
-  },
-  {
-    component: 'A',
-    label: 'Action and goals',
-    question:
-      'What did you agree to do next? Is it the right size of step for them right now?',
-  },
-] as const
-
-const STEP_COUNT = STEPS.length
-
-/* `[minmax(0,248px)_1fr]`, not the old `3fr_7fr` (direct instruction: reduce
-   width). At 30% of a 920px panel the rail was ~420px wide for eight short
-   labels, which left the response textarea narrower than the question above it.
-   A fixed cap rather than a smaller fraction because the rail's content does not
-   grow with the panel — its widest label is "Mark session complete".
-   `minmax(0, …)` and not a bare `248px`: a grid item defaults to
-   `min-width: auto`, so without it a long label sizes the track instead of
-   wrapping inside it. */
-const WIZARD_GRID =
-  'mt-6 grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[minmax(0,248px)_1fr] md:gap-8'
-const WIZARD_RAIL_BOX = 'shrink-0 self-start rounded-lg bg-purple-50 p-4 md:p-6'
-
-/* No interpolation any more — the questions no longer mention the client, so
-   this is a plain lookup. Kept as a function rather than inlined so the call
-   sites do not have to know that. */
-function questionFor(step: number): string {
-  return STEPS[step].question
+/**
+ * What the caller must freeze before opening this dialog.
+ *
+ * Passing a live object is the bug in this file's header — the labels would
+ * advance under the coach the instant they completed the session.
+ */
+export interface SessionSnapshot {
+  /** Internal SPACES session number (1 = Planning). Never rendered raw. */
+  session: number
+  /** Display label, e.g. "Session 4". Always from `sessionRowLabel()`. */
+  label: string
+  date?: string
+  time?: string
+  /** Marks the session held. The caller's job: completion lives in the session
+   *  store, which this wizard otherwise knows nothing about.
+   *
+   *  On the transcript-only flow the session is **already** held — the plan
+   *  was made in it — so the caller uses this to record that the transcript
+   *  has been shared instead. Either way it is "the thing that happens on
+   *  commit", which is why it is one field rather than two. */
+  onConfirm: () => void
+  /**
+   * The **Planning session's** flow: welcome, upload, thank you. No gate, no
+   * questions, no review, no mark-complete, no progress bar.
+   *
+   * On the snapshot rather than as its own prop because it is frozen with the
+   * session it describes — the two can never be read from different moments
+   * and disagree about which flow is open.
+   */
+  transcriptOnly?: boolean
 }
 
-/** Builds the reflection's structured per-component answers client-side —
- *  a deterministic mapping over the 6 step answers, explicitly not a real
- *  Anthropic API call (scope plan §2d prototype-fidelity note). Kept
- *  structured (rather than flattened into one string) so every display
- *  surface can render each component as its own labeled field via
- *  `ReflectionFields` instead of parsing text back apart. */
+/* Step -1 is the welcome; 0-5 are the SIPTEA components; then review,
+   transcript, mark-complete, thanks. The welcome sits at -1 rather than
+   shifting every other step up by one, so the stepper reads "Step N of 6"
+   against question N with no arithmetic in between — the same trick, for the
+   same reason, as `TraineeReflectionModal`. */
+const WELCOME_STEP = -1
+const REVIEW_STEP = COACH_REFLECTION_STEP_COUNT
+const TRANSCRIPT_STEP = COACH_REFLECTION_STEP_COUNT + 1
+const COMPLETE_STEP = COACH_REFLECTION_STEP_COUNT + 2
+const THANKS_STEP = COACH_REFLECTION_STEP_COUNT + 3
+
+/**
+ * How many circles the progress bar draws: **every step the coach walks
+ * through**, which is the six questions plus Review plus Transcript.
+ *
+ * Direct instruction, 2026-10-05: *"progress stepper missing from top, also
+ * incorrect numbers for this process."* It counted `COACH_REFLECTION_STEP_COUNT`
+ * — the six questions — so the bar said "6 of 6, all done" on Review while two
+ * screens of real work were still ahead, and vanished entirely on Transcript,
+ * which is the step most likely to make a coach wonder how much is left.
+ *
+ * Derived from `TRANSCRIPT_STEP` rather than written as `8`, so adding a screen
+ * to the machine cannot leave the bar describing the old one.
+ *
+ * Mark-complete and thanks are deliberately **not** circles: the first is a
+ * confirmation of work already done and the second is an outcome, and neither
+ * is a step you can be part-way through.
+ */
+const BAR_STEP_COUNT = TRANSCRIPT_STEP + 1
+
+type Screen =
+  | { kind: 'welcome' }
+  | { kind: 'question'; index: number }
+  | { kind: 'review' }
+  | { kind: 'transcript' }
+  | { kind: 'complete' }
+  | { kind: 'thanks' }
+
+function screenFor(step: number): Screen {
+  if (step === WELCOME_STEP) return { kind: 'welcome' }
+  if (step === REVIEW_STEP) return { kind: 'review' }
+  if (step === TRANSCRIPT_STEP) return { kind: 'transcript' }
+  if (step === COMPLETE_STEP) return { kind: 'complete' }
+  if (step === THANKS_STEP) return { kind: 'thanks' }
+  return { kind: 'question', index: step }
+}
+
+/** Structured per-component answers for the store — not one flattened string,
+ *  so every display surface renders each component as its own row instead of
+ *  parsing text back apart. The `"S: Shared understanding"` shape is what every
+ *  entry since Round 13 carries; `resolveSipteaInitial` reads it back. */
 function buildReflectionComponents(answers: string[]): ReflectionComponentAnswer[] {
-  return STEPS.map((s, i) => ({
-    label: s.label.startsWith('Component') ? s.label : `${s.component}: ${s.label}`,
+  return SIPTEA_INITIALS.map((initial, i) => ({
+    label: `${initial}: ${SIPTEA_NAMES[initial]}`,
     answer: answers[i]?.trim() || '(no response recorded)',
   }))
 }
 
-/** Non-editable, labeled field list for a reflection's per-component
- *  answers — shared by this modal's own review screen (a true preview of
- *  what's about to be saved) and every place a saved reflection is later
- *  displayed (Coach Delivery Portal, researcher-facing Annotation Vault),
- *  so the two never drift into different formats. */
-export function ReflectionFields({ components }: { components: ReflectionComponentAnswer[] }) {
-  return (
-    <dl className="mt-2">
-      {components.map((c, i) => (
-        <div key={c.label}>
-          {i > 0 && <Separator className="bg-divider-soft" />}
-          <div className="py-3">
-            <dt className="text-fine text-ink-faint">{c.label}</dt>
-            <dd className="mt-1 text-caption leading-[1.6] text-ink">{c.answer}</dd>
-          </div>
-        </div>
-      ))}
-    </dl>
-  )
-}
+/* ── Welcome ────────────────────────────────────────────────────────────── */
 
 /**
- * The review screen's component/response table.
+ * Shape follows the trainee's welcome, which follows `PlanSessionsModal`'s:
+ * heading, one short paragraph, then a row of steps describing the flow.
  *
- * Round 40: extracted at its second caller. The My reflections tab's own review
- * dialog opens a *saved* reflection and must look like the screen the coach
- * approved it on — direct instruction, after a first pass rendered it as a
- * `ReflectionFields` list and read as a different screen entirely. Sharing the
- * markup is the only way the two stay identical; the alternative is the drift
- * `ProfileDetailsSections` was created to end.
+ * **Four columns at 160px with a 32px gap — not the trainee's 180/48.** The
+ * arithmetic, not a guess: this panel is `max-w-[920px]` with `md:p-8`, so the
+ * content area is 856px, less the scroller's `pr-1` and this block's `px-2`
+ * leaves ~836px. Four columns at the trainee's metrics need 4x180 + 3x48 =
+ * **864px** and would be clipped. At 4x160 + 3x32 = **736px** they fit. That is
+ * also what `PlanSessionsModal` landed on when its own three-step row became
+ * four (2026-10-01) — so three-step rows are 180/48, four-step rows 160/32.
  *
- * `idPrefix` exists because both callers can be mounted at once (the wizard on
- * the Coaching workspace tab, this dialog on My reflections) and duplicate
- * `id`s would break the `<label htmlFor>` pairing.
+ * The connector inset follows the column width: half of 160 is **80px**, not
+ * the trainee's 90. Copying 90 leaves the line 10px short of each end circle,
+ * which is invisible in a screenshot.
+ *
+ * `items-stretch` because the four descriptions are different lengths and a
+ * start-aligned row ends at four different heights — also what
+ * `layout-audit.js` checks across 3+ sibling tiles.
+ *
+ * `min-w-0` on the row and its cells is not decoration: fixed columns inside a
+ * fixed-width panel otherwise size the track to the widest child and push the
+ * document into horizontal scroll (Rounds 21.1, 30, 34).
  */
-export function ReflectionReviewTable({
-  answers,
-  idPrefix,
-  onChange,
-  readOnly = false,
+function WelcomeScreen({
+  headingRef,
+  sessionLabel,
+  /** The Planning session's flow — see `SessionSnapshot.transcriptOnly`. */
+  transcriptOnly,
 }: {
-  answers: string[]
-  idPrefix: string
-  onChange: (index: number, value: string) => void
-  /** Renders the answers as text rather than textareas. Additive and off by
-   *  default, so the wizard — which is where a reflection is *written* — is
-   *  byte-identical. Set by the saved-reflection viewer: direct instruction,
-   *  a coach cannot edit a reflection once it has been added. */
-  readOnly?: boolean
+  headingRef: (el: HTMLHeadingElement | null) => void
+  sessionLabel: string
+  transcriptOnly: boolean
 }) {
+  const icons = [PenLine, ListChecks, UploadCloud, CheckCircle2]
+
   return (
-    <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr className="bg-purple-50">
-            <th scope="col" className="w-[34%] px-4 py-3.5 text-caption-medium text-ink-muted">
-              SIPTEA component
-            </th>
-            <th scope="col" className="px-4 py-3.5 text-caption-medium text-ink-muted">
-              Your response
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {STEPS.map((st, i) => (
-            <tr key={st.component} className={cn(i > 0 && 'border-t border-parchment')}>
-              {/* A row header, not a plain cell — the component is what the
-                  response is *about*, which is what `scope="row"` tells a
-                  screen reader reading across the row. */}
-              <th
-                scope="row"
-                className="px-4 py-3 text-left align-top text-caption-medium font-medium text-ink"
+    <div className="flex flex-col items-center gap-14 px-2 text-center">
+      <div className="flex w-full min-w-0 flex-col items-center gap-3">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-balance font-display text-display-md text-ink outline-none"
+        >
+          {transcriptOnly ? PLANNING_WELCOME_HEADING : `Your reflection for ${sessionLabel}`}
+        </h2>
+        <p className="max-w-[620px] text-balance text-body leading-[1.5] text-ink-muted">
+          {transcriptOnly ? PLANNING_WELCOME_BLURB : COACH_WELCOME_BLURB}
+        </p>
+      </div>
+
+      {/* **No step row on the transcript-only flow.** The row exists to preview
+          a four-screen sequence; previewing a one-action flow with a single
+          icon would be ceremony around a file picker, and a four-step row
+          would describe work this flow does not ask for. The blurb above is
+          the whole orientation it needs. */}
+      {!transcriptOnly && (
+      <div className="relative isolate">
+        {/* Hidden on the stacked layout: a horizontal rule joining four
+            vertically stacked steps points at nothing. A 736px row does not fit
+            a narrow panel, hence `min-[880px]:` where the trainee's 636px row
+            uses `min-[640px]:`. */}
+        <span
+          aria-hidden="true"
+          className="absolute top-[27px] right-[80px] left-[80px] -z-10 hidden h-0.5 bg-hairline min-[880px]:block"
+        />
+        <ol className="flex min-w-0 flex-col items-center gap-8 min-[880px]:flex-row min-[880px]:items-stretch min-[880px]:justify-center min-[880px]:gap-8">
+          {COACH_WELCOME_STEPS.map((s, i) => {
+            const Icon = icons[i]
+            return (
+              <li
+                key={s.label}
+                className="flex w-full min-w-0 max-w-[280px] flex-col items-center gap-4 min-[880px]:w-[160px] min-[880px]:max-w-none"
               >
-                {readOnly ? (
-                  <>
-                    {st.component}: {st.label}
-                  </>
-                ) : (
-                  <label htmlFor={`${idPrefix}-${i}`}>
-                    {st.component}: {st.label}
-                  </label>
-                )}
-              </th>
-              <td className="px-4 py-3 align-top">
-                {readOnly ? (
-                  /* Plain text, not a disabled textarea: a greyed-out field
-                     still reads as something that ought to be editable, and
-                     this is simply a record now. */
-                  <p className="text-caption whitespace-pre-line text-ink">
-                    {answers[i]?.trim() ? answers[i] : <span className="text-ink-faint">Not answered.</span>}
-                  </p>
-                ) : (
-                  <textarea
-                    id={`${idPrefix}-${i}`}
-                    value={answers[i] ?? ''}
-                    onChange={(e) => onChange(i, e.target.value)}
-                    rows={3}
-                    placeholder="Not answered yet."
-                    className="w-full resize-y rounded-sm border border-hairline bg-parchment px-3 py-2 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <span
+                  aria-hidden="true"
+                  className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-full bg-purple-50 text-primary"
+                >
+                  <Icon className="size-6" />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="text-body-md text-ink">{s.label}</p>
+                  <p className="text-balance text-caption text-ink-muted">{s.description}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+      )}
     </div>
   )
 }
 
-/** `wizard-progress-rail` (design-tokens.md §23/§36) — shared component; this
- *  wizard's own step labels double as their headings (fixed SIPTEA framework
- *  terms), so `RAIL_STEPS` has no separate `heading` override.
- *
- *  Round 28: this rail no longer diverges — its "Step N of M" live text was
- *  the app's only visible one and is now `sr-only` like every other wizard's,
- *  because it repeated the rail label above it and the content pane's heading
- *  beside it. */
-const SIPTEA_RAIL_STEPS: WizardRailStep[] = STEPS.map((s) => ({
-  key: s.component,
-  navLabel: s.label,
-}))
+/* ── One question ───────────────────────────────────────────────────────── */
 
 /**
- * The rail now covers the **whole** flow, not just the 6 SIPTEA components
- * (Round 39, direct instruction: "add review and markoff session").
+ * Spacing is three deliberate steps rather than one shared `gap`, copied from
+ * the trainee's own question screen: 40px under the stepper, 32px under the
+ * SIPTEA chip, and **12px** between the question and the box it is asking you
+ * to fill. The small gap is the point — the question and the field are one
+ * unit, and the large gaps above separate that unit from the chrome.
  *
- * Two consequences worth naming. The review and confirmation screens previously
- * rendered no rail at all, so a coach four screens into a wizard lost every cue
- * about where they were exactly when the flow was about to commit something —
- * they are steps 7 and 8 now, and look like it. And "Mark complete" only exists
- * when there is a session to complete, so the rail is 7 steps from the
- * per-client reflection card and 8 from the debrief banner: it describes the
- * flow the coach is actually in rather than a fixed idea of it.
+ * The box fills the panel's remaining height (`flex-1` with a `min-h` floor),
+ * so the slack below a one-line question is writing space rather than a hole.
+ *
+ * **No "Your response" label and no `WizardStepHeading`** (direct instruction,
+ * 2026-10-05: *"Remove the Your response copy from above the text box"* and
+ * *"Remove step x of x also"*). The chip names the component, the question is
+ * the only other text, and the position is carried by the bar above plus its
+ * `role="status"` sibling.
  */
-function railStepsFor(hasCompleteStep: boolean): WizardRailStep[] {
-  return [
-    ...SIPTEA_RAIL_STEPS,
-    { key: 'review', navLabel: 'Review reflection' },
-    ...(hasCompleteStep ? [{ key: 'complete', navLabel: 'Mark session complete' }] : []),
-  ]
+function QuestionScreen({
+  headingRef,
+  initial,
+  index,
+  value,
+  onChange,
+}: {
+  headingRef: (node: HTMLHeadingElement | null) => void
+  initial: SipteaInitial
+  index: number
+  value: string
+  onChange: (value: string) => void
+}) {
+  const fieldId = `coach-reflection-${index}`
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex justify-center">
+        <SipteaSkillChip initial={initial} size="sm" />
+      </div>
+
+      {/* The heading is the component name, visually hidden because the chip
+          directly above already shows it — but focus has to land on something
+          that announces where the coach now is, and the chip is a decorative
+          pill. Same pattern as the trainee's. */}
+      <h2 ref={headingRef} tabIndex={-1} className="sr-only outline-none">
+        {SIPTEA_NAMES[initial]}
+      </h2>
+
+      {/* Type and alignment are the trainee wizard's exactly (direct
+          instruction, 2026-10-05): `font-display text-title` (20/500), left.
+          This was `text-body` centred and `text-balance` — a smaller, centred
+          question read as a caption above the box rather than as the thing
+          being answered, and the two wizards disagreed about the same object.
+          The chip above stays centred; only the question moved.
+
+          The question is also the textarea's **label** now, which is how the
+          trainee's screen is built. The `sr-only` "Your answer for …" label
+          that used to sit here went with it: two labels for one field meant a
+          screen reader heard the component name twice and the question never.
+          The `sr-only` heading above still carries the component name on
+          focus, so nothing is lost on a step change. */}
+      {/* Numbered (direct instruction, 2026-10-05): "1. What did you learn
+          today…". The number is `index + 1`, derived from the step the coach
+          is on rather than written into the question strings — those are
+          Notion's own wording and a hand-typed "1." in each would be this
+          app's copy smuggled into the research team's.
+
+          Note the trainee's wizard deliberately has **no** number on its
+          question, removed the same week ("remove the numbers, its
+          confusing"): there the question sits below a lead-in line and two
+          recalled answers, so a number read as labelling the third thing on
+          screen. Here it is the only text under the chip. The two are
+          different on purpose. */}
+      <label
+        htmlFor={fieldId}
+        className="mt-8 block text-left font-display text-title text-ink"
+      >
+        {index + 1}. {COACH_SESSION_QUESTIONS[initial]}
+      </label>
+      <textarea
+        id={fieldId}
+        key={index}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="off"
+        placeholder="Write your answer here."
+        /* `parchment` (`#f5f5f7`) reads as a writable field against the modal's
+           white panel, where `bg-card` made the box disappear into it and left
+           only a hairline to say "type here". */
+        className="mt-3 min-h-[200px] w-full flex-1 resize-none rounded-sm border border-hairline bg-parchment px-4 py-3 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+      />
+    </div>
+  )
 }
+
+/* ── The modal ──────────────────────────────────────────────────────────── */
 
 export function AddAnnotationSummaryModal({
   open,
   onClose,
   dyadId,
-  dyadTitle,
   session,
-  completeSession,
 }: {
   open: boolean
-  onClose: () => void
+  /**
+   * Every close path. `completed` tells the page where focus has to go, which
+   * it cannot work out for itself: completing the session unmounts the banner
+   * whose CTA opened this dialog, so the usual trigger-restore would land on a
+   * disconnected node. Measured — this project's most-repeated defect.
+   */
+  onClose: (opts: { completed: boolean }) => void
   dyadId: string
-  dyadTitle: string
-  /**
-   * The internal SPACES session number this reflection is about (Round 40).
-   *
-   * Stored on the entry so the My reflections table can list one row per
-   * session. Optional: a reflection written outside any session debrief has no
-   * session, and the table renders it that way rather than guessing.
-   *
-   * Deliberately separate from `completeSession.label` even though both name
-   * the same session — that one is display copy, this is the key. Deriving a
-   * number back out of "Session 3" is the off-by-one this project has shipped
-   * more than once (internal 1 is "Planning").
-   */
-  session?: number
-  /**
-   * Turns this wizard into "write the session up **and** mark it held".
-   *
-   * Round 39, direct instruction, for the coach's session-debrief banner: its
-   * CTA is "Write note & complete session", so saving the reflection is no
-   * longer the last thing that happens — a confirmation screen follows it and
-   * completing the session is a separate, explicit act.
-   *
-   * Optional, and every existing caller omits it: the per-client reflection card
-   * still opens this wizard purely to write a reflection, with no session to
-   * complete, and is untouched.
-   *
-   * `onConfirm` is what actually marks the session held. It is the caller's job
-   * rather than this component's because completion lives in the session store,
-   * which this wizard otherwise knows nothing about.
-   */
-  completeSession?: {
-    /** Display label, e.g. "Session 4" — never a bare number. */
-    label: string
-    date?: string
-    time?: string
-    onConfirm: () => void
-  }
+  session: SessionSnapshot
 }) {
   const { submitPostPracticeAnnotation } = useResearch()
-  const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<string[]>(Array(STEP_COUNT).fill(''))
-  const [reviewing, setReviewing] = useState(false)
-  const [shared, setShared] = useState(true)
-  const [discardOpen, setDiscardOpen] = useState(false)
-  /* The confirmation screen after review. Only reachable when
-     `completeSession` is supplied. */
-  const [confirming, setConfirming] = useState(false)
+  const reduceMotion = useReducedMotion()
+  const { drafts } = useCoachReflectionDrafts()
+
   /**
    * Did the session actually go ahead?
    *
-   * Round 39, direct instruction: opening this wizard from the debrief banner
-   * now starts with that question rather than with Step 1. The banner fires off
-   * the clock, not off any knowledge that the session happened — so the flow
-   * asked the coach to reflect on a session that may simply not have taken
-   * place, and its final screen offered to mark it complete regardless.
+   * Round 39, direct instruction, kept and reconfirmed 2026-10-05 (*"we will
+   * still keep the screen that checks if the session happened or not"*). The
+   * banner fires off the clock, not off any knowledge that the session
+   * happened — so without this the flow asked the coach to reflect on a session
+   * that may simply not have taken place, and offered to mark it complete
+   * regardless. `null` = not answered yet.
    *
-   * `null` = not answered yet. Only ever leaves `null` when `completeSession` is
-   * set; the per-client reflection card has no session to have happened or not,
-   * so it skips the gate entirely.
+   * It sits **before** the welcome: a precondition for the flow, not a step
+   * inside it. A welcome screen for a flow about to be abandoned is wasted.
    */
   const [sessionHappened, setSessionHappened] = useState<boolean | null>(null)
-  const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [step, setStep] = useState(WELCOME_STEP)
+  const [answers, setAnswers] = useState<string[]>(emptyCoachAnswers)
+  const [transcript, setTranscript] = useState<File | null>(null)
+  const [uploadStage, setUploadStage] = useState<UploadStage>('empty')
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
+  const focusedScreen = useRef<string | null>(null)
+  /** Guards the commit. `toggleSession` is a **toggle, not a set**, so a second
+   *  press would un-complete the session it just completed. Today's immediate
+   *  close hides that; a thank-you screen leaves the button alive one more
+   *  frame. */
+  const committed = useRef(false)
   const titleId = useId()
 
-  const anyAnswered = answers.some((a) => a.trim().length > 0) || reviewing || confirming
+  /* Read through a ref, not a dependency. The open-effect must run on `open`
+     alone — adding the draft to its deps would re-seed `answers` from the
+     store on the very first keystroke, because saving a draft emits and this
+     component is a subscriber. The ref is written on every render and read
+     only at the moment the modal opens. */
+  const draft = drafts[coachDraftKey(dyadId, session.session)]
+  const draftRef = useRef(draft)
+  draftRef.current = draft
 
-  const reset = () => {
-    setStep(0)
-    setAnswers(Array(STEP_COUNT).fill(''))
-    setReviewing(false)
-    setShared(true)
-    setDiscardOpen(false)
-    setConfirming(false)
-    setSessionHappened(null)
-  }
+  useScrollLock(open)
 
   useEffect(() => {
     if (open) {
       triggerRef.current = document.activeElement as HTMLElement
-      panelRef.current?.focus({ preventScroll: true })
-      reset()
-      setConfirmation(null)
-    } else if (triggerRef.current) {
-      triggerRef.current.focus({ preventScroll: true })
-      triggerRef.current = null
+      setSessionHappened(null)
+      setStep(WELCOME_STEP)
+      /* Resume where the coach left off. The flow still restarts at the
+         welcome screen rather than the question they abandoned: the draft is
+         the *answers*, not a cursor, and dropping someone back into question 4
+         with no sense of what they had already written is disorienting where
+         re-reading six prefilled boxes is not. */
+      setAnswers(draftRef.current ? [...draftRef.current] : emptyCoachAnswers())
+      setTranscript(null)
+      setUploadStage('empty')
+      setCancelOpen(false)
+      setHelpOpen(false)
+      focusedScreen.current = null
+      committed.current = false
     }
-    // reset/setConfirmation are stable setters — only `open` should retrigger this.
+    // Setters are stable — only `open` should retrigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  useEffect(() => {
-    if (!confirmation) return
-    const timer = window.setTimeout(() => setConfirmation(null), 4000)
-    return () => window.clearTimeout(timer)
-  }, [confirmation])
+  /* The Planning session's flow. Read off the snapshot so it cannot change
+     under an open modal. */
+  const transcriptOnly = !!session.transcriptOnly
 
-  const requestClose = () => {
-    if (discardOpen) return
-    if (!anyAnswered) {
-      onClose()
+  const screen = screenFor(step)
+  /* No gate on the transcript-only flow: the plan was built *in* the planning
+     session, so asking whether it went ahead is asking about a meeting whose
+     output the coach has just saved. */
+  const onGate = !transcriptOnly && sessionHappened === null
+  const rescheduling = sessionHappened === false
+  const anyAnswered = answers.some((a) => a.trim().length > 0)
+
+  /**
+   * Focus the incoming screen's heading — as a **callback ref**, not an effect.
+   * See this file's header. Guarded on a key so it fires once per screen:
+   * React re-invokes a callback ref whenever its identity changes, and without
+   * the guard a re-render mid-typing would steal focus back to the heading.
+   */
+  const headingRef = useCallback(
+    (node: HTMLHeadingElement | null) => {
+      const key = `${sessionHappened}-${step}`
+      if (!node || focusedScreen.current === key) return
+      focusedScreen.current = key
+      node.focus({ preventScroll: true })
+    },
+    [sessionHappened, step],
+  )
+
+  const close = (completed: boolean) => {
+    /* Every close path that is not the submit keeps the answers (direct
+       instruction, 2026-10-05: match the trainee's cancel, whose answers
+       survive). `committed` rather than `completed` is the right test: the
+       thanks screen closes with `completed: true` and has already written
+       both the reflection and the draft's deletion, and re-saving there would
+       resurrect a draft for a session that is finished. */
+    if (!committed.current && !transcriptOnly) {
+      saveCoachReflectionDraft(dyadId, session.session, answers)
+    }
+    onClose({ completed })
+    /* Restore the trigger only when it still exists. On the completed path the
+       banner that owned it has unmounted, and the caller moves focus instead. */
+    if (!completed && triggerRef.current) triggerRef.current.focus({ preventScroll: true })
+    triggerRef.current = null
+  }
+
+  /**
+   * Cancel **always** confirms once the flow has started (direct instruction,
+   * 2026-10-05: *"make sure to add the missing pop-up modals when I click
+   * cancel, we have added these in previous session for trainees"*).
+   *
+   * Three carve-outs, all of them cases where a confirm would be friction with
+   * nothing behind it: the **gate** and the **reschedule** dead end, where the
+   * coach has not been asked anything and nothing is in progress, and
+   * **thanks**, where everything is already saved.
+   */
+  const requestCancel = () => {
+    if (cancelOpen || helpOpen) return
+    if (screen.kind === 'thanks') {
+      close(true)
       return
     }
-    setDiscardOpen(true)
+    if (onGate || rescheduling) {
+      close(false)
+      return
+    }
+    /* The short flow has nothing to lose until a file is attached — no
+       answers exist to be kept or discarded — so confirming would be a
+       dialog asking about nothing. */
+    if (transcriptOnly && !transcript) {
+      close(false)
+      return
+    }
+    setCancelOpen(true)
   }
 
   const trapKeys = (e: React.KeyboardEvent) => {
-    if (discardOpen) return
+    if (cancelOpen || helpOpen) return
     if (e.key === 'Escape') {
-      requestClose()
+      requestCancel()
       return
     }
     if (e.key !== 'Tab' || !panelRef.current) return
@@ -396,44 +554,92 @@ export function AddAnnotationSummaryModal({
     }
   }
 
-  const reflectionComponents = buildReflectionComponents(answers)
-
-  const handleSubmit = () => {
-    submitPostPracticeAnnotation(dyadId, reflectionComponents, shared, session)
-    /* With a session to complete, the reflection is saved here but the dialog
-       stays open on its confirmation screen — the coach has done half of what
-       the banner's CTA promised, and closing now would leave the session still
-       showing as not held with no indication why. */
-    if (completeSession) {
-      setConfirming(true)
-      return
+  /**
+   * The one commit. Save the reflection, then mark the session held.
+   *
+   * That order matters: both writes land in different state atoms so neither
+   * can clobber the other, but if one were to fail, a reflection written
+   * against an incomplete session is recoverable where a session marked held
+   * with no reflection is the invariant this flow exists to protect.
+   */
+  const handleComplete = () => {
+    if (committed.current) return
+    committed.current = true
+    /* Nothing is written for the Planning session: no answers were collected,
+       and writing six "(no response recorded)" rows would put a reflection in
+       front of the research team that the coach was never asked for — the
+       exact thing the short flow exists to avoid. The transcript itself is
+       not stored anywhere by design (see `FileDropzone`'s callers), so the
+       whole commit here is `onConfirm`. */
+    if (!transcriptOnly) {
+      submitPostPracticeAnnotation(dyadId, buildReflectionComponents(answers), session.session)
+      clearCoachReflectionDraft(dyadId, session.session)
     }
-    setConfirmation(
-      shared
-        ? 'Reflection saved. You shared this with the research team.'
-        : 'Reflection saved.',
-    )
-    onClose()
+    session.onConfirm()
+    setStep(THANKS_STEP)
   }
 
-  const handleCompleteSession = () => {
-    completeSession?.onConfirm()
-    setConfirmation(`${completeSession?.label} marked complete.`)
-    onClose()
+  /* Direction drives the slide, so going Back reads as going back rather than
+     as another forward step. Held in a ref: it is read during the next
+     render's animation and must not itself trigger one. */
+  const direction = useRef(1)
+  const go = (next: number) => {
+    direction.current = next > step ? 1 : -1
+    setStep(next)
   }
 
-  // AnimatePresence (and the discard ConfirmDialog) stay mounted regardless
-  // of `open` — matching ConfirmDialog's own pattern of gating *content*
-  // inside AnimatePresence via `open && (...)` rather than mounting/
-  // unmounting AnimatePresence itself. Unmounting AnimatePresence across
-  // open/close transitions is what caused a real bug caught in manual
-  // verification: framer-motion re-mounting a fresh AnimatePresence
-  // instance on every open lost track of its previous children, producing
-  // React "duplicate key" console errors on every open. The post-submit
-  // toast renders unconditionally alongside it so it survives `open`
-  // flipping to false when the modal closes on submit.
+  const slide = reduceMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        initial: { opacity: 0, x: direction.current * 24 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: direction.current * -24 },
+      }
+
+  /** The `role="status"` line. Distinct per screen: the bar is `aria-hidden`,
+   *  so this is the only announcement of position, and "Review" three times
+   *  running would be worse than silence. */
+  const statusLabel =
+    screen.kind === 'review'
+      ? `Step ${REVIEW_STEP + 1} of ${BAR_STEP_COUNT}: review your answers`
+      : screen.kind === 'transcript'
+        ? `Step ${TRANSCRIPT_STEP + 1} of ${BAR_STEP_COUNT}: upload the session transcript`
+        : screen.kind === 'question'
+          ? `Step ${screen.index + 1} of ${BAR_STEP_COUNT}`
+          : ''
+
+  /* Every step the bar counts, and only those: questions, review, transcript.
+     Welcome is before the flow, and mark-complete and thanks are after it —
+     see `BAR_STEP_COUNT` for why those two are not circles. */
+  const showBar =
+    !transcriptOnly &&
+    (screen.kind === 'question' || screen.kind === 'review' || screen.kind === 'transcript')
+
+  const heading = onGate
+    ? `Did ${session.label} go ahead?`
+    : rescheduling
+      ? `Reschedule ${session.label}`
+      : screen.kind === 'thanks'
+        ? transcriptOnly
+          ? PLANNING_THANKS_HEADING
+          : 'Thank you for sharing your reflection'
+        : screen.kind === 'complete'
+          ? `Mark ${session.label} as complete?`
+          : screen.kind === 'transcript'
+            ? 'Upload the session transcript'
+            : screen.kind === 'review'
+              ? 'Review your answers'
+              : transcriptOnly
+                ? PLANNING_WELCOME_HEADING
+                : `Your reflection for ${session.label}`
+
   return (
     <>
+      {/* AnimatePresence stays mounted regardless of `open`, gating its
+          *content* instead — the pattern `ConfirmDialog` and
+          `TraineeReflectionModal` both use. Unmounting AnimatePresence across
+          opens makes framer-motion lose track of its previous children and
+          emit duplicate-key errors on every reopen. */}
       <AnimatePresence>
         {open && (
           <>
@@ -443,10 +649,10 @@ export function AddAnnotationSummaryModal({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="fixed inset-0 z-40 bg-black/25"
-              onClick={requestClose}
+              onClick={requestCancel}
               aria-hidden="true"
             />
-            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-6">
+            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
               <motion.div
                 ref={panelRef}
                 tabIndex={-1}
@@ -458,48 +664,41 @@ export function AddAnnotationSummaryModal({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
+                aria-label={heading}
+                /* One fixed height for every screen. The screens differ a lot
+                   in length, and a panel that resized per step would move the
+                   Next button under the coach's cursor on every advance. The
+                   content region scrolls instead. */
                 className="pointer-events-auto flex h-[85vh] max-h-[820px] w-full max-w-[920px] flex-col overflow-hidden rounded-lg bg-card p-6 outline-none ring-1 ring-hairline md:p-8"
               >
-                {/* The gate. No rail: this is a precondition for the flow, not
-                    a step inside it, and the rail's own first step is the first
-                    SIPTEA question. */}
-                {completeSession && sessionHappened === null ? (
+                {onGate ? (
+                  /* ── The gate ─────────────────────────────────────────── */
                   <>
-                    {/* Centred on both axes (direct instruction). The gate has
-                        one question and two answers, so it is the only screen in
-                        this wizard with far less content than the panel's fixed
-                        height — left-aligned at the top it read as a page that
-                        had failed to load the rest of itself.
-                        `my-auto` rather than `justify-center`: the panel is a
-                        flex column, and auto margins centre the block while
-                        still letting it scroll if the copy ever grows past the
-                        space. */}
-                    {/* Modelled on `PlanSessionsModal`'s own welcome screen
-                        (direct instruction) — same centred column, same type
-                        pairing, same 56px icon circle. That screen is this
-                        wizard's sibling in the coach's flow, so the two now open
-                        the same way.
-                        Type is `display-md` heading / `body` sub / `body-md`
-                        option title / `caption` option copy — one pairing, no
-                        variation (direct instruction: the options were
-                        `caption-medium` over `fine`, which read as a third
-                        scale). */}
+                    {/* Centred on both axes (direct instruction). One question
+                        and two answers is far less content than the panel's
+                        fixed height, and left-aligned at the top it read as a
+                        page that had failed to load the rest of itself.
+                        `my-auto` rather than `justify-center`: auto margins
+                        centre the block while still letting it scroll if the
+                        copy ever grows past the space. */}
                     <div className="my-auto flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-6 text-center">
                       <div className="flex w-full flex-col items-center gap-2">
                         <h2
                           id={titleId}
-                          className="text-balance font-display text-display-md text-ink"
+                          ref={headingRef}
+                          tabIndex={-1}
+                          className="text-balance font-display text-display-md text-ink outline-none"
                         >
-                          Did {completeSession.label} go ahead?
+                          Did {session.label} go ahead?
                         </h2>
                         {/* `body` regular in `ink` (direct instruction), not
                             `ink-muted`. It carries the one fact the coach needs
                             to answer the question above it, so it is not
                             supporting copy. */}
                         <p className="max-w-[640px] text-body text-ink">
-                          {completeSession.date
-                            ? `It was planned for ${formatDateLong(completeSession.date)}${
-                                completeSession.time ? ` at ${formatTime(completeSession.time)}` : ''
+                          {session.date
+                            ? `It was planned for ${formatDateLong(session.date)}${
+                                session.time ? ` at ${formatTime(session.time)}` : ''
                               }.`
                             : 'Let us start there.'}
                         </p>
@@ -508,18 +707,17 @@ export function AddAnnotationSummaryModal({
                       {/* Side by side, equal width and height (direct
                           instruction). `grid-cols-2` rather than a flex row
                           because equal *width* is the ask and a grid gives it
-                          without `flex-1` fighting the content; `items-stretch`
-                          is the default here, so the shorter card matches the
-                          taller one. `min-w-0` on the cells: a grid item
-                          defaults to `min-width: auto`, so without it the longer
-                          copy sizes its track and the two stop being equal. */}
+                          without `flex-1` fighting the content. `min-w-0` on
+                          the cells: a grid item defaults to `min-width: auto`,
+                          so without it the longer copy sizes its track and the
+                          two stop being equal. */}
                       <div className="mt-10 grid w-full max-w-[520px] grid-cols-2 gap-4">
                         {[
                           {
                             value: true,
                             Icon: CheckCircle2,
                             title: 'Yes, it went ahead',
-                            body: 'Add your reflection, then mark the session complete.',
+                            body: 'Add your reflection and transcript, then mark the session complete.',
                           },
                           {
                             value: false,
@@ -553,53 +751,39 @@ export function AddAnnotationSummaryModal({
                       </div>
                     </div>
 
-                    <div className={cn(MODAL_FOOTER_SURFACE, 'mt-6 flex shrink-0 flex-wrap items-center justify-end gap-3')}>
-                      <button
-                        type="button"
-                        onClick={requestClose}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-ink-muted outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      >
+                    <div
+                      className={cn(
+                        MODAL_FOOTER_SURFACE,
+                        'mt-6 flex shrink-0 flex-wrap items-center justify-end gap-3',
+                      )}
+                    >
+                      <button type="button" onClick={requestCancel} className={GHOST_BUTTON_MUTED}>
                         Cancel
                       </button>
                     </div>
                   </>
-                ) : completeSession && sessionHappened === false ? (
-                  /* The dead end, stated plainly. Nothing is saved and nothing
-                     is marked — the coach is sent to Reschedule, which lives on
-                     the session card behind this dialog. This wizard does not
-                     offer to reschedule itself: that would be a second editor
-                     for the plan, and the card already owns it. */
+                ) : rescheduling ? (
+                  /* ── The dead end ─────────────────────────────────────── */
+                  /* Stated plainly. Nothing is saved and nothing is marked —
+                     the coach is sent to Reschedule, which lives on the session
+                     card behind this dialog. This wizard does not offer to
+                     reschedule itself: that would be a second editor for the
+                     plan, and the card already owns it. */
                   <>
-                    {/* Flush centre, no card (direct instruction). It is a
-                        message rather than a record — a bordered, filled panel
-                        made it look like content the coach had produced, and put
-                        a box around three sentences on an otherwise empty
-                        screen. Same centring as the gate it follows, so choosing
-                        "No" does not shift the layout. */}
                     <div className="my-auto flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 text-center">
-                      {/* Direct instruction: **no subtext under the title**, and
-                          the directions rewritten. The old version said the same
-                          thing three times over four lines — a subtitle
-                          explaining that a session must be held first, then a
-                          paragraph repeating it, then a third clause about
-                          coming back. One title, one instruction.
-                          Both reschedule routes are named because both exist
-                          (also direct instruction) — naming only the card made
-                          the plan route invisible.
-                          `max-w-[440px]`: centred copy needs a measure, or the
-                          lines run the panel's full width and the centring stops
-                          reading as deliberate. */}
-                      <h2 id={titleId} className="text-balance font-display text-display-md text-ink">
-                        Reschedule {completeSession.label}
+                      <h2
+                        id={titleId}
+                        ref={headingRef}
+                        tabIndex={-1}
+                        className="text-balance font-display text-display-md text-ink outline-none"
+                      >
+                        Reschedule {session.label}
                       </h2>
-                      {/* `/design:ux-copy`, direct instruction (too vague).
-                          Naming the two controls was not the problem — not
-                          saying **where** they are was. "Go to Edit session
-                          plan" assumes the coach already knows that is a button
-                          in the page hero, so each is now given its location.
-                          The lead sentence is the other missing piece: the coach
-                          has just been through a gate and needs telling that
-                          nothing was written down. */}
+                      {/* Both reschedule routes are named because both exist
+                          (direct instruction) — naming only the card made the
+                          plan route invisible. `max-w-[460px]`: centred copy
+                          needs a measure, or the lines run the panel's full
+                          width and the centring stops reading as deliberate. */}
                       <p className="mt-4 max-w-[460px] text-body text-ink">
                         Nothing has been saved yet. Close this, then pick a new date and time —{' '}
                         <span className="font-semibold">Reschedule</span> on the session card, or{' '}
@@ -608,388 +792,429 @@ export function AddAnnotationSummaryModal({
                       </p>
                     </div>
 
-                    <div className={cn(MODAL_FOOTER_SURFACE, 'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3')}>
+                    <div
+                      className={cn(
+                        MODAL_FOOTER_SURFACE,
+                        'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3',
+                      )}
+                    >
                       <button
                         type="button"
                         onClick={() => setSessionHappened(null)}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className={GHOST_BUTTON_MUTED}
                       >
                         Go back
                       </button>
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
-                      >
+                      <button type="button" onClick={() => close(false)} className={PILL_PRIMARY}>
                         Close
                       </button>
                     </div>
                   </>
-                ) : confirming && completeSession ? (
-                  /* Round 39: the confirmation screen. Reached only after the
-                     reflection has already saved, so it says so plainly — a
-                     screen that looked like it might still lose the note would
-                     make the coach re-read the whole wizard. */
-                  <>
-                    {/* **No rail** (direct instruction), and centred on the
-                        gate/welcome screen's own shape. This is a closing
-                        confirmation, not another question — the rail lists it as
-                        the last step while the coach is still answering, which is
-                        what tells them it is coming; on the screen itself it only
-                        narrowed the summary they are being asked to check.
-                        Type follows the welcome screen: `display-md` heading,
-                        `body` in `ink` beneath it, `caption-medium` labels over
-                        `body-md` values, `caption` for the supporting list. */}
-                    <div className="my-auto flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-6 text-center">
-                      <div className="flex w-full flex-col items-center gap-2">
-                        <h2
-                          id={titleId}
-                          className="text-balance font-display text-display-md text-ink"
-                        >
-                          Mark {completeSession.label} as complete?
-                        </h2>
-                        <p className="max-w-[640px] text-body text-ink">
-                          Your reflection has been saved. One last step.
-                        </p>
-                      </div>
-
-                      {/* Raised twice on direct feedback: 56px above the detail
-                          row and 48px between it and the purple card. They are
-                          three separate blocks — question, facts, consequences —
-                          and at 24px the card read as part of the row above it. */}
-                      <div className="mt-14 flex w-full flex-col gap-12">
-                        {/* One row, no wrapping, vertical strokes between the
-                            fields (direct instruction). `divide-x` on the flex
-                            row draws the separators, so there is no separator
-                            element to keep in step with the field count.
-                            `divide-hairline` (#e0e0e0), NOT `parchment`
-                            (#f5f5f7): parchment on a white panel composites to
-                            almost nothing and the strokes were invisible —
-                            reported as such. `hairline` is the app's actual
-                            divider token. `items-stretch` so each stroke runs
-                            the full height of the row rather than stopping at
-                            the shortest column.
-                            `whitespace-nowrap` on the values and no `max-w` on
-                            the row: the "Held on" value is a long date, and at
-                            560px the three fields wrapped to two lines with the
-                            third centred under the first two. */}
-                        {/* One row, no wrapping, vertical strokes between the
-                            fields (direct instruction).
-                            The strokes are an **explicit `border-l` per cell
-                            after the first**, not Tailwind's `divide-x`:
-                            measured, `divide-x` computed to `0px` here and the
-                            separators were reported invisible twice.
-                            `hairline` (#e0e0e0) and not `parchment` (#f5f5f7) —
-                            parchment on a white panel composites to almost
-                            nothing, the same cool-grey-on-light trap this
-                            project has hit before.
-                            `items-stretch` so each stroke runs the row's full
-                            height instead of stopping at the shortest column,
-                            and `whitespace-nowrap` on the values because the
-                            "Held on" date is long and wrapped to a second line
-                            at any constrained width. */}
-                        <dl className="flex flex-nowrap items-stretch justify-center">
-                          {[
-                            { label: 'Session', value: completeSession.label },
-                            ...(completeSession.date
-                              ? [
-                                  {
-                                    label: 'Held on',
-                                    value: `${formatDateLong(completeSession.date)}${
-                                      completeSession.time ? ` · ${formatTime(completeSession.time)}` : ''
-                                    }`,
-                                  },
-                                ]
-                              : []),
-                            {
-                              label: 'Your reflection',
-                              value: shared ? 'Saved and shared' : 'Saved, not shared',
-                            },
-                          ].map((f, i) => (
-                            <div
-                              key={f.label}
-                              className={cn(
-                                'flex flex-col gap-1 px-8',
-                                i > 0 && 'border-l border-hairline',
-                              )}
-                            >
-                              <dt className="text-caption-medium whitespace-nowrap text-ink-muted">
-                                {f.label}
-                              </dt>
-                              <dd className="text-body-md whitespace-nowrap text-ink">{f.value}</dd>
-                            </div>
-                          ))}
-                        </dl>
-
-                        <div className="mx-auto w-full max-w-[560px] rounded-sm bg-purple-50 p-6 text-left">
-                          <h3 className="text-caption-medium text-ink">What happens next</h3>
-                          <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-caption text-ink-muted">
-                            <li>
-                              This session moves to complete on the session plan, and the next
-                              session becomes the upcoming one.
-                            </li>
-                            <li>
-                              If the session did not go ahead, close this and reschedule it instead,
-                              either from the upcoming session card or Edit session plan.
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={cn(MODAL_FOOTER_SURFACE, 'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3')}>
-                      <button
-                        type="button"
-                        /* Back to review, not out of the dialog. The reflection
-                           is already saved, so this is "not yet" on completion
-                           only — `onClose` is the Escape/backdrop path. */
-                        onClick={() => setConfirming(false)}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        Go back
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCompleteSession}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
-                      >
-                        Mark session complete
-                      </button>
-                    </div>
-                  </>
-                ) : reviewing ? (
-                  <>
-                    <h2 id={titleId} className="shrink-0 font-display text-title text-ink">
-                      Review your reflection
-                    </h2>
-                    <p className="mt-2 shrink-0 text-caption text-ink-faint">
-                      Nothing has been saved yet. Read over your reflection below, then
-                      choose whether to share it.
-                    </p>
-
-                    {/* **No side rail here** (direct instruction). Review is a
-                        closing screen, not another question — the rail lists it
-                        as step 7 while the coach is still answering, which is
-                        what tells them it is coming; once they are on it, the
-                        table is the content and a rail beside it only narrows
-                        the answers they are trying to read.
-
-                        Answers are **editable in place** (direct instruction).
-                        An earlier pass put an "Edit" link per row that jumped
-                        back to that step; correcting a sentence should not mean
-                        leaving the screen you noticed it on. */}
-                    <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
-                      <ReflectionReviewTable
-                        answers={answers}
-                        idPrefix="review-answer"
-                        onChange={(i, value) =>
-                          setAnswers((prev) => prev.map((a, j) => (j === i ? value : a)))
-                        }
-                      />
-
-                      {/* Share choice, rebuilt (direct instruction). It is a
-                          card on the page's own treatment — `purple-50` header
-                          band, `parchment` stroke, card shadow — rather than two
-                          loose bordered rows, and each option leads with what it
-                          means for the coach rather than with a radio.
-                          Native radios kept: the app has a documented
-                          hand-rolled `role="radiogroup"` with no keyboard
-                          contract elsewhere, and this is not the place to add a
-                          second one. */}
-                      <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
-                        <div className="bg-purple-50 px-4 py-3.5">
-                          <h3 className="text-caption-medium text-ink">Who can read this reflection?</h3>
-                        </div>
-                        <fieldset className="border-t border-parchment p-4">
-                          <legend className="sr-only">Who can read this reflection?</legend>
-                          <div className="flex flex-col gap-3">
-                            {[
-                              {
-                                value: true,
-                                Icon: Users,
-                                title: 'Share with the research team',
-                                body: 'Your supervisor and the research team can read it.',
-                              },
-                              {
-                                value: false,
-                                Icon: Lock,
-                                title: 'Keep it private',
-                                body: 'Only you can read it. It stays on this client\u2019s record, labelled as not shared.',
-                              },
-                            ].map((o) => {
-                              const selected = shared === o.value
-                              return (
-                                <label
-                                  key={String(o.value)}
-                                  className={cn(
-                                    'flex cursor-pointer items-start gap-3 rounded-sm border p-4 transition-colors',
-                                    selected
-                                      ? 'border-primary bg-purple-50'
-                                      : 'border-parchment bg-card hover:bg-purple-50/50',
-                                  )}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="annotation-share-choice"
-                                    checked={selected}
-                                    onChange={() => setShared(o.value)}
-                                    className="mt-0.5 size-4 shrink-0 accent-primary"
-                                  />
-                                  <o.Icon
-                                    aria-hidden="true"
-                                    className={cn('mt-0.5 size-4 shrink-0', selected ? 'text-primary' : 'text-ink-faint')}
-                                  />
-                                  {/* Same pairing as the gate's own option
-                                      buttons (direct instruction): `body-md` in
-                                      `ink` over `caption` in `ink-muted`. These
-                                      were `caption-medium` over `fine`, a third
-                                      scale for the same kind of choice. */}
-                                  <span className="min-w-0">
-                                    <span className="block text-body-md text-ink">{o.title}</span>
-                                    <span className="mt-1 block text-caption text-ink-muted">{o.body}</span>
-                                  </span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        </fieldset>
-                      </div>
-                    </div>
-                    <div className={cn(MODAL_FOOTER_SURFACE, 'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3')}>
-                      <button
-                        type="button"
-                        onClick={() => setReviewing(false)}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        Back to Step {STEP_COUNT}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
-                      >
-                        {/* "Save reflection" would be a half-truth when a
-                            confirmation screen follows it. */}
-                        {completeSession ? 'Save and continue' : 'Save reflection'}
-                      </button>
-                    </div>
-                  </>
                 ) : (
+                  /* ── The flow ─────────────────────────────────────────── */
                   <>
-                    <h2 id={titleId} className="shrink-0 font-display text-title text-ink">
-                      Add reflection
-                    </h2>
-
-                    <div className={WIZARD_GRID}>
-                      <div className={WIZARD_RAIL_BOX}>
-                        <WizardProgressRail
-                          steps={railStepsFor(!!completeSession)}
-                          current={step}
-                          ariaLabel="Reflection progress"
-                          // Round 28: `liveTextVisible` dropped. It rendered
-                          // "Step N of 6: {label}" under the current rail item,
-                          // which repeated the label directly above it *and*
-                          // the content pane's own "Step N of 6" + heading —
-                          // three copies of the same fact on one screen. The
-                          // text is still announced, just `sr-only` now, which
-                          // is what the other three wizards already do.
-                          liveTextSuffix={`, reflection for ${dyadTitle}`}
-                        />
+                    {showBar && (
+                      <div className="flex shrink-0 flex-col gap-4">
+                        {/* `step` passes straight through and lines up with
+                            the circles by construction: the question screens
+                            are steps 0-5, review is 6 and transcript is 7, so
+                            each is its own `current` circle with the ones
+                            behind it ticked. */}
+                        <ReflectionStepBar step={step} count={BAR_STEP_COUNT} />
+                        <ReflectionStepStatus label={statusLabel} />
                       </div>
+                    )}
 
-                      <div>
-                        {/* The SIPTEA question rides in the `subtitle` slot,
-                            i.e. 4px under the heading, with the 32px gap
-                            falling *after* it and before the textarea.
+                    {/* `flex flex-col` on the scroller is what lets the
+                        question screen's textarea claim the leftover height:
+                        without it the child sizes to its content and `flex-1`
+                        inside it has nothing to divide. */}
+                    <div
+                      className={cn(
+                        'flex min-h-0 flex-1 flex-col overflow-y-auto pr-1',
+                        showBar && 'mt-10',
+                      )}
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={step}
+                          initial={slide.initial}
+                          animate={slide.animate}
+                          exit={slide.exit}
+                          transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.4, 0, 0.2, 1] }}
+                          className={cn(
+                            'flex flex-col gap-6',
+                            /* ⚠️ Review must NOT be `flex-1 min-h-0`. Inside an
+                               `overflow-y-auto` parent that pair lets the
+                               wrapper shrink to the scroller's own height, so a
+                               six-row table is clipped at the panel edge and
+                               `scrollHeight` never grows past `clientHeight` —
+                               nothing scrolls and the wheel falls through to
+                               the page behind. Reported live on the trainee's
+                               own review as "cant scroll to review my
+                               answers". `shrink-0` keeps its natural height.
 
-                            A first pass had this the other way round — the
-                            question rendered as step content, so the 32px sat
-                            between heading and question and the textarea was
-                            flush underneath. Corrected on direct instruction
-                            ("body text should be closer to title, and then
-                            there should be spacing followed by interactive
-                            component"): the separation belongs between *read
-                            this* and *do this*, not inside the reading. */}
-                        <WizardStepHeading
-                          step={step}
-                          /* The rail's total, not the SIPTEA count. Adding
-                             Review and Mark-complete to the rail made these two
-                             disagree — the pane read "Step 1 of 6" while the
-                             rail announced "Step 1 of 8" — and a screen-reader
-                             user got a different total from a sighted one. The
-                             flow genuinely has 8 stages now, so both say 8. */
-                          stepCount={railStepsFor(!!completeSession).length}
-                          heading={STEPS[step].label}
-                          subtitle={questionFor(step)}
-                        />
+                               The question screens still need `flex-1 min-h-0`:
+                               that is what lets the textarea claim the panel's
+                               remaining height. */
+                            screen.kind === 'review' || screen.kind === 'transcript'
+                              ? 'shrink-0'
+                              : 'min-h-0 flex-1',
+                            (screen.kind === 'thanks' ||
+                              screen.kind === 'welcome' ||
+                              screen.kind === 'complete') &&
+                              'min-h-full justify-center',
+                          )}
+                        >
+                          {screen.kind === 'welcome' && (
+                            <WelcomeScreen
+                              headingRef={headingRef}
+                              sessionLabel={session.label}
+                              transcriptOnly={transcriptOnly}
+                            />
+                          )}
 
-                        <div className={cn(STEP_CONTENT_GAP, 'flex flex-col gap-1')}>
-                          <label
-                            htmlFor={`annotation-response-${step}`}
-                            className="text-fine text-ink-faint"
-                          >
-                            Your response
-                          </label>
-                          <textarea
-                            id={`annotation-response-${step}`}
-                            key={step}
-                            value={answers[step]}
-                            onChange={(e) =>
-                              setAnswers((prev) =>
-                                prev.map((a, i) => (i === step ? e.target.value : a)),
-                              )
-                            }
-                            autoComplete="off"
-                            placeholder="Write as much or as little as feels useful."
-                            /* Taller and `parchment`-filled (direct
-                               instruction). Two notes:
-                               - `min-h-[320px]` + `h-full` rather than a bigger
-                                 `rows`: the pane is a flex column, so `h-full`
-                                 lets the box take the space the shortened copy
-                                 above it freed, and `min-h` is the floor for
-                                 when the question wraps to three lines. `rows`
-                                 alone would have fixed one height for both.
-                               - `parchment` (`#f5f5f7`, the off-white token)
-                                 reads as a writable field against the modal's
-                                 own white panel, where `bg-card` made the box
-                                 disappear into it and left only a hairline to
-                                 say "type here". It is the same fill the case
-                                 note textarea uses. */
-                            className="h-full min-h-[320px] w-full resize-y rounded-sm border border-hairline bg-parchment px-3 py-2 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                          />
-                        </div>
-                      </div>
+                          {screen.kind === 'question' && (
+                            <QuestionScreen
+                              headingRef={headingRef}
+                              initial={SIPTEA_INITIALS[screen.index]}
+                              index={screen.index}
+                              value={answers[screen.index] ?? ''}
+                              onChange={(v) =>
+                                setAnswers((prev) =>
+                                  prev.map((a, i) => (i === screen.index ? v : a)),
+                                )
+                              }
+                            />
+                          )}
+
+                          {screen.kind === 'review' && (
+                            <>
+                              <div className="flex flex-col gap-2">
+                                <h2
+                                  id={titleId}
+                                  ref={headingRef}
+                                  tabIndex={-1}
+                                  className="font-display text-title text-ink outline-none"
+                                >
+                                  Review your answers
+                                </h2>
+                                {/* Sharing is stated as a fact, not offered as
+                                    a choice — the radio pair that used to sit
+                                    under this table is gone. */}
+                                <p className="text-body text-ink-muted">
+                                  Check each answer before you share it with the research team.
+                                </p>
+                              </div>
+                              <ReflectionReviewTable
+                                rows={rowsFromAnswers(answers)}
+                                onEdit={(i) => go(i)}
+                              />
+                            </>
+                          )}
+
+                          {screen.kind === 'transcript' && (
+                            <>
+                              {/* `gap-10`, not `gap-4` (direct instruction,
+                                  2026-10-05). The text column is `flex-1`, so
+                                  the gap is literally all the space there ever
+                                  is between the sub copy's longest line and
+                                  the button — 16px of it read as the two
+                                  touching. */}
+                              <div className="flex flex-wrap items-start justify-between gap-10">
+                                {/* `basis-[320px]`, not bare `min-w-0`: a flex
+                                    item's base size is its content, so the sub
+                                    copy's own length was deciding the line and
+                                    wrapping the button underneath it — which
+                                    is why the control rendered bottom-LEFT
+                                    despite `justify-between`. A 320px basis
+                                    plus the button's ~220px fits the panel's
+                                    796px content box with room over, so they
+                                    share a line here and still wrap on a phone
+                                    rather than crushing the copy to a word a
+                                    line. */}
+                                <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-2">
+                                  <h2
+                                    id={titleId}
+                                    ref={headingRef}
+                                    tabIndex={-1}
+                                    className="font-display text-title text-ink outline-none"
+                                  >
+                                    Upload the session transcript
+                                  </h2>
+                                  <p className="text-body text-ink-muted">
+                                    {transcriptOnly
+                                      ? PLANNING_TRANSCRIPT_SUBCOPY
+                                      : `Attach the transcript for ${session.label}. It is shared with the research team alongside your reflection.`}
+                                  </p>
+                                </div>
+                                {/* The home page's Need help control, reused as
+                                    a real button (direct instruction: *"re-use
+                                    need help button (change this to where to
+                                    find scripts?)"*). Its styling is shared
+                                    through `HELP_BUTTON`; its behaviour is not
+                                    — the home-page instance is deliberately
+                                    inert, this one opens a dialog.
+                                    Stacking is correct by construction:
+                                    `ConfirmDialog` is `z-[70]`/`z-[80]`, this
+                                    panel `z-50` over a `z-40` dim. */}
+                                <button
+                                  type="button"
+                                  onClick={() => setHelpOpen(true)}
+                                  className={HELP_BUTTON}
+                                >
+                                  Where to find scripts?
+                                </button>
+                              </div>
+                              {/* `mt-6` on top of the column's own `gap-6`
+                                  (direct instruction, 2026-10-05: *"fix
+                                  spacing, move the box down"*). The box sat
+                                  24px under a two-line sub copy, which read as
+                                  jammed against it while the panel's fixed
+                                  85vh left a large empty band underneath. 48px
+                                  separates the header block from the control
+                                  it introduces. */}
+                              <div className="mt-6">
+                                <FileDropzone
+                                  id="coach-session-transcript"
+                                  acceptLabel={TRANSCRIPT_ACCEPT_LABEL}
+                                  noun="transcript"
+                                  file={transcript}
+                                  onChange={setTranscript}
+                                  onStageChange={setUploadStage}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {screen.kind === 'complete' && (
+                            <div className="flex flex-col items-center gap-14 px-2 text-center">
+                              <div className="flex w-full flex-col items-center gap-2">
+                                <h2
+                                  id={titleId}
+                                  ref={headingRef}
+                                  tabIndex={-1}
+                                  className="text-balance font-display text-display-md text-ink outline-none"
+                                >
+                                  Mark {session.label} as complete?
+                                </h2>
+                                <p className="max-w-[640px] text-body text-ink">
+                                  This is the last step. Nothing is saved until you confirm.
+                                </p>
+                              </div>
+
+                              {/* One row, no wrapping, vertical strokes between
+                                  the fields (direct instruction). The strokes
+                                  are an explicit `border-l` per cell after the
+                                  first, not `divide-x` — measured, `divide-x`
+                                  computed to 0px here and the separators were
+                                  reported invisible twice. `hairline`
+                                  (`#e0e0e0`), not `parchment` (`#f5f5f7`):
+                                  parchment on a white panel composites to
+                                  almost nothing. `items-stretch` so each stroke
+                                  runs the row's full height, and
+                                  `whitespace-nowrap` because the held date is
+                                  long and wrapped at any constrained width. */}
+                              <dl className="flex flex-nowrap items-stretch justify-center">
+                                {[
+                                  { label: 'Session', value: session.label },
+                                  ...(session.date
+                                    ? [
+                                        {
+                                          label: 'Held on',
+                                          value: `${formatDateLong(session.date)}${
+                                            session.time ? ` · ${formatTime(session.time)}` : ''
+                                          }`,
+                                        },
+                                      ]
+                                    : []),
+                                  {
+                                    label: 'Transcript',
+                                    value: transcript ? transcript.name : 'Not attached',
+                                  },
+                                ].map((f, i) => (
+                                  <div
+                                    key={f.label}
+                                    className={cn(
+                                      'flex min-w-0 flex-col gap-1 px-8',
+                                      i > 0 && 'border-l border-hairline',
+                                    )}
+                                  >
+                                    <dt className="text-caption-medium whitespace-nowrap text-ink-muted">
+                                      {f.label}
+                                    </dt>
+                                    <dd className="max-w-[240px] truncate text-body-md text-ink">
+                                      {f.value}
+                                    </dd>
+                                  </div>
+                                ))}
+                              </dl>
+
+                              <div className="mx-auto w-full max-w-[560px] rounded-sm bg-purple-50 p-6 text-left">
+                                <h3 className="text-caption-medium text-ink">What happens next?</h3>
+                                <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-caption text-ink-muted">
+                                  <li>
+                                    Your reflection and the transcript are shared with the research
+                                    team.
+                                  </li>
+                                  <li>
+                                    This session moves to complete on the session plan, and the next
+                                    session becomes the upcoming one.
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          )}
+
+                          {screen.kind === 'thanks' && (
+                            <div className="flex flex-col items-center gap-6 py-6 text-center">
+                              <ThanksMascot />
+                              <div className="flex flex-col gap-2">
+                                <h2
+                                  id={titleId}
+                                  ref={headingRef}
+                                  tabIndex={-1}
+                                  className="font-display text-display-md text-ink outline-none"
+                                >
+                                  {transcriptOnly
+                                    ? PLANNING_THANKS_HEADING
+                                    : 'Thank you for sharing your reflection'}
+                                </h2>
+                                <p className="text-body leading-[1.4] text-ink-muted">
+                                  {transcriptOnly
+                                    ? PLANNING_THANKS_BODY
+                                    : `${session.label} is marked complete. Your reflection and transcript have been shared with the research team.`}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
 
-                    <div className={cn(MODAL_FOOTER_SURFACE, 'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3')}>
-                      <button
-                        type="button"
-                        onClick={requestClose}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-ink-muted outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        Cancel
-                      </button>
-                      <div className="flex items-center gap-3">
-                        {step > 0 && (
+                    {/* Footer. Fixed at the panel's foot rather than scrolling
+                        with the content, so the controls are reachable at any
+                        height — the Round 33 lesson from the module player.
+                        `MODAL_FOOTER_SURFACE` is the app-wide treatment Round
+                        17.2 extracted, shared with all five wizard-shaped
+                        modals. */}
+                    <div
+                      className={cn(
+                        MODAL_FOOTER_SURFACE,
+                        'mt-6 flex shrink-0 flex-wrap items-center justify-between gap-3',
+                      )}
+                    >
+                      {screen.kind === 'thanks' ? (
+                        <>
+                          <span />
                           <button
                             type="button"
-                            onClick={() => setStep((s) => Math.max(0, s - 1))}
-                            className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                            onClick={() => close(true)}
+                            className={PILL_PRIMARY}
                           >
-                            Back
+                            Close
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (step === STEP_COUNT - 1) setReviewing(true)
-                            else setStep((s) => Math.min(STEP_COUNT - 1, s + 1))
-                          }}
-                          className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
-                        >
-                          {step === STEP_COUNT - 1 ? 'Review your reflection' : 'Next'}
-                        </button>
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={requestCancel}
+                            className={GHOST_BUTTON_MUTED}
+                          >
+                            Cancel
+                          </button>
+                          <div className="flex flex-wrap items-center gap-3">
+                            {/* Back sits beside Next (direct instruction,
+                                2026-10-05). The welcome has none: it is a
+                                one-time orientation with nothing behind it. */}
+                            {screen.kind !== 'welcome' && (
+                              <button
+                                type="button"
+                                /* `step - 1` would land on the review screen,
+                                   which the short flow never shows. */
+                                onClick={() => go(transcriptOnly ? WELCOME_STEP : step - 1)}
+                                className={PILL_OUTLINE}
+                              >
+                                Back
+                              </button>
+                            )}
+                            {screen.kind === 'welcome' ? (
+                              /* "Get started" rather than "Next" matches
+                                 `PlanSessionsModal`'s intro, the precedent this
+                                 screen is modelled on. */
+                              <button
+                                type="button"
+                                /* The short flow jumps the six questions and
+                                   the review rather than renumbering the
+                                   machine: every step constant keeps one
+                                   meaning, and the screens in between are
+                                   simply never visited. */
+                                onClick={() => go(transcriptOnly ? TRANSCRIPT_STEP : step + 1)}
+                                className={PILL_PRIMARY}
+                              >
+                                Get started
+                              </button>
+                            ) : screen.kind === 'complete' ? (
+                              <button
+                                type="button"
+                                onClick={handleComplete}
+                                className={PILL_PRIMARY}
+                              >
+                                Mark session complete
+                              </button>
+                            ) : screen.kind === 'transcript' ? (
+                              /* Mandatory (direct instruction: *"its mandatory
+                                 to upload a file to move next"*).
+
+                                 ⚠️ `aria-disabled`, never `disabled`:
+                                 `trapKeys` above queries
+                                 `button:not([disabled])`, so a button that
+                                 disables while focused drops focus to `<body>`
+                                 *and* silently changes the trap's last
+                                 element. This is also the treatment CLAUDE.md
+                                 already mandates for unwired controls — the
+                                 control stays focusable and explains itself
+                                 rather than going dead. */
+                              <button
+                                type="button"
+                                aria-disabled={uploadStage !== 'ready'}
+                                onClick={() => {
+                                  if (uploadStage !== 'ready') return
+                                  /* On the short flow this button is the
+                                     commit — there is no mark-complete screen
+                                     behind it — so it goes through
+                                     `handleComplete`, which owns the
+                                     once-only guard. */
+                                  if (transcriptOnly) handleComplete()
+                                  else go(step + 1)
+                                }}
+                                className={cn(
+                                  PILL_PRIMARY,
+                                  uploadStage !== 'ready' &&
+                                    'cursor-not-allowed bg-ink-faint hover:bg-ink-faint',
+                                )}
+                              >
+                                {transcriptOnly ? 'Share transcript' : 'Next'}
+                                {uploadStage !== 'ready' && (
+                                  <span className="sr-only">
+                                    {' '}
+                                    (attach the transcript first)
+                                  </span>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => go(step + 1)}
+                                className={PILL_PRIMARY}
+                              >
+                                Next
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -999,28 +1224,81 @@ export function AddAnnotationSummaryModal({
         )}
       </AnimatePresence>
 
+      {/* Cancel discards — the coach has no draft store, unlike the trainee,
+          whose equivalent dialog says "Save and close" because its answers
+          genuinely survive. Two wordings for the same button across two
+          portals, and the reason is this and only this. If a coach draft store
+          ever lands, this copy is the thing that has to change with it.
+
+          The body is per screen because the consequences genuinely differ.
+          The mark-complete one names **both** outcomes: a coach whose mental
+          model is "I have done the work" needs telling that the session will
+          still show as not held, or they close, see it incomplete, and
+          conclude the app lost it. */}
       <ConfirmDialog
-        open={discardOpen}
-        title="Discard this reflection?"
-        body="Your answers won't be saved. You'll need to start over from Step 1."
-        confirmLabel="Discard"
-        cancelLabel="Keep writing"
-        destructive
+        open={cancelOpen}
+        title={transcriptOnly ? 'Leave this upload for now?' : 'Leave this reflection for now?'}
+        /* Three bodies, each true of its own screen — the first rule here is
+           that none of them may promise something the store does not do.
+
+           The transcript is the one thing that genuinely does NOT survive:
+           `saveCoachReflectionDraft` holds answers, and a `File` handle is not
+           answers. Saying so is the difference between a coach who reattaches
+           it on the way back and one who assumes it is waiting. */
+        body={
+          transcriptOnly
+            ? /* The one thing in flight, and it genuinely does not survive —
+                 a `File` handle is not something the draft store holds. */
+              `${transcript?.name ?? 'The transcript'} will not be attached. You can come back to this from the session card.`
+            : !anyAnswered
+              ? 'You have not answered anything yet. You can come back to this reflection from the session card.'
+              : transcript
+                ? `Your answers are saved. You can come back and finish this from the session card — you will need to attach ${transcript.name} again.`
+                : 'Your answers are saved. You can come back and finish this from the session card.'
+        }
+        /* The trainee's own labels, exactly (direct instruction, 2026-10-05).
+           "Save and close" is honest here only because the draft store landed
+           in the same change; before it, the answers really were thrown away,
+           which is why this dialog used to read "Leave" on a red button. And
+           **not** `destructive`: nothing is destroyed on this path any more,
+           and a red confirm over "your answers are saved" would be the two
+           halves of one dialog disagreeing. */
+        confirmLabel={!transcriptOnly && anyAnswered ? 'Save and close' : 'Close'}
+        cancelLabel={transcriptOnly ? 'Resume upload' : 'Resume answering'}
         onConfirm={() => {
-          setDiscardOpen(false)
-          onClose()
+          setCancelOpen(false)
+          close(false)
         }}
-        onClose={() => setDiscardOpen(false)}
+        onClose={() => setCancelOpen(false)}
       />
 
-      {confirmation && (
-        <div
-          role="status"
-          className="fixed inset-x-0 bottom-6 z-[60] mx-auto w-fit max-w-[90vw] rounded-full bg-ink px-5 py-3 text-caption font-semibold text-white shadow-card"
-        >
-          {confirmation}
+      {/* "Where to find scripts?" — a placeholder screenshot (direct
+          instruction: *"this will be a screenshot, keep as placeholder for
+          now"*). `singleAction` because the dialog shows a thing and asks
+          nothing. */}
+      <ConfirmDialog
+        open={helpOpen}
+        title="Where to find your session transcript"
+        body="Zoom saves a transcript for every recorded session. Open the meeting in your Zoom account, then download the transcript file from the recording."
+        confirmLabel="Close"
+        cancelLabel="Close"
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[640px]"
+        onConfirm={() => setHelpOpen(false)}
+        onClose={() => setHelpOpen(false)}
+      >
+        {/* A real placeholder rather than a fabricated screenshot: this app
+            does not invent UI it has not built, and a drawn mock of Zoom's own
+            interface would be exactly that. Replace the box with the real
+            export when it exists. */}
+        <div className="mt-2 flex h-[220px] flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-ink-faint bg-purple-50 px-8 text-center">
+          <ImageIcon aria-hidden="true" className="size-8 text-ink-faint" />
+          <span className="text-caption-medium text-ink">Screenshot to come</span>
+          <span className="text-fine text-ink-muted">
+            A walkthrough of downloading a transcript from Zoom
+          </span>
         </div>
-      )}
+      </ConfirmDialog>
     </>
   )
 }

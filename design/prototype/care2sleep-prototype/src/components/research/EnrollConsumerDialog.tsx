@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { WizardProgressRail } from '@/components/shared/WizardProgressRail'
 import { STEP_CONTENT_GAP, WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
+import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
@@ -190,7 +191,7 @@ function ReviewSection({
             // Three sections all render a button labelled just "Edit" — this
             // is what tells them apart in a screen reader's button list.
             aria-label={`Edit ${title}`}
-            className="inline-flex h-8 items-center rounded-sm bg-pearl px-3 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className="inline-flex h-8 items-center rounded-sm bg-pearl px-3 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
           >
             Edit
           </button>
@@ -1288,7 +1289,7 @@ export function EnrollConsumerDialog({
                       <button
                         type="button"
                         onClick={requestClose}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-ink-muted outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className={GHOST_BUTTON_MUTED}
                       >
                         Cancel
                       </button>

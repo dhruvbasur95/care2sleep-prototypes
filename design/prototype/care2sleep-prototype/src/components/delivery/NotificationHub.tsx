@@ -856,7 +856,7 @@ export function NotificationHubView({
               <button
                 type="button"
                 onClick={handleDismissAll}
-                className="inline-flex h-9 shrink-0 items-center rounded-sm px-3 text-caption-medium text-primary underline-offset-4 outline-none transition-colors hover:bg-purple-50 hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className="inline-flex h-9 shrink-0 items-center rounded-sm px-3 text-caption-medium text-primary underline-offset-4 outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
               >
                 Dismiss all
               </button>

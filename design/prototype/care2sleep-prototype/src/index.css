@@ -100,7 +100,13 @@
     --color-purple-200: #e4d6ff;
     --color-purple-300: #c2a3ff;
     --color-purple-400: #a070ff;
-    --color-purple-500: #8447ff;
+    /* 2026-10-01, direct instruction: "purple 500 ... now it should always be
+       #3A00AD". Was #8447ff, a bright violet, which made this ramp's "500"
+       mean something different from Figma's published `Purple/500` paint style
+       (#3A00AD). One meaning now, in both places — so a surface painting
+       `purple-500` and one painting `primary` land on the same colour, and
+       `Purple/500` is the style to bind for either. */
+    --color-purple-500: #3a00ad;
     --color-purple-700: #4A278F;
     --color-purple-900: #200061;
     --color-purple-950: #08001a;
@@ -782,6 +788,20 @@
        the module cards on `purple-50`. Deeper and more offset than either — a
        chip is a small raised object, not a page-level surface. */
     --shadow-siptea-chip: 2px 10px 16px 0 rgba(102, 51, 153, 0.2);
+
+    /* The same chip shadow in the brand yellow, for a chip on a **white**
+       surface — the trainee reflection wizard's modal (direct instruction,
+       2026-10-02: "use the shadow with yellow hex not purple").
+
+       Geometry is `--shadow-siptea-chip`'s exactly; only the hue moves, so the
+       two read as one object lit the same way. The colour is `yellow-500`
+       `#ffb600` at the same 0.2 alpha — the deepest step on the brand ramp,
+       because a lighter one at 20% over white is not visible at all.
+
+       A second token rather than repointing the first: the original sits on the
+       module player's `purple-200` outcome panel, where a yellow cast reads as
+       a smudge for the same reason the warm `--shadow-card` was rejected there. */
+    --shadow-siptea-chip-yellow: 2px 10px 16px 0 rgba(255, 182, 0, 0.2);
 }
 
 :root {

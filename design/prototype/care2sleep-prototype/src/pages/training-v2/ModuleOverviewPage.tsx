@@ -117,7 +117,7 @@ function OutlineRowView({ row, number }: { row: OutlineRow; number: number }) {
             'inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]',
             row.cta.variant === 'primary'
               ? 'bg-primary text-white hover:bg-primary-hover'
-              : 'text-ink hover:bg-divider-soft',
+              : 'text-ink hover:underline',
           )}
         >
           {row.cta.label}
@@ -452,7 +452,7 @@ export function ModuleOverviewPage() {
               <button
                 type="button"
                 onClick={backToTimeline}
-                className="-m-2 inline-flex w-fit items-center gap-1.5 rounded-full p-2 text-[15px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+                className="-m-2 inline-flex w-fit items-center gap-1.5 rounded-full p-2 text-caption-medium text-white outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-white"
               >
                 <ArrowLeft aria-hidden="true" className="size-3.5" />
                 Back to Learning

@@ -1,6 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, BookOpen, CalendarDays, ChevronDown, ListChecks, Loader2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Video,
+} from 'lucide-react'
 import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
 import {
   SessionPlannerTable,
@@ -9,6 +18,7 @@ import {
 } from '@/components/research/SessionPlannerTable'
 import { WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
+import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import {
@@ -152,7 +162,7 @@ const PLAN_ANCHOR = TODAY
  * opacity recipes doing the same job before this was unified.
  */
 
-type StepKey = 'catchup-meeting' | 'module-unlock-day' | 'review'
+type StepKey = 'catchup-meeting' | 'module-unlock-day' | 'zoom-link' | 'review'
 
 const STEPS: { key: StepKey; navLabel: string; heading: string; subtitle: string }[] = [
   {
@@ -168,6 +178,61 @@ const STEPS: { key: StepKey; navLabel: string; heading: string; subtitle: string
     heading: 'Now, choose the module unlock day',
     subtitle:
       'Each week’s module unlocks in your client’s portal on this day, any day of the week. They need to finish it before the catch-up, so more days in between gives them more time.',
+  },
+  {
+    key: 'zoom-link',
+    navLabel: 'Zoom link',
+    /* 2026-10-01, direct instruction. There is no Zoom integration and there
+       is not going to be one, so the coach creates the recurring meeting in
+       Zoom themselves and pastes the link back here. This step is the hand-off
+       for that: instructions, one field, and a walkthrough gallery.
+       Deliberately placed AFTER both day questions — the meeting cannot be set
+       up until its day and time are known, which steps 1 and 2 decide. */
+    /* Shortened 2026-10-01 from "Now, create the Zoom meeting and paste the
+       link", which fought the subtitle beneath it in two ways: it opened
+       "Now," against the subtitle's "Next,", and it pre-announced the paste
+       that the subtitle's own last sentence delivers — so the step said the
+       same two things twice before the coach reached a control.
+
+       No sequence adverb, because the subtitle carries the sequencing now.
+       "Create" rather than "Set up", which the subtitle already uses — the
+       heading naming the same action in the same words is what made the pair
+       read as one sentence split in half. Step 4's "Review the plan, then
+       confirm" is adverb-free too, so this does not break the wizard's
+       pattern. */
+    /* Direct instruction, 2026-10-01: "say Create and add zoom meeting link".
+       Two fixes to it, both mechanical:
+         - **"zoom" -> "Zoom"**. It is a brand name, and every other mention in
+           this wizard, the banner that launches it and the session tracker
+           capitalises it. One lowercase instance reads as a typo.
+         - **"your"** added. "add zoom meeting link" has no article; the
+           possessive also matches the subtitle below, which sends the coach to
+           "your Zoom account".
+       Kept as two verbs over one object even though the link is strictly
+       *copied* rather than created — "create the meeting, add its link" is the
+       actual sequence, and the shorter form is what was asked for. */
+    heading: 'Create and add your Zoom meeting link',
+    /* 2026-10-01, direct instruction, the user's own shape: "next you need to
+       set up ... in Zoom. Open your Zoom account and follow the instructions
+       given below. Paste the link to continue."
+
+       It replaces a version that opened "Care2Sleep does not create Zoom
+       meetings for you" — a disclaimer about the product, written from the
+       system's point of view, which spent the most-read line in the step
+       explaining an absence instead of giving an instruction.
+
+       **One correction to the brief, and it is a real one.** It said "set up
+       your session plan in Zoom". You do not set up a session plan in Zoom —
+       Zoom holds the recurring *meeting*; the *session plan* is the thing this
+       wizard builds, and the very next step is called "Review plan". Naming
+       both objects "session plan" would leave a coach believing the plan lives
+       somewhere it does not, on the one screen that sends them out to another
+       application. "your sessions" instead: accurate, and still theirs.
+
+       Also "setup" -> "set up" (verb, not noun) and "Open zoom account" ->
+       "Open your Zoom account". */
+    subtitle:
+      'Next, you need to set up your sessions in Zoom. Open your Zoom account and follow the instructions below. Paste the meeting link here to continue.',
   },
   {
     key: 'review',
@@ -210,12 +275,24 @@ const INTRO_STEPS: {
     tone: 'green',
   },
   {
+    icon: Video,
+    name: 'Zoom link',
+    description: 'Create the recurring meeting in Zoom and paste its link.',
+    tone: 'purple',
+  },
+  {
     icon: ListChecks,
     name: 'Review plan',
     description: 'Check the weekly dates, then confirm the plan.',
     tone: 'purple',
   },
 ]
+
+/** The Zoom walkthrough's slide count. Screenshots are not supplied yet, so
+ *  every slide renders a placeholder — the gallery's shape, paging and copy
+ *  are real so the flow can be reviewed, and dropping six images in later
+ *  changes nothing structural. DUMMY until those arrive. */
+const ZOOM_GUIDE_STEPS = 6
 
 /** Fake delay for both loading interstitials — long enough to read as real
  *  work happening, short enough not to feel like a stall. */
@@ -271,19 +348,73 @@ const SUMMARY_CARD =
    week-wise timeline; the review step is a plain table now and that timeline is
    gone, so it had no readers left in this file or anywhere else. */
 
+/**
+ * The interstitial shown while a plan is being built or saved.
+ *
+ * 2026-10-01, direct instruction: a **progress bar with a percentage**, not a
+ * spinner. A spinner says "something is happening"; a bar says how much is
+ * left, which is the honest thing to show when the wait has a known length —
+ * `LOADING_MS` is a fixed constant, so the bar is not guessing.
+ *
+ * Both callers share this, so "Building your session plan…" and "Creating your
+ * session plan…" changed together. Forking one to keep a spinner would leave
+ * two different answers to the same question three clicks apart.
+ *
+ * The fill is driven by `requestAnimationFrame` against `performance.now()`
+ * rather than a CSS transition from 0 to 100: the pane mounts at the same
+ * moment the work starts, and a transition would need its own first frame at
+ * 0% before it could animate, which shows an empty bar on arrival.
+ */
 function LoadingPane({
   label,
   headingRef,
+  durationMs = LOADING_MS,
 }: {
   label: string
   headingRef: React.RefObject<HTMLParagraphElement | null>
+  durationMs?: number
 }) {
+  const [pct, setPct] = useState(0)
+
+  useEffect(() => {
+    let frame = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const next = Math.min(100, Math.round(((now - start) / durationMs) * 100))
+      setPct(next)
+      // Stop at 100 rather than looping forever — the pane unmounts a frame or
+      // two later, and a live rAF on an unmounting component is a leak.
+      if (next < 100) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [durationMs])
+
   return (
-    <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
-      <Loader2 aria-hidden="true" className="size-8 animate-spin text-primary" />
+    <div className="flex min-h-[280px] w-full flex-col items-center justify-center gap-4 text-center">
       <p ref={headingRef} tabIndex={-1} className="text-caption font-semibold text-ink-faint outline-none">
         {label}
       </p>
+      <div className="flex w-full max-w-[360px] flex-col gap-2">
+        {/* `aria-label` carries the same sentence as the visible heading, so a
+            screen reader gets "what is happening" and "how far" from one
+            control rather than two unrelated announcements. */}
+        <div
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={label}
+          className="h-2 w-full overflow-hidden rounded-full bg-purple-50"
+        >
+          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+        </div>
+        {/* `aria-hidden`: the progressbar above already announces the value,
+            and without this it is read twice. */}
+        <p aria-hidden="true" className="text-caption text-ink-muted">
+          {pct}%
+        </p>
+      </div>
     </div>
   )
 }
@@ -471,6 +602,13 @@ export function PlanSessionsModal({
   const [timeTouched, setTimeTouched] = useState(false)
   const [moduleWeekday, setModuleWeekday] = useState<number | null>(null)
   const [rows, setRows] = useState<SessionPlanRow[]>([])
+  /* The recurring meeting link the coach pastes back from Zoom, plus the
+     gallery's own slide index. Held here, not in the store: there is no Zoom
+     integration to call, and the link only reaches the data layer on confirm,
+     where it is written onto every row (see `handleSubmit`). */
+  const [zoomLink, setZoomLink] = useState('')
+  const [zoomLinkTouched, setZoomLinkTouched] = useState(false)
+  const [zoomGuideStep, setZoomGuideStep] = useState(0)
   /* Bumped to force `SessionPlannerTable` to remount, which is how its own
      per-week "Modify" drawer state gets cleared now that the state lives there
      rather than here. Two places need it: reopening the wizard, and
@@ -521,6 +659,9 @@ export function PlanSessionsModal({
       setFirstSessionIso(undefined)
       setFirstSessionTouched(false)
       setTimeTouched(false)
+      setZoomLink('')
+      setZoomLinkTouched(false)
+      setZoomGuideStep(0)
       setStep(0)
     } else if (triggerRef.current) {
       triggerRef.current.focus({ preventScroll: true })
@@ -700,6 +841,50 @@ export function PlanSessionsModal({
     }
   }, [catchupWeekday, moduleWeekday])
 
+  /* **Any non-empty value is accepted** (direct instruction, 2026-10-01: "do
+     not force me to add a specific link, accept any for now"). An earlier pass
+     required a `zoom.us` URL; that was too strict for a prototype whose whole
+     point is walking the flow, and it blocked reviewers typing anything into
+     the field.
+
+     The field is still REQUIRED — that part was confirmed separately, and a
+     plan with no link leaves every session with nothing to join. So the only
+     rule left is "not blank". If real validation is ever wanted, this is the
+     one line to tighten, and the format to allow is broad: personal-room
+     links, company subdomains (`monash.zoom.us`) and `?pwd=` queries are all
+     legitimate. */
+  const zoomLinkValue = zoomLink.trim()
+  const zoomLinkInvalid = zoomLinkValue.length === 0
+
+  /** The meeting ID, read out of the link rather than typed (direct
+   *  instruction). `https://zoom.us/j/8124456723?pwd=x` -> `812 4456 723`.
+   *  Derived, never stored separately, so the ID and the link on a session row
+   *  cannot disagree — the exact two-fields-one-fact bug this project keeps
+   *  hitting. Zoom groups 10- and 11-digit IDs differently; both are handled,
+   *  and anything else is returned ungrouped rather than mis-spaced. */
+  const meetingIdFromLink = (link: string): string | undefined => {
+    const digits = link.match(/\/j\/(\d{9,12})/)?.[1]
+    if (!digits) return undefined
+    if (digits.length === 11) return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`
+    if (digits.length === 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+    return digits
+  }
+  /* Still attempted on whatever was pasted, and simply absent when the value
+     carries no `/j/<digits>` to read — the hint below falls back rather than
+     showing a blank or a wrong ID. */
+  const derivedMeetingId = zoomLinkInvalid ? undefined : meetingIdFromLink(zoomLinkValue)
+
+  /** The one line under the field, or nothing at all — and it is now ONLY the
+   *  required-field error (direct instruction: do not show the Meeting ID
+   *  line either).
+   *
+   *  So the field is silent until it is left empty. The derived ID is still
+   *  computed above and still written onto every row in `handleSubmit`; it is
+   *  simply not read back to the coach, who pasted the link and does not need
+   *  telling what is in it. */
+  const zoomNote =
+    zoomLinkTouched && zoomLinkInvalid ? 'Paste your Zoom meeting link to continue.' : undefined
+
   const runGenerate = () => {
     if (moduleWeekday === null || catchupWeekday === null || !firstSessionDate) return
     setGenerating(true)
@@ -731,6 +916,14 @@ export function PlanSessionsModal({
     }
     if (step === 1) {
       if (moduleWeekday === null) return
+      setStep(2)
+      return
+    }
+    if (step === 2) {
+      if (zoomLinkInvalid) {
+        setZoomLinkTouched(true)
+        return
+      }
       // Regenerating the review table from these answers overwrites
       // whatever is currently in it — harmless here since nothing real
       // exists yet (this component only ever runs before a plan exists;
@@ -812,7 +1005,19 @@ export function PlanSessionsModal({
     if (rowsIncomplete || saving) return
     setSaving(true)
     saveTimeoutRef.current = window.setTimeout(() => {
-      bulkSetSessionPlan(dyad.id, rows)
+      /* One recurring meeting serves the whole arc (direct instruction: "a
+         global master link ... one link"), so every row carries the same link
+         and the same derived ID. This is also what stops the store generating
+         its own: `bulkSetSessionPlan` only calls `generateMeetingCreds()` for a
+         dated row that has NO `zoomLink`, so writing it here takes precedence
+         without the store needing to know about this step. Three surfaces read
+         `row.zoomLink` for their Join control — the coach's tracker, the
+         researcher's mirror and the consumer portal — and all three now show
+         the link the coach actually created. */
+      bulkSetSessionPlan(
+        dyad.id,
+        rows.map((r) => ({ ...r, zoomLink: zoomLinkValue, meetingId: derivedMeetingId })),
+      )
       // Session 0 (Planning) is the meeting that produces this very plan —
       // by the time a coach finishes this wizard, that meeting has already
       // happened. `SessionTracker`'s timeline no longer shows Session 0 as
@@ -898,8 +1103,21 @@ export function PlanSessionsModal({
                      56px between the header group and the step flow, 8px
                      inside the header; step columns 180px wide, 72px apart,
                      16px under the 56px icon circle, then 16px to the step
-                     name and 8px to its description. */
-                  <div className="flex flex-1 flex-col items-center overflow-y-auto px-16 pt-[72px] pb-10 text-center">
+                     name and 8px to its description.
+
+                     **Three of those numbers no longer hold, because the frame
+                     drew three steps and there are now four** (2026-10-01, the
+                     Zoom step). The arithmetic, not a guess: the panel is
+                     `max-w-[888px]` with `md:p-8`, so this container has 824px,
+                     and its own padding leaves the row that much less. At the
+                     frame's 180px columns and 72px gaps four steps need
+                     4x180 + 3x72 = **936px** — they would have overflowed and
+                     been clipped. Now 160px columns, 32px apart, and this
+                     container at `px-10` rather than `px-16`:
+                     4x160 + 3x32 = **736px** inside 744px. The connector's
+                     inset moves with the column width, since it has to land on
+                     the first and last circle centres — half of 160 is 80. */
+                  <div className="flex flex-1 flex-col items-center overflow-y-auto px-10 pt-[72px] pb-10 text-center">
                     <div className="flex w-full flex-col items-center gap-14">
                       <div className="flex w-full flex-col items-center gap-2">
                         <h2
@@ -910,9 +1128,9 @@ export function PlanSessionsModal({
                           Welcome! Let's plan your client's sessions
                         </h2>
                         <p className="max-w-[640px] text-body text-ink-muted">
-                          Set this up together with your client. You'll choose a weekly
-                          catch-up and when each module opens, then review the plan. Zoom
-                          sessions are automatically created for you.
+                          Set this up together with your client. You will choose a weekly
+                          catch-up and when each module opens, create the Zoom meeting, then
+                          review the plan.
                         </p>
                       </div>
                       <div className="relative isolate">
@@ -925,9 +1143,9 @@ export function PlanSessionsModal({
                             reported as too thin to read at this size. */}
                         <span
                           aria-hidden="true"
-                          className="absolute top-[27px] right-[90px] left-[90px] z-0 h-0.5 bg-hairline"
+                          className="absolute top-[27px] right-[80px] left-[80px] z-0 h-0.5 bg-hairline"
                         />
-                      <ol className="flex w-full items-start justify-center gap-[72px]">
+                      <ol className="flex w-full items-start justify-center gap-8">
                         {INTRO_STEPS.map((s, i) => {
                           const Icon = s.icon
                           // Opaque fills, not `/25`-`/30` washes: the connector runs
@@ -942,7 +1160,7 @@ export function PlanSessionsModal({
                                 ? 'bg-yellow-100 text-amber-700'
                                 : 'bg-purple-50 text-primary'
                           return (
-                            <li key={s.name} className="flex w-[180px] flex-col items-center gap-4">
+                            <li key={s.name} className="flex w-[160px] flex-col items-center gap-4">
                               <span
                                 aria-hidden="true"
                                 className={cn(
@@ -1210,6 +1428,148 @@ export function PlanSessionsModal({
                           </div>
                         )}
 
+                        {step === 2 && (
+                          <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
+                            {/* THE focus of this step (direct instruction). A
+                                `purple-50` container holding the one thing the
+                                coach has to bring back from Zoom, placed above
+                                the walkthrough rather than after it: a coach
+                                who already knows the steps should not have to
+                                scroll past six slides to paste a link. */}
+                            {/* A GRID, not a flex row. The label has to be
+                                vertically centred on the FIELD (direct
+                                instruction), and with flex it was centred on
+                                the field *plus* the note underneath it — so the
+                                moment the error line appeared the label slid
+                                down and sat level with the gap between them.
+                                `grid-cols-[auto_1fr]` + `items-center` centres
+                                each cell in its own row, and the note goes in
+                                `col-start-2` of the next row, which keeps it
+                                under the field rather than under the label.
+                                `min-w-0` on the input because a grid item's
+                                automatic minimum is its content — without it
+                                the placeholder sizes the track. */}
+                            <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 rounded-sm bg-purple-50 p-6">
+                              <label htmlFor="plan-zoom-link" className="text-body-md text-ink">
+                                Zoom link:
+                              </label>
+                              <input
+                                id="plan-zoom-link"
+                                type="url"
+                                inputMode="url"
+                                value={zoomLink}
+                                onChange={(e) => setZoomLink(e.target.value)}
+                                onBlur={() => setZoomLinkTouched(true)}
+                                placeholder="https://zoom.us/j/..."
+                                aria-invalid={zoomLinkTouched && zoomLinkInvalid}
+                                aria-describedby={zoomNote ? 'plan-zoom-link-hint' : undefined}
+                                className={cn(
+                                  'h-11 w-full min-w-0 rounded-sm border bg-white px-3 text-body text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:ring-2 focus-visible:ring-ring',
+                                  zoomLinkTouched && zoomLinkInvalid
+                                    ? 'border-destructive'
+                                    : 'border-parchment',
+                                )}
+                              />
+                              {/* Both standing lines are gone by direct
+                                  instruction — the "Paste the invite link…"
+                                  hint (it repeated the subtitle two lines
+                                  above) and the "Meeting ID …" readback. All
+                                  that is left is the required-field error, so
+                                  the field is silent unless something is
+                                  wrong. `aria-live` so the error is announced,
+                                  and `aria-describedby` is dropped entirely
+                                  when there is no line to point at. */}
+                              {zoomNote && (
+                                <p
+                                  id="plan-zoom-link-hint"
+                                  aria-live="polite"
+                                  className="col-start-2 text-caption text-destructive"
+                                >
+                                  {zoomNote}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* The walkthrough. One slide at a time (direct
+                                instruction) rather than six stacked images, so
+                                the coach is never scrolling to find where they
+                                are. Screenshots are not supplied yet — every
+                                slide is a placeholder, and the gallery's shape,
+                                paging and controls are real so the flow reads
+                                correctly now and the images drop in later with
+                                no layout change. DUMMY content. */}
+                            <div className="flex flex-col gap-3">
+                              {/* Controls sit ABOVE the image, not under it.
+                                  Measured with them below: a 16:9 placeholder
+                                  is 461px tall at this panel's width and left
+                                  266px — including both buttons — outside the
+                                  scroll area, so the controls that drive the
+                                  slideshow could not be seen or reached without
+                                  scrolling past the picture they drive. Above
+                                  the image they are always in view whatever
+                                  height a real screenshot turns out to be,
+                                  which also means the image no longer has to be
+                                  shrunk to protect them.
+
+                                  Worth recording how that was nearly missed:
+                                  `getBoundingClientRect()` put the button
+                                  inside the viewport and the check passed, but
+                                  the button was clipped by an ancestor
+                                  scroller. A rect in the viewport is NOT proof
+                                  an element is visible — compare the
+                                  scroller's `scrollHeight` against its
+                                  `clientHeight` as well. */}
+                              <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
+                                <p className={STEP_QUESTION}>How to set this up in Zoom</p>
+                                <div className="flex items-center gap-2">
+                                  {/* Both stay mounted and go `disabled` at the
+                                      ends rather than unmounting: a control
+                                      that vanishes under the cursor drops focus
+                                      to `<body>`, this project's most-repeated
+                                      defect, and the row would reflow on the
+                                      first and last slide. */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setZoomGuideStep((i) => Math.max(0, i - 1))}
+                                    disabled={zoomGuideStep === 0}
+                                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-primary text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <ChevronLeft aria-hidden="true" className="size-4" />
+                                    <span className="sr-only">Previous step</span>
+                                  </button>
+                                  <p
+                                    aria-live="polite"
+                                    className="min-w-[88px] text-center text-caption text-ink-muted"
+                                  >
+                                    Step {zoomGuideStep + 1} of {ZOOM_GUIDE_STEPS}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setZoomGuideStep((i) => Math.min(ZOOM_GUIDE_STEPS - 1, i + 1))
+                                    }
+                                    disabled={zoomGuideStep === ZOOM_GUIDE_STEPS - 1}
+                                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-primary text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <ChevronRight aria-hidden="true" className="size-4" />
+                                    <span className="sr-only">Next step</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* 16:9, the shape a Zoom screenshot arrives in.
+                                  The real images drop in as `object-contain`,
+                                  so a wider or narrower capture letterboxes
+                                  rather than changing this box. */}
+                              <div className="flex aspect-video w-full items-center justify-center rounded-sm border border-parchment bg-pearl">
+                                <p className="text-caption text-ink-faint">
+                                  Screenshot {zoomGuideStep + 1} goes here
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {step === REVIEW_STEP && (
                           /* Tighter than the question steps' `PLAN_STEP_GAP`
                              (direct instruction). There, the next thing is a
@@ -1268,7 +1628,7 @@ export function PlanSessionsModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-ink-muted outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    className={GHOST_BUTTON_MUTED}
                   >
                     Cancel
                   </button>
@@ -1299,11 +1659,13 @@ export function PlanSessionsModal({
                             disabled={
                               step === 0
                                 ? catchupWeekday === null || timeInvalid
-                                : moduleWeekday === null
+                                : step === 1
+                                  ? moduleWeekday === null
+                                  : zoomLinkInvalid
                             }
                             className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {step === 1 ? 'Build my plan' : 'Next'}
+                            {step === 2 ? 'Build my plan' : 'Next'}
                           </button>
                         ) : (
                           <button

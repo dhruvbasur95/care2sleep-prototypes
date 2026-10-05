@@ -155,7 +155,18 @@ function layoutAudit(rootSelector) {
  *    help (the button is itself the flex container), and measuring the deepest
  *    text-bearing node instead is a rewrite of this check, not a calibration.
  *    Worth knowing because 42 findings will bury a real one: if you are auditing
- *    a screen with a date picker, close it first or discount these by shape. */
+ *    a screen with a date picker, close it first or discount these by shape.
+ *
+ *    FIFTH CALIBRATION (2026-10-02) — the trainee reflection wizard's review
+ *    table reports **all six** row headers at once. Same shape again: the `<th>`
+ *    holds a flex row of a 24px SIPTEA colour disc and the component's name, so
+ *    the check's `span` lookup lands on the flex container and the Range spans
+ *    the disc box and the text line at different tops. Measured on every row:
+ *    the name returns a **single** client rect 17px tall in a 348px column, so
+ *    nothing wraps. Left as a known false positive rather than widened away —
+ *    the column was briefly taken from 34% to 44% on the strength of this
+ *    finding before it was measured, which is exactly the mistake this file's
+ *    own header warns about. Discount a disc-plus-label cell by shape. */
   root.querySelectorAll('td, th').forEach((cell) => {
     if (!visible(cell)) return
     const target = cell.querySelector('a, span, p') ?? cell

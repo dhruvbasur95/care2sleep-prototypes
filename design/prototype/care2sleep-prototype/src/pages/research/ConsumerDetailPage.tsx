@@ -375,7 +375,7 @@ export function ContactDetailsCard({
                           type="button"
                           onClick={() => setExpanded((v) => !v)}
                           aria-expanded={expanded}
-                          className="-ml-2 inline-flex min-h-9 items-center gap-1 rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+                          className="-ml-2 inline-flex min-h-9 items-center gap-1 rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           {expanded ? 'Show less' : 'Show more'}
                           {expanded ? (
@@ -3049,7 +3049,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
                 {shown.map((e, i) => (
                   <tr
                     key={`${e.date}-${e.event}-${e.detail}`}
-                    className={cn(i > 0 && 'border-t border-parchment')}
+                    className={cn(i > 0 && 'border-t border-hairline')}
                   >
                     {visibleLogColumns.map((c, ci) => (
                       <td
@@ -3260,7 +3260,7 @@ function mins(min: number): string {
 /** The six column headers, in the order the brief lists them. Shared by all
  *  three Fitbit tables and the CSV so a column can never be renamed on one
  *  surface only. */
-const SLEEP_METRIC_COLUMNS = [
+export const SLEEP_METRIC_COLUMNS = [
   'Total sleep time',
   'Time in bed',
   'Sleep efficiency',
@@ -3299,7 +3299,7 @@ export function FitbitLogTable({
         {log.map((entry, i) => {
           const prev = log[i - 1]
           return (
-            <tr key={entry.date} className={cn(i > 0 && 'border-t border-parchment')}>
+            <tr key={entry.date} className={cn(i > 0 && 'border-t border-hairline')}>
               <td className="px-6 py-3 text-caption whitespace-nowrap text-ink">{formatDate(entry.date)}</td>
               {(() => {
                 const m = sleepMetrics(entry)
@@ -3423,12 +3423,18 @@ export function FitbitAveragesTable({
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={r.key} className={cn(i > 0 && 'border-t border-parchment')}>
+          <tr key={r.key} className={cn(i > 0 && 'border-t border-hairline')}>
             <th scope="row" className="px-6 py-3 text-left font-normal">
               {/* A row header, not a plain cell — the member is what every
                   value in the row is *about*, which is what `scope="row"`
                   tells a screen reader reading across it. */}
-              <span className="text-caption whitespace-nowrap text-ink">{r.name}</span>{' '}
+              {/* `caption-medium` (14/500) on the name — direct instruction,
+                  2026-10-05. It is a `<th scope="row">` and the only label in
+                  a row of numbers, so 400 had it reading as one more value.
+                  Changed in the shared component rather than forked: the
+                  researcher's own averages table wants the same thing, and a
+                  fork is how the two drift. */}
+              <span className="text-caption-medium whitespace-nowrap text-ink">{r.name}</span>{' '}
               <span className="text-fine text-ink-muted">({r.key})</span>
             </th>
             <td className="px-4 py-3 text-caption tabular-nums text-ink-muted">
@@ -3530,11 +3536,27 @@ function filterDatesToRange(dates: string[], range: FitbitDateRange): string[] {
  *  cramming two values into one cell, which breaks down for a status chip
  *  and a formatted duration, and over doubling the column count, which
  *  breaks down at 13 columns for a 2-person × 6-metric table. */
-function ComparativeFitbitTable({ dyad, dateRange }: { dyad: ConsumerDyad; dateRange: FitbitDateRange }) {
-  const dates = filterDatesToRange(
-    [...new Set([...dyad.patientLog, ...dyad.carerLog].map((e) => e.date))].sort(),
-    dateRange,
-  )
+export function ComparativeFitbitTable({
+  dyad,
+  dateRange,
+  dates: explicitDates,
+}: {
+  dyad: ConsumerDyad
+  /** This page's own 7/14/all selector. Ignored when `dates` is given. */
+  dateRange?: FitbitDateRange
+  /**
+   * An explicit window, for a caller that picks dates rather than a preset —
+   * the coach's pre-session checklist does (Round 55). Additive: every
+   * existing caller passes `dateRange` and is unaffected.
+   */
+  dates?: string[]
+}) {
+  const dates =
+    explicitDates ??
+    filterDatesToRange(
+      [...new Set([...dyad.patientLog, ...dyad.carerLog].map((e) => e.date))].sort(),
+      dateRange ?? '7',
+    )
 
   if (dates.length === 0) {
     return <EmptyState icon={Activity} copy="No Fitbit data synced yet" />
@@ -3566,7 +3588,7 @@ function ComparativeFitbitTable({ dyad, dateRange }: { dyad: ConsumerDyad; dateR
             <tr
               key={`${date}-${row.label}`}
               className={cn(
-                groupIndex > 0 && i === 0 && 'border-t border-parchment',
+                groupIndex > 0 && i === 0 && 'border-t border-hairline',
                 groupIndex % 2 === 1 && 'bg-pearl',
               )}
             >
@@ -4222,7 +4244,7 @@ export function SleepDiaryFeed({
             </thead>
             <tbody>
               {questions.map((q, qi) => (
-                <tr key={q.label} className={cn(qi > 0 && 'border-t border-parchment')}>
+                <tr key={q.label} className={cn(qi > 0 && 'border-t border-hairline')}>
                   <td className="px-6 py-[18px]">
                     <div className="flex items-start gap-2">
                       {/* The question's own canonical number, not its position

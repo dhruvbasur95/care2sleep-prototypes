@@ -25,6 +25,10 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { SearchInput } from '@/components/SearchInput'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
+import {
+  ReflectionReviewTable,
+  rowsFromStored,
+} from '@/components/shared/ReflectionReviewTable'
 /* The consumer's own five-point scale, imported rather than retyped: the
    researcher must never read a wording the consumer was never shown. Its
    source of truth is the post-session feedback flow itself
@@ -65,6 +69,7 @@ import { type Coach, type NotificationPreferences } from '@/data/research'
 import {
   CONSUMER_MODULES,
   SPACES_CATCHUP_COUNT,
+  PLANNING_SESSION,
   SPACES_SESSIONS,
   catchupSessionsCompleted,
   displaySessionNumber,
@@ -72,7 +77,6 @@ import {
   isPlanSet,
   moduleUnlockState,
   nextUpcomingSessionEntry,
-  type AnnotationShareState,
   type AnnotationSummaryEntry,
   type ConsumerDyad,
   type HealthLogEntry,
@@ -82,6 +86,7 @@ import {
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
+import { SIPTEA_INITIALS, SIPTEA_NAMES } from '@/data/siptea'
 
 /* Round 27: "Shared Annotations" removed as a tab on direct instruction. A
    coach's shared reflections are per-consumer, so a coach-wide tab had to
@@ -640,7 +645,7 @@ function OverviewTab({
                     onClick={() => onViewDyad(d.id)}
                     className={cn(
                       'cursor-pointer transition-colors hover:bg-pearl',
-                      i > 0 && 'border-t border-parchment',
+                      i > 0 && 'border-t border-hairline',
                     )}
                   >
                     <td className="px-6 py-3">
@@ -1604,12 +1609,30 @@ function ModuleStatusCell({
  * enrolment precedent). Never hand-drawn and never a lucide substitute: it is
  * a 62-vector composition, not an icon.
  */
-/* Exported (Round 39) so the coach's own client page can render the create-plan
-   path directly. `SessionTracker` left that page when the Coaching workspace tab
-   was rebuilt, which took the only way to create a plan anywhere in the coach
-   portal with it — a client with no plan became a dead end. The banner is the
-   whole of that path, so it is what the page renders rather than the full
-   tracker coming back. */
+/** The banner's two steps. Copy only — the per-step body is chosen in the
+ *  render by `key`, because step 1's detail is a data panel and step 2's is a
+ *  pair of controls, which do not share a shape.
+ *
+ *  Step 2's wording is checked, not asserted: "weekly" is real
+ *  (`WEEKLY_CADENCE_DAYS` is the constant `PlanSessionsModal` spaces every
+ *  catch-up by), and no session or module *count* appears anywhere, because
+ *  `SPACES_CATCHUP_COUNT` is derived and the consumer module list carries an
+ *  always-unlocked pre-module ahead of the named ones — a hardcoded number is
+ *  the two-surfaces-disagree bug this project keeps hitting. */
+const STEPS = [
+  {
+    key: 'contact' as const,
+    title: 'Step 1: Get in touch with your client',
+    instruction: 'Call or email them to arrange a time for your onboarding session.',
+  },
+  {
+    key: 'plan' as const,
+    title: 'Step 2: Create the session plan together',
+    instruction:
+      'During the onboarding session, you will decide when the modules become available to your client and when you will both meet for your weekly sessions.',
+  },
+]
+
 export function SessionPlanEmptyBanner({
   dyad,
   ctaRef,
@@ -1620,16 +1643,44 @@ export function SessionPlanEmptyBanner({
   onCreate: () => void
 }) {
   const [whyOpen, setWhyOpen] = useState(false)
+  /* `items-center` on the row, with `max-lg:items-start` for the stacked
+     state: the calendar sits at the vertical centre of the banner on desktop.
+     It was moved to `items-start` earlier the same day and moved back by
+     direct instruction — both states have been seen live, so this is a
+     settled preference rather than an untested default.
+
+     A plain block comment, not a JSX one: this sits beside the root element of
+     a `return`, where a JSX comment is a second child with no parent. `tsc`
+     catches it, but as a cascade of syntax errors pointing at lines nowhere
+     near the cause. And never write a JSX comment's own delimiters inside a
+     block comment — the closing pair ends the comment early, which is a second,
+     even noisier cascade. */
   return (
-    <Card className="flex-row items-center gap-12 overflow-hidden border-parchment bg-primary py-12 pr-12 pl-6 max-lg:flex-col max-lg:items-start max-lg:gap-8 max-lg:p-8">
+    /* Round 40's banner, rebuilt 2026-10-01 from the "option 3" review card
+       after a three-way comparison (direct instruction: swap this version in,
+       connect all buttons properly). What changed and why:
+
+         - The prose/data/prose sandwich became a **two-step vertical
+           timeline**. The old card stated the sequence in a paragraph, put the
+           contact details in a panel between two paragraphs, and parked both
+           CTAs in a footer ~200px below the sentence explaining when to press
+           them. Each step now carries its own detail: contact rows on step 1,
+           the buttons on step 2.
+         - Contact details lost their `Name:` row — the sub copy names the
+           client one line above, and a third mention read as a mail merge.
+         - The heading stopped naming what was missing ("No session plan
+           created yet") and names what the coach is here to do.
+
+       `items-start`, not `items-center`: the column is taller than it was, and
+       a 185px calendar at its vertical midpoint sat ~200px clear of the title
+       it belongs with. */
+    <Card className="flex-row items-start gap-12 overflow-hidden border-parchment bg-primary py-12 pr-12 pl-6 max-lg:flex-col max-lg:gap-8 max-lg:p-8">
       {/* The wrapper is load-bearing, not tidiness. `Card` carries
           `has-[>img:first-child]:pt-0` and `*:[img:first-child]:rounded-t-xl`
-          — media-card rules for artwork meant to bleed to the top edge. A
-          bare `<img>` here is that first child and tripped them: measured,
-          the banner's top padding came out **0 where the frame says 48**,
-          which reads as "the art sits a bit high" rather than as a bug. The
-          wrapper takes the first-child slot so neither rule fires.
-          Decorative: the sentence beside it already carries the meaning. */}
+          — media-card rules for artwork meant to bleed to the top edge. A bare
+          `<img>` here is that first child and tripped them: measured, the
+          banner's top padding came out **0 where the frame says 48**, which
+          reads as "the art sits a bit high" rather than as a bug. */}
       <div className="shrink-0 max-lg:w-full">
         <img
           src="/illustrations/session-plan-calendar.svg"
@@ -1638,62 +1689,129 @@ export function SessionPlanEmptyBanner({
           className="h-[184.992px] w-[319.89px] max-lg:h-auto max-lg:w-full max-lg:max-w-[320px]"
         />
       </div>
+
       {/* `min-w-0` — a flex child defaults to `min-width: auto`, so without it
-          the copy sizes the row instead of wrapping inside it. This project
-          has shipped a real horizontal page scroll that way three times. */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-6 px-4 max-lg:px-0">
+          the copy sizes the row instead of wrapping inside it. This project has
+          shipped a real horizontal page scroll that way three times. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-6 px-4 max-lg:px-0">
         <div className="flex flex-col gap-2 text-white">
-          {/* No full stop — direct instruction. */}
-          <h3 className="font-display text-display-md text-balance">No session plan created yet</h3>
-          {/* Copy pass, Round 37. Three changes off the frame's own wording,
-              each against a convention this portal already holds:
-                - "Select the button below to create one." is cut. The button
-                  is the next thing on the page and says what it does, so the
-                  sentence only sends a coach looking for a control they can
-                  already see (the Round 36 empty-state rule).
-                - "your step 1 is to" is cut. It implies a numbered sequence
-                  the UI never shows; "before your first session" carries the
-                  same ordering in plain language.
-                - "coaching journey" -> "work". Round 17 rewrote this portal's
-                  copy away from marketing voice three times.
-              And it restores the rule the old empty state carried and the
-              frame dropped — what a plan actually *does* — so the absence
-              reads as a step not yet taken rather than something missing.
-              No contractions, per the Round 32 sweep. */}
+          {/* No full stop — direct instruction. "your new client" singular: a
+              dyad is ONE client everywhere else in this portal, and the sub
+              copy below names both people anyway. "a session plan", not "your"
+              — the plan is the client's, made together. */}
+          <h3 className="font-display text-display-md text-balance">
+            Creating a session plan with your new client
+          </h3>
+          {/* The sub copy carries the assignment and the shape of what follows
+              and stops there; the two steps below say what to do. */}
           <p className="text-body leading-[1.4] text-white/90">
-            To start your work with{' '}
-            {dyad.patient && (
-              <>
-                <strong className="font-bold">{dyad.patient.name}</strong> and{' '}
-              </>
-            )}
-            <strong className="font-bold">{dyad.carer.name}</strong>, create a coaching session
-            plan with them. It sets when each module unlocks and when you will meet to catch up.
+            You have been assigned{' '}
+            <strong className="font-bold text-white">
+              {dyad.patient ? `${dyad.patient.name} and ${dyad.carer.name}` : dyad.carer.name}
+            </strong>
+            . There are two steps before your first session.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            ref={ctaRef}
-            type="button"
-            onClick={onCreate}
-            className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
-          >
-            Create session plan
-          </button>
-          {/* Round 40, direct instruction: a secondary "Why is this necessary?".
-              It opens a real explanation rather than taking this app's unwired
-              treatment — the answer is domain knowledge the product already
-              holds, so a button that asks a question and then does nothing
-              would be the worst of the options. White-outline on the purple
-              band, the same pairing the coach Home banner's own two CTAs use. */}
-          <button
-            type="button"
-            onClick={() => setWhyOpen(true)}
-            className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-white px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
-          >
-            Why is this necessary?
-          </button>
-        </div>
+
+        {/* The vertical timeline. The dotted rule is a painted
+            `repeating-linear-gradient`, NOT `border-dotted`: CSS derives a
+            dotted border's dot spacing from its width, so stroke and gap cannot
+            be set independently. 1.5px wide, 3px of ink then 8px of nothing.
+            It rides a zero-height flex child that absorbs the row's slack, so
+            it always reaches from one marker to the next however much copy a
+            step carries — a fixed height breaks the moment an email wraps. */}
+        <ol className="flex flex-col">
+          {STEPS.map((step, i) => (
+            <li key={step.key} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                {/* 40px, `yellow-200`, `ink` numeral. Never white on these
+                    tints — they are light enough that white fails AA on all of
+                    them, which is why the record-page hero's active tab
+                    underline uses the same pairing. */}
+                <span
+                  aria-hidden="true"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-200 text-body-md text-ink"
+                >
+                  {i + 1}
+                </span>
+                {i < STEPS.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="w-[1.5px] flex-1 bg-[repeating-linear-gradient(to_bottom,#ffffff66_0_3px,transparent_3px_11px)]"
+                  />
+                )}
+              </div>
+              {/* NOT `last:pb-0`. `last:` is `:last-child` against the `<li>`,
+                  where this content column IS the last child — so the modifier
+                  matched every step and zeroed the gap on all of them. Two
+                  separate "increase the spacing" passes moved a number that was
+                  being overridden. Keyed on the index instead. The 64px lives
+                  INSIDE the row so the dotted rule spans it; a `gap` on the
+                  `<ol>` would leave the line broken between steps. */}
+              <div
+                className={cn(
+                  'flex min-w-0 flex-1 flex-col items-start gap-2',
+                  i < STEPS.length - 1 && 'pb-16',
+                )}
+              >
+                <p className="text-body-md text-white">{step.title}</p>
+                <p className="text-body leading-[1.4] text-white/90">{step.instruction}</p>
+                <div className="mt-2">
+                  {step.key === 'contact' ? (
+                    /* A white card with a `yellow-200` stroke, tying it to the
+                       markers beside it, and `purple-50` value fields. `w-fit`
+                       so it hugs its two rows; `max-w-full` so the hug can
+                       never become an overflow, since an email is one long
+                       unbreakable token. Equal field width falls out of the
+                       grid rather than a number — the `1fr` track sizes to the
+                       longer value and both rows share it. */
+                    <div className="w-fit max-w-full rounded-sm border border-yellow-200 bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.10),0_8px_24px_rgba(0,0,0,0.18)]">
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 leading-[1.4]">
+                        <dt className="flex items-center text-body text-ink-muted">Email:</dt>
+                        <dd className="min-w-0 rounded-xs bg-purple-50 px-3 py-2 text-body-md break-words text-ink">
+                          {/* "Not provided" rather than an em dash: this
+                              audience reads a dash as a missing value it should
+                              go hunting for. */}
+                          {dyad.carer.email ?? 'Not provided'}
+                        </dd>
+                        <dt className="flex items-center text-body text-ink-muted">Phone:</dt>
+                        <dd className="min-w-0 rounded-xs bg-purple-50 px-3 py-2 text-body-md break-words text-ink">
+                          {dyad.carer.phone ?? 'Not provided'}
+                        </dd>
+                      </dl>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-4">
+                      {/* `ctaRef` stays on this button: `DeliveryConsumerDetailPage`
+                          and `SessionTracker` both focus it when the wizard
+                          closes, and dropping the ref would land focus on
+                          `<body>` — this project's most-repeated defect. */}
+                      <button
+                        ref={ctaRef}
+                        type="button"
+                        onClick={onCreate}
+                        className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                      >
+                        Create session plan
+                      </button>
+                      {/* Opens the real explanation below, not an unwired
+                          control: the answer is domain knowledge the product
+                          already holds, so a button that asks a question and
+                          then does nothing would be the worst option. */}
+                      <button
+                        type="button"
+                        onClick={() => setWhyOpen(true)}
+                        className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-white px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                      >
+                        Why is this necessary?
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
 
       {/* Round 40, direct instruction: rebuilt. The first pass was a narrow
@@ -2113,7 +2231,7 @@ export function SessionTracker({
                               onClick={() =>
                                 setPending({ session: session.number, name: session.name, action: 'complete' })
                               }
-                              className="relative inline-flex h-9 shrink-0 items-center rounded-sm bg-pearl px-4 text-caption-medium text-primary outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                              className="relative inline-flex h-9 shrink-0 items-center rounded-sm bg-pearl px-4 text-caption-medium text-primary outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                             >
                               Mark session complete
                               <span className="sr-only"> for Session {displayNumber}</span>
@@ -2387,7 +2505,7 @@ export function ConsumerDetailsCard({
             <button
               type="button"
               onClick={() => setEditingNotes(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
             >
               Edit details
             </button>
@@ -2923,10 +3041,18 @@ const CONSUMER_SUBTAB_INTRO = {
      duplicated. Removed rather than corrected. */
 } as const
 
-/** Rows per page in the Coach's reflection table. Six catch-ups means a full
- *  arc is six reflections, so five keeps the common case to two short pages
- *  rather than one long scroll. */
-const REFLECTIONS_PER_PAGE = 5
+/**
+ * Rows per page in the Coach's reflection table — **the whole arc**, so there
+ * is no page two.
+ *
+ * It was 5, from when the table listed only sessions that had actually
+ * happened and could be any length. The arc is now a fixed seven (Planning
+ * plus six catch-ups), so 5 split it into a full page and a two-row remainder
+ * for every consumer in the study, and the pager stayed on screen to offer
+ * that. Seven shows the arc in one read and `TablePager` hides itself, since
+ * it only renders when there is more than a page.
+ */
+const REFLECTIONS_PER_PAGE = SPACES_SESSIONS.length
 
 const CONSUMER_SUBTABS = [
   { id: 'progress', label: 'Study progress' },
@@ -3257,14 +3383,6 @@ function TransferConsumerDialog({
 /* Supervision Hub                                                           */
 /* ------------------------------------------------------------------------ */
 
-/** Exported for reuse by the Coach Delivery Portal's My Reflections tab
- *  (Round 6.2) — a coach-facing history list needs the same display label. */
-export const annotationStatusLabel: Record<AnnotationShareState, string> = {
-  shared: 'Shared',
-  'not-shared': 'Not shared',
-  'not-yet': 'Not yet',
-}
-
 /** One consumer's own post-session feedback, as a researcher reads it. */
 type ConsumerSessionFeedback = {
   /** A `FEEDBACK_MOODS` id — never a label written here. */
@@ -3324,6 +3442,57 @@ function dummyConsumerFeedback(dyadId: string, session: number): ConsumerSession
   }
 }
 
+/**
+ * ⚠️ **DUMMY DATA.** One coach reflection, reused wherever a held session has
+ * no real one.
+ *
+ * Direct instruction, 2026-10-05: *"use repetitive data for each reflection"*,
+ * explicitly in preference to seeding more — *"no need to add anything to
+ * database"*. Two dyads carry fewer reflections than held sessions and two
+ * carry none at all, so without a shared fallback a researcher opening most
+ * consumers found a column of dashes where the study's main artefact should
+ * be.
+ *
+ * It is deliberately **one** reflection rather than a rotation: repeated
+ * identical text reads as placeholder, which is what it is. A rotation would
+ * read as five real coaches writing five real things.
+ *
+ * **What replaces this:** nothing here changes when real reflections land —
+ * `claimReflection` already prefers a dyad's own, by session, and only falls
+ * through to this when there is none. Delete the builder and the final
+ * `?? dummyReflection(n, held)` and the column simply goes back to dashes.
+ */
+/** The six answers, one per component, written to read like a real coach's
+ *  account of one ordinary session rather than lorem. Same session throughout,
+ *  so the six hang together when a researcher reads the table down. */
+const DUMMY_REFLECTION_ANSWERS: Record<(typeof SIPTEA_INITIALS)[number], string> = {
+  S: 'We came back to the same thing she raised in the first call: she is not worried about her own sleep, she is worried about what happens if she does not hear him get up. Naming that out loud changed the tone of the rest of the session.',
+  I: 'We agreed she would move the hallway light onto a timer before the weekend, so the route to the bathroom is lit without her having to wake fully to check.',
+  P: 'The risk is the weekend itself. Her daughter visits on Saturday and the routine goes out of the window, so I asked her to treat Sunday as the first real night rather than Saturday.',
+  T: 'Dropped the wind-down reading I would usually suggest here. She reads to him already and adding a second thing at the same hour would have competed with it.',
+  E: 'She was flat at the start and apologised twice for not having done more since we last spoke. I let that sit rather than reassuring her straight away, and she got to it herself about ten minutes in.',
+  A: 'One change only, the hallway light, before our next session. We will look at the early waking after that, not alongside it.',
+}
+
+/* Stamped with the **session's own held date**, not `TODAY`. A fixed stamp
+   would read as a reflection written before the session it describes the
+   moment a demo date sits after today — the seed already has held dates on
+   both sides of `TODAY` (2026-07-22), so that is a live case rather than a
+   hypothetical one. */
+const dummyReflection = (session: number, heldDate: string): AnnotationSummaryEntry => ({
+  id: `ann-demo-${heldDate}`,
+  /* Carries the session it stands in for, now that `session` is required on
+     the entry. It is what the viewer's own title reads off, so a dummy that
+     guessed here would title itself after the wrong session. */
+  session,
+  date: heldDate,
+  time: '10:30',
+  components: SIPTEA_INITIALS.map((initial) => ({
+    label: `${initial}: ${SIPTEA_NAMES[initial]}`,
+    answer: DUMMY_REFLECTION_ANSWERS[initial],
+  })),
+})
+
 /** The consumer's own label for a mood id. Looked up, never written. */
 const moodLabel = (id: ConsumerSessionFeedback['mood']) =>
   FEEDBACK_MOODS.find((m) => m.id === id)?.label ?? id
@@ -3344,7 +3513,11 @@ const moodLabel = (id: ConsumerSessionFeedback['mood']) =>
 function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerDyad }) {
   const { sessionCompletion } = useResearch()
   const firstName = coach.fullName.split(' ')[0]
-  const session1Done = (sessionCompletion[dyad.id] ?? []).some((s) => s.session === 1)
+  /* The table lists all seven sessions whether or not they have happened,
+     so `rows.length` can no
+     longer be the empty test — it is always seven. A client with no plan
+     shows seven rows of dashes, which is the honest reading of "assigned, no
+     sessions planned" rather than an empty state hiding the arc. */
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [transcriptId, setTranscriptId] = useState<string | null>(null)
   const [feedbackId, setFeedbackId] = useState<string | null>(null)
@@ -3408,12 +3581,13 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     downloadText(`consumer-feedback-${dyad.id}-${fileStem(label)}.txt`, `${heading}\n\n${body}`)
   }
 
-  /* EVERY reflection, not just the shared ones. Direct instruction (Notion,
-     study progress tab): "in the session reflection, remove the shared. All
-     reflections will be seen by researcher by default." The `shared` field is
-     NOT removed from the data model — the Coach Delivery Portal's own toggle
-     still writes it, and it is what a coach sees on their side — it simply no
-     longer gates or labels anything on a researcher surface.
+  /* EVERY reflection. Direct instruction (Notion, study progress tab): "in
+     the session reflection, remove the shared. All reflections will be seen by
+     researcher by default."
+
+     **Round 55 finished the job**: the `shared` field is gone from the data
+     model too. The coach's own wizard no longer offers the choice, so there is
+     no longer a flag that could disagree with this list.
 
      Newest first. The store prepends and the seed is written in that order, so
      this is a stable read rather than a reorder — but sorting anyway means a
@@ -3422,7 +3596,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     `${a.date} ${a.time}` < `${b.date} ${b.time}` ? 1 : -1,
   )
 
-  /* ── One row per SESSION, not per coach reflection ────────────────────────
+  /* ── One row per SESSION in the plan — all seven ──────────────────────────
      The row used to be a coach reflection, which was right while the coach was
      the only author. Now that the consumer shares feedback on the same
      session, a reflection-keyed row would hide every piece of feedback on a
@@ -3430,12 +3604,25 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
      minutes of the call, the coach may take days, so that gap is the normal
      case rather than an edge one.
 
-     The row set is the union of held sessions and reflections, so neither
-     author can be dropped: a session held with no reflection still appears,
-     and a legacy entry with no session mapped (pre-Round 40, `session
-     === undefined`) keeps its own row rather than being silently merged into
-     one. Newest first, by the session's own held date where it has one. */
-  const sessionKeys = [...new Set(completed.map((c) => c.session))].sort((a, b) => b - a)
+     Round 55, direct instruction: *"planning + 6 sessions, for researcher,
+     they will see all of this under session reflection and transcript tab"*,
+     with *"show a — for missing fields"*. So the row set is the **whole
+     arc**, not just the sessions already held: a researcher reading this tab
+     is asking "what do we have for this pairing", and a table that lists only
+     what exists cannot answer it — four rows look complete until you count
+     them. Seven rows with dashes say where the study actually is.
+
+     **Session 6 at the top, Planning at the bottom** (direct instruction,
+     2026-10-05) — the live end of the arc first, which is what a researcher
+     opening this tab is looking for.
+
+     ⚠️ Do not "fix" this to chronological. It was briefly flipped on a
+     misreading of the report *"I do not see planning... it always starts
+     with session 2"*, which was about the rows being **missing**, not about
+     the order: the arc is seven rows and the pager showed five, so Planning
+     and Session 1 were stranded on page two. `REFLECTIONS_PER_PAGE` is what
+     fixed that, and it is why both can hold at once. */
+  const sessionKeys = SPACES_SESSIONS.map((s) => s.number).sort((a, b) => b - a)
 
   /* ── Every held session has a coach reflection ────────────────────────────
      Direct instruction: *"Coach reflection is mandatory, they will no longer
@@ -3445,16 +3632,23 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
 
      Real reflections are matched by their own `session` first, so the document
      a researcher opens is genuinely the one the coach wrote. ⚠️ **DUMMY:** the
-     seed predates the mandatory rule and several dyads carry fewer reflections
-     than held sessions (one dyad's single reflection has no `session` at all),
-     so unmapped reflections are dealt out newest-to-newest and any session
-     still short reuses the dyad's first reflection as its document. Once the
-     coach portal enforces one reflection per session, both fallbacks become
-     dead code: delete `spare`/`fallback` and match on `session` alone. */
-  const spare = reflections.filter((r) => r.session === undefined)
+     seed still carries fewer reflections than held sessions on some dyads, so
+     any session short of a real one reuses the dyad's first reflection as its
+     document.
+
+     2026-10-06: the `spare` pool is **gone**. It existed for reflections with
+     no `session`, and `session` is now required on `AnnotationSummaryEntry` —
+     so the filter could only ever return `[]`, and a `shift()` off an empty
+     array is dead code pretending to handle a case the type forbids. When the
+     seed carries one reflection per held session, `fallback` goes the same way
+     and this becomes a plain `find`. */
   const fallback = reflections[0]
-  const claimReflection = (n: number) =>
-    reflections.find((r) => r.session === n) ?? spare.shift() ?? fallback
+  /* Real first, by its own session, so the document a researcher opens is
+     genuinely the one the coach wrote. Then this dyad's first entry, then
+     `dummyReflection` — which is what makes the column populated for the dyads
+     carrying no reflections at all. */
+  const claimReflection = (n: number, heldDate: string) =>
+    reflections.find((r) => r.session === n) ?? fallback ?? dummyReflection(n, heldDate)
 
   type ReflectionRow = {
     key: string
@@ -3470,15 +3664,36 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
 
   const rows: ReflectionRow[] = [
     ...sessionKeys.map((n) => {
+      /* The real completion record and nothing else.
+         ⚠️ A view-level fill briefly stood in here, showing Planning and
+         Session 1 as held for every consumer. It is gone: the two dyads that
+         needed it now carry real plans and real completions in the seed
+         (direct instruction, *"every client will have a session plan"*), and
+         Arthur Ngata is deliberately exempt — he is the *"client assigned but
+         no session planned"* case, so his rows must read as dashes rather
+         than being papered over. A fill here would also have put this card
+         out of step with the Consumer Management roster, which counts the
+         same sessions from the same store. */
       const held = completed.find((c) => c.session === n)?.completedDate
+      /* The Planning session carries a transcript and nothing else (direct
+         instruction, 2026-10-05: *"no coach reflection, no consumer feedback,
+         only session transcript"*). It is the one meeting where no coaching
+         has happened yet — the pair are agreeing a calendar — so there is
+         nothing for either of them to account for.
+
+         `claimReflection` is deliberately **not called** for it rather than
+         called and discarded: it deals unmapped reflections out of a shared
+         pool with `shift()`, so calling it here would silently consume one
+         that belongs to a real session. */
+      const planning = n === PLANNING_SESSION
       return {
         key: `s-${n}`,
         session: n,
         label: sessionRowLabel(n),
         heldDate: held,
-        reflection: claimReflection(n),
-        feedback: held ? dummyConsumerFeedback(dyad.id, n) : undefined,
-        feedbackAsked: !!held,
+        reflection: planning || !held ? undefined : claimReflection(n, held),
+        feedback: held && !planning ? dummyConsumerFeedback(dyad.id, n) : undefined,
+        feedbackAsked: !!held && !planning,
       }
     }),
   ]
@@ -3525,18 +3740,11 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
             rather than either party's account of it. */}
       </div>
 
-      {rows.length === 0 ? (
-        <Card className="gap-0 rounded-lg py-0">
-          <EmptyState
-            icon={NotebookPen}
-            copy={
-              session1Done
-                ? 'No reflections or feedback yet'
-                : 'Session 1 hasn’t happened yet'
-            }
-          />
-        </Card>
-      ) : (
+      {/* No empty state any more: every consumer's arc is Planning followed by
+          Session 1, 2, 3 (direct instruction, 2026-10-05), and the two opening
+          rows are always populated — so there is no state in which this tab
+          has nothing to show. */}
+      {(
         <Card className="gap-0 rounded-lg py-0">
           <div className="overflow-x-auto">
             {/* `table-fixed` is load-bearing: under auto layout the one-line
@@ -3572,7 +3780,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
                 {visible.map((row, i) => (
                   <tr
                     key={row.key}
-                    className={cn('align-top', i > 0 && 'border-t border-parchment')}
+                    className={cn('align-top', i > 0 && 'border-t border-hairline')}
                   >
                     <td className="px-6 py-5 text-caption-medium text-ink">
                       {/* Never a bare number — internal 1 is "Planning", and a
@@ -3723,25 +3931,32 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
         }}
       >
         {viewing?.reflection && (
-          /* Read-only, and the same row shape the expanded cards used before
-             this table existed: component name in `primary` on a fixed 180px
-             track, the coach's answer beside it. */
-          <dl className="rounded-sm border border-hairline">
-            {viewing.reflection.components.map((c, i) => (
-              <div
-                key={c.label}
-                className={cn(
-                  'flex flex-col gap-2 px-5 py-5 sm:flex-row sm:gap-6',
-                  i > 0 && 'border-t border-hairline',
-                )}
-              >
-                <dt className="text-caption-medium text-primary sm:w-[180px] sm:shrink-0">
-                  {c.label}
-                </dt>
-                <dd className="min-w-0 flex-1 text-body leading-[1.4] text-ink">{c.answer}</dd>
-              </div>
-            ))}
-          </dl>
+          /* The app's one rendering of a reflection (direct instruction,
+             2026-10-05: *"when the researcher gets to see coaches reflections,
+             use same template"*). This was a bespoke `<dl>` — the component
+             name in `primary` on a fixed 180px track — and the fourth markup
+             for the same object: the trainee wizard, the coach wizard and the
+             coach's own saved viewer were already this table.
+
+             **No `onEdit`, which is the whole of what makes it read-only.**
+             There is no separate flag, so a researcher cannot be handed an
+             editor by mistake — a coach's reflection is their account of a
+             session, and an editable field here would say otherwise.
+
+             `rowsFromStored`, not `rowsFromAnswers`: a saved entry's labels
+             were written by whichever version of the wizard was live at the
+             time (the seed holds both `'S: Shared understanding'` and a bare
+             `'Shared understanding'`), so the component is read back off each
+             label rather than assumed from its position. */
+          <ReflectionReviewTable
+            rows={rowsFromStored(viewing.reflection.components)}
+            /* Not the default "Your answer" — the researcher is reading
+               someone else's. */
+            answerHeading="Coach's answer"
+            /* A saved record, so a blank is final rather than pending. Same
+               wording the coach's own viewer of this entry uses. */
+            emptyLabel="Not answered."
+          />
         )}
       </ConfirmDialog>
 

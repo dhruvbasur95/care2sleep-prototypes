@@ -185,18 +185,11 @@ export interface ResearchStore {
   submitPostPracticeAnnotation: (
     dyadId: string,
     components: ReflectionComponentAnswer[],
-    shared: boolean,
-    /** The internal SPACES session number the reflection is about, when the
-     *  wizard was opened from a session debrief. Round 40. */
-    session?: number,
-  ) => void
-  /** Edit a saved reflection, or change only its share setting (Round 40 — the
-   *  My reflections tab's review dialog does both). Patches **by id** so an
-   *  edit cannot rewrite the entry's session, stamp, or the rest of the list. */
-  updateAnnotationSummary: (
-    dyadId: string,
-    entryId: string,
-    patch: { components?: ReflectionComponentAnswer[]; shared?: boolean },
+    /** The internal SPACES session number the reflection is about. **Required**
+     *  (2026-10-06): a reflection is written from a session debrief, and the
+     *  wizard that calls this is opened from a session card and keyed by
+     *  dyad + session, so there is no path that could omit it. */
+    session: number,
   ) => void
 
   // --- Round 4: Consumer Management ------------------------------------------
@@ -774,12 +767,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const submitPostPracticeAnnotation = useCallback(
-    (
-      dyadId: string,
-      components: ReflectionComponentAnswer[],
-      shared: boolean,
-      session?: number,
-    ) => {
+    (dyadId: string, components: ReflectionComponentAnswer[], session: number) => {
       setConsumerDyads((prev) =>
         prev.map((d) =>
           d.id === dyadId
@@ -789,44 +777,18 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
                    writes a reflection after every session, so the one-per-
                    consumer cap this action used to enforce would silently
                    destroy the previous session's reflection on every save.
-                   Newest first, which is what `latestAnnotationState()` and
-                   the My reflections table both already assume. */
+                   Newest first, which is what the My reflections table and
+                   the researcher's own reflection list both already assume. */
                 annotationSummaries: [
                   {
                     id: `ann-${Date.now()}`,
                     session,
                     components,
-                    shared,
                     date: TODAY,
                     time: new Date().toTimeString().slice(0, 5),
                   },
                   ...d.annotationSummaries,
                 ],
-              }
-            : d,
-        ),
-      )
-    },
-    [],
-  )
-
-  const updateAnnotationSummary = useCallback(
-    (
-      dyadId: string,
-      entryId: string,
-      patch: { components?: ReflectionComponentAnswer[]; shared?: boolean },
-    ) => {
-      setConsumerDyads((prev) =>
-        prev.map((d) =>
-          d.id === dyadId
-            ? {
-                ...d,
-                /* Patch by id and spread the existing entry, so changing the
-                   share toggle cannot drop the session, the stamp, or the
-                   answers — the same reasoning as `updateSupervisionNote`. */
-                annotationSummaries: d.annotationSummaries.map((a) =>
-                  a.id === entryId ? { ...a, ...patch } : a,
-                ),
               }
             : d,
         ),
@@ -923,7 +885,6 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       manualRecordings,
       addManualRecording,
       submitPostPracticeAnnotation,
-      updateAnnotationSummary,
       enrollConsumer,
       addConsentDocument,
       removeConsentDocument,
@@ -972,7 +933,6 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       manualRecordings,
       addManualRecording,
       submitPostPracticeAnnotation,
-      updateAnnotationSummary,
       enrollConsumer,
       addConsentDocument,
       removeConsentDocument,

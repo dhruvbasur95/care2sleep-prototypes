@@ -83,8 +83,21 @@ export function displaySessionNumber(internalNumber: number): number {
  *  even a real upcoming *item*" question, which this function doesn't
  *  answer on its own. */
 export function sessionRowLabel(internalNumber: number): string {
-  return internalNumber === 1 ? 'Planning' : `Session ${displaySessionNumber(internalNumber)}`
+  return internalNumber === PLANNING_SESSION
+    ? 'Planning'
+    : `Session ${displaySessionNumber(internalNumber)}`
 }
+
+/**
+ * The internal number of the **Planning session** — the first meeting, where
+ * the coach and client build the session plan together.
+ *
+ * Named because three surfaces now branch on it and a bare `1` says nothing
+ * about why: it is the one session with no SIPTEA reflection (nothing has been
+ * coached yet, so there is nothing to reflect on) and no consumer feedback,
+ * and the one the coach uploads a transcript for on its own.
+ */
+export const PLANNING_SESSION = 1
 
 /** One completed SPACES session, with the date/time it was completed —
  *  Round 5 (Consumer Portal): extends the field from a bare session number so
@@ -648,8 +661,6 @@ export const SLEEP_DIARY_QUESTIONS: SleepDiaryQuestion[] = [
   { label: 'Sleep Efficiency = Total Sleep Time (#12) / Sleep Opportunity (#11), as a percentage', computed: true },
 ]
 
-export type AnnotationShareState = 'shared' | 'not-shared' | 'not-yet'
-
 /** One SIPTEA-component answer within a reflection — structured storage
  *  (rather than one flattened string) is what lets every display surface
  *  render each component as its own labeled, non-editable field instead of
@@ -669,14 +680,17 @@ export interface ReflectionComponentAnswer {
  *  cap is gone from the store and this is a real list. */
 export interface AnnotationSummaryEntry {
   id: string
-  /** The internal SPACES session number this reflection is about. Optional and
-   *  additive: entries written before Round 40 have none, and the table renders
-   *  them without a session rather than guessing one. Internal numbering
+  /** The internal SPACES session number this reflection is about. **Required**
+   *  (direct instruction, 2026-10-06: *"add session number, its compulsory"*).
+   *  A reflection is written from a session debrief, so one that belongs to no
+   *  session is not a thing the product can produce — the wizard is opened from
+   *  a session card and keyed by dyad + session. It was optional for one round,
+   *  which is why the table carried a `—` fallback and the researcher's own list
+   *  carried a `spare` pool; both are gone with it. Internal numbering
    *  (1 = Planning) — render it through `sessionRowLabel()`, never as a bare
    *  number. */
-  session?: number
+  session: number
   components: ReflectionComponentAnswer[]
-  shared: boolean
   date: string
   time: string
 }
@@ -1167,10 +1181,6 @@ export const consumerDyads: ConsumerDyad[] = [
        for: a list that grows session by session. Newest first, matching the
        order `submitPostPracticeAnnotation` prepends in.
 
-       Share state is deliberately mixed — two shared, one not — because the
-       review dialog's whole job is changing that, and a table where every row
-       says the same thing cannot show it working.
-
        Labels carry the `S:`/`I:` prefix because that is what
        `buildReflectionComponents` writes. dyad-013's older seed uses bare
        labels; these match what a coach actually saving a reflection produces,
@@ -1179,7 +1189,6 @@ export const consumerDyads: ConsumerDyad[] = [
       {
         id: 'ann-011-3',
         session: 4,
-        shared: true,
         date: '2026-08-19',
         time: '11:05',
         components: [
@@ -1218,7 +1227,6 @@ export const consumerDyads: ConsumerDyad[] = [
       {
         id: 'ann-011-2',
         session: 3,
-        shared: false,
         date: '2026-08-05',
         time: '10:52',
         components: [
@@ -1256,7 +1264,6 @@ export const consumerDyads: ConsumerDyad[] = [
       {
         id: 'ann-011-1',
         session: 2,
-        shared: true,
         date: '2026-07-22',
         time: '10:48',
         components: [
@@ -1506,10 +1513,25 @@ export const consumerDyads: ConsumerDyad[] = [
     sleepGoals: 'Shift Dorothy’s settle time earlier and reduce evening agitation.',
     caregivingContext:
       'Frank is Dorothy’s sole carer; no formal in-home support yet, an aged-care assessment is pending.',
-    // Use case: no sessions delivered yet and deliberately unplanned (see
-    // `sessionPlan` comment below) — Helen's caseload demonstrates the
-    // "0 of 7" starting state, with nothing scheduled at all.
-    sessionsCompleted: [],
+    /* Use case (2026-10-05, direct instruction: *"every client will have a
+       session plan"*): a pairing at the **start** of its arc — the planning
+       session and Session 1 held, the rest booked and ahead of them.
+
+       This dyad used to be the second "coach assigned, no plan" demo case.
+       That role is now Arthur Ngata's alone, by direct instruction the same
+       day (*"for Arthur... show the use case of client assigned but no
+       session planned"*), and two dyads playing one role was redundant
+       anyway. */
+    sessionsCompleted: [
+      { session: 1, completedDate: '2026-07-01', completedTime: '14:00' },
+      { session: 2, completedDate: '2026-07-15', completedTime: '14:00' },
+    ],
+    /* Still none. Reflections are not seeded for this dyad on purpose: the
+       researcher's table fills a held session's reflection from the shared
+       `dummyReflection` (direct instruction: *"no need to add anything to
+       database, just... use repetitive data for each reflection"*), so adding
+       a real one here would be authoring content the instruction said not to
+       write. */
     annotationSummaries: [],
     patientLog: healthLog(58, 290, 6, [
       'Agitated from 5:30pm, settled 11:40pm.',
@@ -1537,12 +1559,100 @@ export const consumerDyads: ConsumerDyad[] = [
     // Session planning (Round 14): the planning session hasn't happened yet,
     // so Module 1 is still locked — Dorothy's real engagement so far is with
     // the always-unlocked pre-module only.
-    // Round 21: cleared to nothing started. This dyad is the demo case for
-    // "coach assigned, session plan not built yet", and module content only
-    // opens once that plan exists — the planning session is what schedules the
-    // modules — so mid-module progress here was an impossible state.
-    moduleEngagement: consumerModuleEngagement([]),
+    /* Consistent with the two held sessions above, which is the invariant
+       this file keeps having to repair. **Module index N is reviewed by
+       internal session N+1**, so with sessions 1 and 2 held:
+
+         index 0  getting-started               reviewed at Planning  -> done
+         index 1  understanding-sleep-dementia  reviewed at Session 1 -> done
+         index 2  calming-bedtime-routine       reviewed at Session 2 -> live
+
+       A first pass marked index 1 in-progress and it rendered as **"No module
+       in progress"**: `ConsumerManagementPage` skips any in-progress record
+       whose own review session is already held, because such a record is
+       stale by definition. The guard caught a genuinely impossible state
+       rather than a display bug — a module cannot still be in progress after
+       the session that reviewed it. Each date sits before its own session. */
+    moduleEngagement: consumerModuleEngagement([
+      {
+        moduleId: 'getting-started',
+        status: 'completed',
+        lastActivityDate: '2026-06-29',
+        slidesCompleted: 6,
+      },
+      {
+        moduleId: 'understanding-sleep-dementia',
+        status: 'completed',
+        lastActivityDate: '2026-07-13',
+        slidesCompleted: 6,
+      },
+      {
+        moduleId: 'calming-bedtime-routine',
+        status: 'in-progress',
+        lastActivityDate: '2026-07-20',
+        slidesCompleted: 2,
+      },
+    ]),
     sessionRecordings: [],
+    /* Fortnightly from the planning session, the cadence `PlanSessionsModal`
+       itself generates (`WEEKLY_CADENCE_DAYS` doubled is what a real coach
+       lands on for this arc), with each module target the week before its own
+       catch-up. Sessions 1 and 2 are behind `TODAY` (2026-07-22) and held;
+       the rest are ahead of it and are not. */
+    sessionPlan: {
+      sessions: [
+        { session: 1, date: '2026-07-01', time: '14:00' },
+        {
+          session: 2,
+          date: '2026-07-15',
+          time: '14:00',
+          moduleTargetDate: '2026-07-08',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+        {
+          session: 3,
+          date: '2026-07-29',
+          time: '14:00',
+          moduleTargetDate: '2026-07-22',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+        {
+          session: 4,
+          date: '2026-08-12',
+          time: '14:00',
+          moduleTargetDate: '2026-08-05',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+        {
+          session: 5,
+          date: '2026-08-26',
+          time: '14:00',
+          moduleTargetDate: '2026-08-19',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+        {
+          session: 6,
+          date: '2026-09-09',
+          time: '14:00',
+          moduleTargetDate: '2026-09-02',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+        {
+          session: 7,
+          date: '2026-09-23',
+          time: '14:00',
+          moduleTargetDate: '2026-09-16',
+          meetingId: '845 2210 7734',
+          zoomLink: 'https://zoom.us/j/84522107734',
+        },
+      ],
+      adHocMeetings: [],
+    },
     // No `upcomingSession` (Session 0 leak fix): this field used to carry a
     // stale `{ session: 1, ... }` value left over from before Round 14.1's
     // numbering correction (back when "session 1" meant the very first
@@ -1595,12 +1705,16 @@ export const consumerDyads: ConsumerDyad[] = [
       { session: 6, completedDate: '2026-06-17', completedTime: '11:00' },
       { session: 7, completedDate: '2026-07-01', completedTime: '11:00' },
     ],
-    // A coach can only ever have one reflection per consumer — it's scoped
-    // to their first session with that consumer, written in Helen's own
-    // first-person voice as structured per-component answers.
+    // Written in Helen's own first-person voice as structured per-component
+    // answers. 2026-10-06: given the `session` every reflection now requires.
+    // Session 2 (internal), i.e. "Session 1" — NOT the Planning session, which
+    // carries a transcript and no reflection; and the date moved from 9 Apr to
+    // the day after that session, because a reflection cannot predate the
+    // session it describes.
     annotationSummaries: [
       {
         id: 'ann-013-1',
+        session: 2,
         components: [
           {
             label: 'Shared understanding',
@@ -1640,8 +1754,7 @@ export const consumerDyads: ConsumerDyad[] = [
               'Agreed to start with one small, consistent change (the bedtime routine) rather than several at once, given how stretched Margaret already was. One step feels right — two would have been too much this week.',
           },
         ],
-        shared: true,
-        date: '2026-04-09',
+        date: '2026-04-23',
         time: '09:30',
       },
     ],
@@ -1906,13 +2019,4 @@ export const researchNotes: ResearchNote[] = []
 
 export function dyadsForCoach(coachId: string): ConsumerDyad[] {
   return consumerDyads.filter((d) => d.coachId === coachId)
-}
-
-/** A dyad's overall annotation status for roster/nav badges (Round 6.2.1) —
- *  derived from the most recent entry now that a dyad can carry several,
- *  rather than a single stored field. `'not-yet'` means no entry exists. */
-export function latestAnnotationState(dyad: ConsumerDyad): AnnotationShareState {
-  const latest = dyad.annotationSummaries[0]
-  if (!latest) return 'not-yet'
-  return latest.shared ? 'shared' : 'not-shared'
 }

@@ -88,7 +88,7 @@ const MEETINGS_TABS = [
 type MeetingsTab = (typeof MEETINGS_TABS)[number]['id']
 
 const ROW_UTILITY_BUTTON =
-  'inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]'
+  'inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]'
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`)

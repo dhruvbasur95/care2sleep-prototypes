@@ -2,15 +2,16 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useMascotExpression } from './ConsumerCanvasWave'
 // The pillows themselves moved to a shared file when the trainee module
 // player's feedback slide became their second caller (2026-09-18). Aliased to
 // their old names so nothing else in this file had to change.
 import {
   FEEDBACK_MOODS as MOODS,
   FeedbackPillow as MoodArt,
-  ART,
 } from '@/components/shared/FeedbackPillow'
+/* Extracted to `components/shared` at this flow's second caller — the trainee
+   reflection modal's own thank-you screen now shows the same pillow. */
+import { ThanksMascot } from '@/components/shared/ThanksMascot'
 
 /**
  * The post-session feedback flow, as a modal. Frames `951:6673` (choose a
@@ -52,71 +53,6 @@ import {
 
 type Step = 'mood' | 'details' | 'thanks'
 
-/**
- * The thank-you screen's avatar — frame `951:6971`, the pillow at its own
- * 138.158 x 90.
- *
- * ⚠️ **It runs the Home and My Modules mascot's animation, not a copy of it** —
- * direct instruction: "re-use pillow avatar animation for last page avatar ...
- * from home page or sleeping diary page". `useMascotExpression` is that clock,
- * exported from `ConsumerCanvasWave` so both avatars are driven by one
- * implementation and any future tuning reaches both; `EXPRESSIONS` supplies the
- * same `browY`/`faceY`/`tilt` values, which land unchanged here because this
- * export shares the mascot's 90-unit height. The breath and float below are the
- * mascot's own too — a 1.5% swell and a 2px rise on a 5s loop, deliberately off
- * the expression clock so the two never look like one event.
- *
- * `nap: false` is the one difference, and it is a content decision rather than a
- * technical one: the pillow should not doze off while thanking someone.
- *
- * The three layers are byte-for-byte splits of `thanks.svg` — its `<g
- * id="Vector">` plus the two fold paths as the body, `<g id="Group_4">` as the
- * brows, and the nose, eye group and mouth as the face — each given the export's
- * own unmodified `<svg>` open tag, so they register by construction.
- */
-function ThanksMascot() {
-  const { reduceMotion, featureTransition, browY, faceY, tilt } = useMascotExpression({
-    nap: false,
-  })
-  const layer = {
-    position: 'absolute' as const,
-    inset: 0,
-    width: 138.158,
-    height: 90,
-    maxWidth: 'none' as const,
-  }
-  return (
-    <motion.div
-      aria-hidden="true"
-      className="relative shrink-0"
-      style={{ width: 138.158, height: 90, transformOrigin: 'center bottom' }}
-      animate={
-        reduceMotion ? { rotate: 0 } : { rotate: tilt, scale: [1, 1.015, 1], y: [0, -2, 0] }
-      }
-      transition={{
-        rotate: featureTransition,
-        scale: reduceMotion ? { duration: 0 } : { duration: 5, repeat: Infinity, ease: 'easeInOut' },
-        y: reduceMotion ? { duration: 0 } : { duration: 5, repeat: Infinity, ease: 'easeInOut' },
-      }}
-    >
-      <img src={`${ART}/thanks-body.svg`} alt="" style={layer} />
-      <motion.img
-        src={`${ART}/thanks-face.svg`}
-        alt=""
-        style={layer}
-        animate={{ y: faceY }}
-        transition={featureTransition}
-      />
-      <motion.img
-        src={`${ART}/thanks-brows.svg`}
-        alt=""
-        style={layer}
-        animate={{ y: browY }}
-        transition={featureTransition}
-      />
-    </motion.div>
-  )
-}
 
 /* ── Buttons, at the frames' own widths ─────────────────────────────────── */
 

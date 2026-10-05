@@ -196,7 +196,13 @@ function ModuleCard({
         {/* Sits astride the cover's bottom edge, its own top corners rounded so
             it reads as a tab cut into the image. */}
         <div className="absolute -bottom-1 left-4 flex size-12 flex-col items-center justify-center rounded-t-3xl bg-card pt-2">
-          <span className="font-display text-display-md text-purple-500">{number}</span>
+          {/* `primary`, which is now the same painted colour as `purple-500`:
+              2026-10-01 repointed `--color-purple-500` from #8447ff to
+              #3A00AD, so this app's ramp and Figma's published `Purple/500`
+              paint style finally agree on what "500" means. Kept spelled
+              `primary` because this numeral is the brand accent, not the 500
+              step — the same reasoning `index.css` records for buttons. */}
+          <span className="font-display text-display-md text-primary">{number}</span>
         </div>
       </div>
 
@@ -363,8 +369,12 @@ export function DeliveryLearningHomePage() {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <h1 className="font-display text-display-lg text-primary">Welcome to my learnings</h1>
             <p className="text-sub-greeting leading-[1.4] text-ink">
-              Your course curriculum consists of two parts: <strong className="font-bold">Part A</strong>{' '}
-              has the foundational modules, while <strong className="font-bold">Part B</strong> has all
+              {/* `<strong>` kept for semantics, but not re-weighted: the
+                  paragraph is `sub-greeting` (18/500) and there is no 18/Bold
+                  step, so an inline bold run would be a value the type scale
+                  does not define. */}
+              Your course curriculum consists of two parts: <strong className="font-medium">Part A</strong>{' '}
+              has the foundational modules, while <strong className="font-medium">Part B</strong> has all
               sleep-related modules. Complete all modules of Part A to unlock Part B.
             </p>
           </div>

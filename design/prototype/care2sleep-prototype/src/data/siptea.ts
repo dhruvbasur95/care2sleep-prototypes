@@ -101,3 +101,42 @@ export function parseSipteaTags(raw: string): SipteaInitial[] {
   }
   return found
 }
+
+/**
+ * The SIPTEA component a **stored** reflection row belongs to, read back from
+ * its own label.
+ *
+ * Saved `AnnotationSummaryEntry.components[].label` exists in two shapes in the
+ * seed, both of them real data that has to render:
+ *
+ *   `'S: Shared understanding'`  — what the wizard has written since Round 13
+ *   `'Shared understanding'`     — `ann-013-1`, written before the prefix
+ *
+ * A viewer that labelled its rows from `SIPTEA_NAMES` and indexed answers
+ * positionally would render a constant over positional data — correct only for
+ * as long as every stored entry happens to hold exactly six components in
+ * SIPTEA order. Both seed shapes do today; that is a property of the seed, not
+ * a guarantee of the type, and it is exactly the invisible coupling this
+ * project keeps paying for.
+ *
+ * So the initial is **read from the label**: the prefix when there is one,
+ * otherwise a name match against `SIPTEA_NAMES`. `null` when neither matches,
+ * which the caller renders as the stored label with no colour disc rather than
+ * guessing a component.
+ */
+export function resolveSipteaInitial(label: string): SipteaInitial | null {
+  const trimmed = label.trim()
+
+  /* The prefixed form. Anchored on a single SIPTEA capital followed by a colon,
+     for the same reason `COMPONENT_RE` above anchors on one character: a name
+     can contain a separator without being a component. */
+  const prefixed = /^([SIPTEA]):\s*/.exec(trimmed)
+  if (prefixed) return prefixed[1] as SipteaInitial
+
+  /* The bare form. Case-insensitive because the three surfaces that have ever
+     written one of these used three casings ("Emotion Navigation",
+     "Emotion navigation"), and this is a read of historical data. */
+  const lower = trimmed.toLowerCase()
+  const match = SIPTEA_INITIALS.find((i) => SIPTEA_NAMES[i].toLowerCase() === lower)
+  return match ?? null
+}

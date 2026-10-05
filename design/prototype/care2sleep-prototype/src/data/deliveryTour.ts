@@ -59,7 +59,7 @@ export const DELIVERY_TOUR_STEPS: DeliveryTourStep[] = [
     // Round 30 found in this same frame family and Round 31 found again on the
     // certification card — the count is interpolated from the rail itself at
     // render time. See `tourStepBody()`.
-    body: 'This shows the {stageCount} stages you will complete on your way to becoming a certified coach. You are currently on Stage 1.',
+    body: 'This shows the {stageCount} stages you will complete on your way to becoming a certified coach. You are currently on the first one.',
     prefer: 'bottom',
   },
   {
@@ -152,7 +152,11 @@ export const COACH_TOUR_STEPS: DeliveryTourStep[] = [
   },
   {
     anchor: 'priorities',
-    title: 'This week\u2019s priorities',
+    /* Reads the heading it points at. 2026-10-01 renamed that heading to
+       "Your this week's priorities" when the section moved onto the shared
+       `ResearchPrioritiesSection`; a tour step naming the old title would have
+       described a heading that is no longer on screen. */
+    title: 'Your this week\u2019s priorities',
     body: 'The few things that need your attention this week. Select any one to go straight to that client.',
     prefer: 'left',
   },

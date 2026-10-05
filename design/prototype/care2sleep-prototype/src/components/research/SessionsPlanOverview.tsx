@@ -136,7 +136,7 @@ export function SessionsPlanOverview({ dyad }: { dyad: ConsumerDyad }) {
                 const modLocked = moduleUnlockState(modIdx, completed, unlocks) === 'locked'
                 const moduleDone = modRecord?.status === 'completed'
                 return (
-                  <tr key={mod.id} className={cn(i > 0 && 'border-t border-parchment')}>
+                  <tr key={mod.id} className={cn(i > 0 && 'border-t border-hairline')}>
                     <td className="px-6 py-4 text-caption font-semibold whitespace-nowrap text-ink">
                       {sessionRowLabel(sessionNumber)}
                     </td>

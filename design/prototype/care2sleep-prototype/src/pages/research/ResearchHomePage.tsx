@@ -41,7 +41,7 @@ import { TODAY } from '@/data/format'
  * | Frame hex  | Palette swatch     | Token used here            |
  * |------------|--------------------|----------------------------|
  * | `#f4efff`  | (band tint)        | `purple-50`                |
- * | `#8447ff`  | Purple Lighter 2   | `purple-500`                |
+ * | `#8447ff`  | Purple Lighter 2   | `purple-500` (now #3A00AD)  |
  * | `#c2a3ff`  | Purple Lighter 4   | `purple-300`                |
  * | `#3a00ad`  | Purple **Primary** | `primary`                  |
  * | `#200061`  | Purple Darker 1    | `primary-hover`            |
@@ -51,7 +51,7 @@ import { TODAY } from '@/data/format'
  * | `#f5f3fa`  | (neutral)          | `parchment`                |
  * | `#555`     | (neutral)          | `ink-faint`                |
  * | `#374151`  | (neutral)          | `ink-muted`                |
- * | `#2d8cff`  | — (Zoom blue)      | `purple-500` (blue→purple)  |
+ * | `#2d8cff`  | — (Zoom blue)      | `purple-500` (now #3A00AD)  |
  *
  * The frame's `#e45f5b` alert badge is the one hex with no palette equivalent
  * — the ramps cover purple, yellow and neutrals only — so it stays on this

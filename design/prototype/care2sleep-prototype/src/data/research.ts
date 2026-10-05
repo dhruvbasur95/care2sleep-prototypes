@@ -71,7 +71,7 @@ export interface StudyPhase {
  *      Stage C  -> Learning the basics
  *      Stage O  -> Observing and practice with peers
  *      Stage A  -> Your first placement
- *      Stage CP -> Peer community feedback
+ *      Stage CP -> Community feedback  (same on both sides since 2026-10-05)
  *      Stage H  -> Your second placement (hands-on assessment)
  *    Those are NOT in this file and must never leak into it: this constant is
  *    read only by the Research Dashboard. The trainee portal draws its own rail
@@ -90,7 +90,11 @@ export const STUDY_PHASES: StudyPhase[] = [
   { number: 3, name: 'Content learning', stageCode: 'C', shortLabel: 'Content learning' },
   { number: 4, name: 'Observation and role-play', stageCode: 'O', shortLabel: 'Observation and role-play' },
   { number: 5, name: 'Application (Placement 1)', stageCode: 'A', shortLabel: 'Application (Placement 1)' },
-  { number: 6, name: 'Peer community feedback', stageCode: 'CP', shortLabel: 'Peer community feedback' },
+  // 2026-10-05, direct instruction: "Peer community feedback" -> "Community
+  // feedback", applied to the researcher AND trainee sets together so the two
+  // portals name Stage CP identically. Notion's own trainee list had already
+  // shortened it; this closes the gap from both ends rather than one.
+  { number: 6, name: 'Community feedback', stageCode: 'CP', shortLabel: 'Community feedback' },
   { number: 7, name: 'Hands-on assessment (Placement 2)', stageCode: 'H', shortLabel: 'Hands-on assessment (Placement 2)' },
   { number: 8, name: 'Entry into SPACES delivery', shortLabel: 'Entry into SPACES delivery' },
 ]

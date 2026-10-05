@@ -20,13 +20,40 @@ export interface PathwayStageCopy {
   label: string
 }
 
+/**
+ * 2026-10-01, direct instruction. The rail now draws the **five COACH stages**,
+ * lettered, with the trainee-facing names CLAUDE.md settled on 2026-09-21 — not
+ * the six-item numbered list it carried since Round 30.
+ *
+ * The old list (Content Learning / Guided Group Practice / Peer Role-Play /
+ * Hands-on Assessment / My Reflection / Live Intervention) never mapped onto the
+ * researcher's five stages, which is the mismatch CLAUDE.md flagged as "a real
+ * mapping decision, not a find-and-replace". This is that decision, taken:
+ *
+ *   Content Learning                      -> C  Learning the basics
+ *   Guided Group Practice + Peer Role-Play -> O  Observing and practice with peers
+ *   (nothing — net new)                   -> A  Your first placement
+ *   Hands-on Assessment (its feedback-report content) -> CP Community feedback
+ *   Live Intervention                     -> H  Your second placement
+ *
+ * **My Reflection is gone** (direct instruction: "follow the stages I have
+ * shared; if it does not exist in that list, remove it"). It was never a COACH
+ * stage — the annotated SIPTEA guide runs at four timepoints *across* the
+ * pathway — so it is removed as a rail column rather than relocated.
+ *
+ * The eyebrow is "Stage C:" and not "Stage 1:", matching the researcher
+ * dashboard's own `stageLabel()` format (colon, never an em dash).
+ */
 export const PATHWAY_STAGE_COPY: PathwayStageCopy[] = [
-  { stage: 'Stage 1:', label: 'Content Learning' },
-  { stage: 'Stage 2:', label: 'Guided Group Practice' },
-  { stage: 'Stage 3:', label: 'Peer Role-Play' },
-  { stage: 'Stage 4:', label: 'Hands-on Assessment' },
-  { stage: 'Stage 5:', label: 'My Reflection' },
-  { stage: 'Stage 6:', label: 'Live Intervention' },
+  { stage: 'Stage C:', label: 'Learning the basics' },
+  { stage: 'Stage O:', label: 'Observing and practice with peers' },
+  { stage: 'Stage A:', label: 'Your first placement' },
+  // 2026-10-05, direct instruction: shortened from "Peer community feedback"
+  // and changed in `data/research.ts` in the same pass — Stage CP is now the one
+  // stage whose trainee-facing and researcher-facing names are identical, which
+  // is the point of the change rather than a side effect.
+  { stage: 'Stage CP:', label: 'Community feedback' },
+  { stage: 'Stage H:', label: 'Your second placement (hands-on assessment)' },
 ]
 
 const COUNT_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'] as const

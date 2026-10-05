@@ -203,6 +203,12 @@ const PILLOW_MAX_H_VARS =
  * A deliberately tiny parser rather than a markdown dependency: the only markup
  * these strings carry is a bold span, and pulling in a renderer for that would
  * also let arbitrary markup into copy that is meant to be plain sentences.
+ *
+ * Note: briefly extracted to `components/shared/` in Round 55 when the coach's
+ * Module recap rendered these same bullets, and moved back the same day when
+ * that recap dropped to the chapter one-liners and stopped needing it. A
+ * shared helper with one caller is a shared helper that has stopped earning
+ * the indirection.
  */
 function withBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>

@@ -27,16 +27,50 @@ import { SIPTEA_BG, SIPTEA_NAMES, type SipteaInitial } from '@/data/siptea'
  * beside it, and a screen reader announcing "S, Shared understanding" is
  * reading the same thing twice.
  */
-export function SipteaSkillChip({ initial }: { initial: SipteaInitial }) {
+export function SipteaSkillChip({
+  initial,
+  size = 'lg',
+}: {
+  initial: SipteaInitial
+  /**
+   * `'lg'` is the frame's own chip and the default, so the module player's
+   * `Skills covered:` row is byte-identical.
+   *
+   * `'sm'` is a smaller build of the **same** chip for the trainee reflection
+   * wizard (direct instruction, 2026-10-02: *"reduce letter + label name font
+   * size, reduce the component dimension, and use the shadow with yellow hex
+   * not purple"*). It is a prop and not a fork because nothing about the shape
+   * changes — a two-part pill, coloured cap, white body — only its scale and
+   * the shadow's hue. Forking would have left two chips to keep in step by
+   * hand, which is what `data/siptea.ts` exists to prevent one level down.
+   *
+   * The yellow shadow goes with the size rather than being its own prop: `sm`
+   * exists for one surface, that surface is white, and the purple cast was
+   * chosen for the module player's `purple-200` panel. Splitting them would
+   * invite a combination neither surface wants.
+   */
+  size?: 'lg' | 'sm'
+}) {
+  const sm = size === 'sm'
   return (
-    <span className="inline-flex items-stretch overflow-hidden rounded-[44px] border border-hairline bg-white shadow-siptea-chip">
+    <span
+      className={`inline-flex items-stretch overflow-hidden rounded-[44px] border border-hairline bg-white ${
+        sm ? 'shadow-siptea-chip-yellow' : 'shadow-siptea-chip'
+      }`}
+    >
       <span
         aria-hidden="true"
-        className={`flex w-16 shrink-0 items-center justify-center py-2 text-display-sm text-white ${SIPTEA_BG[initial]}`}
+        className={`flex shrink-0 items-center justify-center text-white ${
+          sm ? 'w-11 py-1.5 text-title' : 'w-16 py-2 text-display-sm'
+        } ${SIPTEA_BG[initial]}`}
       >
         {initial}
       </span>
-      <span className="flex items-center py-2 pl-4 pr-6 text-body-md text-ink">
+      <span
+        className={`flex items-center text-ink ${
+          sm ? 'py-1.5 pr-5 pl-3 text-caption-medium' : 'py-2 pr-6 pl-4 text-body-md'
+        }`}
+      >
         {SIPTEA_NAMES[initial]}
       </span>
     </span>

@@ -5,17 +5,13 @@ import {
   BookOpen,
   CalendarClock,
   CalendarDays,
-  CircleHelp,
   CalendarX,
   Check,
   ChevronRight,
   ClipboardCheck,
-  Drama,
-  FileText,
   HeartHandshake,
-  Lock,
-  MessageSquare,
-  NotebookPen,
+  MessageCircleQuestionMark,
+  MessagesSquare,
   Search,
   Users,
   Video,
@@ -26,12 +22,21 @@ import { WaveDivider } from '@/components/delivery/WaveDivider'
 import { DeliveryTour } from '@/components/delivery/DeliveryTour'
 import { COACH_TOUR_STEPS, startDeliveryTour, useDeliveryTour } from '@/data/deliveryTour'
 import { Confetti } from '@/components/delivery/Confetti'
-import { PrioritiesSection, type PriorityItem } from '@/components/delivery/PrioritiesSection'
+import {
+  ResearchPrioritiesSection,
+  type ResearchPriorityItem,
+} from '@/components/research/ResearchPrioritiesSection'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { InertButton } from '@/components/shared/MeetingsSection'
 import { StatCard } from '@/components/shared/StatCard'
 import { useCoachStage } from '@/data/coachStage'
 import { PATHWAY_STAGE_COPY } from '@/data/coachPathway'
+import {
+  TIMEPOINT_BY_STAGE,
+  useReflectionState,
+  type ReflectionTimepoint,
+} from '@/data/traineeReflections'
+import { TraineeReflectionModal } from '@/components/delivery/TraineeReflectionModal'
 import { coaches, upcomingGroupSessions, type Coach } from '@/data/research'
 import {
   PATHWAY_MODULES,
@@ -270,7 +275,7 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
                     onClick={() => navigate(`/delivery/consumers/${dyad.id}`)}
                     className={cn(
                       'cursor-pointer transition-colors hover:bg-pearl',
-                      i > 0 && 'border-t border-parchment',
+                      i > 0 && 'border-t border-hairline',
                     )}
                   >
                     <td className="px-6 py-3">
@@ -356,22 +361,32 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
    component, with its optional sub-copy slot, was the wrong shape for. */
 
 /**
- * "Need help" (Round 40, direct instruction) — both coach stages.
+ * "Need help" (Round 40, direct instruction) — both coach stages, top-right of
+ * the greeting row.
  *
- * The Research Dashboard's Home has carried this since Round 28 and this is the
- * same control, same treatment, same place: top-right of the greeting row. It
- * has no destination yet, so it takes this app's documented unwired treatment —
- * focusable and announced, never a silently dead button. `InertButton` is
- * imported from `MeetingsSection`, which is where it already lives.
+ * 2026-10-01, direct instruction: restyled to match the **Consumer Portal's**
+ * own Need help control (`ConsumerHomePage`) — the `destructive` red outline
+ * pill, `MessageCircleQuestionMark` rather than `CircleHelp`, 48px, 24px radius,
+ * `body-md`. Outline rather than filled for the same reason it is there: a solid
+ * red block at this size reads as an error state, where the control is an offer
+ * of help. `destructive` measures 4.80:1 on white, so the label clears AA.
+ *
+ * Nothing leaks either way — `destructive` and `text-body-md` are app-wide
+ * tokens the Consumer Portal happens to share, not consumer-scale steps.
+ *
+ * Still **unlinked here** (direct instruction): there is no coach-facing help
+ * destination, so it keeps this app's documented unwired treatment — focusable
+ * and announced, never a silently dead button. Give it a route and this becomes
+ * a `<Link>`. `InertButton` is imported from `MeetingsSection`, where it lives.
  */
 function NeedHelpButton() {
   return (
     <InertButton
       label="Need help"
       appearance="active"
-      className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+      className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-body-md text-destructive outline-none transition-all hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.97]"
     >
-      <CircleHelp aria-hidden="true" className="size-4" strokeWidth={2} />
+      <MessageCircleQuestionMark aria-hidden="true" className="size-5" />
     </InertButton>
   )
 }
@@ -519,16 +534,67 @@ export function BannerBlob({
    own direct instruction, which set trainee CTAs to 44px to match frames
    `544:3024`/`588:5780`. Recording the reversal rather than quietly restyling:
    the frames still draw 44, and the app now diverges from them here on purpose,
-   because a banner CTA a third taller than every other button on the same
-   screen read as a different kind of control rather than an emphasised one.
+   2026-10-01, direct instruction: **44px, not 36px.** This comment used to
+   argue the other way — that a banner CTA taller than every other button on the
+   screen read as a different kind of control. On a full-bleed banner it read as
+   undersized instead, so the banner CTA is now the trainee portal's own 44px
+   height. 36px is a floor, not a cap.
    Full-bleed below `sm` (direct instruction): the pill drops its fixed width
    there rather than keeping it and centring the gap, because at 375px minus the
    shell's own padding a ~220px button leaves an odd sliver either side and
    reads as misaligned against the centred copy above it. */
 const BANNER_CTA =
-  'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring'
+  'inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full border border-primary bg-white px-6 text-caption-medium text-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring'
+
+/**
+ * The filled variant, for the reflection banners' "Add my reflections" (direct
+ * instruction, 2026-10-02: *"add my reflection buttons update to primary
+ * style"*).
+ *
+ * Deliberately a second constant rather than a change to `BANNER_CTA`: that one
+ * still serves four other banner CTAs (the certification "Know more", the two
+ * learning links), and repointing it would have restyled all of them.
+ *
+ * It is CLAUDE.md's canonical **primary filled** pill — `bg-primary` /
+ * `text-white` / `hover:bg-primary-hover` / `text-caption-medium` — with two
+ * values taken from `BANNER_CTA` instead of the canonical ones, so the two sit
+ * in one family where a banner shows both: `h-11` rather than `h-9` (the
+ * trainee frames' own height; the 36px rule is a floor, not a cap) and `px-6`
+ * rather than `px-[18px]`.
+ *
+ * `border border-primary` is kept despite being invisible against the fill —
+ * without it the content box is 2px wider than the outline variant's, so a
+ * filled and an outline pill side by side would not match.
+ *
+ * White on `primary` `#3a00ad` measures 11.78:1; the pill against the banner's
+ * own `yellow-200` is 4.35:1, well past the 3:1 a control boundary needs.
+ */
+const BANNER_CTA_PRIMARY =
+  'inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full border border-primary bg-primary px-6 text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring'
+
+/**
+ * The one width every Home banner CTA takes at `xl`, replacing four different
+ * per-call-site overrides (`xl:w-[216px]`, `xl:w-[232px]`, `xl:w-[152px]` and
+ * `xl:w-auto`) that put five pills at five widths down one column of banners.
+ *
+ * **The reference is the reflection banner's own pill** (direct instruction),
+ * sized to its *widest* label rather than the one on screen today: "Add my
+ * reflections" measures 172.04px but the same control reads "Resume my
+ * reflections" (197.96px) once a draft exists, so 172 would have overflowed its
+ * own pill in a state the component already ships. 200 is the first round value
+ * that clears it.
+ *
+ * `xl:` only — below that breakpoint `BANNER_CTA`'s `w-full` still applies and
+ * the stacked banners keep their full-bleed pills.
+ */
+const BANNER_CTA_WIDTH = 'xl:w-[200px]'
 
 const STAGE_ART = '/illustrations/stage'
+
+/** The picture every blob-framed banner shared before the trainee image bank
+ *  existed. Still the default `StageBlob` falls back to, so a caller that passes
+ *  no `photo` renders exactly as it did. */
+const DEFAULT_BLOB_PHOTO = '/illustrations/onboarding/photo.jpg'
 
 /**
  * The stage banners' own photo blob (`637:10900` expect, `637:11298` notes) —
@@ -719,21 +785,77 @@ const STAGE_BLOBS: Record<'expect' | 'notes' | 'certified' | 'begin', StageBlobV
   },
 }
 
+/**
+ * The rotated footprint of a variant's composition.
+ *
+ * Rotating the composition grows its footprint. Computed rather than
+ * transcribed (the Round 30 rule) — `w·|cosθ| + h·|sinθ|` reproduces the frames'
+ * own 188.727x146.762 and 165.525x127.505 to within 0.01px, so the box stays
+ * honest if any of these numbers are ever revised.
+ *
+ * Lifted out of `StageBlob` so `sizeTo` can ask for a *second* variant's box
+ * without duplicating the formula.
+ */
+function stageBlobBox(v: StageBlobVariant): { w: number; h: number } {
+  const rad = (Math.abs(v.rotate) * Math.PI) / 180
+  return {
+    w: v.width * Math.cos(rad) + v.height * Math.sin(rad),
+    h: v.width * Math.sin(rad) + v.height * Math.cos(rad),
+  }
+}
+
 function StageBlob({
   variant,
   className,
+  sizeTo,
+  photo = DEFAULT_BLOB_PHOTO,
 }: {
   variant: keyof typeof STAGE_BLOBS
   className?: string
+  /**
+   * Render this variant at **another variant's footprint**.
+   *
+   * The stage banners stack on one page, so their artwork reads as one family
+   * and has to be one size — but `expect` and `notes` are authored at their own
+   * frames' pixel sizes (178.743x133.006 against 157.022x115.672), which is a
+   * visible ~23px difference at `--blob-scale:1` and, because the copy column
+   * sits directly after the blob, the reason the two banners' text started at
+   * different x positions.
+   *
+   * Derived, never a second transcribed scale: the factor is the ratio of the
+   * two `stageBlobBox` widths, so correcting either variant's geometry keeps
+   * them matched instead of silently reopening the gap. It multiplies
+   * `--blob-scale` rather than replacing it, so a caller's responsive scales
+   * stay the single place breakpoints are expressed.
+   *
+   * **Width is what is matched, and the heights land ~1.4px apart.** The two
+   * compositions are not the same aspect (1.3439 against 1.3575 — the Figma
+   * exports themselves differ by ~1%), so no single uniform factor can equalise
+   * both without distorting the photo. Width is the one that aligns the copy
+   * columns, which is what this is for.
+   */
+  sizeTo?: keyof typeof STAGE_BLOBS
+  /**
+   * Which picture fills the torn-paper window.
+   *
+   * Additive and optional on purpose: every banner shared one photo before the
+   * trainee image bank existed, so a caller that passes nothing renders
+   * byte-identically. **Only the image changes.** The mask and the outline are
+   * still both derived from `v.outline` below, which is what stops a new photo
+   * from showing outside the line meant to frame it — the §78.1 defect this
+   * project has shipped three times. A per-stage picture is a different `src`,
+   * not a different geometry.
+   */
+  photo?: string
 }) {
   const v = STAGE_BLOBS[variant]
-  const rad = (Math.abs(v.rotate) * Math.PI) / 180
-  // Rotating the composition grows its footprint. Computed rather than
-  // transcribed (the Round 30 rule) — `w·|cosθ| + h·|sinθ|` reproduces the
-  // frames' own 188.727x146.762 and 165.525x127.505 to within 0.01px, so the
-  // box stays honest if any of these numbers are ever revised.
-  const boxW = v.width * Math.cos(rad) + v.height * Math.sin(rad)
-  const boxH = v.width * Math.sin(rad) + v.height * Math.cos(rad)
+  const box = stageBlobBox(v)
+  // 1 unless the caller asked to match another variant's footprint — see
+  // `sizeTo`. Applied everywhere `--blob-scale` is, so it scales the whole
+  // composition rather than only its reserved box.
+  const match = sizeTo ? stageBlobBox(STAGE_BLOBS[sizeTo]).w / box.w : 1
+  const boxW = box.w * match
+  const boxH = box.h * match
 
   return (
     <div
@@ -746,8 +868,8 @@ function StageBlob({
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           style={{
-            width: `calc(${v.width}px * var(--blob-scale))`,
-            height: `calc(${v.height}px * var(--blob-scale))`,
+            width: `calc(${v.width * match}px * var(--blob-scale))`,
+            height: `calc(${v.height * match}px * var(--blob-scale))`,
             transform: `rotate(${v.rotate}deg)`,
           }}
         >
@@ -756,7 +878,7 @@ function StageBlob({
             style={{
               width: v.width,
               height: v.height,
-              transform: 'scale(var(--blob-scale))',
+              transform: `scale(calc(var(--blob-scale) * ${match}))`,
             }}
           >
             {/* Sheet, counter-tilted so it reads as paper behind paper. */}
@@ -813,7 +935,7 @@ function StageBlob({
                 }}
               >
                 <img
-                  src="/illustrations/onboarding/photo.jpg"
+                  src={photo}
                   alt=""
                   aria-hidden="true"
                   className="pointer-events-none size-full object-cover"
@@ -857,6 +979,52 @@ function StageBlob({
   )
 }
 
+/** The stages whose Home card and banner have their own variant. Resolved by
+ *  label rather than hardcoded, so reordering or inserting a stage cannot
+ *  silently point one at the wrong column.
+ *
+ *  2026-10-01: `REFLECTION_STAGE_INDEX`, `REFLECTION_CTA_LABEL` and the shared
+ *  `ReflectionPrompt` were deleted with the My Reflection stage (direct
+ *  instruction). Nothing outside this file imported them. */
+const LEARNING_BASICS_STAGE_INDEX = PATHWAY_STAGE_COPY.findIndex((s) => s.stage === 'Stage C:')
+const OBSERVING_STAGE_INDEX = PATHWAY_STAGE_COPY.findIndex((s) => s.stage === 'Stage O:')
+const FIRST_PLACEMENT_STAGE_INDEX = PATHWAY_STAGE_COPY.findIndex((s) => s.stage === 'Stage A:')
+const COMMUNITY_FEEDBACK_STAGE_INDEX = PATHWAY_STAGE_COPY.findIndex((s) => s.stage === 'Stage CP:')
+const SECOND_PLACEMENT_STAGE_INDEX = PATHWAY_STAGE_COPY.findIndex((s) => s.stage === 'Stage H:')
+
+/**
+ * The trainee portal's own stage photography (`public/illustrations/trainee`).
+ *
+ * Keyed by the rail's own `stage` eyebrow, never by position — the same reason
+ * the four index constants above are resolved by label. A banner pointed at a
+ * number would silently show another stage's picture the moment a stage is
+ * reordered or inserted, and a wrong-but-plausible photo is exactly the kind of
+ * drift nobody catches in a screenshot.
+ */
+const TRAINEE_ART = '/illustrations/trainee'
+
+const STAGE_PHOTO_BY_STAGE: Record<string, string> = {
+  'Stage C:': `${TRAINEE_ART}/stage-c.webp`,
+  'Stage O:': `${TRAINEE_ART}/stage-o.webp`,
+  'Stage A:': `${TRAINEE_ART}/stage-a.webp`,
+  'Stage CP:': `${TRAINEE_ART}/stage-cp.webp`,
+  'Stage H:': `${TRAINEE_ART}/stage-h.webp`,
+}
+
+/** The journey-start picture. Shared by the trainee "Begin your training
+ *  journey" banner and the coach welcome banner, which is a direct instruction
+ *  rather than a coincidence — the coach banner reuses the trainee banner's
+ *  artwork unchanged, so the two read as one treatment. */
+const BEGIN_PHOTO = `${TRAINEE_ART}/begin.webp`
+const CERTIFIED_PHOTO = `${TRAINEE_ART}/certified.webp`
+
+/** The photo for one rail stage. Falls back to the journey-start picture rather
+ *  than rendering an empty window if a stage ever has none of its own. */
+function stagePhoto(index: number): string {
+  const stage = PATHWAY_STAGE_COPY[index]
+  return (stage && STAGE_PHOTO_BY_STAGE[stage.stage]) || BEGIN_PHOTO
+}
+
 /**
  * Per-stage banner copy (`638:11947`, `638:11948`, `638:11949`). Keyed by the
  * rail's own stage index so the two cannot drift apart.
@@ -869,8 +1037,15 @@ function StageBlob({
  * content, not layout, and it is the research team's call, not mine.
  */
 const STAGE_BANNER_COPY: Record<number, string> = {
-  1: 'You will join live sessions with a facilitator and other coaches to practice your skills together. Wait for your supervisor, they will be contacting you soon.',
-  2: 'You will take turns role-playing as the "coach" and the "simulated consumer (peer)" using structured role-play briefs that escalate in complexity across the sessions.',
+  // Stage O absorbed both of the old numbered stages this copy used to be split
+  // across (guided group practice, peer role-play), so it says both.
+  1: 'You will join live sessions with a facilitator and other coaches, taking turns role-playing as the coach and as the client, using structured briefs that build in complexity across the sessions. Wait for your supervisor, they will be contacting you soon.',
+  // Stage A is net new — dummy copy, written from the COACH brief for Placement 1.
+  2: 'You will run your first coaching sessions with simulated clients while an observer sits in. Your clients, your peers and your observer will all give you feedback afterwards.',
+  // Stage CP. Worth recording: this is the paragraph Round 30 shipped under
+  // "Hands-on Assessment" and a code comment here flagged as the wrong one
+  // pasted into the frame. It was never wrong — it describes a
+  // community-of-practice session, which is the stage it now sits on.
   3: 'You will meet with other coaches to go over your feedback and refine your approach together.',
   // Round 32: Stage 6 had no banner because no frame was ever supplied for it,
   // which left the hero slot empty on the last stage of the rail.
@@ -884,18 +1059,65 @@ const STAGE_BANNER_COPY: Record<number, string> = {
   // "simulated clients" resolves the collision between the terminology table's
   // fixed term "simulated consumer" and the audience rule that coach-facing
   // surfaces say "client" (direct instruction).
-  5: 'You will run independent coaching sessions with simulated clients while an expert assesses your practical competency in real time. Wait to hear from your supervisor for next steps.',
+  4: 'You will run independent coaching sessions with simulated clients while an expert assesses your practical competency in real time. Wait to hear from your supervisor for next steps.',
 }
 
 /**
- * Which stages get a "how did it go?" prompt once they are behind the coach.
+ * Which stages get the yellow banner once they are behind the trainee —
+ * **C, O and H**, direct instruction.
  *
- * Stage 1 (Content Learning) is absent because it is modules, not a session —
- * there is nothing to write up. **Stage 4 (Hands-on Assessment) is built and
- * deliberately withheld** (direct instruction): its banner renders correctly if
- * added here, so turning it on is one number, but it is not shown for now.
+ * This replaces `STAGES_WITH_NOTES` (O, A, CP). The banner is no longer a
+ * "write up how it went" notes prompt: it is a reflection the trainee has to
+ * answer. A, CP and the certified state now show **no yellow banner at all**.
+ *
+ * The three are not an arbitrary subset — they are the three in-pathway
+ * timepoints of the annotated SIPTEA guide, which CLAUDE.md has carried since
+ * long before this change:
+ *
+ *   Stage C  Learning the basics        -> baseline  (after content learning)
+ *   Stage O  Observing and practice ... -> midline   (after guided group practice)
+ *   Stage H  Your second placement      -> endline   (after Placement 2)
+ *
+ * The fourth timepoint, post-practice, falls after the first real client
+ * session, which is past this rail entirely — so it is correctly absent. Worth
+ * recording, because it means a stage added to the rail does **not**
+ * automatically earn a reflection: the set is a schedule, not a default.
+ *
+ * Stage C's own entry also finally gives `stage-c.webp` a render site — it was
+ * generated in Round 51 and has sat dormant since, because the old notes prompt
+ * skipped C on the grounds that it is modules rather than a session. A
+ * reflection on what you learned does not need a session to have happened.
+ *
+ * Resolved by label rather than position, per the standing rule.
  */
-const STAGES_WITH_NOTES = new Set([1, 2])
+/**
+ * Where the **endline** reflection has got to — the Stage H one, the only
+ * reflection on this rail that gates anything.
+ *
+ *   todo     -> the banner asks for it; certification column is inert.
+ *   pending  -> sent, with the assessor. "Pending assessment" shows in the
+ *               banner AND under the certification column.
+ *   approved -> the assessor passed them. The reflection banner is replaced by
+ *               the Congratulations banner and the column activates.
+ *
+ * Direct instruction, 2026-10-02: *"show congratulations banner + activate the
+ * timeline after I have filled the banner (and it got approved by researcher)"*
+ * and *"after I click label, hide banner and show congratulation banner"*.
+ *
+ * Stages C and O carry no state of their own: baseline and midline are
+ * reflections the research team reads, not a pass/fail, so "pending assessment"
+ * would be the wrong words on either. Placement 2 is the assessed one — the
+ * expert assessor scores the SIPTEA competency checklist and the endline
+ * reflection is shared with them for that decision — which is why the gate
+ * lives here and nowhere else.
+ */
+type EndlineState = 'todo' | 'pending' | 'approved'
+
+const STAGES_WITH_REFLECTION = new Set([
+  LEARNING_BASICS_STAGE_INDEX,
+  OBSERVING_STAGE_INDEX,
+  SECOND_PLACEMENT_STAGE_INDEX,
+])
 
 /**
  * The greeting drops its orientation sub copy for a shorter "welcome back" pair
@@ -931,9 +1153,22 @@ function greetingFor(activeStage: number, resuming: boolean) {
  * `hero-banner_Stage N` (`638:11947` / `638:11948` / `638:11949`) — the "before"
  * banner: what this stage involves, shown while the coach is in it.
  *
- * `purple-300` fill with a `purple-500` stroke, both matching the frame's own
- * tokens exactly. Text is plain `ink` here rather than the white the Stage 1
- * banner uses, because this ground is light.
+ * 2026-10-01, direct instruction: **solid blue**, the same `primary` ground the
+ * "Begin your training journey" banner directly above it already uses, replacing
+ * the frame's `purple-300` fill and `purple-500` stroke. The stroke goes with
+ * it — `purple-500` on `primary` reads as a halo, and neither of the portal's
+ * two other `primary` banners carries one.
+ *
+ * Everything inside moves with the ground: copy inverts to white (`opacity-90`
+ * on the secondary lines, as the blue banners do), and the CTA is already
+ * `BANNER_CTA`'s white pill, which is the control those banners use.
+ *
+ * The artwork needs no new asset. `StageBlob`'s `expect` variant already draws
+ * `back-purple.svg` behind the photo, which is the **same back sheet the
+ * `begin` variant uses on this exact `primary` ground** — so the sheet, the
+ * torn-paper outline and all four stickers are already the combination that is
+ * known to read correctly on blue, rather than a purple-on-purple pairing that
+ * only worked on the lighter fill.
  */
 function StageExpectBanner({ index }: { index: number }) {
   const stage = PATHWAY_STAGES[index]
@@ -941,11 +1176,29 @@ function StageExpectBanner({ index }: { index: number }) {
 
   return (
     <section
-      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-purple-500 bg-purple-300 py-6 pl-4 pr-6 text-ink shadow-card xl:flex-row xl:items-center xl:justify-between"
+      // 2026-10-01, direct instruction: on a blue banner the CTA sits at the
+      // **top right**, not vertically centred against the copy. `items-start`
+      // on the row does that; the inner content row is already top-aligned, so
+      // nothing else moves. The Begin banner is the stated exception and keeps
+      // its CTA inline beneath the copy.
+      // `border border-transparent` is a **layout** value, not a colour: the
+      // reflection banner below carries a real 1px `yellow-300` stroke, so its
+      // content box starts 1px further in than this one's did and the two copy
+      // columns could never quite line up. The ground paints under a transparent
+      // border (`background-clip: border-box`), so nothing changes on screen.
+      //
+      // `xl:gap-10` widens the space between the copy column and the CTA from
+      // the stacked `gap-6` (direct instruction). Scoped to `xl` so the stacked
+      // state keeps its 24px vertical rhythm.
+      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-transparent bg-primary py-6 pl-4 pr-6 text-white shadow-card xl:flex-row xl:items-start xl:justify-between xl:gap-10"
       data-node-id="638:11947"
     >
       <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-6 xl:flex-row xl:items-start">
-        <StageBlob variant="expect" className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.75] xl:[--blob-scale:1] xl:self-start" />
+        <StageBlob
+          variant="expect"
+          photo={stagePhoto(index)}
+          className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.75] xl:[--blob-scale:1] xl:self-start"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-6 text-center xl:text-left">
           <div className="flex flex-col gap-1">
             <p className="text-sub-greeting leading-[1.4] opacity-90">You are now in:</p>
@@ -969,7 +1222,7 @@ function StageExpectBanner({ index }: { index: number }) {
         type="button"
         aria-disabled="true"
         onClick={(e) => e.preventDefault()}
-        className={cn(BANNER_CTA, 'cursor-not-allowed xl:w-auto')}
+        className={cn(BANNER_CTA, BANNER_CTA_WIDTH, 'cursor-not-allowed')}
       >
         Learn more
         <span className="sr-only"> (coming soon)</span>
@@ -1002,7 +1255,7 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
 
       {/* Above the confetti, so pieces fall behind the photo and the copy. */}
       <div className="relative z-10 flex w-full min-w-0 flex-1 flex-col items-center gap-8 xl:flex-row xl:items-center">
-        <StageBlob variant="certified" className="self-center" />
+        <StageBlob variant="certified" photo={CERTIFIED_PHOTO} className="self-center" />
         <div className="flex min-w-0 flex-1 flex-col gap-8 px-4 text-center xl:text-left">
           <div className="flex flex-col gap-1">
             <h2 className="font-display text-display-md">Congratulations</h2>
@@ -1023,7 +1276,13 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
             <button
               type="button"
               onClick={onDownloadCertificate}
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+              // `shrink-0` rather than `flex-1`: grown to fill the row it
+              // measured 516px beside its own 200px sibling, which is the one
+              // place the banners' CTA widths were still obviously unequal. It
+              // is the only banner CTA that cannot take `BANNER_CTA_WIDTH` —
+              // label plus the 24px award glyph needs ~226px and 200 would
+              // truncate it — so it sits at its content width instead.
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
             >
               {/* lucide, not the frame's exported glyph (CLAUDE.md). */}
               <Award aria-hidden="true" className="size-6" strokeWidth={1.75} />
@@ -1034,7 +1293,10 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
               type="button"
               aria-disabled="true"
               onClick={(e) => e.preventDefault()}
-              className="inline-flex h-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring xl:w-[152px]"
+              className={cn(
+                'inline-flex h-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                BANNER_CTA_WIDTH,
+              )}
             >
               Know more
               <span className="sr-only"> (coming soon)</span>
@@ -1048,62 +1310,225 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
 
 /**
  * `hero-banner_Stage N_notes` (`638:11875` / `638:11876` / `638:11877`) — the
- * "after" banner: once a stage is behind the coach, a prompt to write up how it
- * went, with a real Dismiss.
+ * "after" banner, **repurposed**: once a stage is behind the trainee, a prompt
+ * to answer that stage's reflection.
  *
- * Same yellow ground as the reflection banner, and the same `yellow-300`
- * correction applies — the frame's stroke style is *named* `yellow/400` but its
- * hex `#FFCC4D` is this app's `yellow-300`.
+ * Direct instruction, 2026-10-02: *"re-use the yellow banner that we have added
+ * for trainees to add notes, we no longer use them as notes -> these banners
+ * will be reflection screens that user needs to answer."* So the chrome, the
+ * blob, the ground and the geometry are all unchanged — only the purpose, the
+ * copy, the CTA and the gate moved. Three things follow from that:
+ *
+ * 1. **No Dismiss.** Direct instruction: *"These reflections are necessary, so
+ *    they will not have dismiss banners."* The control, the `dismissedNotes`
+ *    state and its focus-return handler are all deleted rather than hidden — a
+ *    banner that cannot be dismissed has nothing to return focus to, which also
+ *    removes one instance of this project's most-repeated defect class rather
+ *    than guarding it.
+ * 2. **It no longer points at My Notes.** That page is free-text notes, which is
+ *    exactly what these have stopped being, so deep-linking there would send a
+ *    trainee somewhere that cannot take a reflection. There is no reflection
+ *    screen yet, so the CTA is the app's standard unwired control — focusable,
+ *    `aria-disabled`, with an `sr-only` cue — per CLAUDE.md, never a silently
+ *    dead button and never omitted.
+ * 3. Only C, O and H reach this component. See `STAGES_WITH_REFLECTION`.
+ *
+ * Same yellow ground as before, and the same `yellow-300` correction applies —
+ * the frame's stroke style is *named* `yellow/400` but its hex `#FFCC4D` is this
+ * app's `yellow-300`.
  */
-function StageNotesBanner({ index, onDismiss }: { index: number; onDismiss: () => void }) {
+function StageReflectionBanner({
+  index,
+  endline,
+  onOpen,
+  onApprove,
+  resumable,
+  timepoint,
+  ctaRef,
+}: {
+  index: number
+  /** `null` on every stage but H — see `EndlineState`. */
+  endline: EndlineState | null
+  onOpen: () => void
+  onApprove: () => void
+  /** A part-finished reflection is in the store, so the CTA offers to resume
+   *  rather than to start. Direct instruction: *"add resume state also to the
+   *  banner"*. */
+  resumable: boolean
+  /** Focus target when the wizard closes without submitting. The modal's own
+   *  Cancel unmounts with its panel, so `ConfirmDialog`'s focus-restore has
+   *  nothing to return to and focus lands on `<body>` — measured, not assumed.
+   *  This CTA is where the trainee came from and where Resume now lives. */
+  ctaRef?: React.RefObject<HTMLButtonElement | null>
+  /** `null` only if a stage reaches this component with no reflection set —
+   *  which `STAGES_WITH_REFLECTION` prevents, but the CTA degrades to inert
+   *  rather than opening an empty wizard. */
+  timepoint: ReflectionTimepoint | null
+}) {
   const stage = PATHWAY_STAGES[index]
-  const dismissRef = useRef<HTMLButtonElement>(null)
   if (!stage) return null
+  const submitted = endline === 'pending'
 
   return (
     <section
-      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-yellow-300 bg-yellow-200 py-4 pl-4 pr-6 text-purple-950 shadow-card xl:flex-row xl:items-center xl:justify-between"
+      // `xl:gap-10`: the same widened copy-to-CTA space the expect banner above
+      // takes, so the two read as one column (direct instruction).
+      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-yellow-300 bg-yellow-200 py-4 pl-4 pr-6 text-purple-950 shadow-card xl:flex-row xl:items-center xl:justify-between xl:gap-10"
       data-node-id="638:11876"
     >
       <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-6 xl:flex-row xl:items-center">
-        <StageBlob variant="notes" className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.75] xl:[--blob-scale:1] xl:self-start" />
+        {/* `sizeTo="expect"` — same artwork, rendered at the expect banner's
+            footprint so the two stacked banners' blobs, and therefore the copy
+            columns after them, match. The responsive scales below are
+            deliberately identical to that banner's; the match factor is derived
+            rather than folded into them. */}
+        <StageBlob
+          variant="notes"
+          sizeTo="expect"
+          photo={stagePhoto(index)}
+          className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.75] xl:[--blob-scale:1] xl:self-start"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-1 text-center xl:text-left">
-          {/* Frame wording varies per stage ("Peer Role-Play session go?" vs
-              "guided group practice go?"); normalised onto the rail's label so
-              all three read the same way and match the timeline. */}
-          <p className="text-title">How did {stage.label} go?</p>
-          <p className="text-body leading-[1.4] opacity-90">
-            Add some notes so you remember what to focus on next time.
+          {/* Derived from the rail's own label, so the banner and the timeline
+              cannot name a stage differently. `shortStageLabel` drops Stage H's
+              trailing "(hands-on assessment)" — a parenthetical reads as an
+              aside in a column heading and as a stumble in a question. */}
+          <p className="text-title">
+            {submitted
+              ? 'Your reflection has been shared'
+              : `How did ${midSentence(shortStageLabel(stage.label))} go?`}
           </p>
+          {/* States that the reflection is expected without claiming the app
+              enforces it. Nothing here gates stage progress today, and copy
+              that promises a block the product does not implement is the kind
+              of sentence this project has had to retract before.
+
+              The submitted line names the assessor rather than "the team":
+              Placement 2 is assessed by an expert assessor against the SIPTEA
+              competency checklist, and the endline reflection is shared with
+              them for exactly that decision. */}
+          <p className="text-body leading-[1.4] opacity-90">
+            {submitted
+              ? 'Your assessor is reviewing your second placement. You will hear from them once it has been assessed.'
+              : 'Answer a few questions about how this stage went. This reflection is a required part of your training.'}
+          </p>
+          {/* Direct instruction: in the banner the label sits **below the sub
+              copy**, prefixed "Status:", rather than in the CTA slot opposite.
+              It belongs with the sentence it qualifies — on the right it read as
+              an action in the place the button had just vacated, which is the
+              one thing a status is not. The rail's own copy keeps the bare chip:
+              there it sits under a column whose heading already supplies the
+              subject, so a second label would be noise.
+
+              `mt-2` rather than the stack's `gap-1`: heading and sub copy are
+              one block at 4px, and the status is a separate statement about it. */}
+          {submitted && (
+            <p className="mt-2 flex flex-wrap items-center justify-center gap-2 text-body xl:justify-start">
+              Status:
+              <PendingAssessmentStatus onApprove={onApprove} />
+            </p>
+          )}
         </div>
       </div>
       <div className="flex w-full shrink-0 flex-col items-center gap-2 xl:w-auto xl:flex-row">
-        {/* Lands on My Notes with the title already filled in and the cursor in
-            the note box (direct instruction), so the coach arrives ready to type
-            rather than having to restate which session they are writing about.
-            The title is the rail's own stage label, which is also what the
-            heading above this button says. */}
-        <Link
-          to={`/delivery/notes?title=${encodeURIComponent(`${stage.label} - how it went`)}`}
-          className={cn(BANNER_CTA, 'xl:w-auto')}
-        >
-          Add notes
-        </Link>
-        {/* Dismiss unmounts this banner, so focus would fall to `<body>` —
-            this project's most-repeated defect, shipped in six separate rounds.
-            The parent moves focus to the pathway heading instead; see
-            `TraineeHome`. */}
-        <button
-          ref={dismissRef}
-          type="button"
-          onClick={onDismiss}
-          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full px-[18px] text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring xl:w-auto"
-        >
-          Dismiss
-        </button>
+        {submitted ? null : timepoint ? (
+          /* Opens the real wizard at this stage's own timepoint. The label
+             switches to Resume once a draft exists — same control, same
+             destination, so the trainee is not hunting for a second button. */
+          <button
+            ref={ctaRef}
+            type="button"
+            onClick={onOpen}
+            className={cn(BANNER_CTA_PRIMARY, BANNER_CTA_WIDTH)}
+          >
+            {resumable ? 'Resume my reflections' : 'Add my reflections'}
+          </button>
+        ) : (
+          /* A stage with no question set — today unreachable, since
+             `STAGES_WITH_REFLECTION` and `TIMEPOINT_BY_STAGE` name the same
+             three. Kept as the app's standard unwired control rather than an
+             omission, so adding a stage to one list and not the other shows up
+             on screen instead of silently rendering a button that opens an
+             empty wizard. */
+          <button
+            type="button"
+            aria-disabled="true"
+            onClick={(e) => e.preventDefault()}
+            className={cn(BANNER_CTA_PRIMARY, BANNER_CTA_WIDTH, 'cursor-not-allowed')}
+          >
+            Add my reflections
+            <span className="sr-only"> (coming soon)</span>
+          </button>
+        )}
       </div>
     </section>
   )
+}
+
+/**
+ * "Pending assessment" — the endline's own status indicator, in the banner and
+ * under the pathway's certification column.
+ *
+ * **A one-off, deliberately not the shared `<Chip>`** (direct instruction:
+ * *"lets not treat it as a label inside the banner, make this one off component
+ * and fix boundary issue"*). Two reasons it earns its own component rather than
+ * an eighth tone or a `className` escape hatch on `Chip`:
+ *
+ * 1. **It is a control, and `Chip` is not.** Every other chip in this app is a
+ *    `<span>` stating a fact. This one is pressed, so it needs a real hit area,
+ *    a focus ring and an accessible description of what pressing it does — none
+ *    of which belong on a component whose whole job is to be inert.
+ * 2. **`Chip`'s boundary could not be fixed from outside.** Its tones are 8%
+ *    fills with 20% borders, measured as *pairs* against a white card. On the
+ *    banner's `yellow-200` the fill measured **1.27:1** and the border
+ *    **1.40:1** — both under the 3:1 WCAG asks of a control's boundary, and the
+ *    border is the half that cannot be rescued by an opaque fill. Widening
+ *    `Chip` to let a call site override its border would have let any surface
+ *    break the contrast pairing the component exists to guarantee.
+ *
+ * So the boundary is fixed by construction instead: an **opaque** `destructive`
+ * border, not a 20% one. Measured on both grounds it appears on —
+ * **4.25:1** against the banner's `yellow-200`, **5.38:1** against the rail's
+ * white card — clearing 3:1 either way. The white fill keeps the red text off
+ * whatever is behind it (**5.38:1**, the figure `ResearchPrioritiesSection`
+ * already relies on).
+ *
+ * The dot this carried briefly is **removed** (direct instruction). The opaque
+ * border is what does the work anyway — it is the measured fix for the boundary,
+ * and the dot was only ever reinforcing it.
+ *
+ * **36px tall, so the hit area is intrinsic.** The earlier `Chip` version was
+ * 27px and needed `min-h-9` plus a cancelling negative margin to reach this
+ * app's floor. Sizing the control correctly in the first place removes the
+ * hack, and 14/500 `caption-medium` is more legible than `Chip`'s 12/600.
+ *
+ * **Clicking it is a demo affordance, not product chrome.** In the real product
+ * a trainee can no more approve their own certification than mark their own
+ * assessment — that write path belongs to the expert assessor on the Research
+ * Dashboard. Same category as `CoachStageSwitcher`: delete it when a real write
+ * path lands rather than repurposing it.
+ */
+function PendingAssessmentStatus({ onApprove }: { onApprove: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onApprove}
+      className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-full border border-destructive bg-white px-4 text-caption-medium whitespace-nowrap text-destructive outline-none transition-colors hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      Pending assessment
+      {/* The visible text is a status, so the control has to say what pressing
+          it does. Plain wording because it is a demo action, not a feature. */}
+      <span className="sr-only"> (demo: mark as approved by the assessor)</span>
+    </button>
+  )
+}
+
+/** Drops a trailing parenthetical from a stage label for mid-sentence use:
+ *  "Your second placement (hands-on assessment)" -> "Your second placement".
+ *  Derived rather than a second hardcoded short name, so it cannot drift from
+ *  the rail the way a parallel copy list would. */
+function shortStageLabel(label: string): string {
+  return label.replace(/\s*\([^)]*\)\s*$/, '')
 }
 
 /**
@@ -1115,6 +1540,9 @@ function StageNotesBanner({ index, onDismiss }: { index: number; onDismiss: () =
  * - `588:5767` "Resume where you left", the moment they are part-way through
  *   one: a **much smaller** blob, the module's own name, and a CTA that returns
  *   them to the exact step they stopped at.
+ *
+ * A third state — "Share your reflection", on the old My Reflection stage —
+ * was deleted on 2026-10-01 with the stage itself (direct instruction).
  *
  * The switch is derived, never a flag — `resumableModule()` reads the same live
  * progress the module cards read, so the banner cannot claim a module is under
@@ -1128,68 +1556,8 @@ function StageNotesBanner({ index, onDismiss }: { index: number; onDismiss: () =
  * leaves the copy ~250px, which is where the title starts wrapping one word per
  * line. Below `sm` the stack also centres.
  */
-function TrainingBanner({ reflecting }: { reflecting: boolean }) {
+function TrainingBanner() {
   const resuming = resumableModule()
-
-  if (reflecting) {
-    return (
-      <section
-        // Same geometry as the resume state, different palette: `yellow-200`
-        // fill, `yellow-300` stroke, `purple-950` text. The CTA is the identical
-        // white/`primary` pill all three states use — the frame keeps it purple
-        // on the yellow ground rather than restyling it, which is also what
-        // makes the three states read as one component changing clothes.
-        //
-        // **`yellow-300`, not `yellow-400`**, despite the frame's stroke style
-        // being *named* `yellow/400`: its hex is `#FFCC4D`, which is this app's
-        // `yellow-300`. The Figma names never caught up with the Round 21.3
-        // renumbering, so the value is the authority and the name is not — the
-        // app's own `yellow-400` is `#FFB600`, a visibly oranger line.
-        className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-yellow-300 bg-yellow-200 py-4 pl-4 pr-6 xl:flex-row xl:items-center xl:gap-12"
-        data-node-id="607:8003"
-      >
-        <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-3 xl:flex-row xl:items-center">
-          {/* `StageBlob`, not the plain `BannerBlob` — this banner was the only
-              stage banner without the sticker layer (direct instruction).
-              The **`notes`** variant specifically, because its back sheet is
-              `back-yellow.svg`: this banner shares the `yellow-200` ground with
-              the notes banner, where `expect`'s purple sheet would read as a
-              foreign patch. */}
-          <StageBlob variant="notes" className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.75] xl:[--blob-scale:1] xl:self-start" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 text-center text-purple-950 xl:text-left">
-            {/* Direct instruction. Sentence case per CLAUDE.md's copy rule, so
-                "reflection" is lower case here — Title Case surviving that rule
-                has been flagged as a defect in a previous round's critique.
-                (The frame said "Self-reflection time!", an earlier pass "My
-                reflection time!".) */}
-            <h2 className="font-display text-display-md">Share your reflection</h2>
-            <ReflectionPrompt className="text-body leading-[1.4] opacity-90" />
-          </div>
-        </div>
-        {/* Unwired: the reflective-conversation flow does not exist yet (the
-            Baseline/Midline/Endline tool is still a placeholder elsewhere in the
-            app). Focusable `aria-disabled` with an `sr-only` reason per
-            CLAUDE.md, never a silently dead button. */}
-        <button
-          type="button"
-          aria-disabled="true"
-          onClick={(e) => e.preventDefault()}
-          // Primary filled, matching the Stage 5 card's own CTA below (direct
-          // instruction). The two are the same action from two entry points, so
-          // they carry the same weight rather than one reading as secondary.
-          // Overridden here only — the other banner states keep `BANNER_CTA`'s
-          // outline pill.
-          className={cn(
-            BANNER_CTA,
-            'cursor-not-allowed border-primary bg-primary text-white hover:bg-primary-hover xl:w-[216px]',
-          )}
-        >
-          {REFLECTION_CTA_LABEL}
-          <span className="sr-only"> (coming soon)</span>
-        </button>
-      </section>
-    )
-  }
 
   if (resuming) {
     return (
@@ -1198,7 +1566,7 @@ function TrainingBanner({ reflecting }: { reflecting: boolean }) {
         // is shorter than the intro purely because the blob is, and the frame
         // tightens the padding to match rather than leaving it floating in the
         // taller box.
-        className="flex flex-col items-center gap-6 overflow-hidden rounded-lg bg-primary py-4 pl-4 pr-6 xl:flex-row xl:items-center xl:gap-12"
+        className="flex flex-col items-center gap-6 overflow-hidden rounded-lg bg-primary py-4 pl-4 pr-6 xl:flex-row xl:items-start xl:gap-12"
         data-node-id="588:5767"
       >
         <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-3 xl:flex-row xl:items-center">
@@ -1225,7 +1593,7 @@ function TrainingBanner({ reflecting }: { reflecting: boolean }) {
             `ModuleOverviewPage` passes it). */}
         <Link
           to={`/training-v2/module/${realPlayerContentId(resuming.id)}/play?from=${resuming.id}`}
-          className={cn(BANNER_CTA, 'xl:w-[216px]')}
+          className={cn(BANNER_CTA, BANNER_CTA_WIDTH)}
         >
           Resume learning
         </Link>
@@ -1242,6 +1610,7 @@ function TrainingBanner({ reflecting }: { reflecting: boolean }) {
           rather than the plain `BannerBlob` it used to be. */}
       <StageBlob
         variant="begin"
+        photo={BEGIN_PHOTO}
         className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.7] xl:[--blob-scale:1]"
       />
       <div className="flex w-full min-w-0 flex-1 flex-col justify-center gap-6 xl:gap-8 xl:px-4">
@@ -1252,7 +1621,7 @@ function TrainingBanner({ reflecting }: { reflecting: boolean }) {
             <span className="font-bold">My Learning</span> tab from the side menu.
           </p>
         </div>
-        <Link to="/delivery/learning" className={cn(BANNER_CTA, 'xl:w-[232px]')}>
+        <Link to="/delivery/learning" className={cn(BANNER_CTA, BANNER_CTA_WIDTH)}>
           Go to My Learning
         </Link>
       </div>
@@ -1271,26 +1640,19 @@ function TrainingBanner({ reflecting }: { reflecting: boolean }) {
  * make for the sleep-diary grid, which was a real WCAG 2.1.1 failure because a
  * wide scroller with no focusable content cannot be reached by keyboard at all.
  *
- * Icons are lucide, never the frame's exported SVGs (CLAUDE.md), and three were
- * changed from the frame's own choice to be **stage-specific** (direct
- * instruction) rather than generic:
+ * Icons are lucide, never the frame's exported SVGs (CLAUDE.md), and each names
+ * what its stage actually is rather than taking a generic glyph:
  *
- * - `role-play` -> `Drama`. The export is literally a circle with an X through
- *   it, which every other UI in this app uses for "error" or "dismissed" — in a
- *   *progress* rail it read as a failed stage. `Drama`'s theatre masks are what
- *   role-play actually means.
- * - `message-square` -> `NotebookPen`. A speech bubble says "conversation"; the
- *   reflection is something the coach *writes*. This also matches the icon
- *   Round 19.1 already settled on for the app's own reflection panel, so the
- *   two surfaces now name the same concept with the same glyph.
- * - `video` -> `HeartHandshake`. `Video` is correct about the medium but it is
- *   the same glyph as the "Join Zoom" button further down this very page, so on
- *   one screen it meant both "a stage of your training" and "a button that
- *   opens a call". The stage is about delivering the intervention, not about
- *   the camera.
- *
- * `book-open`, `users`, `clipboard-check` and `award` were already specific and
- * are kept.
+ * - C `BookOpen` — self-directed modules.
+ * - O `Users` — a group: the guided practice sessions and the peer role-plays
+ *   this stage absorbed are both other-people-in-the-room.
+ * - A `HeartHandshake` — a first placement is coaching a client. Deliberately
+ *   not `Video`, which is the "Join Zoom" glyph further down this same page and
+ *   would mean both "a stage of your training" and "a button that opens a call"
+ *   on one screen.
+ * - CP `MessagesSquare` — community of practice is a conversation between
+ *   peers, which is the one place in this rail a speech bubble is literal.
+ * - H `ClipboardCheck` — the assessed second placement.
  */
 interface PathwayStage {
   icon: LucideIcon
@@ -1303,81 +1665,64 @@ interface PathwayStage {
  *  this page would close a cycle through `DeliveryShell`. Icons stay here
  *  because they are presentation, not copy; they are zipped onto the shared
  *  list by index so a stage can never render another stage's glyph. */
-const STAGE_ICONS = [BookOpen, Users, Drama, ClipboardCheck, NotebookPen, HeartHandshake]
+const STAGE_ICONS = [BookOpen, Users, HeartHandshake, MessagesSquare, ClipboardCheck]
 
 const PATHWAY_STAGES: PathwayStage[] = PATHWAY_STAGE_COPY.map((s, i) => ({
   ...s,
   icon: STAGE_ICONS[i],
 }))
 
-/** Index of the reflection stage, resolved by label rather than hardcoded to 4
- *  so reordering or inserting a stage cannot silently point the banner switch at
- *  the wrong one. */
-export const REFLECTION_STAGE_INDEX = PATHWAY_STAGES.findIndex(
-  (s) => s.label === 'My Reflection',
-)
-
 /**
- * The reflective-conversation flow has **two entry points** — the Stage 5
- * banner at the top of Home and the Stage 5 card below it — and the coach can
- * use either (direct instruction). They must open the same thing, so the label
- * lives here rather than being typed twice.
+ * A stage label used **mid-sentence**.
  *
- * Still unwired: the reflective-conversation tool does not exist yet (the
- * Baseline/Midline/Endline tool is a placeholder elsewhere in the app). When it
- * lands, wire **both** call sites — they are the same action.
- */
-const REFLECTION_CTA_LABEL = 'Share my reflection'
-
-/**
- * The reflection prompt, rendered by **both** entry points — the banner and the
- * Stage 5 card — so the two cannot drift apart (direct instruction: streamline
- * the card to the banner's copy).
+ * The rail's labels are written as standalone titles ("Observing and practice
+ * with peers"), so dropping one into a sentence produced "How did Observing and
+ * practice with peers go?" — a capital letter stranded mid-clause. These are
+ * descriptive phrases, not proper nouns, so they lower-case cleanly.
  *
- * The stage it names is read off the rail rather than written in: the frame
- * hardcodes "Hands-on Assessment", which is only correct while reflection sits
- * at position 5.
+ * Only the first character changes: "SIPTEA" or any other internal capital in a
+ * future label survives untouched.
  */
-function ReflectionPrompt({ className }: { className?: string }) {
-  const previousStage = PATHWAY_STAGES[REFLECTION_STAGE_INDEX - 1]?.label
-  return (
-    <p className={className}>
-      You have completed your <span className="font-bold">{previousStage}</span> stage. We would now
-      like you to reflect back on your experience.{' '}
-      {/* Direct instruction. It lives in the shared prompt rather than only on
-          the card, because "this is required of you" is not a fact that should
-          be visible from one entry point and not the other. */}
-      <span className="font-bold">Completing this reflection is mandatory.</span>
-    </p>
-  )
+function midSentence(label: string): string {
+  return label.charAt(0).toLowerCase() + label.slice(1)
 }
-
-/** The stages whose Home card has its own variant. Resolved by label rather
- *  than hardcoded, for the same reason `REFLECTION_STAGE_INDEX` is: reordering
- *  or inserting a stage must not silently point these at the wrong one. */
-const GROUP_PRACTICE_STAGE_INDEX = PATHWAY_STAGES.findIndex(
-  (s) => s.label === 'Guided Group Practice',
-)
-const PEER_ROLE_PLAY_STAGE_INDEX = PATHWAY_STAGES.findIndex((s) => s.label === 'Peer Role-Play')
-const ASSESSMENT_STAGE_INDEX = PATHWAY_STAGES.findIndex((s) => s.label === 'Hands-on Assessment')
-const LIVE_INTERVENTION_STAGE_INDEX = PATHWAY_STAGES.findIndex(
-  (s) => s.label === 'Live Intervention',
-)
 
 const STAGE_COUNT_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'] as const
 
-/** The frame's own timeline width. The six stage columns are `flex-1` and the
- *  certification column a fixed 205px, which at this width resolves each stage
- *  to the frame's 155.67px exactly: (1379 - 205 - 6x40) / 6. */
-const TIMELINE_W = 1379
+/**
+ * Timeline geometry, **derived** so the rule and the dots cannot drift apart.
+ *
+ * The frame set each stage column at 155.67px with a fixed 205px certification
+ * column and 40px (`gap-10`) between every pair. Those three numbers are the
+ * frame's; the overall width falls out of them, which is what keeps the rail
+ * correct now that the stage count has moved from six to five. Round 30's
+ * hardcoded 1379 would have left ~156px of trailing slack.
+ */
+const STAGE_COL_W = 155.67
+const CERT_COL_W = 205
+const TIMELINE_GAP = 40
+const STAGE_N = PATHWAY_STAGE_COPY.length
+const TIMELINE_W = STAGE_N * STAGE_COL_W + CERT_COL_W + STAGE_N * TIMELINE_GAP
+
+/** The connector runs between the **centres** of the first and last markers.
+ *  Round 30 transcribed left/width off the frame and they were already ~13px
+ *  adrift of the first dot's centre; computing both means they cannot be. */
+const RULE_LEFT = STAGE_COL_W / 2
+const RULE_W = TIMELINE_W - RULE_LEFT - CERT_COL_W / 2
 
 function TrainingPathway({
   activeStage,
   onSelectStage,
   headingRef,
+  endline,
+  onApprove,
 }: {
   activeStage: number
   onSelectStage: (index: number) => void
+  /** Drives the certification column: it only reads "reached" once the
+   *  assessor has passed them. See `EndlineState`. */
+  endline: EndlineState
+  onApprove: () => void
   /** Focus target when a banner above unmounts. `tabIndex={-1}` makes the
    *  heading programmatically focusable without adding a tab stop — the same
    *  heading-focus pattern `PasswordChangeCard` established. */
@@ -1428,21 +1773,36 @@ function TrainingPathway({
       >
         <div className="flex w-max flex-col gap-2 pt-4 pr-12 pb-6 pl-12">
           <div className="flex items-center gap-10" style={{ width: TIMELINE_W }}>
+            {/* 2026-10-01, direct instruction: blue for where you are, the
+                green semantic for what is done, grey for what is ahead. The
+                icon row and the dot row below it switch on the same three
+                states, so a column cannot say "done" in one row and "current"
+                in the other. */}
             {PATHWAY_STAGES.map((s, i) => (
               <div key={s.label} className="flex h-9 min-w-0 flex-1 items-center justify-center">
                 <s.icon
                   aria-hidden="true"
-                  className={cn('size-7', i <= activeStage ? 'text-purple-500' : 'text-ink-faint')}
+                  className={cn(
+                    'size-7',
+                    i < activeStage
+                      ? 'text-success'
+                      : i === activeStage
+                        ? 'text-primary'
+                        : 'text-ink-faint',
+                  )}
                   strokeWidth={1.5}
                 />
               </div>
             ))}
-            <div className="flex h-9 w-[205px] shrink-0 items-center justify-center">
+            <div
+              className="flex h-9 shrink-0 items-center justify-center"
+              style={{ width: CERT_COL_W }}
+            >
               <Award
                 aria-hidden="true"
                 className={cn(
                   'size-7',
-                  activeStage >= PATHWAY_STAGES.length ? 'text-purple-500' : 'text-ink-faint',
+                  activeStage >= PATHWAY_STAGES.length ? 'text-primary' : 'text-ink-faint',
                 )}
                 strokeWidth={1.5}
               />
@@ -1450,18 +1810,20 @@ function TrainingPathway({
           </div>
 
           <div className="relative flex items-start gap-10" style={{ width: TIMELINE_W }}>
-            {/* The rule is a **gradient**, not a flat tint: `purple-500` at the
-                left fading to `hairline` by the right, so the run of completed
-                pathway reads as warmer than what is still ahead. Frame values:
-                left 64.75, width 1212.75, 1.5px, centred on the 36px dot. */}
+            {/* The rule is a **gradient**, not a flat tint: the brand blue at
+                the left fading to `hairline` by the right, so the run of
+                pathway already behind the trainee reads warmer than what is
+                still ahead. 1.5px, centred on the 36px dot; left and width are
+                derived from the column widths above, not transcribed.
+                2026-10-01, direct instruction: `purple-500` -> `primary`. */}
             <div
               aria-hidden="true"
               className="absolute top-[17.25px] h-[1.5px] rounded-full"
               style={{
-                left: 64.75,
-                width: 1212.75,
+                left: RULE_LEFT,
+                width: RULE_W,
                 backgroundImage:
-                  'linear-gradient(to right, var(--color-purple-500), var(--color-hairline))',
+                  'linear-gradient(to right, var(--primary), var(--color-hairline))',
               }}
             />
 
@@ -1488,13 +1850,28 @@ function TrainingPathway({
                     className="flex w-full cursor-pointer flex-col items-center gap-6 rounded-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex w-full flex-col items-center gap-1.5">
+                      {/* The "Stage C:" eyebrow keeps its size and colour
+                          unchanged (direct instruction) — only the title
+                          beneath it moves. */}
                       <span className="text-caption-medium leading-4 text-ink-faint">{s.stage}</span>
+                      {/* 2026-10-01, direct instruction: a stage title is black
+                          unless the stage is still ahead of the trainee, in
+                          which case it stays grey. The current stage is the one
+                          exception — blue and bold, because it is also what the
+                          "You are here" pill below marks.
+                          `min-h` rather than a fixed `h-10`: the H label runs to
+                          three lines at this column width, and a hard height
+                          clipped it. */}
                       <span
                         className={cn(
-                          'h-10',
+                          'min-h-10',
                           isActive
-                            ? 'text-[18px] font-bold text-purple-500'
-                            : 'text-body-md text-ink-faint',
+                            // Was `text-[18px] font-bold`; no 18/Bold style
+                            // exists, so this is `sub-greeting` (18/500).
+                            ? 'text-sub-greeting text-primary'
+                            : isDone
+                              ? 'text-body-md text-ink'
+                              : 'text-body-md text-ink-faint',
                         )}
                       >
                         {s.label}
@@ -1517,16 +1894,28 @@ function TrainingPathway({
                 it is what reaches the "Congratulations" banner. Its index is one
                 past the six stages, so `activeStage === PATHWAY_STAGES.length`
                 means certified and every stage before it reads complete. */}
-            <div className="relative flex w-[205px] shrink-0 flex-col items-center gap-5">
-              <PathwayDot active={activeStage === PATHWAY_STAGES.length} />
+            <div
+              className="relative flex shrink-0 flex-col items-center gap-5"
+              style={{ width: CERT_COL_W }}
+            >
+              {/* 2026-10-02, direct instruction: the column **activates on the
+                  assessor's approval, not on arrival**. Reaching the end of the
+                  rail is not the same as passing, and lighting this up the
+                  moment the trainee clicks it claimed a certification the
+                  assessor had not given. So the active treatment is keyed on
+                  `endline === 'approved'`, while `aria-current` stays keyed on
+                  `activeStage` — that attribute answers "where am I?", which is
+                  a different question from "have I passed?". */}
+              <PathwayDot active={endline === 'approved'} />
               <button
                 type="button"
                 onClick={() => onSelectStage(PATHWAY_STAGES.length)}
                 aria-current={activeStage === PATHWAY_STAGES.length ? 'step' : undefined}
                 className={cn(
                   'w-full cursor-pointer rounded-sm text-center text-body-md outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  activeStage === PATHWAY_STAGES.length
-                    ? 'font-bold text-purple-500'
+                  endline === 'approved'
+                    // Was 16/Bold; no 16/Bold style exists, so `body-md` (16/600).
+                    ? 'text-body-md text-primary'
                     : 'text-ink-faint',
                 )}
               >
@@ -1536,6 +1925,9 @@ function TrainingPathway({
                 <br />
                 Sleep Coach!
               </button>
+              {/* Sits under the column, in the slot the stage columns give
+                  their "You are here" pill, so the rail keeps one label row. */}
+              {endline === 'pending' && <PendingAssessmentStatus onApprove={onApprove} />}
             </div>
           </div>
         </div>
@@ -1549,10 +1941,13 @@ function TrainingPathway({
  * rather than eyeballed — the first pass read the active state as a flat halo
  * ring and lost the glow entirely.
  *
- * The asset is a 36px `purple-200` disc carrying an SVG drop-shadow filter:
- * `feMorphology erode 6` -> a -6px spread, `feOffset dy 6`, `feGaussianBlur
- * stdDeviation 8` -> a 16px CSS blur (blur is 2x the standard deviation), and
- * `feColorMatrix` 0.518/0.278/1 at 0.2 alpha -> `purple-500` at 20%.
+ * The asset is a 36px disc carrying an SVG drop-shadow filter: `feMorphology
+ * erode 6` -> a -6px spread, `feOffset dy 6`, `feGaussianBlur stdDeviation 8`
+ * -> a 16px CSS blur (blur is 2x the standard deviation), at 20% alpha.
+ *
+ * 2026-10-01, direct instruction: the halo and core are the brand blue, and a
+ * **completed** stage takes the `success` green instead. The halo stays unique
+ * to the current stage, so "here" and "done" never look the same.
  *
  * Both states share a **3px white ring** around the core (the export's
  * `stroke="white" stroke-width="3"` on a r=10.5 circle, so 18px of colour
@@ -1566,16 +1961,14 @@ function PathwayDot({ active, done = false }: { active: boolean; done?: boolean 
       aria-hidden="true"
       className={cn(
         'flex size-9 shrink-0 items-center justify-center rounded-full',
-        active && 'bg-purple-200 shadow-[0_6px_16px_-6px_rgba(132,71,255,0.2)]',
+        active && 'bg-purple-200 shadow-[0_6px_16px_-6px_rgba(58,0,173,0.2)]',
       )}
     >
-      {/* A completed stage takes the active dot's own `purple-500` core but not
-          its halo — the halo is what says "you are here", so it has to stay
-          unique to one column. That gives the rail a run of purple behind the
-          marker and grey ahead of it, which is the same thing the connector's
-          own purple-to-hairline gradient already says. The frame has no
-          completed state to transcribe, so this is built from its two existing
-          dot states rather than invented as a third.
+      {/* A completed stage takes the `success` green and no halo — the halo is
+          what says "you are here", so it has to stay unique to one column
+          (2026-10-01, direct instruction: blue for current, green semantic for
+          complete). The frame has no completed state to transcribe, so this is
+          built from its two existing dot states rather than invented as a third.
           On top of that, a **tick inside the circle** (direct instruction),
           which is what separates "done" from "here" at a glance now that both
           are the same purple — the halo alone was carrying that distinction.
@@ -1591,7 +1984,7 @@ function PathwayDot({ active, done = false }: { active: boolean; done?: boolean 
         className={cn(
           'flex items-center justify-center rounded-full border-[3px] border-white',
           done ? 'size-7' : 'size-6',
-          active || done ? 'bg-purple-500' : 'bg-hairline',
+          done ? 'bg-success' : active ? 'bg-primary' : 'bg-hairline',
         )}
       >
         {done && <Check className="size-3.5 text-white" strokeWidth={4} />}
@@ -1721,28 +2114,36 @@ function LearningProgressCard() {
  */
 interface StageListItem {
   name: string
-  /** Optional second line. Rows grow to fit rather than clipping — the frame's
-   *  64px is padding plus one line, not a fixed height. */
-  detail?: string
   /** Overrides the list's action label for this row. */
   action?: string
-  /** Overrides the list's icon for this row. */
-  icon?: LucideIcon
   /** A real handler makes the row a working control; without one it renders as
    *  the project's unwired treatment (`aria-disabled` + an `sr-only` cue). */
   onSelect?: () => void
 }
 
+/**
+ * 2026-10-01, direct instruction: **the rows carry no icon.** A leading glyph
+ * was tried as a white chip, then as a filled blue chip, then as a bare blue
+ * top-aligned glyph, and removed — it only ever repeated what the row's own
+ * label already said, and it cost ~32px of the label's width on a card that is
+ * 524px wide at most. Name on the left, action on the right.
+ *
+ * 2026-10-01, direct instruction: **the sub copy is gone too.** Rows used to
+ * carry an optional second line describing the resource; it was removed for the
+ * same reason the icon was — the row name already says what the resource is, and
+ * a description under every one turned a short reference list into a wall of
+ * text. Every row is now exactly one line, which is why the row is
+ * `items-center` and the pill carries no optical top-margin nudge: both existed
+ * only to hang a two-line row off its first line.
+ */
 function StageList({
   heading,
   items,
   action,
-  icon: Icon,
 }: {
   heading: string
   items: readonly StageListItem[]
   action: string
-  icon: LucideIcon
 }) {
   return (
     <div className="flex flex-col gap-3 px-6 py-4">
@@ -1750,32 +2151,44 @@ function StageList({
 
       <ul className="flex list-none flex-col gap-2.5 p-0">
         {items.map((item) => {
-          const RowIcon = item.icon ?? Icon
           const wired = !!item.onSelect
+          const label = item.action ?? action
           return (
-            <li key={item.name}>
+            /* 2026-10-01, direct instruction: **the row is no longer the
+               control.** It was one big `<button>`, so the whole card lit up on
+               hover; now it is a plain row and only the pill reacts.
+
+               That also fixes an accessibility defect the old shape hid: every
+               row's control announced itself as just "Download". The pill
+               carries an `sr-only` copy of the item name, so each one has a
+               distinct accessible name — the same problem Round 20 found with
+               buttons named only "Edit". */
+            <li
+              key={item.name}
+              className="flex w-full items-center gap-3 rounded-sm border border-yellow-100 bg-yellow-50 px-3 py-3.5"
+            >
+              <span className="min-w-0 flex-1 text-body-md text-ink">{item.name}</span>
+              {/* Fixed width, so every row's control is the same size and lands
+                  on the same x (direct instruction).
+                  The hover **fills**: `hover:bg-primary/5` composites to a ~9
+                  per-channel shift on this ground, which is present in the DOM
+                  and invisible on screen — the trap CLAUDE.md records from
+                  Round 28. */}
               <button
                 type="button"
                 aria-disabled={wired ? undefined : 'true'}
                 onClick={item.onSelect}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-sm border border-yellow-100 bg-yellow-50 px-3 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  wired && 'transition-colors hover:bg-yellow-100',
+                  'flex h-9 w-[104px] shrink-0 items-center justify-center rounded-full border border-primary text-caption-medium text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                  'hover:bg-primary hover:text-white',
+                  !wired && 'cursor-not-allowed',
                 )}
               >
-                {/* The icon names the item, the label names the action — which
-                    is why this is not a download glyph (direct instruction). */}
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-card">
-                  <RowIcon aria-hidden="true" className="size-5 text-primary" />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-body-md text-ink">{item.name}</span>
-                  {item.detail && <span className="text-caption text-ink-muted">{item.detail}</span>}
-                </span>
-                <span className="shrink-0 text-caption-medium text-primary">
-                  {item.action ?? action}
-                  {/* Only the unwired rows carry the cue. */}
-                  {!wired && <span className="sr-only"> (coming soon)</span>}
+                {label}
+                <span className="sr-only">
+                  {' '}
+                  {item.name}
+                  {!wired && ' (coming soon)'}
                 </span>
               </button>
             </li>
@@ -1787,132 +2200,191 @@ function StageList({
 }
 
 /**
- * The locked session CTA — `676:2212`, hidden in the frame and built on direct
- * instruction. Also shared by Stages 2 and 3.
+ * The five stage card bodies.
  *
- * Locked rather than absent, so the trainee can see the session exists and when
- * it opens. The caption carries the reason **visibly**; the `sr-only` span puts
- * it in the button's own accessible name too, because a caption sitting after a
- * control is not announced with it.
+ * 2026-10-01, direct instruction. Three things changed together here:
+ *
+ * 1. **`LockedSessionCta` is gone.** Every stage from O onwards carried a
+ *    disabled "Join … session" pill plus a "Link activates on day of session"
+ *    caption, sitting directly opposite the meeting card's own live Join Zoom
+ *    button. One screen, two controls, one session. The meeting card is the
+ *    real one, so the locked pill was deleted outright rather than hidden.
+ *    Stage C keeps its own CTA — "Go to My Learning" is a different action, not
+ *    a second copy of this one.
+ * 2. **Cards are re-cut for the five COACH stages**, with Guided Group Practice
+ *    and Peer Role-Play collapsed into one Stage O card and a net-new Stage A.
+ * 3. **The feedback report is one row, not two.** See `CommunityFeedbackCard`.
+ *
+ * ⚠️ Every resource row below is **dummy** (standing instruction): there is no
+ * document store and no download path, so they render this project's documented
+ * unwired treatment — a real, focusable `aria-disabled` button with an `sr-only`
+ * cue — never a silently dead row and never a fabricated file. Wiring one means
+ * giving `StageListItem.onSelect` a handler; nothing else changes.
  */
-function LockedSessionCta({ label }: { label: string }) {
-  // The same record `MeetingCard` renders, so the two cannot disagree about
-  // when the session is.
-  const session = upcomingGroupSessions[0]
 
-  return (
-    // `mt-auto` pins the CTA to the bottom of the card. Every stage's card is
-    // the same height (see `HomeStageCard`), so without it the CTA would sit
-    // wherever that stage's content happened to end and move between stages.
-    <div className="mt-auto flex flex-col items-center gap-3 px-6 py-4">
-      <button
-        type="button"
-        aria-disabled="true"
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-pearl px-[18px] text-caption-medium text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <Lock aria-hidden="true" className="size-4" />
-        {label}
-        <span className="sr-only">
-          {session
-            ? ` (link activates on ${formatDate(session.date)}, the day of the session)`
-            : ' (no session scheduled yet)'}
-        </span>
-      </button>
-      <p className="text-caption text-ink-faint">Link activates on day of session</p>
-    </div>
-  )
-}
-
-/** The Stage 2 (Guided group practice) body — Figma `676:2187`. */
-const GROUP_SESSION_RESOURCES: StageListItem[] = [
+/** Stage O — the guided group sessions and the peer role-plays that run inside
+ *  them. "client", not "consumer": coach-facing surface, per CLAUDE.md's
+ *  audience-dependent rule. */
+const OBSERVING_RESOURCES: StageListItem[] = [
   { name: 'Session guidelines' },
   { name: 'SIPTEA component reference card' },
   { name: 'Peer feedback templates' },
+  { name: 'Role-play briefs' },
 ]
 
-function GroupSessionPrepCard() {
+function ObservingPrepCard() {
   return (
     <HomeStageCard
       nodeId="676:2187"
       title="Group session prep"
-      subtitle="Get ready for your upcoming online group session"
+      subtitle="Get ready for your upcoming online sessions with your peers"
     >
       <div className="flex flex-1 flex-col gap-2">
         <StageList
           heading="Important resources"
-          items={GROUP_SESSION_RESOURCES}
+          items={OBSERVING_RESOURCES}
           action="Download"
-          icon={FileText}
         />
-        <LockedSessionCta label="Join group session" />
       </div>
     </HomeStageCard>
   )
 }
 
 /**
- * The Stage 3 (Peer role-play) body. No frame — same template as Stage 2 with
- * its own resource list, on direct instruction.
- *
- * **"client", not "consumer"**: this is a coach-facing surface, and CLAUDE.md's
- * audience-dependent rule (Round 30) reserves "consumer" for researcher-facing
- * copy. The coach portal was verified at 0 occurrences of "consumer" and this
- * keeps that true. Flagged rather than silent, because the terminology table
- * also defines "Simulated consumer" as a role name — the two rules meet here.
+ * Stage A — the first placement. **Net new**: no frame and no prior card, so
+ * the rows below are plausible dummy stand-ins for what Placement 1 actually
+ * hands a trainee under the COACH brief (simulated clients, an observer in the
+ * room, feedback collected from everyone present). Replace them the moment the
+ * real placement pack exists.
  */
-const PEER_ROLE_PLAY_RESOURCES: StageListItem[] = [
-  {
-    name: 'Simulated client profiles',
-    detail: 'Sleep history, caregiving context and goals, plus your assigned observer',
-  },
-  { name: 'Session agenda' },
+const FIRST_PLACEMENT_RESOURCES: StageListItem[] = [
+  { name: 'Placement brief' },
+  { name: 'Session plan template' },
+  { name: 'SIPTEA component reference card' },
 ]
 
-function PeerRolePlayPrepCard() {
+function FirstPlacementCard() {
   return (
     <HomeStageCard
       nodeId="676:2187"
-      title="Role-play session prep"
-      subtitle="Get ready for your upcoming peer role-play session"
+      title="First placement prep"
+      subtitle="Get ready to coach your first simulated clients"
     >
       <div className="flex flex-1 flex-col gap-2">
         <StageList
           heading="Important resources"
-          items={PEER_ROLE_PLAY_RESOURCES}
+          items={FIRST_PLACEMENT_RESOURCES}
           action="Download"
-          icon={FileText}
         />
-        <LockedSessionCta label="Join role-play session" />
       </div>
     </HomeStageCard>
   )
 }
 
 /**
- * The Stage 4 body. No frame — built from a written brief on direct
- * instruction.
+ * Stage CP — the community of practice itself.
+ *
+ * **The feedback report is no longer here.** Direct instruction, 2026-10-02:
+ * *"feedback report is getting shared with trainee after trainee has passed
+ * stage CP, and they move to stage H, so they see the report while they are now
+ * in stage H."* The report was previously this card's only row, which put it in
+ * front of a trainee who was still *in* CP — i.e. before the research team had
+ * finished collating it. It now lives on `SECOND_PLACEMENT_RESOURCES`, and the
+ * reasoning that used to sit here moved with it.
+ *
+ * ⚠️ These three rows are **dummy** (direct instruction: *"add some dummy
+ * resource researcher might want to share with them while they are in stage
+ * CP"*). The real per-stage resource list is still formally OPEN in Notion —
+ * the page carries unanswered questions on the list itself, its format, and
+ * whether it is trainee-specific — so these are placeholders in the same voice
+ * as the other stages' rows, not content anyone has signed off.
+ */
+const COMMUNITY_FEEDBACK_RESOURCES: StageListItem[] = [
+  { name: 'Community of practice session guide' },
+  { name: 'Peer discussion prompts' },
+  { name: 'Reflective practice worksheet' },
+]
+
+function CommunityFeedbackCard() {
+  return (
+    <HomeStageCard
+      nodeId="676:2187"
+      title="Community of practice"
+      /* No longer "Your consolidated feedback, prepared by the research team" —
+         that named the report, which is not on this card any more. */
+      subtitle="Meet your peers to compare notes and sharpen your practice"
+    >
+      <div className="flex flex-1 flex-col gap-2">
+        <StageList
+          heading="Important resources"
+          items={COMMUNITY_FEEDBACK_RESOURCES}
+          action="Download"
+        />
+      </div>
+    </HomeStageCard>
+  )
+}
+
+/**
+ * Stage H — the assessed second placement.
+ *
+ * **The trainee is still in training here.** They run sessions independently,
+ * but with *simulated* clients and an expert assessor watching. This is not the
+ * live delivery portal with real clients, which is Phase 8 and a different
+ * portal entirely. Round 32 fixed exactly this mis-reading once already in the
+ * Stage banner; the copy here keeps that premise.
+ */
+/**
+ * The **peer community feedback report lands here**, not on the Stage CP card —
+ * direct instruction, 2026-10-02: the research team shares it once the trainee
+ * has passed CP, so they read it while working through Stage H. It is listed
+ * first because it is the thing that has just arrived; the other two are
+ * standing references for the placement itself.
+ *
+ * Two notes carried over from the CP card, both still true:
  *
  * **One report, not four.** The brief names four sources of developmental
  * feedback (simulated clients, the expert assessor, cohort peers, the research
  * team observer), but the research team *collates* them — the trainee receives
- * a single consolidated report, so this is one row and not a list of four.
- * Showing four would imply four separate artefacts to chase, and would leak the
- * research team's own working structure onto a trainee's dashboard.
+ * a single consolidated report. Four rows would imply four artefacts to chase
+ * and would leak the research team's working structure onto a trainee's
+ * dashboard.
  *
- * The sources still appear, as the report's description: knowing the feedback
- * came from everyone in the room is the part that matters to a trainee.
- *
- * "clients", not "consumers" — coach-facing surface, per the audience rule.
+ * ⚠️ The Download is the unwired treatment, not a real file. A direct
+ * instruction stands: *"just show an uploaded doc of feedback, do not create
+ * any doc"* — nothing is generated and nothing is stored on either side of this
+ * handover. The researcher's own end of it is `FeedbackReportDialog`, which is
+ * what closes Stage CP.
  */
-const PLACEMENT_FEEDBACK: StageListItem[] = [
-  {
-    name: 'Placement feedback report',
-    detail: 'Collated by the research team from your clients, assessor, peers and observer',
-  },
+const SECOND_PLACEMENT_RESOURCES: StageListItem[] = [
+  // Named after the stage it comes from, so it follows the 2026-10-05 rename:
+  // "Peer community feedback report" -> "Community feedback report". Leaving the
+  // "Peer" here would have been the only place that word survived.
+  { name: 'Community feedback report', action: 'Download' },
+  { name: 'Assessment brief' },
+  { name: 'SIPTEA competency checklist' },
 ]
 
+function SecondPlacementCard() {
+  return (
+    <HomeStageCard
+      nodeId="676:2187"
+      title="Second placement prep"
+      subtitle="Get ready to run your sessions independently"
+    >
+      <div className="flex flex-1 flex-col gap-2">
+        <StageList
+          heading="Important resources"
+          items={SECOND_PLACEMENT_RESOURCES}
+          action="Download"
+        />
+      </div>
+    </HomeStageCard>
+  )
+}
+
 /**
- * The certification body — the state past Stage 6, when the coach has finished
+ * The certification body — the state past Stage H, when the coach has finished
  * the pathway. Direct instruction: a card to download the certificate and one
  * telling them what happens next, and **no session CTA**, because there is no
  * next training session to join.
@@ -1924,16 +2396,10 @@ function CertifiedCard({ onDownloadCertificate }: { onDownloadCertificate: () =>
   const items: StageListItem[] = [
     {
       name: 'Your certificate',
-      detail: 'Your Care2Sleep sleep coach certificate',
       action: 'Download',
-      icon: Award,
       onSelect: onDownloadCertificate,
     },
-    {
-      name: 'What happens next',
-      detail: 'How client assignment and supervision work now that you are certified',
-      action: 'View',
-    },
+    { name: 'What happens next', action: 'View' },
   ]
 
   return (
@@ -1943,149 +2409,7 @@ function CertifiedCard({ onDownloadCertificate }: { onDownloadCertificate: () =>
       subtitle="Congratulations on completing the COACH pathway"
     >
       <div className="flex flex-1 flex-col gap-2">
-        <StageList heading="Important resources" items={items} action="View" icon={FileText} />
-      </div>
-    </HomeStageCard>
-  )
-}
-
-/**
- * The Stage 6 (Live intervention) body. No frame — direct instruction: reuse
- * Stage 4's format with an intervention agenda.
- *
- * **At Stage 6 the trainee is still in training.** They run sessions
- * independently, but with *simulated* clients and an expert assessor watching —
- * this is not the live delivery portal with real clients, which is Phase 8 and
- * a different portal entirely. Round 32 fixed exactly this mis-reading in the
- * Stage 6 banner; the copy here keeps that premise.
- */
-const LIVE_INTERVENTION_RESOURCES: StageListItem[] = [
-  {
-    name: 'Intervention agenda',
-    detail: 'What to cover in each session, and what your assessor is looking for',
-  },
-]
-
-function LiveInterventionCard() {
-  return (
-    <HomeStageCard
-      nodeId="676:2187"
-      title="Live intervention prep"
-      subtitle="Get ready to run your sessions independently"
-    >
-      <div className="flex flex-1 flex-col gap-2">
-        <StageList
-          heading="Important resources"
-          items={LIVE_INTERVENTION_RESOURCES}
-          action="Download"
-          icon={FileText}
-        />
-        {/* This stage runs sessions too, so it takes the same locked Zoom CTA —
-            matching Stage 4, whose format this reuses. */}
-        <LockedSessionCta label="Join intervention session" />
-      </div>
-    </HomeStageCard>
-  )
-}
-
-/**
- * The Stage 5 (My reflection) body. No frame — direct instruction: a card that
- * lets the trainee give their reflection, opening the **same** flow as the
- * banner at the top of the page so they can start from either.
- */
-function ReflectionCard() {
-  return (
-    <HomeStageCard
-      nodeId="676:2187"
-      title="My reflection"
-      subtitle="Look back on how your training has gone so far"
-    >
-      <div className="flex flex-1 flex-col gap-2">
-        {/* **No yellow panel on this stage** (direct instruction): heading, then
-            the copy directly beneath it, then the CTA after a gap. The other
-            stages use the panel because they list discrete items a coach picks
-            from; this stage is one prompt and one action, and boxing a single
-            paragraph adds a container around nothing. */}
-        <div className="flex flex-col gap-3 px-6 py-4">
-          <p className="text-body-md text-ink">Share your reflection</p>
-          <ReflectionPrompt className="text-body leading-[1.4] text-ink-muted" />
-        </div>
-
-        {/* Bottom-pinned like every other stage's CTA, so the control sits in
-            the same place whichever stage the coach is on. Same action as the
-            banner's CTA, so the label comes from the same constant; unwired for
-            now, with the project's standard treatment. */}
-        <div className="mt-auto flex items-center justify-center px-6 py-4">
-          <button
-            type="button"
-            aria-disabled="true"
-            onClick={(e) => e.preventDefault()}
-            className="inline-flex h-11 w-full cursor-not-allowed items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {REFLECTION_CTA_LABEL}
-            <span className="sr-only"> (coming soon)</span>
-          </button>
-        </div>
-      </div>
-    </HomeStageCard>
-  )
-}
-
-function PlacementFeedbackCard() {
-  return (
-    <HomeStageCard
-      nodeId="676:2187"
-      title="Hands-on assessment outcome"
-      subtitle="Your consolidated feedback, prepared by the research team"
-    >
-      <div className="flex flex-1 flex-col gap-2">
-        <StageList
-          heading="Important resources"
-          items={PLACEMENT_FEEDBACK}
-          action="View"
-          icon={MessageSquare}
-        />
-
-        {/* The community-of-practice feedback report, as the trainee sees it.
-            The researcher attaches this to close Stage CP (`StagePipeline`'s
-            `FeedbackReportDialog`), and this is the other end of that.
-
-            ⚠️ **DUMMY, and nothing is generated** — direct instruction: *"just
-            show an uploaded doc of feedback, do not create any doc."* So the
-            filename below is a fixed dummy string and the control is this
-            app's documented unwired treatment: focusable, `aria-disabled`, with
-            an `sr-only` cue, rather than a button that silently does nothing or
-            hands back a fabricated file. Nothing is stored on either side, so
-            there is no real document to reach for.
-
-            ⚠️ This sits on **Stage 4 (Hands-on Assessment)** by direct
-            instruction, on the understanding that slot becomes Stage CP later.
-            The trainee rail is a different six-stage list from the researcher's
-            five COACH stages and has no Peer-community-feedback slot today, so
-            the card currently shows a CP artefact under an H heading. Moving it
-            is a one-line change of which `*_STAGE_INDEX` this block lives
-            under. */}
-        <div className="flex items-center gap-3 rounded-sm border border-yellow-100 bg-yellow-50 px-4 py-3">
-          <FileText aria-hidden="true" className="size-5 shrink-0 text-primary" />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <p className="truncate text-caption-medium text-ink">Feedback report</p>
-            <p className="truncate text-fine text-ink-muted">
-              community-of-practice-feedback.pdf
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-disabled="true"
-            className="inline-flex h-9 shrink-0 cursor-not-allowed items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Download
-            <span className="sr-only"> the feedback report (coming soon)</span>
-          </button>
-        </div>
-
-        {/* This stage has a scheduled session too (direct instruction), so it
-            takes the same locked Zoom CTA as Stages 2 and 3. */}
-        <LockedSessionCta label="Join assessment session" />
+        <StageList heading="Important resources" items={items} action="View" />
       </div>
     </HomeStageCard>
   )
@@ -2168,7 +2492,16 @@ function TraineeHome() {
   // demo behaviour (direct instruction), the same never-persisted treatment the
   // onboarding flow and the resume banner get.
   const [activeStage, setActiveStage] = useState(0)
-  const [dismissedNotes, setDismissedNotes] = useState<number[]>([])
+  /** See `EndlineState`. Page-level and never persisted, like `activeStage` —
+   *  a refresh starting over is the intended demo behaviour. */
+  const [endline, setEndline] = useState<EndlineState>('todo')
+  /* The reflection wizard. Open state is page-level; the *answers* are not —
+     they live in `data/traineeReflections.ts`, because the midline screen
+     renders the baseline answers and so they must outlive the modal that
+     collected them. */
+  const [reflectionOpen, setReflectionOpen] = useState(false)
+  const reflectionCtaRef = useRef<HTMLButtonElement>(null)
+  const { drafts, submitted: submittedReflections } = useReflectionState()
   const pathwayHeadingRef = useRef<HTMLHeadingElement>(null)
   const greeting = greetingFor(activeStage, !!resumableModule())
 
@@ -2185,11 +2518,14 @@ function TraineeHome() {
     URL.revokeObjectURL(url)
   }
 
-  // The stage *before* the current one is the one there is something to write
-  // up about — "what you can expect in this stage + add notes for previous
-  // session" (direct instruction). So the prompt for Guided Group Practice
-  // appears once the coach has moved on to Peer Role-Play, not while they are
-  // still in it.
+  // The stage *before* the current one is the one there is a reflection due on,
+  // so Stage C's prompt appears once the trainee has moved on to Stage O, not
+  // while they are still working through the modules.
+  //
+  // Stage H's lands on the certified state (`activeStage === PATHWAY_STAGES.length`),
+  // which is correct and is why this is not clamped to the rail's length: the
+  // endline reflection is due the moment the second placement is behind them.
+  // It renders above the certification banner, so the trainee sees both.
   //
   // Worth flagging: frame `637:10671` pairs Stage 2's expect banner with Stage
   // 2's *own* notes banner, which is the other reading. That frame's rail also
@@ -2197,14 +2533,50 @@ function TraineeHome() {
   // a layout reference rather than a coherent state, and the written brief wins.
   // Flipping to same-stage pairing is changing `activeStage - 1` to
   // `activeStage` on the next line.
-  const notesStage = activeStage - 1
-  const showNotes =
-    activeStage > 0 && STAGES_WITH_NOTES.has(notesStage) && !dismissedNotes.includes(notesStage)
+  const reflectionStage = activeStage - 1
+  const certified = activeStage === PATHWAY_STAGES.length
+  /* The endline banner goes once the assessor has passed them — direct
+     instruction: "after I click label, hide banner and show congratulation
+     banner". The two never share the screen. */
+  /* Which reflection the banner on screen is for, resolved through the rail's
+     own eyebrow — never an index, so inserting a stage cannot point the wizard
+     at the wrong question set. */
+  const reflectionTimepoint: ReflectionTimepoint | null =
+    reflectionStage >= 0
+      ? (TIMEPOINT_BY_STAGE[PATHWAY_STAGE_COPY[reflectionStage]?.stage ?? ''] ?? null)
+      : null
 
-  function dismissNotes(index: number) {
-    setDismissedNotes((prev) => [...prev, index])
-    // The control unmounts with the banner, so focus has to be sent somewhere
-    // deliberate or it falls to `<body>`.
+  /* Hidden once this stage's reflection has actually been sent — for C and O
+     that is the whole end state (direct instruction: the banner hides). Stage H
+     keeps its banner through `pending`, because an assessor still has to act,
+     and loses it on approval when the Congratulations banner takes the slot. */
+  const reflectionSent =
+    reflectionTimepoint !== null && submittedReflections[reflectionTimepoint] !== undefined
+  const showReflection =
+    activeStage > 0 &&
+    STAGES_WITH_REFLECTION.has(reflectionStage) &&
+    !(certified && endline === 'approved') &&
+    !(reflectionSent && reflectionTimepoint !== 'endline')
+
+  /* Approving unmounts the label that was clicked — in the banner it takes the
+     whole banner with it — so focus has to be sent somewhere deliberate or it
+     falls to `<body>`, this project's most-repeated defect. The pathway heading
+     is the nearest stable landmark and is already `tabIndex={-1}` for exactly
+     this. */
+  function approveCertification() {
+    setEndline('approved')
+    pathwayHeadingRef.current?.focus()
+  }
+
+
+  /* Closing the wizard after a submit. Stage H goes to `pending`, because its
+     reflection is the one an assessor acts on; C and O have nothing to wait
+     for, so the banner simply goes. `showReflection` reads
+     `submittedReflections`, so for C and O this needs no extra state. */
+  function handleReflectionSubmitted() {
+    if (reflectionTimepoint === 'endline') setEndline('pending')
+    /* The CTA unmounts with the banner, so focus has to be sent somewhere
+       deliberate or it falls to `<body>`. */
     pathwayHeadingRef.current?.focus()
   }
 
@@ -2247,13 +2619,27 @@ function TraineeHome() {
           reverse of that frame's own order. It reads better as a sequence: close
           off what just happened before being told what is coming. */}
       <div className="flex flex-col gap-4">
-        {showNotes && (
-          <StageNotesBanner index={notesStage} onDismiss={() => dismissNotes(notesStage)} />
+        {showReflection && (
+          <StageReflectionBanner
+            index={reflectionStage}
+            /* Only Stage H carries the assessment gate; C and O pass `null`. */
+            endline={certified ? endline : null}
+            timepoint={reflectionTimepoint}
+            resumable={reflectionTimepoint ? drafts[reflectionTimepoint] !== undefined : false}
+            ctaRef={reflectionCtaRef}
+            onOpen={() => setReflectionOpen(true)}
+            onApprove={approveCertification}
+          />
         )}
-        {activeStage === PATHWAY_STAGES.length ? (
-          <CertificationBanner onDownloadCertificate={downloadCertificate} />
-        ) : activeStage === 0 || activeStage === REFLECTION_STAGE_INDEX ? (
-          <TrainingBanner reflecting={activeStage === REFLECTION_STAGE_INDEX} />
+        {certified ? (
+          /* Nothing in this slot until the assessor passes them: the
+             reflection banner above is the whole hero while the endline is
+             outstanding or with the assessor. */
+          endline === 'approved' && (
+            <CertificationBanner onDownloadCertificate={downloadCertificate} />
+          )
+        ) : activeStage === 0 ? (
+          <TrainingBanner />
         ) : (
           STAGE_BANNER_COPY[activeStage] && <StageExpectBanner index={activeStage} />
         )}
@@ -2264,7 +2650,33 @@ function TraineeHome() {
         activeStage={activeStage}
         onSelectStage={setActiveStage}
         headingRef={pathwayHeadingRef}
+        endline={endline}
+        onApprove={approveCertification}
       />
+
+      {/* Mounted here rather than inside the banner: the banner unmounts the
+          moment a reflection is sent, and a modal that unmounts with the
+          control that opened it cannot play its own exit — the thank-you screen
+          would vanish instead of being closed. */}
+      {reflectionTimepoint && (
+        <TraineeReflectionModal
+          open={reflectionOpen}
+          timepoint={reflectionTimepoint}
+          onClose={({ submitted }) => {
+            setReflectionOpen(false)
+            /* Only the non-submit path needs this: on a submit the banner's CTA
+               is gone (C and O lose the banner, H loses the button), and
+               `handleReflectionSubmitted` sends focus to the pathway heading
+               instead. The delay waits out `ConfirmDialog`'s own 200ms exit —
+               the same reason `OptOutCard` uses a timeout rather than a frame;
+               measured there as one `requestAnimationFrame` not being enough. */
+            if (!submitted) {
+              window.setTimeout(() => reflectionCtaRef.current?.focus(), 300)
+            }
+          }}
+          onSubmitted={handleReflectionSubmitted}
+        />
+      )}
 
       {/*
         Round 32: the frame's side-by-side pair needs 524 + 40 + ~360 = ~924px of
@@ -2277,21 +2689,26 @@ function TraineeHome() {
         data-node-id="542:1643"
       >
         {/* One card slot, one variant per stage. The shell is constant
-            (`HomeStageCard`); only the title, sub copy and body change.
-            Stages 4-6 are not built yet and fall back to Stage 1's body — add
-            a case here as each one arrives, one stage at a time. */}
-        {activeStage === PATHWAY_STAGES.length ? (
+            (`HomeStageCard`); only the title, sub copy and body change. Stage C
+            is the fall-through. */}
+        {/* The certified card claims "You are a certified sleep coach", so it
+            cannot show while the rail beside it reads "Pending assessment" —
+            two surfaces stating the same fact differently is the contradiction
+            CLAUDE.md's internal-consistency rule exists to catch. Until the
+            assessor passes them they keep the Stage H card, which is the
+            placement still being assessed. */}
+        {certified && endline === 'approved' ? (
           <CertifiedCard onDownloadCertificate={downloadCertificate} />
-        ) : activeStage === GROUP_PRACTICE_STAGE_INDEX ? (
-          <GroupSessionPrepCard />
-        ) : activeStage === PEER_ROLE_PLAY_STAGE_INDEX ? (
-          <PeerRolePlayPrepCard />
-        ) : activeStage === ASSESSMENT_STAGE_INDEX ? (
-          <PlacementFeedbackCard />
-        ) : activeStage === REFLECTION_STAGE_INDEX ? (
-          <ReflectionCard />
-        ) : activeStage === LIVE_INTERVENTION_STAGE_INDEX ? (
-          <LiveInterventionCard />
+        ) : certified ? (
+          <SecondPlacementCard />
+        ) : activeStage === OBSERVING_STAGE_INDEX ? (
+          <ObservingPrepCard />
+        ) : activeStage === FIRST_PLACEMENT_STAGE_INDEX ? (
+          <FirstPlacementCard />
+        ) : activeStage === COMMUNITY_FEEDBACK_STAGE_INDEX ? (
+          <CommunityFeedbackCard />
+        ) : activeStage === SECOND_PLACEMENT_STAGE_INDEX ? (
+          <SecondPlacementCard />
         ) : (
           <LearningProgressCard />
         )}
@@ -2339,6 +2756,7 @@ function CoachWelcomeBanner({ onSkip, onTakeTour }: { onSkip: () => void; onTake
     >
       <StageBlob
         variant="begin"
+        photo={BEGIN_PHOTO}
         className="self-center [--blob-scale:0.36] sm:[--blob-scale:0.7] xl:[--blob-scale:1]"
       />
       <div className="flex w-full min-w-0 flex-1 flex-col justify-center gap-8 xl:px-4">
@@ -2426,8 +2844,8 @@ function coachPriorities(
   sessionPlans: Record<string, SessionPlan>,
   sessionCompletion: Record<string, SessionCompletionRecord[]>,
   coach?: Coach,
-): PriorityItem[] {
-  const items: PriorityItem[] = []
+): ResearchPriorityItem[] {
+  const items: ResearchPriorityItem[] = []
 
   /* Notes are **one short line** (direct instruction, twice: say something
      after the names, then simplify). The title already names the kind of job,
@@ -2436,12 +2854,29 @@ function coachPriorities(
      data before you meet") were the wordy version; a coach preparing for a
      session does not need to be told to read the data. */
 
+  /* **`priority` is DUMMY on every row below.** 2026-10-01, direct
+     instruction: align this list with the researcher's "Items that need your
+     attention", chip included. The researcher's severities come from a real
+     source classification; nothing in this portal's data layer classifies a
+     coach's own priorities, so each kind carries a fixed severity written here
+     by hand.
+
+     The rule applied: High where a client is *waiting on the coach* or the
+     platform has stopped telling the truth about them; Medium where something
+     is already booked and the row is a heads-up. What would replace it is a
+     real severity on whatever produces these — most likely the same
+     classification the researcher alerts already read from, extended to the
+     coach's caseload. Until then, changing a title here means deciding its
+     severity here too. */
+
   // 1. Newly assigned clients.
   for (const d of dyads) {
     if (!d.coachAssignedDate) continue
     if (d.coachAssignedDate < addDays(TODAY, -NEW_ASSIGNMENT_DAYS)) continue
     items.push({
       id: `new-${d.id}`,
+      // Dummy severity. High: nobody has started work on this client yet.
+      priority: 'High',
       title: 'New client assigned',
       note: `${dyadFirstNames(d)}. Plan their sessions.`,
       to: `/delivery/consumers/${d.id}`,
@@ -2454,6 +2889,8 @@ function coachPriorities(
     if (!next?.date) continue
     items.push({
       id: `next-${d.id}`,
+      // Dummy severity. Medium: it is booked; this row is a heads-up.
+      priority: 'Medium',
       /* `sessionRowLabel`, never a bare number — internal 1 is "Planning". */
       title: `${sessionRowLabel(next.session)} coming up`,
       note: `${dyadFirstNames(d)}, ${formatDate(next.date)}.`,
@@ -2466,6 +2903,8 @@ function coachPriorities(
   if (coach?.upcomingSession?.date) {
     items.push({
       id: 'supervision',
+      // Dummy severity. Medium: booked, and the coach's own rather than a client's.
+      priority: 'Medium',
       title: 'Supervision catch-up',
       note: `With your supervisor, ${formatDate(coach.upcomingSession.date)}.`,
       to: '/delivery/meetings',
@@ -2487,6 +2926,8 @@ function coachPriorities(
       .pop()
     items.push({
       id: `sync-${d.id}`,
+      // Dummy severity. High: the sleep data a session is prepared from has stopped arriving.
+      priority: 'High',
       title: 'Fitbit not syncing',
       note: lastSynced
         ? `${dyadFirstNames(d)}, nothing since ${formatDate(lastSynced)}.`
@@ -2561,8 +3002,9 @@ function CoachHome({ dyads }: { dyads: ConsumerDyad[] }) {
               priorities heading beside it for what the coach reads first.
 
               Round 40, direct instruction: the heading row is a **fixed 36px**,
-              matching `PrioritiesSection`'s own. That one is 36px because it
-              carries the alerts pill and "Dismiss all"; a bare `<h2>` beside it
+              matching the priorities heading opposite (now
+              `ResearchPrioritiesSection`'s `min-h-9`). That one is 36px because
+              it carries the alerts pill; a bare `<h2>` beside it
               measured ~25px, so the tiles started 11px above the priorities
               list and the two columns visibly failed to line up. Written out
               rather than reaching for a shared heading component: this row needs a
@@ -2580,7 +3022,24 @@ function CoachHome({ dyads }: { dyads: ConsumerDyad[] }) {
           </div>
         </section>
 
-        <PrioritiesSection items={priorities} className="min-w-0" />
+        {/* 2026-10-01, direct instruction: aligned with the researcher's own
+            "Items that need your attention" — same component now, not a
+            lookalike. `components/delivery/PrioritiesSection.tsx` is deleted.
+            The heading is the only difference between the two portals, and
+            "Dismiss all" is gone from both.
+
+            `emptyCopy` rather than letting the section collapse: this box is
+            one half of a two-column row, so vacating it would leave the KPI
+            tiles beside a hole. `fillHeight` is deliberately NOT set — it moves
+            the heading inside the card, and "Quick overview" opposite sits on
+            the page canvas, so the two column headings would stop lining up. */}
+        <ResearchPrioritiesSection
+          items={priorities}
+          title={"Your this week\u2019s priorities"}
+          dataTour="priorities"
+          emptyCopy="Nothing needs your attention this week."
+          className="min-w-0"
+        />
       </div>
 
       {/* The frame's wave rule above the table. Same component the trainee Home

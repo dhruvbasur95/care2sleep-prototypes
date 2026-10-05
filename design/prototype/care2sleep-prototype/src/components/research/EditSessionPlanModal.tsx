@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SessionPlannerTable } from '@/components/research/SessionPlannerTable'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
+import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { useResearch } from '@/data/research-context'
 import {
   SPACES_CATCHUP_COUNT,
@@ -400,7 +401,7 @@ export function EditSessionPlanModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-ink-muted outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  className={GHOST_BUTTON_MUTED}
                 >
                   Cancel
                 </button>

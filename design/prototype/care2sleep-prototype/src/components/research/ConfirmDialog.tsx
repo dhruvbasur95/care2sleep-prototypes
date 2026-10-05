@@ -20,6 +20,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   destructive = false,
+  confirmTone,
   singleAction = false,
   /** Round 11 design-critique fix — every dropdown-then-confirm flow this
    *  round added (Onboard/Assign/Transfer) left its "Continue"/confirm
@@ -44,6 +45,18 @@ export function ConfirmDialog({
   confirmLabel: string
   cancelLabel: string
   destructive?: boolean
+  /**
+   * Tone of the confirm button. Additive and optional: when omitted the
+   * dialog behaves exactly as before (`destructive` ? red : brand purple), so
+   * every existing call site is byte-identical.
+   *
+   * `'success'` exists because a **positive** outcome had no tone. The
+   * certification dialog confirms "Record Pass", whose trigger button on the
+   * page behind it is green (Figma `semantic/success`), and a purple confirm
+   * made the dialog disagree with the button that opened it — the same colour
+   * carrying "brand action" in one place and nothing in the other.
+   */
+  confirmTone?: 'primary' | 'destructive' | 'success'
   /** Round 6.1 (§21 `widget-picker`) — for dialogs whose `children` slot is a
    *  row-list where each row carries its own action, so there's nothing for
    *  a Cancel/Confirm pair to confirm. Renders one text-link "close" control
@@ -208,11 +221,24 @@ export function ConfirmDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-40 bg-black/25"
+            /* ⚠️ `z-[70]`, not `z-40`. This dialog is routinely opened from
+               **inside** another modal — the reflection wizard's Cancel, every
+               wizard's discard confirm — and those panels sit at `z-50` over
+               their own `z-40` dim. At the old pair this dim rendered *under*
+               the panel it was supposed to be dimming, so a nested confirm
+               appeared to have no overlay at all: reported from the live page,
+               and invisible in any measurement of this component alone,
+               because on its own the stacking is correct.
+
+               `z-[60]` was not free — toasts, `DeliveryTour` and
+               `SessionDateCalendar` already hold it. 70/80 clears all three,
+               which is the right order anyway: a confirmation is modal and a
+               toast is transient, so the toast belongs underneath. */
+            className="fixed inset-0 z-[70] bg-black/25"
             onClick={onClose}
             aria-hidden="true"
           />
-          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center p-6">
             <motion.div
               ref={panelRef}
               tabIndex={-1}
@@ -355,7 +381,9 @@ export function ConfirmDialog({
                           : 'h-9 px-[18px] text-caption-medium focus-visible:ring-ring',
                         confirmDisabled
                           ? 'cursor-not-allowed bg-primary/40 hover:bg-primary/40'
-                          : destructive
+                          : (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'success'
+                            ? 'bg-success hover:bg-success/90'
+                            : (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'destructive'
                             ? 'bg-destructive hover:bg-destructive/90'
                             : 'bg-primary hover:bg-primary-hover',
                       )}

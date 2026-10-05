@@ -183,7 +183,7 @@ function WidgetPicker({
                     'inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-4 text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]',
                     isAdded
                       ? 'cursor-not-allowed text-ink-faint'
-                      : 'text-ink-muted hover:bg-divider-soft',
+                      : 'text-ink-muted hover:underline',
                   )}
                 >
                   {isAdded ? 'Added' : 'Add'}

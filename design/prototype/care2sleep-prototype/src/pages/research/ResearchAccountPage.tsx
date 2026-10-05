@@ -33,7 +33,7 @@ function ProfileDetailsCard() {
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:bg-divider-soft focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
             >
               Edit details
             </button>

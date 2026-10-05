@@ -242,7 +242,7 @@ export function SleepSourceComparison() {
               </thead>
               <tbody>
                 {ROWS.map((r, i) => (
-                  <tr key={r.metric} className={i > 0 ? 'border-t border-parchment' : undefined}>
+                  <tr key={r.metric} className={i > 0 ? 'border-t border-hairline' : undefined}>
                     <th scope="row" className="px-6 py-3 text-left text-caption font-normal text-ink">
                       {r.metric}
                     </th>

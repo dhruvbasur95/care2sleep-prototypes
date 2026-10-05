@@ -18,35 +18,43 @@ import { cn } from '@/lib/utils'
  * `caption-medium` title over a `body` note, a kebab that opens a one-item
  * Dismiss menu — so the two portals now read as one system.
  *
- * Three deliberate differences from the coach version, each with a reason:
+ * **2026-10-01, direct instruction: this component now serves the coach portal
+ * too.** `components/delivery/PrioritiesSection.tsx` is **deleted**, and coach
+ * Home renders this with `title="Your this week's priorities"` plus the
+ * `dataTour`/`className`/`emptyCopy` props below. The instruction was to align
+ * the coach list with this one, including its per-row priority chip, and to
+ * drop the coach's "Dismiss all". Collapsing the two rather than restyling one
+ * to look like the other is what makes them unable to drift again — which is
+ * the whole reason the ask came up, given this component began as a copy of
+ * that one.
  *
- * 1. **A priority chip per row.** The coach list carries no colour at all, and
- *    its own doc comment explains why: its rows differ by *kind of job*, not by
- *    severity, so colour there would imply a ranking that does not exist. Here
- *    severity is the whole point — the source classification assigns every
- *    alert a High or Medium priority — so the chip is carrying real
- *    information. It uses the app's own `<Chip>` rather than a hand-rolled
- *    pill, so it inherits the one contrast-measured geometry all seven tones
- *    share.
+ * Three earlier entries here described coach-vs-researcher differences that no
+ * longer exist (no chip on the coach list, a "Dismiss all" the coach kept, a
+ * fixed 272px scrolling box). They are gone rather than struck through: there
+ * is one component now, so there is nothing to differ.
  *
- * 2. **No "Dismiss all".** Direct instruction. The per-row kebab Dismiss
- *    stays. The coach portal keeps its own "Dismiss all" — that control lives
- *    in `PrioritiesSection`/`NotificationHub`, which this component does not
- *    touch, so removing it here cannot reach the other portal.
+ * What survives of them as real behaviour, still worth knowing:
  *
- * 3. **Paged, via the shared `TablePager`.** The coach list scrolls inside a
- *    fixed 272px box because it is half of a two-column row; this one is full
- *    width with more alert kinds behind it, and a scrolling panel hides how
- *    many there are. `TablePager` brings the app's own 36px hit areas and the
- *    live-region range label, which matters here for the same reason it does on
- *    a table: paging swaps every row with no other announcement.
+ * 1. **The priority chip carries real information**, which is why it is not
+ *    decoration: the source classification assigns every item High or Medium.
+ *    It uses the app's own `<Chip>` rather than a hand-rolled pill, so it
+ *    inherits the one contrast-measured geometry all seven tones share. The
+ *    coach's own severities are **dummy** — see `coachPriorities()`.
  *
- * 4. **Auto height, and it hides itself when empty.** The coach list is a fixed
- *    272px because it is one half of a two-column row and shrinking it would
- *    drag the KPI grid beside it. This section is full width with "Study
- *    overview" beneath it, so there is nothing to hold open — it collapses and
- *    the page closes the gap behind it via `onEmptyChange`, the same contract
- *    the hub it replaces used.
+ * 2. **No "Dismiss all".** Direct instruction, twice: once here and again on
+ *    2026-10-01 for the coach surface. The per-row kebab Dismiss stays.
+ *
+ * 3. **Paged, via the shared `TablePager`**, rather than a scrolling panel that
+ *    hides how many items are behind it. `TablePager` brings the app's own 36px
+ *    hit areas and the live-region range label, which matters for the same
+ *    reason it does on a table: paging swaps every row with no other
+ *    announcement.
+ *
+ * 4. **Auto height, and it hides itself when empty** — unless `emptyCopy` is
+ *    set, which is what a caller passes when it owns a box it cannot vacate.
+ *    Research Home collapses and closes the gap via `onEmptyChange`; coach Home
+ *    passes `emptyCopy`, because its box is one half of a two-column row and
+ *    vacating it would leave the KPI tiles beside a hole.
  *
  * **Priority tones:** High -> `destructive`, Medium -> `warning`. The source
  * classification defines only those two levels, so there is deliberately no
@@ -72,7 +80,16 @@ export interface ResearchPriorityItem {
   onSelect?: () => void
 }
 
-const priorityTone = { High: 'destructive', Medium: 'warning' } as const
+/* Medium moved `warning` -> `yellow` on 2026-10-02, so the chip is painted
+   entirely from this project's own tokens.
+   `warning` is `border-amber-200 bg-amber-50 text-amber-800` — Tailwind's
+   borrowed amber scale, not tokens, which is why `StatusChip` itself records
+   that Round 40 added the `yellow` tone to replace it. It also had a practical
+   consequence: none of those three amber values has a published Figma paint
+   style, so the chip could not be mirrored in Figma without inventing styles.
+   `yellow` is `border-yellow-300 bg-yellow-50 text-ink`, all three published.
+   High stays `destructive`; see the Figma note in design-tokens.md. */
+const priorityTone = { High: 'destructive', Medium: 'yellow' } as const
 
 /** Four rows a page — the same count the coach list shows before scrolling, so
  *  the two panels are about the same height. */
@@ -90,6 +107,9 @@ export function ResearchPrioritiesSection({
   fillHeight = false,
   emptyCopy,
   surfacePadding = 'sm',
+  title = 'Items that need your attention',
+  dataTour,
+  className,
 }: {
   items: ResearchPriorityItem[]
   /** Lets Home drop the margin this section owns once it hides itself — the
@@ -129,6 +149,37 @@ export function ResearchPrioritiesSection({
    * and not a call to action.
    */
   emptyCopy?: string
+  /**
+   * The section's own heading. Additive with the researcher default, so all
+   * three researcher callers stay byte-identical.
+   *
+   * 2026-10-01, direct instruction: coach Home now renders this component
+   * instead of its own `PrioritiesSection` (deleted), under the heading
+   * **"Your this week's priorities"**. The heading is the only thing that
+   * differs between the two portals — the row vocabulary, the alerts pill, the
+   * kebab menu and the pager are shared, which is the point: these were two
+   * components that had to be kept in step by hand, and the researcher one was
+   * itself built as a copy of the coach one.
+   */
+  title?: string
+  /**
+   * `data-tour` anchor for the coach portal's first-run tour. Additive and
+   * absent on the researcher pages, which have no tour.
+   *
+   * Load-bearing rather than cosmetic: `data/deliveryTour.ts` anchors a step to
+   * `priorities`, and a missing anchor fails **silently** — the step simply
+   * never points at anything. It rides the `<section>` because the tour
+   * measures the whole block, heading included.
+   */
+  dataTour?: string
+  /**
+   * Extra classes on the `<section>`. Exists for `min-w-0`, which coach Home
+   * must pass: the section is a grid cell, grid items default to
+   * `min-width: auto`, and without it one long note sizes the track instead of
+   * wrapping inside it. That has produced a real horizontal page scroll in
+   * this project four times.
+   */
+  className?: string
   /**
    * Card padding under `fillHeight`. `'sm'` (16px) is the default and what the
    * Coach profile uses, where the card sits beside a bare KPI grid. `'lg'`
@@ -183,9 +234,11 @@ export function ResearchPrioritiesSection({
     if (!emptyCopy) return null
     return (
       <section
+        data-tour={dataTour}
         className={cn(
           'flex flex-col gap-4',
           fillHeight && cn('h-full rounded-lg border border-parchment bg-white shadow-card', pad),
+          className,
         )}
       >
         <div className="flex min-h-9 items-center justify-between gap-6">
@@ -194,7 +247,7 @@ export function ResearchPrioritiesSection({
             tabIndex={-1}
             className="min-w-0 font-display text-title text-ink outline-none"
           >
-            Items that need your attention
+            {title}
           </h2>
         </div>
         <div
@@ -211,6 +264,7 @@ export function ResearchPrioritiesSection({
 
   return (
     <section
+      data-tour={dataTour}
       className={cn(
         'flex flex-col gap-4',
         /* Under `fillHeight` the card chrome moves from the rows list up onto
@@ -222,6 +276,7 @@ export function ResearchPrioritiesSection({
            grid's and the two read as a label plus a panel rather than as two
            panels. */
         fillHeight && 'h-full rounded-lg border border-parchment bg-white p-4 shadow-card',
+        className,
       )}
     >
       <div className="flex min-h-9 items-center justify-between gap-6">
@@ -230,7 +285,7 @@ export function ResearchPrioritiesSection({
           tabIndex={-1}
           className="min-w-0 font-display text-title text-ink outline-none"
         >
-          Items that need your attention
+          {title}
         </h2>
         {/* The count pill is kept from the hub this replaces and matches the
             coach portal's own. White on `alert-pastel` measures 3.45:1 and is a
