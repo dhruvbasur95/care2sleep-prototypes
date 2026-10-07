@@ -171,16 +171,28 @@ Dashboard re-expressions of the source tokens — **not** Apple's marketing comp
 - **Round 4.1 (§17) reworked most of this spec** — see §17 for the current cover/metadata/progress/CTA shape; this entry is kept for the shared chassis (surface, border, radius, no-shadow, whole-card click target), which is unchanged
 
 ### `button-primary` *(v4 sizing)*
+
+> ⚠️ **SUPERSEDED 2026-10-07 — see §99, the unified button system.** This entry describes a button vocabulary that no longer exists. Kept for its reasoning, not as a spec.
+
 - Fill `primary`, text `on-primary` in `button` typography (15px), radius `radius-pill`, padding ~9px × 18px, **height 36px** *(reduced from 44px/17px/22px in v4)*
 - Press: `press` scale; focus: 2px `primary-focus` outline (offset 2px); no hover-documented state beyond subtle darken
 
 ### `button-secondary`
+
+> ⚠️ **SUPERSEDED 2026-10-07 — see §99, the unified button system.** This entry describes a button vocabulary that no longer exists. Kept for its reasoning, not as a spec.
+
 - Transparent fill, text `primary`, 1px `primary` border, radius `radius-pill`, same 36px height/padding — the "ghost pill" for paired/secondary actions
 
 ### `button-utility` *(v4 sizing)*
+
+> ⚠️ **SUPERSEDED 2026-10-07 — see §99, the unified button system.** This entry describes a button vocabulary that no longer exists. Kept for its reasoning, not as a spec.
+
 - Fill `surface-pearl` (or `ink` on dark surfaces), text `ink-muted-80` / `on-dark`, `button-utility` typography (14px, unchanged), radius `radius-sm`, **height 36px** *(reduced from 44px in v4)*
 
 ### Control height (v4)
+
+> ⚠️ **PARTLY SUPERSEDED 2026-10-07 — see §99.3.** Buttons are **40px** (48 on the Consumer Portal); the 36px step is gone. This rule still stands for selects, search and text inputs.
+
 - **36px is the standard height for all interactive controls** — primary/secondary/utility buttons, select menus, search and text inputs — so button-and-select rows (roster filters, profile edit form) align. Icon-only buttons follow suit (`size-9`); the inert header avatar/bell and the standalone drawer-close stay at 44px.
 - This relaxes the previous self-imposed 44px touch-target floor. It remains **WCAG 2.1 AA compliant** (2.1 AA has no target-size criterion — 2.5.5 is AAA) and **WCAG 2.2 AA compliant** (2.5.8 requires ≥24px). Flagged as a deliberate density trade-off in the Round 2 review addenda.
 
@@ -258,6 +270,9 @@ New patterns this round only; everything else reuses §7 as-is. Layout architect
 - Focus moves to the panel on open, returns to the trigger on close; Tab cycles inside; Escape closes
 
 ### `button-destructive` *(new colour use)*
+
+> ⚠️ **SUPERSEDED 2026-10-07 — see §99, the unified button system.** This entry describes a button vocabulary that no longer exists. Kept for its reasoning, not as a spec.
+
 - `destructive` `#d70015` fill, `on-primary` text, pill radius, same metrics as `button-primary` — white on `#d70015` ≈ 5.4:1, AA-safe
 - Reserved for the *confirm* button inside a destructive confirm-dialog (withdraw, decline). Never appears on a page surface — page-level destructive triggers stay quiet (`button-utility` with `destructive` text) so red keeps its warning value
 - **Round 3.1:** the SPACES "Withdraw participant" trigger (§15) briefly broke this rule with a solid `button-destructive` fill on the page surface. Flagged in the design-critique addendum; the user confirmed reverting to the quiet-trigger rule rather than keeping the exception — the trigger now uses `button-utility` (`bg-pearl` + `text-destructive`, quiet), matching "Withdraw coach" exactly. No exception stands.
@@ -9125,3 +9140,144 @@ The Consumer Portal rule — never `--primary` on a consumer surface — is abou
 own labels use it as a raw fill, which is why there was nothing in the file to point
 at when the question came up. Publishing it as a named style — beside `Purple/700`,
 not replacing it — would close the loop properly.
+
+---
+
+## §99 — The unified button system (2026-10-07)
+
+**This section supersedes every earlier button spec in this file.** `button-primary`
+(§7), `button-secondary` (§7), `button-utility` (§7), `button-destructive` (§9) and
+the Round 28 notes in §72.2 describe a system that no longer exists. They are struck
+in place rather than deleted, because the reasoning in them is still the reason some
+of these decisions are what they are.
+
+Direct instruction, 2026-10-07: *"you need to reconsider buttons system in app here
+first — its all over the place"*, then *"simplify the button design system"*, *"hence
+we to create a unified button system"*, and the shape: *"Primary, secondary, ghost,
+each with static, hover, deactive state"*.
+
+### 99.1 What was wrong, measured
+
+The researcher-facing files alone held **50 distinct button class signatures** —
+counted by normalising every `className` containing `inline-flex` plus a height to its
+shape/fill/stroke/label tokens. Three radii (pill, 8px, 16px), **nine** fills
+(`primary`, `pearl`, `card`, `white`, `purple-50`, `purple-200`, `purple-500`,
+`success`, `primary/40`), and heights of 32, 36 and 44 for the same kind of action.
+One action — "Edit details" — rendered **four different ways on four pages**.
+
+Figma was no better: the `Button` component set carried **15 `Style` values across 90
+variants**, and the word "filled" meant three different things in three of them.
+
+### 99.2 The system
+
+Five axes. Everything else is a call-site decision.
+
+| axis | values | meaning |
+|---|---|---|
+| `variant` | `primary` · `secondary` · `ghost` | the weight: solid fill · 1px stroke · label alone |
+| `tone` | `brand` · `destructive` · `success` · `neutral` · `inverse` | **the colour** |
+| `state` | `static` · `hover` · `deactive` | mirrors Figma's own `State` axis |
+| `size` | `md` 40 · `lg` 48 · `icon` · `icon-lg` | one height per surface |
+| `surface` | `app` · `consumer` | which portal's brand and type scale |
+
+**A colour is not a variant.** That single rule is what collapses the set. There is no
+"destructive button" — there is a `primary` button in the `destructive` tone.
+
+**An icon is a slot, not a variant.** The base reserves `gap-2`; the call site supplies
+the glyph. `size: 'icon'` is for a control whose *only* content is a glyph — a different
+shape, not a different style.
+
+**`Locked` was a state, not a style** — it is `deactive`.
+
+### 99.3 Geometry
+
+Direct instruction: *"for Sizes, keep researcher, trainee, and coaches button size same
+at 44"*, revised the same day to *"for researchers trainee, coaches, update to 40px"* with
+*"consumers stick with 48"*. So **the 36px step is gone**, and with it §7's "36px is the standard height for
+all interactive controls". 36 was the *floor* (Rounds 3.1 / 10 / 18) and the three staff
+portals had drifted across 32 / 36 / 44 for the same action.
+
+| surface | height | radius | label |
+|---|---|---|---|
+| `app` — researcher, coach, trainee | **40** (`h-10`), 18px side padding | `rounded-full` | `caption-medium` 14/500/-0.224 |
+| `consumer` | **48** (`h-12`), 20px side padding | `rounded-3xl` | `body-md` 16/600 |
+
+Icon-only: `size-10` (app) / `size-12` (consumer), square.
+
+40 clears the old 36px floor and WCAG 2.2’s 24px minimum (2.5.8); the 44px AAA
+target (2.5.5) was never this project’s bar.
+
+### 99.4 Paint
+
+`secondary` carries **`bg-white`, not a transparent fill**. Most sit on a `purple-50`
+card-header band, where a transparent pill lets the tint through and reads as a
+different control from the same button on a white card. `inverse` is the deliberate
+exception — it is *for* a coloured band.
+
+**There is no neutral or grey `primary` fill.** That slot was the old `Utility` button:
+a cool `#f5f5f7` at an 8px radius on a warm `#fffcfa` canvas. It is gone, with no
+replacement — a quiet action is `secondary · neutral`, which has a stroke to be seen by.
+`--color-pearl`, `--color-parchment`, `--color-divider-soft`, `--muted` and
+`--secondary` are **all `#f5f5f7`**, which is why `bg-pearl hover:bg-divider-soft`
+repainted the identical colour at nine call sites.
+
+### 99.5 Three defects the system's own spec page exposed
+
+All three were found by rasterising painted pixels on `/button-system`, not by reading
+tokens. They are the reason the page exists.
+
+1. **`secondary`'s hover painted white — identical to its resting state.** In the
+   `hover` state the resting and hover paints are both unprefixed, so `bg-white` and
+   `bg-primary/10` collide and the winner is decided by **stylesheet order, not source
+   order**. Measured: `rgb(255,255,255)` with both classes sitting in the DOM. Fixed by
+   composing through `cn()`/tailwind-merge, which drops the loser. **This is the single
+   most repeatable trap in the system — any two unprefixed utilities of the same
+   property will do it.**
+2. **A solid tone's hover must DARKEN, never fade.** `bg-success/90` composites to
+   `rgb(53,138,75)` over white, and white on that measures **4.30:1** — the resting
+   state is 4.67:1, so fading the fill walked a passing button *under* AA on hover.
+   `color-mix(in oklch, <token>, black 12%)` moves the other way. Live minimum is now
+   **5.19:1** across all 80 swatches.
+3. **`deactive` on a brand band measured 2.28:1.** `ink-faint` on `primary` is not
+   "muted", it is gone. A disabled control is exempt from WCAG 1.4.3, but a coach cannot
+   press what they cannot see. `inverse` now has its own disabled treatment at 4.14:1.
+
+### 99.6 Hit area
+
+`ghost` is the one variant whose box is invisible, and this project has shipped a 17px
+and a 22px target before now. The spec page draws a **dashed CSS `outline`** around
+every swatch behind a "Show hit area" toggle — an outline is painted outside the border
+box and takes **no layout space**, so what you see is the button's real geometry rather
+than a wrapper approximating it. Measured: a ghost button is **80.5 × 44** with 18px
+padding, not a bare text label.
+
+⚠️ A control that is **underlined at rest** is a *link*, not a ghost button, and is left
+alone — `DOC_ACTION`, My Notes View/Download and the consumer "Log out" rely on that
+underline as their only non-colour affordance (WCAG 1.4.1).
+
+### 99.7 Where it lives
+
+- **App:** `src/components/shared/buttonSystem.ts` — one `btn({ variant, tone, state,
+  size, surface })` returning a class string. A string rather than a component on
+  purpose: the call sites are `<button>`, `<a>`, `<label>` wrapping a file input, and
+  Base UI primitives, and a component would force a `render`/`asChild` escape hatch at
+  most of them.
+- **Spec page:** `/button-system`, rendered from `btn(...)` itself so it cannot drift
+  from what ships.
+- **Figma:** the `Button` component set, rebuilt on the same five axes.
+
+### 99.8 The old Figma styles, mapped
+
+| was | becomes |
+|---|---|
+| `Filled` | `primary` · `brand` |
+| `Destructive` | `primary` · `destructive` |
+| `Success` | `primary` · `success` |
+| `White filled` · `Quick action` | `primary` · `inverse` |
+| `Outline` · `Outline filled` | `secondary` · `brand` |
+| `Destructive outline` · `Destructive outline r8` | `secondary` · `destructive` |
+| `White outline` | `secondary` · `inverse` |
+| `Utility outline` | `secondary` · `neutral` |
+| `Ghost` · `Ghost icon` | `ghost` (+ `size: icon`) |
+| `Locked` | `state: deactive` |
+| **`Utility`** | **removed — no replacement** |

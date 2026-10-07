@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/data/format'
 import { type Coach } from '@/data/research'
 import { useResearch } from '@/data/research-context'
+import { btn } from '@/components/shared/buttonSystem'
 
 /** Roster tabs. "Active coaches" is every onboarded SPACES coach; "Waiting to be
  *  onboarded" is the certified-but-not-yet-invited pool the Onboard dialog
@@ -146,6 +147,15 @@ export function SpacesRosterPage() {
   // `eligibleCoaches` pool the second tab lists — so a tile and the rows
   // beneath it can never disagree.
   const noCaseloadCount = rows.filter((row) => row.dyadCount === 0).length
+  /* Averaged over the SAME `dyadCount` the Consumer Caseload column renders,
+     not over `consumerDyads.length`. That older formula divided every consumer
+     in the study — including the unassigned ones and the dyad this roster
+     deliberately omits — by the onboarded-coach count, so the tile read "2.5"
+     directly above a table whose caseloads were 3 and 0. A tile counting one
+     population and the column beneath it counting another is this project's
+     most-repeated data defect (Round 20's "Active trainees 6" over 5 Active
+     chips); the fix is always to read the field the column actually shows. */
+  const caseloadTotal = rows.reduce((sum, row) => sum + row.dyadCount, 0)
 
   const q = searchQuery.trim().toLowerCase()
   const matches = (coach: Coach) =>
@@ -189,7 +199,7 @@ export function SpacesRosterPage() {
                 setOnboardCoachId(undefined)
                 setInviteOpen(true)
               }}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Onboard new coach
             </button>
@@ -205,12 +215,15 @@ export function SpacesRosterPage() {
           <StatCard label="Total coaches" value={rows.length} icon={Users} />
           <StatCard label="Certified, not onboarded" value={eligibleCoaches.length} icon={UserRoundCheck} />
           <StatCard label="No consumers assigned" value={noCaseloadCount} icon={UserRoundX} />
-          {/* Same figure and same formula as Home's own tile, so the two
-              surfaces cannot report a different average. `—` rather than NaN
-              when there are no coaches to divide by. */}
+          {/* Deliberately NOT Home's formula. Home divides every consumer in
+              the study by the coach count — a study-level planning figure with
+              nothing beside it to contradict. Here the tile sits directly over
+              the Consumer Caseload column, so it must average what that column
+              shows. `—` rather than NaN when there are no coaches to divide
+              by. */}
           <StatCard
             label="Average consumers per coach"
-            value={rows.length === 0 ? '—' : (consumerDyads.length / rows.length).toFixed(1)}
+            value={rows.length === 0 ? '—' : (caseloadTotal / rows.length).toFixed(1)}
             icon={Scale}
           />
         </div>
@@ -445,7 +458,7 @@ function WaitingTable({
               <button
                 type="button"
                 onClick={() => onOnboard(coach.id)}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-caption-medium whitespace-nowrap text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={cn(btn(), 'shrink-0')}
               >
                 {/* Wrapped so the layout audit measures this label, not the
                     button box — an `inline-flex` button yields a rect for the

@@ -5,11 +5,12 @@ import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { WizardProgressRail } from '@/components/shared/WizardProgressRail'
 import { STEP_CONTENT_GAP, WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
-import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
+import { GHOST_BUTTON_MUTED, OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * "Enroll new consumer" — the Consumer Management Table's intake flow.
@@ -191,7 +192,7 @@ function ReviewSection({
             // Three sections all render a button labelled just "Edit" — this
             // is what tells them apart in a screen reader's button list.
             aria-label={`Edit ${title}`}
-            className="inline-flex h-8 items-center rounded-sm bg-pearl px-3 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className={OUTLINE_FILLED_BUTTON}
           >
             Edit
           </button>
@@ -301,14 +302,14 @@ function PlwdDetailsSection({
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={btn({ variant: 'secondary' })}
             >
               Cancel
             </button>
@@ -474,14 +475,14 @@ function CarerDetailsSection({
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={btn({ variant: 'secondary' })}
             >
               Cancel
             </button>
@@ -565,14 +566,14 @@ function SleepCaregivingSection({
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={btn({ variant: 'secondary' })}
             >
               Cancel
             </button>
@@ -876,14 +877,14 @@ export function EnrollConsumerDialog({
                       <button
                         type="button"
                         onClick={() => setStep((s) => Math.max(0, s - 1))}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className={btn({ variant: 'ghost' })}
                       >
                         Go back
                       </button>
                       <button
                         type="button"
                         onClick={handleSubmit}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                        className={btn()}
                       >
                         Enroll consumer
                       </button>
@@ -1301,7 +1302,7 @@ export function EnrollConsumerDialog({
                               setError('')
                               setStep((s) => Math.max(0, s - 1))
                             }}
-                            className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                            className={btn({ variant: 'secondary' })}
                           >
                             {/* Round 20 design-critique fix — see the matching
                                 note in AddCoachTraineeModal.tsx: the review

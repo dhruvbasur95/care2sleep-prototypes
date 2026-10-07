@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { btn } from '@/components/shared/buttonSystem'
+import { cn } from '@/lib/utils'
 
 /**
  * A right-hand slide-in panel — the app's first drawer.
@@ -127,7 +129,7 @@ export function SlideOverPanel({
                 type="button"
                 onClick={onClose}
                 aria-label="Close consumer details"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted outline-none transition-colors hover:bg-purple-200 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(btn({ variant: 'ghost', tone: 'neutral', size: 'icon' }), 'shrink-0')}
               >
                 <X aria-hidden="true" className="size-5" />
               </button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * "Key updates" — the derived-facts panel on the right-hand side of the
@@ -175,7 +176,7 @@ export function KeyUpdatesPanel({
                   aria-haspopup="menu"
                   aria-expanded={openMenu === u.id}
                   onClick={() => setOpenMenu((c) => (c === u.id ? null : u.id))}
-                  className="inline-flex size-9 items-center justify-center rounded-sm text-ink-muted outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-ring"
+                  className={btn({ variant: 'ghost', tone: 'neutral', size: 'icon' })}
                 >
                   <MoreVertical aria-hidden="true" className="size-4" />
                   <span className="sr-only">Options for {u.label}</span>

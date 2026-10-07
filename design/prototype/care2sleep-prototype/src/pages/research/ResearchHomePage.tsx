@@ -27,6 +27,7 @@ import { useResearch } from '@/data/research-context'
 import { upcomingGroupSessions, type Coach } from '@/data/research'
 import { isPlanSet } from '@/data/spaces'
 import { TODAY } from '@/data/format'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * Research Dashboard Home — rebuilt in **Round 21** from a supplied Figma
@@ -230,8 +231,7 @@ function InertButton({
 
 /** The frame's white pill (`25:3`): 8px radius, 20px/10px padding, 8px icon
  *  gap, `caption-medium` label in Purple/900. */
-const QUICK_LINK_PILL =
-  'inline-flex h-9 items-center gap-2 rounded-sm bg-card px-5 text-caption-medium text-primary-hover outline-none transition-colors'
+const QUICK_LINK_PILL = btn({ tone: 'inverse' })
 
 /** Hover/focus/press. Applied to the two live links AND to the inert
  *  "Schedule meeting" pill, which is deliberately indistinguishable from them
@@ -302,7 +302,7 @@ function NeedHelpButton() {
     <InertButton
       label="Need help"
       appearance="active"
-      className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+      className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
     >
       <CircleHelp aria-hidden="true" className="size-4" strokeWidth={2} />
     </InertButton>

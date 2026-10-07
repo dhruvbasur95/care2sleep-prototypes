@@ -19,6 +19,7 @@ import { DeliveryNotesPage } from '@/pages/delivery/DeliveryNotesPage'
 import { DeliveryConsumerDetailPage } from '@/pages/delivery/DeliveryConsumerDetailPage'
 import { DeliveryAccountPage } from '@/pages/delivery/DeliveryAccountPage'
 import { ResearchAccountPage } from '@/pages/research/ResearchAccountPage'
+import { ButtonSystemPage } from '@/pages/ButtonSystemPage'
 import { ConsumerAccountPage } from '@/pages/consumer/ConsumerAccountPage'
 import { ConsumerMenuDrawer } from '@/components/consumer/ConsumerMenuDrawer'
 import { ConsumerLessonsPage } from '@/pages/consumer/ConsumerLessonsPage'
@@ -95,6 +96,9 @@ export default function App() {
             {/* Research Dashboard — My Profile tab (Round 6.2.1, renamed
                 from "Account" Round 10) */}
             <Route path="/research/account" element={<ResearchAccountPage />} />
+            {/* Spec page for the PROPOSED button system. Additive and standalone:
+                it imports `buttonSystem.ts`, which no shipped surface uses. */}
+            <Route path="/button-system" element={<ButtonSystemPage />} />
             <Route
               path="/research/coaches/:coachId"
               element={<CoachProfilePage />}

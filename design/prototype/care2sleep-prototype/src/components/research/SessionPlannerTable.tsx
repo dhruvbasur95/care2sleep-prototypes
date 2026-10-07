@@ -5,6 +5,7 @@ import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
 import { SPACES_SESSIONS, displaySessionNumber, type SessionPlanRow } from '@/data/spaces'
 import { formatDate, formatTime } from '@/data/format'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * The "Session planner table" — the plan, one row per week, with a per-row
@@ -157,7 +158,7 @@ export function SessionPlannerTable({
                           )
                         }
                         aria-expanded={editing}
-                        className="inline-flex min-h-9 items-center rounded-sm px-2 text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className={btn({ variant: 'ghost' })}
                       >
                         {editing ? 'Done' : 'Modify'}
                         <span className="sr-only"> week {week}</span>

@@ -166,7 +166,21 @@ function layoutAudit(rootSelector) {
  *    nothing wraps. Left as a known false positive rather than widened away —
  *    the column was briefly taken from 34% to 44% on the strength of this
  *    finding before it was measured, which is exactly the mistake this file's
- *    own header warns about. Discount a disc-plus-label cell by shape. */
+ *    own header warns about. Discount a disc-plus-label cell by shape.
+ *
+ *    SIXTH CALIBRATION (2026-10-06, Figma mirror run) - Consumer Management
+ *    (`/research/consumers`) reports four `<th>`s at once: "Session Plan",
+ *    "Modules Completed" and "Module Activity" on 2 lines, and "Coaching
+ *    sessions completed" on 3. These ones genuinely DO wrap - the Range really
+ *    returns 2 and 3 tops. But the defect this check exists to catch is a table
+ *    wider than its container silently hiding trailing columns, and that is
+ *    measurably absent here: the table is 1110px inside a 1110px wrapper inside
+ *    a 1112px card, `scrollWidth === clientWidth`, no horizontal page scroll,
+ *    and all 9 columns are visible. The header row is simply 83px tall to fit
+ *    9 multi-word labels across 1112px, which is a density decision, not a
+ *    squeeze. Verdict: accepted, and mirrored into Figma as drawn. If this
+ *    table ever gains a tenth column, re-measure rather than assuming the
+ *    same - the margin is now zero. */
   root.querySelectorAll('td, th').forEach((cell) => {
     if (!visible(cell)) return
     const target = cell.querySelector('a, span, p') ?? cell

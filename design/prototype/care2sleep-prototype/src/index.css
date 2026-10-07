@@ -628,7 +628,11 @@
        wanted Figma's `sub-greeting`, so they get more correct, not different
        for its own sake. */
     --text-sub-greeting: 18px;
-    --text-sub-greeting--line-height: normal;
+    /* 2026-10-06, direct instruction: Figma's published `sub-greeting` style is
+       18/Medium/140%, and the app is to follow it. This is the one token where
+       Figma leads and the prototype follows; everything else still mirrors the
+       app. Was `normal` (~121%) since Round 23's line-height sweep. */
+    --text-sub-greeting--line-height: 1.4;
     --text-sub-greeting--letter-spacing: 0;
     --text-sub-greeting--font-weight: 500;
 
@@ -639,7 +643,11 @@
        than leaving a call site to bolt `font-semibold` onto `sub-greeting`,
        which is how a scale quietly stops describing what is on screen. */
     --text-sub-greeting-semibold: 18px;
-    --text-sub-greeting-semibold--line-height: normal;
+    /* 2026-10-06: follows `sub-greeting` onto Figma's 140%. Figma publishes ONE
+       `sub-greeting` style (18/Medium/140%) and no semibold partner, so this
+       app-only step takes the metrics of the published style it is a weight of
+       — leaving it on `normal` would make the pair disagree by 3.4px a line. */
+    --text-sub-greeting-semibold--line-height: 1.4;
     --text-sub-greeting-semibold--letter-spacing: 0;
     --text-sub-greeting-semibold--font-weight: 600;
     /* Round 40, direct instruction: 22px -> 20px, weight unchanged at 500.

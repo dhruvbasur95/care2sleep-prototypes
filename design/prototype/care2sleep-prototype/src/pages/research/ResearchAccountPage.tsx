@@ -6,6 +6,8 @@ import { PasswordChangeCard } from '@/components/account/PasswordChangeCard'
 import { Card } from '@/components/ui/card'
 import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research/RecordFields'
 import { useResearch } from '@/data/research-context'
+import { OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
+import { btn } from '@/components/shared/buttonSystem'
 
 function ProfileDetailsCard() {
   const { researcherProfile, updateResearcherContact } = useResearch()
@@ -33,7 +35,14 @@ function ProfileDetailsCard() {
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              // Direct instruction, 2026-10-07: the coach and consumer portals
+              // both open their profile editor with the primary-outline pill,
+              // and only the researcher used the grey utility box. Class string
+              // copied verbatim from `DeliveryAccountPage`, for the reason that
+              // file already states — `bg-pearl`'s cool grey reads as a foreign
+              // patch on the warm `purple-50` band, and `ink-muted` on it is
+              // the hardest label to read on this page.
+              className={OUTLINE_FILLED_BUTTON}
             >
               Edit details
             </button>
@@ -73,7 +82,7 @@ function ProfileDetailsCard() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={btn()}
               >
                 Save changes
               </button>
@@ -84,7 +93,7 @@ function ProfileDetailsCard() {
                   setPhone(researcherProfile.phone)
                   setEditing(false)
                 }}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={btn({ variant: 'secondary' })}
               >
                 Cancel
               </button>

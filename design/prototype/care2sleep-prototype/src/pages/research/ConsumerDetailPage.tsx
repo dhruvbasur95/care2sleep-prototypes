@@ -62,6 +62,8 @@ import { SleepSourceComparison } from '@/components/research/SleepSourceComparis
 import { useResearch } from '@/data/research-context'
 import { formatDate, TODAY } from '@/data/format'
 import { parseTimeToMinutes } from '@/data/spaces'
+import { OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
+import { btn } from '@/components/shared/buttonSystem'
 
 // Round 21: "Assigned Coach" removed on direct instruction — the Overview's
 // Learning progress card now names the assigned coach, and the coach's own
@@ -375,7 +377,7 @@ export function ContactDetailsCard({
                           type="button"
                           onClick={() => setExpanded((v) => !v)}
                           aria-expanded={expanded}
-                          className="-ml-2 inline-flex min-h-9 items-center gap-1 rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                          className={btn({ variant: 'ghost' })}
                         >
                           {expanded ? 'Show less' : 'Show more'}
                           {expanded ? (
@@ -943,7 +945,7 @@ function PersonRecordCard({
             ref={editButtonRef}
             type="button"
             onClick={() => setEditing(true)}
-            className="inline-flex h-9 shrink-0 items-center rounded-sm bg-card px-4 text-caption-medium text-primary outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className={OUTLINE_FILLED_BUTTON}
           >
             Edit details
           </button>
@@ -1068,7 +1070,7 @@ function PersonRecordCard({
           <div className="flex gap-3">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
@@ -1078,7 +1080,7 @@ function PersonRecordCard({
                 resetFields()
                 setEditing(false)
               }}
-              className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
             >
               Cancel
             </button>
@@ -1178,7 +1180,7 @@ function DyadNotificationPreferencesCard({
           {dirty && (
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
@@ -1317,7 +1319,7 @@ export function ProfileDetailsSections({
             <button
               type="button"
               onClick={() => setWithdrawOpen(true)}
-              className="inline-flex h-9 shrink-0 items-center rounded-sm border border-destructive bg-card px-4 text-caption-medium text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={cn(btn({ variant: 'secondary', tone: 'destructive' }), 'shrink-0')}
             >
               {requested ? 'Review withdrawal request' : 'Withdraw from study'}
             </button>
@@ -1350,7 +1352,7 @@ export function ProfileDetailsSections({
                      way to reach the coach record. */
                   <Link
                     to={`/research/spaces-coaches/${coach.id}`}
-                    className="-my-2 inline-flex min-h-9 items-center rounded-sm py-2 text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    className={btn({ variant: 'ghost' })}
                   >
                     {coach.fullName}
                   </Link>
@@ -2510,7 +2512,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
             <button
               type="button"
               onClick={goToCurrent}
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border-[1.5px] border-primary px-5 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
             >
               {/* Label only, no glyph. lucide's `Crosshair` had no equivalent
                   in this project's Figma icon set, and the standing rule is
@@ -3765,7 +3767,7 @@ export function FitbitSyncMonitor({
             type="button"
             onClick={handleExport}
             disabled={exportRows.length <= 1}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100"
+            className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
           >
             <Download aria-hidden="true" className="size-4" />
             Export
@@ -4167,7 +4169,7 @@ export function SleepDiaryFeed({
             type="button"
             onClick={handleDownload}
             disabled={dates.length === 0}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100"
+            className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
           >
             <Download aria-hidden="true" className="size-4" />
             Export
@@ -4481,7 +4483,7 @@ function ResearchNotesCard({ dyadId }: { dyadId: string }) {
               <div className="flex flex-wrap items-center gap-3">
                 <label
                   htmlFor="research-note-attachments"
-                  className="inline-flex h-9 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring active:scale-[0.97]"
+                  className={btn({ variant: 'secondary' })}
                 >
                   Attach File
                   <input
@@ -4496,7 +4498,7 @@ function ResearchNotesCard({ dyadId }: { dyadId: string }) {
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                  className={btn()}
                 >
                   Save note
                 </button>
@@ -4568,7 +4570,7 @@ function ResearchNotesCard({ dyadId }: { dyadId: string }) {
                           type="button"
                           onClick={() => setDownloadMsg(`${n.title} downloaded (prototype).`)}
                           aria-label={`Download ${n.title}`}
-                          className="inline-flex size-9 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                          className={btn({ variant: 'ghost', tone: 'neutral', size: 'icon' })}
                         >
                           <Download aria-hidden="true" className="size-[18px]" />
                         </button>
@@ -4821,7 +4823,7 @@ export function ConsumerDetailPage() {
                 to={`/research/spaces-coaches/${coachRecordForCta.id}?tab=${encodeURIComponent(
                   'Assigned Consumers',
                 )}&dyad=${dyad.id}&sub=progress`}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={cn(btn({ tone: 'inverse' }), 'shrink-0')}
               >
                 View study progress
               </Link>
@@ -4829,7 +4831,7 @@ export function ConsumerDetailPage() {
               <button
                 type="button"
                 aria-disabled="true"
-                className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-white/40 px-[18px] text-caption-medium text-white/60 outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className={cn(btn({ variant: 'secondary', tone: 'inverse', state: 'deactive' }), 'shrink-0')}
               >
                 View study progress
                 <span className="sr-only"> (unavailable until a coach is assigned)</span>

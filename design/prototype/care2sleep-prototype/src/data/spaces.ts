@@ -1986,6 +1986,64 @@ export const supervisionNotes: SupervisionNote[] = [
       'Joan rang between sessions. The 3pm nap cut-off is holding on most days but not on the two days Bruce goes to the day centre, where he sleeps on the bus home. Suggested she stop trying to prevent that one and note it in the diary instead, so we can look at it together at Session 2 rather than treat it as a failure. She sounded relieved. No new concerns.',
     attachments: [],
   },
+  /* Round 58 — supervision notes for the trainee record page's own
+     "Supervision Notes" tab, and for the SPACES coach profile's "Supervision
+     Logs" tab, which share one component.
+
+     Until now every seeded note sat on `helen-zhang`, a certified SPACES
+     coach, so the researcher's view of a *trainee* only ever rendered the
+     empty state and the populated records table could not be seen on any
+     trainee at all.
+
+     Direct instruction: *"for all trainees show some notes, except the one
+     who has not accepted invite."* So every trainee on the roster is seeded
+     except **Priya Raman** — and her exclusion is not an oversight:
+     `SupervisionNotesTab` short-circuits to the pending-invite empty state
+     before `SupervisionRecords` ever mounts, so a note under her id would
+     render nowhere and would contradict that panel's own copy ("...once they
+     accept their invite"). Confirmed directly: *"for priya show none as she
+     has not accepted invite."*
+
+     (An earlier instruction in the same session held Marcus Webb back so the
+     "no notes yet" empty state stayed reachable. That was superseded — it is
+     recorded here only so the empty state is known to be unreachable from the
+     roster now, rather than quietly lost.)
+
+     The copy is written once and mapped over the ids rather than pasted ten
+     times, so "same copy" is guaranteed by construction rather than by ten
+     blocks staying in step. It is still plain seed data — no write path,
+     nothing derived from a trainee's own record.
+
+     It is also deliberately NOT a reword of `sup-001`/`sup-002`. Those name
+     Helen and the Kellerman dyad; a trainee has no caseload, so that copy
+     would have put a consumer dyad on the record of someone who has not been
+     assigned one. These notes name nobody and no stage, which is what lets
+     one pair of strings be true on a Stage C trainee and a Stage H one
+     alike. */
+  ...(
+    ['marcus-webb', 'aisha-mohamed', 'daniel-osei', 'noah-fenwick', 'lauren-mitchell'] as const
+  ).flatMap<SupervisionNote>((coachId) => [
+    {
+      id: `sup-${coachId}-1`,
+      coachId,
+      title: 'Supervision check-in: SIPTEA practice',
+      date: '2026-07-14',
+      time: '11:00',
+      notes:
+        'Reviewed progress since the last check-in and talked through what is proving hardest in practice. The trainee raised moving to a strategy before shared understanding has settled. Agreed they will name what they have noticed before proposing anything at the next practice session. No concerns raised.',
+      attachments: ['supervision-check-in-notes.pdf'],
+    },
+    {
+      id: `sup-${coachId}-2`,
+      coachId,
+      title: 'Follow-up: pacing in practice sessions',
+      date: '2026-07-20',
+      time: '15:30',
+      notes:
+        'Short follow-up on the pacing point from the last supervision. The trainee has been slowing the opening of each session down and says it is already changing how much they hear unprompted. Encouraged them to keep bringing specific moments to supervision rather than general impressions. Nothing outstanding.',
+      attachments: [],
+    },
+  ]),
 ]
 
 // ---------------------------------------------------------------------------

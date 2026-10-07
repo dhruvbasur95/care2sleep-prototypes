@@ -13,6 +13,7 @@ import {
 } from '@/data/spaces'
 import { formatDate, formatTime, TODAY } from '@/data/format'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * The earliest date either plan screen will let a coach pick.
@@ -409,7 +410,7 @@ export function EditSessionPlanModal({
                   type="button"
                   onClick={handleSave}
                   disabled={!canSave}
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-divider-soft disabled:text-ink-faint disabled:hover:bg-divider-soft"
+                  className={btn()}
                 >
                   Save changes
                 </button>

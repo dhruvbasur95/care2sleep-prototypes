@@ -1,5 +1,6 @@
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { btn as buttonClass } from '@/components/shared/buttonSystem'
 
 /**
  * Table pager — a "1-10 of 24" range followed by first / previous / next / last.
@@ -36,8 +37,12 @@ export function TablePager({
   const atStart = page <= 0
   const atEnd = page >= lastPage
 
-  const btn =
-    'inline-flex size-9 shrink-0 items-center justify-center rounded-sm text-ink outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:text-ink-faint disabled:opacity-40 disabled:hover:bg-transparent'
+  // Ghost icon, neutral tone. The 36px hit area this component was created to
+  // fix (Round 21 caught a 22px one against WCAG 2.2's 24px floor) is now 44.
+  const btn = cn(
+    buttonClass({ variant: 'ghost', tone: 'neutral', size: 'icon' }),
+    'disabled:cursor-not-allowed disabled:text-ink-faint disabled:opacity-40',
+  )
 
   return (
     <div className="flex items-center justify-end gap-2">

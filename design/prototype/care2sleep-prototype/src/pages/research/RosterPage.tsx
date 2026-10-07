@@ -14,6 +14,7 @@ import { stageLabel, type Coach } from '@/data/research'
 import { PATHWAY_MODULES_V2 } from '@/data/trainingPathwayV2'
 import { formatDate, TODAY } from '@/data/format'
 import { useResearch } from '@/data/research-context'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * Trainee Management — rebuilt in **Round 21** from Figma frame
@@ -259,7 +260,7 @@ export function RosterPage() {
             <button
               type="button"
               onClick={() => setAddOpen(true)}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Add new coach trainee
             </button>
@@ -291,10 +292,17 @@ export function RosterPage() {
             <h2 className="font-display text-title text-ink">Trainees management table</h2>
             <p className="mt-2 text-body text-ink-muted">Click a trainee to view more details.</p>
           </div>
-          {/* Search, then the two table-level filters. `flex-wrap` so the
-              filters drop under the search field rather than squeezing it
-              below ~900px. Both are hidden on the Withdrawn tab: that tab has
-              no Current Stage column to filter and its rows are dummy. */}
+          {/* Search, then the two table-level filters, stacked to the RIGHT of
+              the heading on one row (direct instruction, 2026-10-06).
+              Both selects carry an explicit width: a native <select> sizes to
+              its longest option, and "Stage H: Hands-on assessment (Placement
+              2)" blew the stage filter out to 342px, which pushed the group to
+              879px against a 1112px column and wrapped the whole block onto a
+              second row. 340 + 12 + 170 + 12 + 160 = 694, which clears the
+              268px heading with room to spare. `flex-wrap` stays as the
+              genuine small-viewport fallback. Both are hidden on the Withdrawn
+              tab: that tab has no Current Stage column to filter and its rows
+              are dummy. */}
           <div className="flex flex-wrap items-end gap-3">
             <SearchInput
               id="coach-search"
@@ -314,7 +322,7 @@ export function RosterPage() {
                     id="stage-filter"
                     value={stageFilter}
                     onChange={(e) => setStageFilter(e.target.value)}
-                    className={SELECT_CLASS}
+                    className={`${SELECT_CLASS} w-[170px]`}
                   >
                     {STAGE_FILTERS.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -335,7 +343,7 @@ export function RosterPage() {
                     id="activity-filter"
                     value={activityFilter}
                     onChange={(e) => setActivityFilter(e.target.value)}
-                    className={SELECT_CLASS}
+                    className={`${SELECT_CLASS} w-[160px]`}
                   >
                     {ACTIVITY_FILTERS.map((f) => (
                       <option key={f.id} value={f.id}>

@@ -5,6 +5,7 @@ import { Chip } from '@/components/research/StatusChip'
 import { TablePager } from '@/components/shared/TablePager'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * "Items that need your attention" — the Research Dashboard Home attention
@@ -389,7 +390,7 @@ export function ResearchPrioritiesSection({
                   aria-haspopup="menu"
                   aria-expanded={openMenu === item.id}
                   onClick={() => setOpenMenu((c) => (c === item.id ? null : item.id))}
-                  className="inline-flex size-9 items-center justify-center rounded-sm text-ink-muted outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-ring"
+                  className={btn({ variant: 'ghost', tone: 'neutral', size: 'icon' })}
                 >
                   <MoreVertical aria-hidden="true" className="size-4" />
                   <span className="sr-only">Options for {item.title}</span>

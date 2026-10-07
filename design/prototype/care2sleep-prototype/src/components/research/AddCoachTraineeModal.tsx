@@ -5,13 +5,14 @@ import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { WizardProgressRail, type WizardRailStep } from '@/components/shared/WizardProgressRail'
 import { STEP_CONTENT_GAP, WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
-import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
+import { GHOST_BUTTON_MUTED, OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import { nextParticipantId } from '@/data/research'
 import { TODAY, formatDate } from '@/data/format'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * "Add coach trainee" — the direct-onboarding replacement for the old
@@ -126,7 +127,16 @@ function ReviewSection({
 
   return (
     <Card className="gap-0 rounded-lg py-0">
-      <div className="flex items-center justify-between gap-4 bg-card-header p-4">
+      {/* Round 58, direct instruction: the review step's section bands are
+          `purple-50`, not the app-wide `card-header` (`purple-200`). A review
+          screen stacks three or four of these inside a modal, where the
+          heavier tint reads as four competing headers rather than as quiet
+          grouping; one step down the ramp keeps the grouping and lets the
+          values carry the screen. Scoped here rather than moved on the token,
+          which would repaint every card header in all four portals.
+          Note this chassis is shared with `EnrollConsumerDialog`'s review, so
+          that screen moves with it — deliberate, they are the same screen. */}
+      <div className="flex items-center justify-between gap-4 bg-purple-50 p-4">
         <h3 className="font-display text-body font-semibold text-ink">{title}</h3>
         {onEdit && !editing && (
           <button
@@ -137,7 +147,7 @@ function ReviewSection({
             // a screen reader's button list is "Edit, Edit" with nothing to
             // tell them apart.
             aria-label={`Edit ${title}`}
-            className="inline-flex h-8 items-center rounded-sm bg-pearl px-3 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className={OUTLINE_FILLED_BUTTON}
           >
             Edit
           </button>
@@ -229,14 +239,14 @@ function PersonalDetailsSection({
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={btn({ variant: 'secondary' })}
             >
               Cancel
             </button>
@@ -344,14 +354,14 @@ function AgedCareDetailsSection({
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={btn({ variant: 'secondary' })}
             >
               Cancel
             </button>
@@ -591,14 +601,14 @@ export function AddCoachTraineeModal({
                       <button
                         type="button"
                         onClick={() => setStep((s) => Math.max(0, s - 1))}
-                        className="inline-flex min-h-11 items-center rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className={btn({ variant: 'ghost' })}
                       >
                         Go back
                       </button>
                       <button
                         type="button"
                         onClick={handleSubmit}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                        className={btn()}
                       >
                         Add coach trainee
                       </button>
@@ -734,7 +744,7 @@ export function AddCoachTraineeModal({
                               setError('')
                               setStep((s) => Math.max(0, s - 1))
                             }}
-                            className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                            className={btn({ variant: 'secondary' })}
                           >
                             {/* Round 20 design-critique fix: Round 20 renamed
                                 the review screen's back control to "Go back"
@@ -747,7 +757,7 @@ export function AddCoachTraineeModal({
                         <button
                           type="button"
                           onClick={goNext}
-                          className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                          className={btn()}
                         >
                           {step === REVIEW_STEP - 1 ? 'Review details' : 'Next'}
                         </button>

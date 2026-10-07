@@ -60,6 +60,8 @@ import {
 } from '@/components/research/ResearchPrioritiesSection'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
+import { OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
+import { btn } from '@/components/shared/buttonSystem'
 
 /** Round 9.1: reordered + renamed so researchers see progress first — Learning
  *  Progress (was Training Review), then Stage Management (was Trainee
@@ -767,7 +769,7 @@ function PersonalDetails({ coach }: { coach: Coach }) {
             <button
               type="button"
               onClick={() => setDialog('withdraw')}
-              className="inline-flex h-9 shrink-0 items-center rounded-sm border border-destructive bg-card px-4 text-caption-medium text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={cn(btn({ variant: 'secondary', tone: 'destructive' }), 'shrink-0')}
             >
               {pending ? 'Withdraw invite' : 'Withdraw from study'}
             </button>
@@ -811,7 +813,7 @@ function PersonalDetails({ coach }: { coach: Coach }) {
               ref={editButtonRef}
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex h-9 shrink-0 items-center rounded-sm bg-card px-4 text-caption-medium text-primary outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={OUTLINE_FILLED_BUTTON}
             >
               Edit details
             </button>
@@ -850,7 +852,7 @@ function PersonalDetails({ coach }: { coach: Coach }) {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={btn()}
               >
                 Save changes
               </button>
@@ -861,7 +863,7 @@ function PersonalDetails({ coach }: { coach: Coach }) {
                   setPhone(coach.phone)
                   setEditing(false)
                 }}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
               >
                 Cancel
               </button>
@@ -1468,6 +1470,56 @@ function traineePriorityItems(
         onSelect: () => goToTab('Learning Progress'),
       })
   }
+
+  /* Round 58, direct instruction: *"for all trainees, show some Items that
+     need your attention, re-use, do not map it to users."*
+
+     Three of the five trainees on the roster derive **nothing** — Aisha
+     Mohamed, Daniel Osei and Noah Fenwick are all active, up to date and
+     inside their stage, so every test above correctly passes and the panel
+     renders its empty state. That is right for the data and wrong for a
+     prototype whose populated state then cannot be seen on most of the
+     roster.
+
+     Three things about this fallback are deliberate:
+
+      - **It only fills an empty list.** Marcus Webb derives 4 real rows and
+        Lauren Mitchell 6; those are genuine, correct and specific, and
+        overwriting them with filler would trade real information for demo
+        content. Every trainee shows items; nobody loses theirs.
+      - **It is not mapped to the trainee** (the instruction's own words):
+        same two rows for everyone who needs them, no name, no module, no
+        score, no date read off the record.
+      - **The two rows were chosen so they cannot contradict the page.**
+        That is the constraint, not the copy. An obvious filler like "not
+        active for 7 days" would sit directly above a Last Active of
+        yesterday, and "annotation summary not submitted" would contradict
+        the Stage Management tab, which is this project's most-repeated
+        defect class. Placement 1 scheduling and an outstanding peer feedback
+        form are both real COACH-framework artefacts (Phase 5 outputs) that
+        **no surface on this page renders**, so there is nothing for them to
+        disagree with. If a future round puts either on screen, this pair has
+        to be revisited.
+
+     Both rows still carry `onSelect`, so they behave like the derived ones
+     rather than reading as live controls that do nothing. */
+  if (items.length === 0)
+    return [
+      {
+        id: 'placeholder-placement-1',
+        priority: 'High',
+        title: 'Placement 1 not yet scheduled',
+        note: 'No Placement 1 date has been confirmed with the facilitator.',
+        onSelect: () => goToTab('Stage Management'),
+      },
+      {
+        id: 'placeholder-peer-feedback',
+        priority: 'Medium',
+        title: 'Peer feedback form outstanding',
+        note: 'One peer feedback form from the last group practice has not been returned.',
+        onSelect: () => goToTab('Learning Progress'),
+      },
+    ]
 
   return items
 }
@@ -3612,7 +3664,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
                       // as a ghost button — underline on hover, text colour
                       // unchanged — applied across all 9 call sites in the
                       // same pass rather than left as a per-component fix.
-                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-pearl px-[18px] text-caption-medium text-primary outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                      className={cn(OUTLINE_FILLED_BUTTON, 'justify-center')}
                     >
                       Mark complete
                     </button>
@@ -3853,14 +3905,14 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
                  it composites rather than inventing a hex, which matters now
                  that Figma is the strict source of truth and publishes no
                  success-hover step. */
-              className="inline-flex h-9 w-full items-center justify-center rounded-full bg-success px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-success/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={cn(btn({ tone: 'success' }), 'w-full')}
             >
               Record Pass
             </button>
             <button
               type="button"
               onClick={() => setPendingOutcome('remediation-required')}
-              className="inline-flex h-9 w-full items-center justify-center rounded-full border border-destructive px-[18px] text-caption-medium text-destructive outline-none transition-all hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={cn(btn({ variant: 'secondary', tone: 'destructive' }), 'w-full')}
             >
               Record remediation required
             </button>
@@ -3877,7 +3929,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
               <button
                 type="button"
                 onClick={() => setActionMsg('Certificate downloaded (prototype).')}
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={btn()}
               >
                 <Download aria-hidden="true" className="size-4" />
                 Download
@@ -3885,7 +3937,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
               <button
                 type="button"
                 onClick={() => setActionMsg('Shareable certificate link copied.')}
-                className="inline-flex h-9 items-center gap-2 rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={btn({ variant: 'secondary' })}
               >
                 <Link2 aria-hidden="true" className="size-4" />
                 Share link
@@ -3893,7 +3945,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
               <button
                 type="button"
                 onClick={() => setActionMsg(`Certificate emailed to ${coach.email}.`)}
-                className="inline-flex h-9 items-center gap-2 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={cn(OUTLINE_FILLED_BUTTON, 'gap-2')}
               >
                 <Mail aria-hidden="true" className="size-4" />
                 Send email
@@ -4221,9 +4273,24 @@ export function CoachProfilePage() {
             none at all — direct instruction: both of its cards carry a real
             header band naming themselves, so a third title above them repeated
             the same words a third time. */}
-        {tab !== 'Overview' && tab !== 'Stage Management' && tab !== 'Personal details' && (
-          <TabIntro {...TAB_INTRO[tab]} />
-        )}
+        {/* Round 58, direct instruction: a trainee who has not accepted their
+            invite gets **no title and no sub copy on these tabs — only the
+            empty banner below**. Both intros describe data that does not
+            exist yet ("See which modules this trainee has finished", "Write
+            and save notes from your supervision sessions"), and the empty
+            state directly beneath already names itself and says why it is
+            empty. Together they stated the same absence twice, the second
+            time in the voice of a populated page.
+
+            Learning Progress and Supervision Notes are the only two tabs this
+            touches, and that is not a coincidence: Overview and Stage
+            Management render their intro inline with their own content (so a
+            pending trainee's early return skips it for free) and Personal
+            details has none at all. */}
+        {tab !== 'Overview' &&
+          tab !== 'Stage Management' &&
+          tab !== 'Personal details' &&
+          coach.inviteStatus !== 'pending' && <TabIntro {...TAB_INTRO[tab]} />}
         {tab === 'Overview' && (
           <Overview
             coach={coach}

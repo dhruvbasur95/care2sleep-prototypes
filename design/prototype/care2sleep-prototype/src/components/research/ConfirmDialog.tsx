@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MODAL_FOOTER_SURFACE, MODAL_FOOTER_SURFACE_COMPACT } from '@/components/shared/modalFooter'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * Confirmation dialog for record-changing actions (approve, decline,
@@ -183,7 +184,19 @@ export function ConfirmDialog({
         const active = document.activeElement
         const stillInClosingPanel = !!closingPanel && !!active && closingPanel.contains(active)
         if (!active || active === document.body || stillInClosingPanel) {
-          trigger.focus({ preventScroll: true })
+          // The captured "trigger" is whatever held focus when this dialog
+          // opened, and in a 2-step flow that is the FIRST step's panel — a
+          // node which has since unmounted. `.focus()` on a detached element
+          // silently does nothing, so the second step's confirm dropped
+          // focus to `<body>` on every nested flow in the app (measured on
+          // "Onboard new coach" → "Onboard {name}?": trigger still in the
+          // DOM, focus on BODY). Fall back to the page's own `<main>`, which
+          // already carries `tabIndex={-1}` for exactly this purpose.
+          if (document.body.contains(trigger)) {
+            trigger.focus({ preventScroll: true })
+          } else {
+            document.getElementById('main-content')?.focus({ preventScroll: true })
+          }
         }
       })
     }
@@ -362,10 +375,8 @@ export function ConfirmDialog({
                       type="button"
                       onClick={onClose}
                       className={cn(
-                        'inline-flex w-full items-center justify-center rounded-full border outline-none transition-all active:scale-[0.97] sm:w-auto',
-                        consumer
-                          ? 'h-12 border-consumer-primary px-6 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary'
-                          : 'h-9 border-primary px-[18px] text-caption-medium text-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring',
+                        btn({ variant: 'secondary', surface: consumer ? 'consumer' : 'app' }),
+                        'w-full sm:w-auto',
                       )}
                     >
                       {cancelLabel}
@@ -375,17 +386,19 @@ export function ConfirmDialog({
                       onClick={onConfirm}
                       disabled={confirmDisabled}
                       className={cn(
-                        'inline-flex w-full items-center justify-center rounded-full text-white outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.97] sm:w-auto',
-                        consumer
-                          ? 'h-12 px-6 text-body-md focus-visible:ring-consumer-primary'
-                          : 'h-9 px-[18px] text-caption-medium focus-visible:ring-ring',
-                        confirmDisabled
-                          ? 'cursor-not-allowed bg-primary/40 hover:bg-primary/40'
-                          : (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'success'
-                            ? 'bg-success hover:bg-success/90'
-                            : (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'destructive'
-                            ? 'bg-destructive hover:bg-destructive/90'
-                            : 'bg-primary hover:bg-primary-hover',
+                        btn({
+                          // `confirmTone` is the system's `tone` under an older
+                          // name; `primary` here meant the brand colour.
+                          tone:
+                            (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'success'
+                              ? 'success'
+                              : (confirmTone ?? (destructive ? 'destructive' : 'primary')) === 'destructive'
+                                ? 'destructive'
+                                : 'brand',
+                          state: confirmDisabled ? 'deactive' : 'static',
+                          surface: consumer ? 'consumer' : 'app',
+                        }),
+                        'w-full sm:w-auto',
                       )}
                     >
                       {confirmLabel}

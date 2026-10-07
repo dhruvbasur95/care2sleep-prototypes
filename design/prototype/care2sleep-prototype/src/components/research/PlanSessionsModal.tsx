@@ -35,6 +35,7 @@ import {
   type SessionPlanRow,
 } from '@/data/spaces'
 import { formatDate, formatTime, TODAY } from '@/data/format'
+import { btn } from '@/components/shared/buttonSystem'
 
 /** The wizard anchors to the REAL current date (Round 38, direct feedback:
  *  "I can still see July"), not the seed world's frozen `TODAY` — a coach
@@ -1532,7 +1533,7 @@ export function PlanSessionsModal({
                                     type="button"
                                     onClick={() => setZoomGuideStep((i) => Math.max(0, i - 1))}
                                     disabled={zoomGuideStep === 0}
-                                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-primary text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={cn(btn({ variant: 'secondary', size: 'icon' }), 'shrink-0')}
                                   >
                                     <ChevronLeft aria-hidden="true" className="size-4" />
                                     <span className="sr-only">Previous step</span>
@@ -1549,7 +1550,7 @@ export function PlanSessionsModal({
                                       setZoomGuideStep((i) => Math.min(ZOOM_GUIDE_STEPS - 1, i + 1))
                                     }
                                     disabled={zoomGuideStep === ZOOM_GUIDE_STEPS - 1}
-                                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-primary text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={cn(btn({ variant: 'secondary', size: 'icon' }), 'shrink-0')}
                                   >
                                     <ChevronRight aria-hidden="true" className="size-4" />
                                     <span className="sr-only">Next step</span>
@@ -1637,7 +1638,7 @@ export function PlanSessionsModal({
                       <button
                         type="button"
                         onClick={() => setShowIntro(false)}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                        className={btn()}
                       >
                         Get started
                       </button>
@@ -1647,7 +1648,7 @@ export function PlanSessionsModal({
                           <button
                             type="button"
                             onClick={() => setStep((s) => Math.max(0, s - 1))}
-                            className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                            className={btn({ variant: 'secondary' })}
                           >
                             Back
                           </button>
@@ -1663,7 +1664,7 @@ export function PlanSessionsModal({
                                   ? moduleWeekday === null
                                   : zoomLinkInvalid
                             }
-                            className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                            className={btn()}
                           >
                             {step === 2 ? 'Build my plan' : 'Next'}
                           </button>
@@ -1672,7 +1673,7 @@ export function PlanSessionsModal({
                             type="button"
                             onClick={handleSubmit}
                             disabled={rowsIncomplete}
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-divider-soft disabled:text-ink-faint disabled:hover:bg-divider-soft"
+                            className={btn()}
                           >
                             Create my session plan
                           </button>

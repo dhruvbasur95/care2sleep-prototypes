@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Three rows that vanish</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#3a00ad;--deep:#200061;--faint:#6d6d6d}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#fffcfa;color:#1a1a1a;font-size:15px}
+.wrap{max-width:860px;margin:0 auto;padding:44px 30px 80px}
+h1{font-size:24px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--faint);margin:0 0 30px;font-size:14px}
+.card{background:#fff;border:1px solid #efe9e4;border-radius:14px;padding:0;overflow:hidden;margin-bottom:18px;
+      box-shadow:2px 4px 16px rgba(230,194,127,.18)}
+.hd{padding:16px 24px;font:600 13px/1.5 Inter,sans-serif;border-bottom:1px solid #f2efec}
+.panel{padding:26px 24px}
+.on-white{background:#fffcfa}
+.on-purple{background:var(--primary)}
+.rowlab{font:500 12px/1.5 Inter,sans-serif;color:var(--faint);width:120px;flex:0 0 120px}
+.on-purple .rowlab{color:rgba(255,255,255,.75)}
+.r{display:flex;align-items:center;gap:18px;padding:11px 0}
+.btn{height:36px;display:inline-flex;align-items:center;justify-content:center;
+     font:500 14px/1 Inter,sans-serif;letter-spacing:-.224px;border:1px solid transparent;padding:0 18px;white-space:nowrap}
+.pill{border-radius:999px}.r8{border-radius:8px}
+.wfill{background:#fff;color:var(--primary)}
+.wout{background:transparent;border-color:#fff;color:#fff}
+.quick{background:#fff;color:var(--deep);border-radius:8px}
+.note{margin-top:24px;padding:18px 20px;background:#fff;border:1px solid #efe9e4;border-left:3px solid var(--primary);
+      border-radius:12px;font-size:14.5px}
+.note b{color:var(--primary)}
+ul{margin:10px 0 0;padding-left:20px}li{margin:6px 0}
+.arrow{text-align:center;color:var(--faint);font-size:13px;margin:-4px 0 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Three rows that vanish</h1>
+<p class="sub">The master panel is now near-white. These three styles are built for the purple band.</p>
+
+<div class="card">
+  <div class="hd" style="color:#8a1020;background:#fdf2f3">On the master panel today — <code>#fffcfa</code></div>
+  <div class="panel on-white">
+    <div class="r"><span class="rowlab">White filled</span><span class="btn pill wfill">Assign consumer</span></div>
+    <div class="r"><span class="rowlab">White outline</span><span class="btn pill wout">View study progress</span></div>
+    <div class="r"><span class="rowlab">Quick action</span><span class="btn quick">Onboard trainees</span></div>
+  </div>
+</div>
+
+<p class="arrow">↑ White outline is a white border and white text on white — there is nothing to see.<br>
+The other two are white fills with no edge.</p>
+
+<div class="card">
+  <div class="hd" style="color:#17502a;background:#f1f9f3">On the surface they are designed for — <code>#3a00ad</code></div>
+  <div class="panel on-purple">
+    <div class="r"><span class="rowlab">White filled</span><span class="btn pill wfill">Assign consumer</span></div>
+    <div class="r"><span class="rowlab">White outline</span><span class="btn pill wout">View study progress</span></div>
+    <div class="r"><span class="rowlab">Quick action</span><span class="btn quick">Onboard trainees</span></div>
+  </div>
+</div>
+
+<div class="note">
+<b>This is not a bug — it is the trade-off landing.</b> Before I made the panel opaque it was
+<code>#fffcfa</code> at 60% over black, which rendered grey. The grey happened to make white
+buttons visible, so the problem was hidden rather than absent.
+<br><br>
+<b>Two ways to fix it, your call:</b>
+<ul>
+  <li><b>A purple strip</b> behind just those three rows, inside the same panel — one block, no new sections.</li>
+  <li><b>A second small section</b> with a purple ground, holding only those three styles.</li>
+</ul>
+<br>
+I have not done either. Both change the section's structure and you asked for one clean block.
+</div>
+
+</div>
+</body>
+</html>

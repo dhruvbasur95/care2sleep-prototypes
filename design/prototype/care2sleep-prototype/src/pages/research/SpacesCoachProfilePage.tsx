@@ -13,11 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheckBig,
-  Download,
   MoreVertical,
   NotebookPen,
+  FileText,
   Paperclip,
   Search,
+  Trash2,
   Users,
   Video,
 } from 'lucide-react'
@@ -57,6 +58,7 @@ import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
 import { TablePager } from '@/components/shared/TablePager'
+import { Toast } from '@/components/shared/Toast'
 import {
   ResearchPrioritiesSection,
   type ResearchPriorityItem,
@@ -83,10 +85,13 @@ import {
   type PersonProfile,
   type SessionCompletionRecord,
   type SessionPlan,
+  type SupervisionNote,
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
 import { SIPTEA_INITIALS, SIPTEA_NAMES } from '@/data/siptea'
+import { OUTLINE_FILLED_BUTTON } from '@/components/shared/buttonStyles'
+import { btn } from '@/components/shared/buttonSystem'
 
 /* Round 27: "Shared Annotations" removed as a tab on direct instruction. A
    coach's shared reflections are per-consumer, so a coach-wide tab had to
@@ -722,7 +727,7 @@ function OverviewTab({
                         onViewDyad(d.id)
                       }}
                       aria-label={`View ${dyadTitle(d)}`}
-                      className="inline-flex size-9 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
+                      className={btn({ variant: 'ghost', tone: 'neutral', size: 'icon' })}
                     >
                       <ChevronRight aria-hidden="true" className="size-4" />
                     </button>
@@ -828,7 +833,7 @@ function CoachNotificationPreferencesCard({
           {dirty && (
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               Save changes
             </button>
@@ -1368,8 +1373,8 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
   // withdrawal through — so the button is always live, and the constraint is
   // enforced inside the flow rather than in front of it.
   const withdrawButtonClass = cn(
-    'inline-flex h-9 shrink-0 items-center rounded-sm border bg-card px-4 text-caption-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]',
-    'border-destructive text-destructive hover:bg-destructive/8',
+    'inline-flex h-9 shrink-0 items-center rounded-full border bg-white px-[18px] text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]',
+    'border-destructive text-destructive hover:bg-destructive/10',
   )
 
   return (
@@ -1414,7 +1419,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
               ref={editContactButtonRef}
               type="button"
               onClick={() => setEditingContact(true)}
-              className="inline-flex h-9 shrink-0 items-center rounded-sm bg-card px-4 text-caption-medium text-primary outline-none transition-colors hover:bg-parchment focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={OUTLINE_FILLED_BUTTON}
             >
               Edit details
             </button>
@@ -1450,7 +1455,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={btn()}
               >
                 Save changes
               </button>
@@ -1461,7 +1466,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
                   setPhone(coach.phone)
                   setEditingContact(false)
                 }}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
               >
                 Cancel
               </button>
@@ -1790,7 +1795,7 @@ export function SessionPlanEmptyBanner({
                         ref={ctaRef}
                         type="button"
                         onClick={onCreate}
-                        className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                        className={cn(btn({ tone: 'inverse' }), 'min-w-[232px]')}
                       >
                         Create session plan
                       </button>
@@ -1801,7 +1806,7 @@ export function SessionPlanEmptyBanner({
                       <button
                         type="button"
                         onClick={() => setWhyOpen(true)}
-                        className="inline-flex h-11 min-w-[232px] items-center justify-center rounded-full border border-white px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                        className={cn(btn({ variant: 'secondary', tone: 'inverse' }), 'min-w-[232px]')}
                       >
                         Why is this necessary?
                       </button>
@@ -2078,7 +2083,7 @@ export function SessionTracker({
           <button
             type="button"
             onClick={() => setWizardOpen(true)}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
           >
             Edit plan
           </button>
@@ -2215,7 +2220,7 @@ export function SessionTracker({
                             <button
                               type="button"
                               aria-disabled="true"
-                              className="relative inline-flex h-9 shrink-0 cursor-not-allowed items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className={cn(btn({ variant: 'secondary', tone: 'neutral', state: 'deactive' }), 'relative shrink-0')}
                             >
                               Mark session complete
                               <span className="sr-only">
@@ -2231,7 +2236,7 @@ export function SessionTracker({
                               onClick={() =>
                                 setPending({ session: session.number, name: session.name, action: 'complete' })
                               }
-                              className="relative inline-flex h-9 shrink-0 items-center rounded-sm bg-pearl px-4 text-caption-medium text-primary outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                              className={cn(btn({ variant: 'secondary', tone: 'neutral' }), 'relative shrink-0')}
                             >
                               Mark session complete
                               <span className="sr-only"> for Session {displayNumber}</span>
@@ -2505,7 +2510,7 @@ export function ConsumerDetailsCard({
             <button
               type="button"
               onClick={() => setEditingNotes(true)}
-              className="inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={OUTLINE_FILLED_BUTTON}
             >
               Edit details
             </button>
@@ -2531,7 +2536,7 @@ export function ConsumerDetailsCard({
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={btn()}
               >
                 Save changes
               </button>
@@ -2541,7 +2546,7 @@ export function ConsumerDetailsCard({
                   setNotesText(seedNotes())
                   setEditingNotes(false)
                 }}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={btn({ variant: 'secondary' })}
               >
                 Cancel
               </button>
@@ -3525,16 +3530,17 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   /* Both document columns offer the same pair of actions, so they share one
-     control style — a text link at the app's 36px control height. */
-  const DOC_ACTION =
-    'inline-flex h-9 items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring'
+     control style — a text link at the app's 36px control height. Round 58
+     moved the value itself to the module-scoped `ROW_TEXT_ACTION` when
+     `SupervisionRecords` became its second caller; the local name stays so
+     this component's eight uses read unchanged. */
+  const DOC_ACTION = ROW_TEXT_ACTION
 
   /* The dialog's Download is this app's canonical primary-filled pill, not the
      table's text link (direct instruction). In the table it is one of four
      equal-weight actions; in the viewer it is the only thing to do besides
      close, so it carries the weight. */
-  const DOC_ACTION_PRIMARY =
-    'inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
+  const DOC_ACTION_PRIMARY = btn()
 
   /* When the session itself was held — the same `sessionCompletion` record the
      Session Plan writes, so this column and the tracker cannot disagree. An
@@ -4085,6 +4091,26 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
  *  notes), not a parallel view of the same data. Omitted, behavior is
  *  byte-for-byte identical to before this round: notes save without a
  *  `dyadId` and the table shows every note for the coach regardless of it. */
+/**
+ * The researcher tables' shared **text action** — a `primary` label underlined
+ * at rest, at the app's 36px control height.
+ *
+ * Hoisted to module scope in Round 58 at its second caller. It had been a
+ * local `DOC_ACTION` inside `SessionReflectionsTab`, and `SupervisionRecords`
+ * now needs the identical treatment for its own row action; a second copy of
+ * the same string is how the hero treatment drifted across five pages once
+ * already. `DOC_ACTION` still exists under its own name at that call site —
+ * only its value moved, so none of its eight uses changed.
+ *
+ * Note this is a **link** treatment, not a ghost button: CLAUDE.md's rule is
+ * that a control underlined *at rest* is a link, and that underline is this
+ * control's only non-colour affordance (WCAG 1.4.1). Correct here for the same
+ * reason it is correct in the reflections table — these are the researcher's
+ * in-table actions and they read as one system.
+ */
+const ROW_TEXT_ACTION =
+  'inline-flex h-9 items-center rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring'
+
 export function SupervisionRecords({
   coach,
   dyadId,
@@ -4137,7 +4163,7 @@ export function SupervisionRecords({
    *  such tab-level intro carrying that message — keep their header band. */
   hideNotesHeader?: boolean
 }) {
-  const { supervisionNotes, addSupervisionNote } = useResearch()
+  const { supervisionNotes, addSupervisionNote, deleteSupervisionNote } = useResearch()
   const notes = supervisionNotes
     .filter((n) => n.coachId === coach.id && (dyadId === undefined || n.dyadId === dyadId))
     .sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1))
@@ -4147,7 +4173,50 @@ export function SupervisionRecords({
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5))
   const [notesBody, setNotesBody] = useState('')
   const [attachments, setAttachments] = useState<string[]>([])
+  /* Round 58 — `downloadMsg` survives, but it no longer belongs to a row: the
+     row's Download writes a real file, so it needs no status line. What does
+     need one is an **attachment**, which has no bytes behind it in this
+     prototype — the seeded names are filenames, not files. It is announced in
+     the viewer rather than silently doing nothing. */
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<SupervisionNote | null>(null)
+  const [deleting, setDeleting] = useState<SupervisionNote | null>(null)
+  /* Held separately from `deleting` so the confirm dialog keeps the copy that
+     names the note through `AnimatePresence`'s exit, rather than blanking
+     mid-fade. Same reason `DeliveryNotesPage` holds its own. */
+  const [deletingShown, setDeletingShown] = useState<SupervisionNote | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  /* Focus target after a delete. The row — and the Delete button that opened
+     the dialog — unmounts with the note, so `ConfirmDialog`'s focus-restore
+     has nothing to return to and focus lands on `<body>`. Measured live, not
+     assumed: this project's most-repeated defect class, and
+     `DeliveryNotesPage` already solved it exactly this way. */
+  const recordsHeadingRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    if (deleting) setDeletingShown(deleting)
+  }, [deleting])
+
+  /* A real file, not a stub: the note's own text is in hand, so there is
+     nothing to fake. Shared `downloadText` rather than a second hand-rolled
+     Blob — `DeliveryNotesPage` predates that helper and still has its own. */
+  function downloadNote(n: SupervisionNote) {
+    /* 2026-10-06, direct instruction: ONE download that takes the note and
+       every attachment together, rather than a control per file. The seed
+       carries attachment filenames, not bytes, so what is written is the note
+       plus a manifest of what the bundle would contain — named `.txt`, not
+       `.zip`, because a text file wearing a `.zip` extension fails to open
+       and that is worse than being plain about it. Swapping in a real archive
+       is a one-function change here once an encoder is added. */
+    const slug = n.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+    const manifest = n.attachments.length
+      ? `\nAttachments (${n.attachments.length}):\n${n.attachments.map((f) => `  - ${f}`).join('\n')}\n`
+      : ''
+    downloadText(
+      `${slug}.txt`,
+      `${n.title}\n${formatDate(n.date)} ${n.time}\n\n${n.notes}\n${manifest}`,
+    )
+  }
 
   /* Round 23, frame `174:5` (nodes `172:1824`/`172:1765`). The heading moves
      OUT of the card onto the page canvas (`body-md`, 16px above it), and the
@@ -4157,21 +4226,54 @@ export function SupervisionRecords({
      Note this drops the records sub-line: with the heading outside the card
      there is no header band left to hold it, and the trainee page's `TabIntro`
      already says what this table is. */
+  /* Round 23, frame `174:5` (nodes `172:1824`/`172:1765`). The heading moves
+     OUT of the card onto the page canvas (`body-md`, 16px above it), and the
+     card becomes a `yellow-50` shell with a `purple-50` header row and white
+     data rows — no outer border, the tint carries the edge.
+
+     Round 58 replaced the row's single icon-only Download with a real Actions
+     column — **View · Download · Delete** — on the model the trainee's own
+     My Notes table already uses (`DeliveryNotesPage.tsx`), so the two notes
+     tables in this app read as one pattern rather than two. Direct
+     instruction; an accordion drawer was built first and discarded in favour
+     of the modal ("lets keep it simple, open pop-up modal instead").
+
+     `table-fixed` is load-bearing here for the same reason it is there: under
+     auto layout a long title sizes the Title column and pushes the table past
+     its container. Fixed layout pins the four trailing columns and gives Title
+     the remainder, which is also what gives `line-clamp-2` a width to clamp
+     against. */
   const recordsCard = (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-body-md text-ink">{recordsHeading}</h2>
+      <h2
+        ref={recordsHeadingRef}
+        tabIndex={-1}
+        className="font-display text-body-md text-ink outline-none"
+      >
+        {recordsHeading}
+      </h2>
       <Card className="gap-0 overflow-hidden rounded-lg border-0 bg-yellow-50 py-0 shadow-card">
         {notes.length === 0 ? (
           <p className="bg-card px-8 py-6 text-caption text-ink-muted">{emptyMessage}</p>
         ) : (
           <div className="min-w-0 overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left">
+            {/* Measured, not guessed. `layout-audit.js` caught a first pass at
+                `min-w-[840px]`: inside this page's 817px container at a 1041px
+                viewport the table overran by 23px and two Attachments cells
+                wrapped. Actions is the one width that cannot move — its three
+                controls measure 178px and the cell carries the row's own 32px
+                right padding, so 210 is the content, not padding. The other
+                three were trimmed to their real content instead
+                (150/80/110 against ~85/38/86px of text), which brings the
+                floor to 760 and leaves Title 267px at that width. Audit empty
+                at 1041 and 1440. */}
+            <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
               <colgroup>
                 <col />
-                <col className="w-[200px]" />
-                <col className="w-[120px]" />
-                <col className="w-[160px]" />
-                <col className="w-[60px]" />
+                <col className="w-[150px]" />
+                <col className="w-[80px]" />
+                <col className="w-[110px]" />
+                <col className="w-[210px]" />
               </colgroup>
               <thead>
                 <tr className="bg-purple-50">
@@ -4187,14 +4289,19 @@ export function SupervisionRecords({
                   <th scope="col" className="py-4 text-caption-medium text-ink-muted">
                     Attachments
                   </th>
-                  <th scope="col" className="py-4 pr-8">
-                    <span className="sr-only">Download</span>
+                  <th scope="col" className="py-4 pr-8 text-caption-medium text-ink-muted">
+                    Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {notes.map((n) => (
-                  <tr key={n.id} className="border-b border-hairline bg-card">
+                  /* `align-top`: the Actions cell is 36px of control against a
+                     ~20px line of text, and the default middle alignment floats
+                     the date and time to the row's vertical centre instead of
+                     lining up with the first line of a two-line title — the
+                     same defect Round 10 fixed on the multi-attendee table. */
+                  <tr key={n.id} className="border-b border-hairline bg-card align-top">
                     <td className="py-4 pl-8 text-caption-medium text-ink">
                       <span className="line-clamp-2" title={n.title}>
                         {n.title}
@@ -4210,26 +4317,51 @@ export function SupervisionRecords({
                         {n.attachments.length}
                       </span>
                     </td>
-                    <td className="py-4 pr-8 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setDownloadMsg(`${n.title} downloaded (prototype).`)}
-                        aria-label={`Download ${n.title}`}
-                        className="inline-flex size-9 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-                      >
-                        <Download aria-hidden="true" className="size-[18px]" />
-                      </button>
+                    <td className="py-4 pr-8">
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setViewing(n)}
+                          className={ROW_TEXT_ACTION}
+                        >
+                          View
+                          <span className="sr-only">: {n.title}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadNote(n)}
+                          className={ROW_TEXT_ACTION}
+                        >
+                          Download
+                          <span className="sr-only">: {n.title}</span>
+                        </button>
+                        {/* An icon, not a word, and `destructive` rather than
+                            `primary`: this is the one action in the row that
+                            cannot be taken back and should not read like its
+                            two harmless neighbours — the same call
+                            `DeliveryNotesPage` made. Icon-only needs its name
+                            supplied some other way, so it carries a real
+                            `aria-label` naming the note, plus a `title` giving
+                            sighted users the same label on hover. `-my-1.5`
+                            cancels the 36px box's effect on row height rather
+                            than shrinking it below this project's control
+                            floor. */}
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(n)}
+                          aria-label={`Delete note: ${n.title}`}
+                          title="Delete note"
+                          className={cn(btn({ variant: 'ghost', tone: 'destructive', size: 'icon' }), 'shrink-0')}
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-        {downloadMsg && (
-          <p role="status" className="bg-card px-8 pb-6 text-caption font-semibold text-success">
-            {downloadMsg}
-          </p>
         )}
       </Card>
     </section>
@@ -4332,7 +4464,7 @@ export function SupervisionRecords({
               <div className="flex flex-wrap items-center gap-3">
                 <label
                   htmlFor="note-attachments"
-                  className="inline-flex h-9 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-primary px-6 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring active:scale-[0.97]"
+                  className={btn({ variant: 'secondary' })}
                 >
                   Attach File
                   <input
@@ -4347,7 +4479,7 @@ export function SupervisionRecords({
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                  className={btn()}
                 >
                   Save note
                 </button>
@@ -4377,7 +4509,146 @@ export function SupervisionRecords({
           {rightSlot && recordsCard}
         </>
       )}
+
+      <SupervisionNoteViewer
+        note={viewing}
+        downloadMsg={downloadMsg}
+        onDownload={downloadNote}
+        onClose={() => {
+          setViewing(null)
+          setDownloadMsg(null)
+        }}
+      />
+
+      {/* Deleting is irreversible — there is no undo and no bin — so it is
+          gated. `destructive` gives the confirm button the red treatment, and
+          the copy names the note and states the consequence rather than asking
+          "Are you sure?", per this project's own dialog-copy rule. */}
+      <ConfirmDialog
+        open={!!deleting}
+        title="Delete this note?"
+        body={
+          deletingShown ? `"${deletingShown.title}" will be removed. You cannot undo this.` : ''
+        }
+        confirmLabel="Delete note"
+        cancelLabel="Keep note"
+        destructive
+        onConfirm={() => {
+          if (deletingShown) deleteSupervisionNote(deletingShown.id)
+          setDeleting(null)
+          setToast('Note deleted.')
+          // Send focus to the records heading rather than letting it fall to
+          // `<body>`. It is always mounted — the heading sits outside the card,
+          // so it survives the table collapsing to its empty state.
+          recordsHeadingRef.current?.focus()
+        }}
+        onClose={() => setDeleting(null)}
+      />
+
+      <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
+  )
+}
+
+/**
+ * The read-only supervision-note viewer.
+ *
+ * Built on `ConfirmDialog` rather than a new chassis, for the reason
+ * `DeliveryNotesPage`'s own viewer gives: that component already carries this
+ * project's hard-won modal behaviour — the Round 11 two-step focus-restore
+ * race, the Round 14 `AnimatePresence` exit fix, the Tab trap and Escape — and
+ * a hand-rolled dialog would have to reproduce all of it.
+ *
+ * **Not `singleAction`.** This dialog has two things to do, so it uses the
+ * two-button footer: Close in the cancel slot, **Download** in the confirm
+ * slot, which is this app's canonical primary-filled pill. That is the same
+ * call `DOC_ACTION_PRIMARY` documents on this page — in a table Download is
+ * one of three equal-weight actions and reads as a link; in a viewer it is the
+ * only thing to do besides close, so it carries the weight. `onConfirm` does
+ * **not** close: `ConfirmDialog` leaves that entirely to the caller, so
+ * downloading leaves the note on screen, which is what you want when the next
+ * thing you may do is open an attachment.
+ *
+ * **No editing** (matching the trainee's My Notes viewer): a saved note is a
+ * record of what the researcher thought at the time.
+ */
+function SupervisionNoteViewer({
+  note,
+  downloadMsg,
+  onDownload,
+  onClose,
+}: {
+  note: SupervisionNote | null
+  downloadMsg: string | null
+  onDownload: (note: SupervisionNote) => void
+  onClose: () => void
+}) {
+  // Held rather than read straight through, so the panel keeps its content
+  // while `AnimatePresence` plays the exit instead of blanking for the fade.
+  const [shown, setShown] = useState<SupervisionNote | null>(note)
+  useEffect(() => {
+    if (note) setShown(note)
+  }, [note])
+
+  return (
+    <ConfirmDialog
+      open={!!note}
+      title={shown?.title ?? ''}
+      body={shown ? `${formatDate(shown.date)}  ·  ${shown.time}` : ''}
+      confirmLabel="Download"
+      cancelLabel="Close"
+      // Wider than the confirm-dialog default: 440px turns a paragraph into a
+      // ribbon, and this is a document to read, not a question to answer.
+      panelClassName="max-h-[85vh] w-full max-w-[720px]"
+      onConfirm={() => shown && onDownload(shown)}
+      onClose={onClose}
+    >
+      <div className="flex flex-col gap-6">
+        {/* The notepad: the same `parchment` surface and hairline the write box
+            above the table uses, so a saved note reads as the same object it
+            was typed into — just without a cursor. `whitespace-pre-wrap` keeps
+            the researcher's own line breaks. */}
+        <div className="min-h-[200px] rounded-sm border border-hairline bg-parchment p-4">
+          <p className="whitespace-pre-wrap text-body leading-[1.4] text-ink">{shown?.notes}</p>
+        </div>
+
+        {/* Attachments live here rather than in the row (direct instruction).
+            The table's own column still carries the count, which is what tells
+            you there is something in here worth opening.
+
+            2026-10-06, direct instruction: each attachment is a LABEL, not a
+            row with its own action. Same chip this app already uses for the
+            Stage CP feedback report (`purple-50` pill, `fine`, `primary`), so
+            an attached file looks the same wherever it is shown. The per-file
+            Download is gone — the dialog's single footer Download takes
+            everything at once, which is also the only thing that can honestly
+            be offered when a note has several files. */}
+        {!!shown?.attachments.length && (
+          <section className="flex flex-col gap-3">
+            <h3 id="note-attachments-heading" className="text-caption-medium text-ink-faint">
+              Attachments
+            </h3>
+            <ul aria-labelledby="note-attachments-heading" className="flex flex-wrap gap-2">
+              {shown.attachments.map((file) => (
+                <li key={file} className="flex min-w-0">
+                  <span className="inline-flex h-[27px] min-w-0 max-w-[320px] items-center gap-1.5 rounded-full bg-purple-50 px-3 text-fine text-primary">
+                    <FileText aria-hidden="true" className="size-3.5 shrink-0" />
+                    <span className="truncate">{file}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Always rendered so it is a stable live region: a `role="status"`
+            that mounts at the same moment its text appears is announced
+            unreliably, because the region has to exist before the change. */}
+        <p role="status" className="min-h-5 text-caption font-semibold text-success">
+          {downloadMsg}
+        </p>
+      </div>
+    </ConfirmDialog>
   )
 }
 
@@ -4563,7 +4834,7 @@ export function SpacesCoachProfilePage() {
                 <button
                   type="button"
                   onClick={() => setDetailsOpen(true)}
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                  className={btn()}
                 >
                   View consumer details
                 </button>
@@ -4571,7 +4842,7 @@ export function SpacesCoachProfilePage() {
                   <button
                     type="button"
                     onClick={() => setTransferOpen(true)}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-primary bg-card px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                    className={btn({ variant: 'secondary' })}
                   >
                     Transfer consumer
                   </button>
@@ -4622,7 +4893,7 @@ export function SpacesCoachProfilePage() {
                 <button
                   type="button"
                   onClick={() => setAssignOpen(true)}
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-[0.97]"
+                  className={btn({ tone: 'inverse' })}
                 >
                   Assign consumer
                 </button>
@@ -4778,7 +5049,7 @@ export function SpacesCoachProfilePage() {
                   duplicated into the panel. */}
               <Link
                 to={`/research/consumers/${d.id}?tab=${encodeURIComponent('Profile details')}`}
-                className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={btn({ variant: 'secondary' })}
               >
                 Go to consumer profile details
                 <ChevronRight aria-hidden="true" className="size-4" />

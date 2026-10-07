@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { NotificationPreferences } from '@/data/research'
+import { btn } from '@/components/shared/buttonSystem'
 
 /**
  * Shared across all 3 Account tabs (Round 6.2.1) — the checkbox pair is always
@@ -32,7 +33,7 @@ const TONE = {
     label: 'text-caption',
     check: 'text-primary focus-visible:ring-ring',
     button:
-      'h-9 rounded-full bg-primary px-[18px] text-caption-medium text-white hover:bg-primary-hover focus-visible:ring-ring',
+      btn(),
     saved: 'text-fine',
   },
   consumer: {
@@ -41,7 +42,7 @@ const TONE = {
     label: 'text-body',
     check: 'text-consumer-primary focus-visible:ring-consumer-primary',
     button:
-      'h-12 rounded-3xl bg-consumer-primary px-5 text-body-md text-white hover:opacity-90 focus-visible:ring-consumer-primary',
+      btn({ surface: 'consumer' }),
     saved: 'text-body',
   },
 } as const

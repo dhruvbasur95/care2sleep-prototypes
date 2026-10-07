@@ -169,6 +169,16 @@ export interface ResearchStore {
     noteId: string,
     patch: Partial<Pick<SupervisionNote, 'title' | 'notes' | 'session' | 'date' | 'time'>>,
   ) => void
+  /** Round 58 — remove a supervision note outright. The researcher's own
+   *  Supervision Notes / Supervision Logs tables carry a Delete, gated behind
+   *  a `ConfirmDialog` at the call site (direct instruction).
+   *
+   *  Deliberately NOT offered to the Coach Delivery Portal's case notes, which
+   *  render their own local table: Round 36 settled that a client's case note
+   *  is a clinical record and has no Delete. These are the researcher's own
+   *  notes about a trainee or coach, written and owned by the person deleting
+   *  them, which is a different thing. */
+  deleteSupervisionNote: (noteId: string) => void
   /** Add a researcher note to a dyad — no coach required. */
   addResearchNote: (
     dyadId: string,
@@ -749,6 +759,10 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const deleteSupervisionNote = useCallback((noteId: string) => {
+    setSupervisionNotes((prev) => prev.filter((n) => n.id !== noteId))
+  }, [])
+
   const addResearchNote = useCallback(
     (
       dyadId: string,
@@ -882,6 +896,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       addAdHocMeeting,
       addSupervisionNote,
       updateSupervisionNote,
+      deleteSupervisionNote,
       manualRecordings,
       addManualRecording,
       submitPostPracticeAnnotation,
@@ -930,6 +945,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       addAdHocMeeting,
       addSupervisionNote,
       updateSupervisionNote,
+      deleteSupervisionNote,
       manualRecordings,
       addManualRecording,
       submitPostPracticeAnnotation,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Mail } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/shared/buttonSystem'
 
 /** Shared across all 3 new Account tabs (Round 6.2.1). Industry-standard
  *  pattern, matching this app's own `SignInPage` forgot-password flow: never
@@ -37,12 +38,17 @@ const TONE = {
     label: 'text-fine',
     field:
       'h-9 text-caption focus-visible:border-ring focus-visible:ring-ring',
+    // Direct instruction, 2026-10-07: "Change password" is the same
+    // open-the-editor trigger as "Edit details" directly above it on the one
+    // page that renders this tone, so it takes the same primary-outline pill
+    // rather than leaving two different affordances for one action on one
+    // screen. `app` has a single caller (`ResearchAccountPage`).
     ghost:
-      'h-9 rounded-sm bg-pearl px-4 text-caption-medium text-ink-muted hover:underline focus-visible:ring-ring',
+      btn({ variant: 'secondary' }),
     filled:
-      'h-9 rounded-full bg-primary px-[18px] text-caption-medium text-white hover:bg-primary-hover focus-visible:ring-ring',
+      btn(),
     outline:
-      'h-9 rounded-full border border-primary px-[18px] text-caption-medium text-primary hover:bg-primary/5 focus-visible:ring-ring',
+      btn({ variant: 'secondary' }),
     link: 'text-caption-medium text-primary focus-visible:ring-ring',
     accent: 'text-primary',
     accentBg: 'bg-primary/10',
@@ -54,11 +60,11 @@ const TONE = {
     field:
       'h-12 text-body focus-visible:border-consumer-primary focus-visible:ring-consumer-primary',
     ghost:
-      'h-12 rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-consumer-primary',
+      btn({ surface: 'consumer', variant: 'secondary' }),
     filled:
-      'h-12 rounded-3xl bg-consumer-primary px-5 text-body-md text-white hover:opacity-90 focus-visible:ring-consumer-primary',
+      btn({ surface: 'consumer' }),
     outline:
-      'h-12 rounded-3xl border border-consumer-primary px-5 text-body-md text-consumer-primary hover:bg-purple-50 focus-visible:ring-consumer-primary',
+      btn({ surface: 'consumer', variant: 'secondary' }),
     link: 'text-body-md text-consumer-primary focus-visible:ring-consumer-primary',
     accent: 'text-consumer-primary',
     accentBg: 'bg-consumer-primary/10',

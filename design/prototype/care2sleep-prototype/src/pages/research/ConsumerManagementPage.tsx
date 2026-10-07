@@ -22,6 +22,7 @@ import {
   type ConsumerDyad,
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
+import { btn } from '@/components/shared/buttonSystem'
 
 function dyadTitle(dyad: ConsumerDyad): string {
   return dyad.patient ? `${dyad.patient.name} & ${dyad.carer.name}` : dyad.carer.name
@@ -125,6 +126,23 @@ const WITHDRAWN_CONSUMERS = [
   { ple: null, carer: 'Beverley Nkomo', coach: 'Fatima Haidari', modules: '1 of 7', sessions: '0 of 6', reason: 'Withdrew on personal grounds' },
 ] as const
 
+/** Dummy pending-invite consumer. One row, deliberately — consumer invites are
+ *  issued through REDCap and a dyad has no invite-status field, so there is no
+ *  real population to filter. Before this existed the Pending tab had no filter
+ *  at all: it fell through to `true` and rendered every active row under a
+ *  label that said "(1)". Same shape as `WITHDRAWN_CONSUMERS` above: a local
+ *  const with its own small table, so the tab's count and its rows read the
+ *  same source and cannot disagree. Replace both with a real `inviteStatus`
+ *  field when REDCap sync lands. */
+const PENDING_CONSUMERS = [
+  {
+    ple: 'Raymond Castellano',
+    carer: 'Lucia Castellano',
+    type: 'Dyad',
+    invited: '28 Sep 2026',
+  },
+] as const
+
 export function ConsumerManagementPage() {
   const { consumerDyads, coaches, sessionCompletion, sessionPlans } = useResearch()
   const navigate = useNavigate()
@@ -146,8 +164,10 @@ export function ConsumerManagementPage() {
   const dyadCount = rosterDyads.filter((d) => Boolean(d.patient)).length
   const carerOnlyCount = rosterDyads.length - dyadCount
   /* Dummy: consumer invites are issued through REDCap and the platform has no
-     invite-status field for a dyad yet. */
-  const invitePendingCount = 1
+     invite-status field for a dyad yet. Read off `PENDING_CONSUMERS` rather
+     than written as a literal, so the tab's count is the number of rows the
+     tab actually renders. */
+  const invitePendingCount = PENDING_CONSUMERS.length
 
   const unsorted = rosterDyads.map((dyad) => {
     const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
@@ -288,7 +308,7 @@ export function ConsumerManagementPage() {
             <InertButton
               label="Sync with REDCap"
               appearance="active"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={btn()}
             >
               <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2} />
             </InertButton>
@@ -424,6 +444,8 @@ export function ConsumerManagementPage() {
         <div className="overflow-x-auto">
         {tab === 'withdrawn' ? (
           <WithdrawnConsumerTable />
+        ) : tab === 'pending' ? (
+          <PendingConsumerTable />
         ) : filtered.length === 0 ? (
           <p className="p-10 text-center text-body text-ink-muted">
             {rows.length === 0
@@ -640,6 +662,70 @@ export function ConsumerManagementPage() {
  * Columns per the open-items doc: Consumer details, Assigned coach, Modules
  * completed, Sessions completed, Reason for withdrawal.
  */
+/**
+ * The Pending invite tab's table.
+ *
+ * Deliberately NOT the main 9-column roster table: a consumer who has not
+ * accepted their invite has no coach, no session plan, no module activity and
+ * no sessions, so eight of those nine columns would render "—". The columns
+ * here are the facts that exist at invite time, which is the same editorial
+ * call `WithdrawnConsumerTable` makes for its own stage of the lifecycle.
+ *
+ * Non-functional, like the withdrawn rows: there is no record to open until
+ * the invite is accepted, so no row link and no chevron.
+ */
+function PendingConsumerTable() {
+  return (
+    <table className="w-full border-collapse text-left">
+      <thead>
+        <tr className="bg-purple-50">
+          <th scope="col" className="px-6 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Consumer Details
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Type
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Invite sent
+          </th>
+          <th scope="col" className="px-4 py-4 text-caption-medium whitespace-nowrap text-ink">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {PENDING_CONSUMERS.map((c, i) => (
+          <tr key={c.carer} className={cn(i > 0 && 'border-t border-hairline')}>
+            {/* Same stacked PLE / Carer shape every other tab uses. */}
+            <td className="px-6 py-4">
+              <div className="flex min-h-11 flex-col justify-center gap-1">
+                {c.ple && (
+                  <span className="text-caption text-ink">
+                    <span className="text-ink-faint">PLE:</span>{' '}
+                    <span className="font-semibold">{c.ple}</span>
+                  </span>
+                )}
+                <span className="text-caption text-ink">
+                  <span className="text-ink-faint">Carer:</span>{' '}
+                  <span className="font-semibold">{c.carer}</span>
+                </span>
+              </div>
+            </td>
+            <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">{c.type}</td>
+            <td className="px-4 py-4 text-caption whitespace-nowrap text-ink-muted">{c.invited}</td>
+            <td className="px-4 py-4">
+              {/* The same amber `warning` chip the trainee roster already uses
+                  for an unaccepted platform invite, so one concept reads one
+                  way across both rosters. */}
+              <Chip tone="warning" label="Invite pending" />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 function WithdrawnConsumerTable() {
   return (
     <table className="w-full min-w-[840px] border-collapse text-left">

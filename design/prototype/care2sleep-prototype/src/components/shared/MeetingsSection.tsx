@@ -5,6 +5,8 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
 import { formatDate, formatTime, TODAY } from '@/data/format'
 import { cn } from '@/lib/utils'
+import { OUTLINE_FILLED_BUTTON } from './buttonStyles'
+import { btn } from './buttonSystem'
 
 /**
  * "Schedule and track your meetings" — the day-grouped, Upcoming/Scheduled
@@ -88,7 +90,7 @@ const MEETINGS_TABS = [
 type MeetingsTab = (typeof MEETINGS_TABS)[number]['id']
 
 const ROW_UTILITY_BUTTON =
-  'inline-flex h-9 items-center rounded-sm bg-pearl px-4 text-caption text-ink-muted outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]'
+  OUTLINE_FILLED_BUTTON
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`)
@@ -160,7 +162,7 @@ function MeetingRow({ row }: { row: ScheduleRow }) {
           href={row.zoomLink}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+          className={btn()}
         >
           {/* Round 40, direct instruction: "Start" -> "Start Session". Renamed
               on the shared row rather than only on the coach's client rows —
@@ -251,7 +253,7 @@ export function MeetingsSection({
           <InertButton
             label="Schedule session"
             appearance="active"
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+            className={btn()}
           >
             <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2} />
           </InertButton>
