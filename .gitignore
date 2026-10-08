@@ -43,7 +43,6 @@ pnpm-debug.log*
 /design/prototype/*.md
 /design/DESIGN-apple.md
 /design/backlog.md
-/design/claude-code-action-plan.md
 /design/coach-portal-handover-orchestration-plan.md
 /design/portal-feature-map.md
 /design/user-roles.md
