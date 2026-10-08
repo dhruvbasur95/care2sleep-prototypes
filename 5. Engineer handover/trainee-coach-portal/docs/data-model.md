@@ -4,7 +4,7 @@
 
 **Audience.** An engineer designing a real schema. Nothing here is a backend. Everything in `src/data/` is a TypeScript literal compiled into the bundle; everything mutable is React `useState` inside one provider (`src/data/research-store.tsx`) and is lost on page reload.
 
-**Source root.** `engineer-handover/trainee-coach-portal/app/src/` (byte-identical to `design/prototype/src/` at time of writing — verified by `diff -q`).
+**Source root.** `05 Engineer handover/trainee-coach-portal/app/src/` (byte-identical to `02 Platform/prototype/src/` at time of writing — verified by `diff -q`).
 
 **Verification.** Every invariant in §7 was executed against every seeded record with `npx tsx` importing the real modules. 25 held; the failures are reported as seed defects in §7.2, not corrected.
 

@@ -279,7 +279,7 @@ in the same `viewBox`, on the same element, so they cannot disagree at any scale
 ### The path
 
 `BLOB_PATH` is a single closed path, 21 segments, given in full in
-`design/prototype/src/components/delivery/blobFrame.ts`. It is not
+`02 Platform/prototype/src/components/delivery/blobFrame.ts`. It is not
 reproduced here to guarantee there is only ever one copy of it — copying it into this
 document would be committing the exact mistake this section is about. Copy it from that file.
 

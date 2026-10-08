@@ -3,11 +3,11 @@
 # for GitHub Pages. Run locally with:  ./build-site.sh
 #
 # The site publishes ONE prototype, served at /prototype/. The three engineer-handover
-# packages under engineer-handover/ are deliberately NOT published — their source stays
+# packages under 5. Engineer handover/ are deliberately NOT published — their source stays
 # in the repository for engineering, but nothing links to or builds them.
 set -euo pipefail
 
-APP="design/prototype"
+APP="2. Platform/prototype"
 SLUG="prototype"
 
 rm -rf _site

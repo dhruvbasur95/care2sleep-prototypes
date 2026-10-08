@@ -245,7 +245,7 @@ re-dating the whole fixture set at once.
 ### How far behind, measured
 
 Of the 48 source files in this package, compared with
-`design/prototype/src`:
+`02 Platform/prototype/src`:
 
 | | |
 |---|---|

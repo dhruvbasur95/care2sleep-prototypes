@@ -3,7 +3,7 @@
 **Standard:** WCAG 2.1 Level AA
 **Method:** live audit in the browser against the running app (`http://localhost:5199`), all 8 routes and all tab panels within the 3 record pages
 **Date:** 2026-08-26
-**Scope:** the handover package at `engineer-handover/researcher-dashboard/app` only. No code was changed by this audit.
+**Scope:** the handover package at `05 Engineer handover/researcher-dashboard/app` only. No code was changed by this audit.
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Companion document.** `motion-spec.md` covers every animation. Where a flow's timing is animation-driven, this document names the constant and points there.
 
-**Path convention.** All paths relative to `design/prototype/src/`.
+**Path convention.** All paths relative to `02 Platform/prototype/src/`.
 
 > ### ⚠️ Read §1 before any other section.
 > **Several of the state changes described in this document are driven by hidden demo triggers that do not exist in the real product.** Rebuilding them as product behaviour would be wrong, and missing the real automation they stand in for would also be wrong. §1 is the map. Every affected state machine below carries a cross-reference back to it.

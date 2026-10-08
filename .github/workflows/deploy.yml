@@ -2,7 +2,7 @@
 # Runs automatically on every push to main.
 #
 # ONE prototype is published, served at /prototype/. The three packages under
-# engineer-handover/ are deliberately NOT built or published — see build-site.sh.
+# 5. Engineer handover/ are deliberately NOT built or published — see build-site.sh.
 name: Deploy the prototype to GitHub Pages
 
 on:

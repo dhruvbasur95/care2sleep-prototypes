@@ -52,7 +52,7 @@ clean audit.**
 
 ## Phase 1 — Copy
 
-All work happens inside `engineer-handover/<portal>/`, a copy. The prototype is
+All work happens inside `5. Engineer handover/<portal>/`, a copy. The prototype is
 frozen from here on.
 
 ---
@@ -160,7 +160,7 @@ cross-document reference resolves. No document contradicts another.
 ## Phase 5 — Cut the package
 
 ```
-engineer-handover/<portal>/
+5. Engineer handover/<portal>/
 ├── README.md     Scope (what is deliberately absent) · Quickstart with its real
 │                 traps · doc index · directory map · study-context primer ·
 │                 State of the code (what is real vs. mocked)
@@ -188,8 +188,8 @@ existing package, **measure it** rather than assuming:
 
 ```bash
 # how far has the package drifted from the live app?
-H=engineer-handover/<portal>/app/src
-L=design/prototype/src
+H=5. Engineer handover/<portal>/app/src
+L=2. Platform/prototype/src
 find $H -type f | while read f; do rel=${f#$H/};
   if [ -f "$L/$rel" ]; then diff -q "$f" "$L/$rel" >/dev/null || echo "CHANGED  $rel";
   else echo "GONE FROM LIVE  $rel"; fi; done

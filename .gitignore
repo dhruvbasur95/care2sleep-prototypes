@@ -28,25 +28,15 @@ pnpm-debug.log*
 # Deliberately excluded so they are NOT published to the public repo.
 # See the project handover notes before changing anything below.
 # =====================================================================
-/research/
-/_project/
-/Project/
-/module framework + content/
-/Coaching modules master/
+/4. Study source/
+/3. Coaching modules/
 /Scripts/
 /CLAUDE.md
 
-/_START-HERE/
-/_archive/
-/design/reviews/
-/design/wireframes/
-/design/prototype/*.md
-/design/DESIGN-apple.md
-/design/backlog.md
-/design/coach-portal-handover-orchestration-plan.md
-/design/portal-feature-map.md
-/design/user-roles.md
-/design/ux-copy.md
+/1. Start here/
+/6. Archive/
+/2. Platform/prototype/*.md
+/2. Platform/ux-copy.md
 
 # Assembled Pages output (built by build-site.sh / CI)
 _site/
