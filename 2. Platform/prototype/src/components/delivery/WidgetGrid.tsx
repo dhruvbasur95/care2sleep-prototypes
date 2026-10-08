@@ -71,7 +71,7 @@ function TintBadge({ icon: Icon, tint }: { icon: LucideIcon; tint: string }) {
       className="flex size-10 shrink-0 items-center justify-center rounded-sm"
       style={{ backgroundColor: `${tint}1a` }}
     >
-      <Icon className="size-5" strokeWidth={1.75} style={{ color: tint }} />
+      <Icon className="size-6" strokeWidth={1.75} style={{ color: tint }}  />
     </span>
   )
 }
@@ -125,7 +125,7 @@ function AddWidgetTile({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="group flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-hairline bg-transparent p-6 text-ink-faint outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] hover:border-primary hover:text-primary"
     >
-      <Plus aria-hidden="true" className="size-5" strokeWidth={1.75} />
+      <Plus aria-hidden="true" className="size-6" strokeWidth={1.75}  />
       <span className="text-caption font-semibold">Add widget</span>
     </button>
   )

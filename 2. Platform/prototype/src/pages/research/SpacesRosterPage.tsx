@@ -356,8 +356,7 @@ export function SpacesRosterPage() {
                   <td className="px-4 py-4 text-right">
                     <ChevronRight
                       aria-hidden="true"
-                      className="inline size-4 text-ink-faint"
-                    />
+                      className="inline size-4 text-ink-faint" strokeWidth={2.25} />
                   </td>
                 </tr>
               ))}

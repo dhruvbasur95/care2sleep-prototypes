@@ -125,7 +125,7 @@ export function AppHeader({
               className="flex size-11 items-center justify-center text-ink-muted"
               title="Notifications (coming soon)"
             >
-              <Bell aria-hidden="true" className="size-[18px]" />
+              <Bell aria-hidden="true" className="size-6" strokeWidth={1.75} />
               <span className="sr-only">Notifications (coming soon)</span>
             </span>
 

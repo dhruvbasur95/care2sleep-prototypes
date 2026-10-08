@@ -90,7 +90,7 @@ function PartMarkers({ part, unlocked }: { part: 'A' | 'B'; unlocked: boolean })
         <span className={cn(pill, 'bg-purple-200 text-primary')}>You start here</span>
       ) : (
         <span className={cn(pill, 'gap-2 bg-parchment text-ink-muted')}>
-          <Lock aria-hidden="true" className="size-3" />
+          <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
           Locked. Complete Part A first
         </span>
       )}
@@ -216,7 +216,7 @@ function ModuleCard({
           {complete && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
-                <CircleCheck aria-hidden="true" className="size-[18px] text-success" />
+                <CircleCheck aria-hidden="true" className="size-6 text-success" strokeWidth={1.75} />
                 <p className="text-body-md text-success">Module complete</p>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-hairline">
@@ -239,7 +239,7 @@ function ModuleCard({
 
           {locked ? (
             <div className="flex h-9 w-full items-center justify-center gap-1 rounded-full bg-parchment text-caption-medium text-ink-muted">
-              <Lock aria-hidden="true" className="size-3" />
+              <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
               Locked
             </div>
           ) : (

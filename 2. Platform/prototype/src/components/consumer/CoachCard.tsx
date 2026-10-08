@@ -66,7 +66,7 @@ function ContactRow({ icon: Icon, value }: { icon: typeof Phone; value: string }
         aria-hidden="true"
         className="flex size-6 shrink-0 items-center justify-center text-consumer-primary"
       >
-        <Icon className="size-6" />
+        <Icon className="size-6" strokeWidth={1.75} />
       </span>
       <span className="min-w-0 truncate text-body text-ink">{value}</span>
     </div>

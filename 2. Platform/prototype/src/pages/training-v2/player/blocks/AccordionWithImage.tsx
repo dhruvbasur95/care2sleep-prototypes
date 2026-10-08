@@ -268,7 +268,7 @@ export function AccordionWithImage({ items }: { items: AccordionImageItem[] }) {
                           className="flex w-full flex-col items-center justify-center gap-2 rounded-md bg-parchment"
                           style={{ aspectRatio: IMAGE_ASPECT }}
                         >
-                          <ImageIcon aria-hidden="true" className="size-8 text-ink-faint" />
+                          <ImageIcon aria-hidden="true" className="size-6 text-ink-faint" strokeWidth={1.75} />
                           <span className="text-caption text-ink-faint">
                             {String(i + 1).padStart(2, '0')}
                           </span>

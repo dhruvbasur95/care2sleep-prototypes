@@ -93,9 +93,8 @@ export function AccountMenu({
           aria-hidden="true"
           className={cn(
             'shrink-0 transition-transform group-data-[popup-open]:rotate-180',
-            consumer ? 'size-4' : 'size-3.5',
-          )}
-        />
+            'size-4',
+          )} strokeWidth={2.25} />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={12} className="z-50 outline-none">
@@ -128,7 +127,7 @@ export function AccountMenu({
                     aria-hidden="true"
                     className={cn(
                       'shrink-0',
-                      consumer ? 'size-7' : 'size-5',
+                      'size-6',
                       action.destructive
                         ? 'text-destructive'
                         : consumer
@@ -136,7 +135,7 @@ export function AccountMenu({
                           : 'text-primary',
                     )}
                     strokeWidth={1.75}
-                  />
+                   />
                   <span className={cn('min-w-0', consumer ? 'text-consumer-lesson' : 'text-caption')}>
                     {action.label}
                   </span>
@@ -145,14 +144,13 @@ export function AccountMenu({
                   aria-hidden="true"
                   className={cn(
                     'shrink-0',
-                    consumer ? 'size-6' : 'size-4',
+                    'size-6',
                     action.destructive
                       ? 'text-destructive'
                       : consumer
                         ? 'text-consumer-primary'
                         : 'text-primary',
-                  )}
-                />
+                  )} strokeWidth={1.75} />
               </Menu.Item>
             ))}
           </Menu.Popup>

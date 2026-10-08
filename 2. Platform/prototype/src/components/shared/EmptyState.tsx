@@ -41,7 +41,7 @@ export function EmptyState({
         aria-hidden="true"
         className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10"
       >
-        <Icon className="size-5 text-primary" />
+        <Icon className="size-6 text-primary" strokeWidth={1.75} />
       </span>
       <p className="text-caption text-ink-muted">{copy}</p>
     </div>

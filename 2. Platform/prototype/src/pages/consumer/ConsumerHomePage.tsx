@@ -211,7 +211,7 @@ function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
           to={`/consumer/${dyad.id}/help`}
           className="text-body-md flex h-12 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-destructive outline-none transition-colors hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
         >
-          <MessageCircleQuestionMark aria-hidden="true" className="size-5" />
+          <MessageCircleQuestionMark aria-hidden="true" className="size-6" strokeWidth={1.75} />
           Need help
         </Link>
       }

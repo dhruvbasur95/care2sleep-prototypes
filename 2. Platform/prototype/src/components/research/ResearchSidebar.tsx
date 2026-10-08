@@ -92,9 +92,9 @@ export function ResearchSidebar() {
             className="flex size-9 items-center justify-center rounded-sm text-ink-muted outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
           >
             {collapsed ? (
-              <PanelLeftOpen aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <PanelLeftOpen aria-hidden="true" className="size-6" strokeWidth={1.75}  />
             ) : (
-              <PanelLeftClose aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <PanelLeftClose aria-hidden="true" className="size-6" strokeWidth={1.75}  />
             )}
           </button>
         </div>
@@ -247,7 +247,7 @@ function AreaLink({
             />
           }
         >
-          <Icon aria-hidden="true" className="size-5" strokeWidth={1.75} />
+          <Icon aria-hidden="true" className="size-6" strokeWidth={1.75}  />
         </TooltipTrigger>
         <TooltipContent side="right">{label}</TooltipContent>
       </Tooltip>
@@ -266,7 +266,7 @@ function AreaLink({
         )
       }
     >
-      <Icon aria-hidden="true" className="size-5" strokeWidth={1.75} />
+      <Icon aria-hidden="true" className="size-6" strokeWidth={1.75}  />
       <span className="flex-1">{label}</span>
     </NavLink>
   )

@@ -255,7 +255,7 @@ export function MeetingsSection({
             appearance="active"
             className={buttonVariants()}
           >
-            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.25}  />
           </InertButton>
         </div>
       )}

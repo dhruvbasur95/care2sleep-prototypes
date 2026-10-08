@@ -128,7 +128,7 @@ export function AiReflectionPanel() {
           aria-hidden="true"
           className="flex size-12 items-center justify-center rounded-full bg-badge-purple/10 text-badge-purple"
         >
-          <NotebookPen className="size-6" />
+          <NotebookPen className="size-6" strokeWidth={1.75} />
         </span>
         <div className="space-y-1.5">
           <h2 className="font-display text-title">Baseline reflection</h2>
@@ -148,7 +148,7 @@ export function AiReflectionPanel() {
               : 'cursor-not-allowed border-badge-purple/70 bg-white text-badge-purple',
           )}
         >
-          {!isCertified && <Lock aria-hidden="true" className="size-3.5 shrink-0" />}
+          {!isCertified && <Lock aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />}
           {isCertified ? 'Start reflection' : 'Finish all modules to unlock'}
         </button>
       </Card>

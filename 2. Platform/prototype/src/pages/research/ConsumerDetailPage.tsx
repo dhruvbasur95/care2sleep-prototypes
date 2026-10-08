@@ -136,7 +136,7 @@ function DyadWithdrawnBanner({ dyad }: { dyad: ConsumerDyad }) {
   return (
     <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
       <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.25} />
         <p className="text-caption font-semibold text-white">
           {dyadTitle(dyad)} withdrew from the study
           {dyad.optedOut ? ` on ${formatDate(dyad.optedOut.date)}` : ''}. They no longer have
@@ -166,7 +166,7 @@ function WithdrawalRequestedBanner({ dyad }: { dyad: ConsumerDyad }) {
   return (
     <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
       <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.25} />
         <p className="text-caption font-semibold text-white">
           {dyadTitle(dyad)} asked to withdraw from the study
           {dyad.withdrawalRequested ? ` on ${formatDate(dyad.withdrawalRequested.date)}` : ''}.
@@ -213,8 +213,7 @@ function SelectChevron() {
   return (
     <ChevronDown
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-    />
+      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
   )
 }
 
@@ -382,9 +381,9 @@ export function ContactDetailsCard({
                         >
                           {expanded ? 'Show less' : 'Show more'}
                           {expanded ? (
-                            <ChevronUp aria-hidden="true" className="size-4" />
+                            <ChevronUp aria-hidden="true" className="size-4" strokeWidth={2.25} />
                           ) : (
-                            <ChevronDown aria-hidden="true" className="size-4" />
+                            <ChevronDown aria-hidden="true" className="size-4" strokeWidth={2.25} />
                           )}
                           <span className="sr-only"> of {person.name}&rsquo;s background</span>
                         </Button>
@@ -1154,8 +1153,7 @@ function DyadNotificationPreferencesCard({
               />
               <Check
                 aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
-              />
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
             </span>
             Email
           </label>
@@ -1172,8 +1170,7 @@ function DyadNotificationPreferencesCard({
               />
               <Check
                 aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
-              />
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
             </span>
             SMS
           </label>
@@ -1707,7 +1704,7 @@ export function ModuleEngagementTab({
                       <span className="min-w-0 flex-1">{r.module.title}</span>
                       {locked ? (
                         <span className="flex shrink-0 items-center gap-1 text-fine text-ink-faint">
-                          <Lock aria-hidden="true" className="size-3" />
+                          <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
                           Locked
                         </span>
                       ) : idx === 0 ? (
@@ -1745,7 +1742,7 @@ export function ModuleEngagementTab({
                 )}
                 {locked ? (
                   <div className="flex items-start gap-2">
-                    <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-faint" />
+                    <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-faint" strokeWidth={2.25} />
                     <p className="text-caption text-ink-faint">
                       {/* Session 0 leak fix: Module 1's own unlock trigger is
                           the planning session itself (idx === 1 → internal
@@ -2872,7 +2869,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
               }
               className={PAGER_BTN}
             >
-              <Download aria-hidden="true" className="size-4" />
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
               Export
             </button>
             {/* Column settings. Opens a panel of draggable chips — one per
@@ -2885,7 +2882,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
               aria-label="Table columns"
               className={cn(PAGER_BTN, 'w-9 justify-center px-0')}
             >
-              <SlidersHorizontal aria-hidden="true" className="size-4" />
+              <SlidersHorizontal aria-hidden="true" className="size-4" strokeWidth={2.25} />
             </button>
           </div>
         </div>
@@ -2987,7 +2984,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
                               dragCol === c.key && 'opacity-50',
                             )}
                           >
-                            <GripVertical aria-hidden="true" className="size-3.5" />
+                            <GripVertical aria-hidden="true" className="size-4" strokeWidth={2.25} />
                             {c.label}
                             {/* No +/- glyph: the chip's own panel already says
                                 whether the column is shown, so an icon that
@@ -3108,7 +3105,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
                 disabled={page === 0}
                 className={PAGER_BTN}
               >
-                <ChevronLeft aria-hidden="true" className="size-4" />
+                <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Newer
               </button>
               <button
@@ -3122,7 +3119,7 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
                 className={PAGER_BTN}
               >
                 Previous {remaining > 0 ? Math.min(LOG_PAGE, remaining) : LOG_PAGE}
-                <ChevronRight aria-hidden="true" className="size-4" />
+                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </button>
             </div>
           )}
@@ -3141,19 +3138,19 @@ function Trend({ current, previous }: { current?: number; previous?: number }) {
   if (current === previous) {
     return (
       <>
-        <Minus aria-hidden="true" className="inline size-3 text-ink-faint" />
+        <Minus aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
         <span className="sr-only">, no change from previous day</span>
       </>
     )
   }
   return current > previous ? (
     <>
-      <ChevronUp aria-hidden="true" className="inline size-3 text-ink-faint" />
+      <ChevronUp aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
       <span className="sr-only">, higher than previous day</span>
     </>
   ) : (
     <>
-      <ChevronDown aria-hidden="true" className="inline size-3 text-ink-faint" />
+      <ChevronDown aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
       <span className="sr-only">, lower than previous day</span>
     </>
   )
@@ -3773,7 +3770,7 @@ export function FitbitSyncMonitor({
             variant="secondary"
             className="shrink-0"
           >
-            <Download aria-hidden="true" className="size-4" />
+            <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Export
           </Button>
         </div>
@@ -4145,13 +4142,13 @@ export function SleepDiaryFeed({
                 aria-label="Earlier night"
                 className={stepBtn}
               >
-                <ChevronLeft aria-hidden="true" className="size-4" />
+                <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </button>
               {/* The frame's `Purple/700` badge — `primary` here, white label,
                   10.62:1. It is the anchor of the whole card, so it carries the
                   one filled surface in the row. */}
               <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-sm bg-primary px-4 text-caption-medium whitespace-nowrap text-white">
-                <CalendarDays aria-hidden="true" className="size-4" />
+                <CalendarDays aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 {formatDate(date)}
               </span>
               <button
@@ -4165,7 +4162,7 @@ export function SleepDiaryFeed({
                 aria-label="Later night"
                 className={stepBtn}
               >
-                <ChevronRight aria-hidden="true" className="size-4" />
+                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </button>
             </div>
           )}
@@ -4176,7 +4173,7 @@ export function SleepDiaryFeed({
             variant="secondary"
             className="shrink-0"
           >
-            <Download aria-hidden="true" className="size-4" />
+            <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Export
           </Button>
         </div>
@@ -4192,7 +4189,7 @@ export function SleepDiaryFeed({
           three spans that merely look like a date. */}
       {averaging && windowDates.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 text-caption text-ink-muted">
-          <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-primary" />
+          <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-primary" strokeWidth={2.25} />
           <span className="text-caption-medium text-ink">
             {windowDates.length === 1
               ? 'Average of 1 night'
@@ -4565,7 +4562,7 @@ function ResearchNotesCard({ dyadId }: { dyadId: string }) {
                       <td className="py-4 text-caption whitespace-nowrap text-ink">{n.time}</td>
                       <td className="py-4 text-caption text-ink">
                         <span className="inline-flex items-center gap-1.5">
-                          <Paperclip aria-hidden="true" className="size-4 text-ink-faint" />
+                          <Paperclip aria-hidden="true" className="size-4 text-ink-faint" strokeWidth={2.25} />
                           {n.attachments.length}
                         </span>
                       </td>
@@ -4578,7 +4575,7 @@ function ResearchNotesCard({ dyadId }: { dyadId: string }) {
                           tone="neutral"
                           size="icon"
                         >
-                          <Download aria-hidden="true" className="size-[18px]" />
+                          <Download aria-hidden="true" className="size-6" strokeWidth={1.75} />
                         </Button>
                       </td>
                     </tr>
@@ -4722,7 +4719,7 @@ export function ConsumerDetailPage() {
             // frame derivation — this link had drifted to `gap-1`/`size-4`.
             className="-my-3 flex w-fit items-center gap-2 rounded-sm py-3 text-caption-medium text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-white"
           >
-            <ChevronLeft aria-hidden="true" className="size-3" />
+            <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Back to Consumer Management
           </Link>
 

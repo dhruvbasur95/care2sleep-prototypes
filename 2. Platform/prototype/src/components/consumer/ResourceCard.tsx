@@ -276,7 +276,7 @@ export function ResourceCard() {
           aria-disabled="true"
           className="flex h-12 w-full max-w-96 items-center justify-center gap-2 rounded-[28px] bg-consumer-primary px-5 text-body-md text-white outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
         >
-          <Download aria-hidden="true" strokeWidth={2.25} className="size-5 shrink-0" />
+          <Download aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
           Download the guide
           <span className="sr-only"> (coming soon)</span>
         </button>

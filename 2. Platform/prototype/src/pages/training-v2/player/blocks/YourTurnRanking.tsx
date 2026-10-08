@@ -451,7 +451,7 @@ function StepCard({
         carried && CARRIED,
       )}
     >
-      <GripHorizontal aria-hidden="true" className="size-5 text-ink-faint" />
+      <GripHorizontal aria-hidden="true" className="size-6 text-ink-faint" strokeWidth={1.75} />
       <span className="text-body text-ink">{label}</span>
       <span className="sr-only">
         {carried ? ' (picked up — choose a position)' : ' (press Enter to pick this step up)'}
@@ -588,7 +588,7 @@ function FilledSlot({
             onClick={onRemove}
             className="-m-2 flex size-9 shrink-0 items-center justify-center rounded-full text-white outline-none hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white"
           >
-            <X aria-hidden="true" className="size-4" />
+            <X aria-hidden="true" className="size-4" strokeWidth={2.25} />
             <span className="sr-only">Remove this step from position {rank + 1}</span>
           </button>
         )}

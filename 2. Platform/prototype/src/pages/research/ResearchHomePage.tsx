@@ -251,7 +251,7 @@ function QuickLinksBar() {
         <p className="text-body-md whitespace-nowrap text-white">Quick actions:</p>
         <div className="flex flex-wrap items-center gap-3">
           <Link to="/research/trainees" className={cn(QUICK_LINK_PILL, QUICK_LINK_INTERACTIVE)}>
-            <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+            <UserPlus aria-hidden="true" className="size-4" strokeWidth={2.25}  />
             Onboard trainees
           </Link>
           {/* Consumer intake moved to REDCap, so this pill no longer promises
@@ -261,7 +261,7 @@ function QuickLinksBar() {
               "Onboard trainees" above is untouched: trainee intake is still
               a platform-side wizard. */}
           <Link to="/research/consumers" className={cn(QUICK_LINK_PILL, QUICK_LINK_INTERACTIVE)}>
-            <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2} />
+            <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2.25}  />
             Sync consumers
           </Link>
           {/* Third pill, added from frame `329:3756`.
@@ -282,7 +282,7 @@ function QuickLinksBar() {
             appearance="active"
             className={cn(QUICK_LINK_PILL, QUICK_LINK_INTERACTIVE)}
           >
-            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.25}  />
           </InertButton>
         </div>
       </div>
@@ -304,7 +304,7 @@ function NeedHelpButton() {
       appearance="active"
       className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
     >
-      <CircleHelp aria-hidden="true" className="size-4" strokeWidth={2} />
+      <CircleHelp aria-hidden="true" className="size-4" strokeWidth={2.25}  />
     </InertButton>
   )
 }

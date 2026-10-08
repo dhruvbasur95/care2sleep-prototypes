@@ -397,7 +397,7 @@ export function ConsumerDiaryPage() {
                 // than 16px, which read as a speck inside a 44px target.
                 className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white outline-none transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
               >
-                <X className="size-6" strokeWidth={2} aria-hidden="true" />
+                <X className="size-6" strokeWidth={1.75} aria-hidden="true"  />
               </button>
               <div className="flex min-w-0 flex-1 items-center gap-4">
                 <div

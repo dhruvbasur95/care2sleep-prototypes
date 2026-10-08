@@ -221,8 +221,7 @@ export function SessionPlannerTable({
                               />
                               <ChevronDown
                                 aria-hidden="true"
-                                className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink"
-                              />
+                                className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                             </div>
                             <span className="shrink-0 text-caption-medium text-ink-muted">to</span>
                             <label htmlFor={`${idPrefix}-end-${s.number}`} className="sr-only">
@@ -239,8 +238,7 @@ export function SessionPlannerTable({
                               />
                               <ChevronDown
                                 aria-hidden="true"
-                                className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink"
-                              />
+                                className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                             </div>
                           </div>
                         </div>
@@ -261,7 +259,7 @@ export function SessionPlannerTable({
                         role="alert"
                         className="flex items-center gap-2 rounded-sm border border-destructive bg-destructive/10 px-3 py-2"
                       >
-                        <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+                        <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-destructive" strokeWidth={2.25} />
                         <ul className="text-fine text-ink">
                           {issues.map((msg) => (
                             <li key={msg}>{msg}</li>

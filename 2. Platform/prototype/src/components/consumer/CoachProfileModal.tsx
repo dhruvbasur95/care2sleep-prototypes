@@ -142,7 +142,7 @@ function IconSlot({ icon: Icon }: { icon: typeof Phone }) {
       aria-hidden="true"
       className="flex size-10 shrink-0 items-center justify-center text-consumer-primary"
     >
-      <Icon className="size-7" strokeWidth={1.75} />
+      <Icon className="size-6" strokeWidth={1.75}  />
     </span>
   )
 }
@@ -168,7 +168,7 @@ function ContactRow({ icon: Icon, value, href }: { icon: typeof Phone; value: st
         aria-hidden="true"
         className="flex size-6 shrink-0 items-center justify-center text-consumer-primary"
       >
-        <Icon className="size-6" />
+        <Icon className="size-6" strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">{value}</span>
     </a>
@@ -230,7 +230,7 @@ export function CoachProfileModal({
           onClick={onClose}
           className="absolute top-3 right-3 z-20 flex size-11 items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white"
         >
-          <X aria-hidden="true" className="size-6" />
+          <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
           <span className="sr-only">Close</span>
         </button>
       {/* ── Hero: the wave, the identity block and the portrait ────────── */}

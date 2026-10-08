@@ -140,7 +140,7 @@ export function ModulePlayerFooter({
           // (the glyph is `currentColor`, so it follows the text).
           className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-primary bg-card px-6 text-caption-medium text-primary outline-none transition-colors hover:bg-primary hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <House aria-hidden="true" className="size-6" />
+          <House aria-hidden="true" className="size-6" strokeWidth={1.75} />
           Go Back Home
         </button>
       </div>
@@ -168,7 +168,7 @@ export function ModulePlayerFooter({
               : 'cursor-not-allowed border-transparent bg-purple-200/40 text-ink-muted',
           )}
         >
-          <ChevronLeft aria-hidden="true" className="absolute left-4 size-4" />
+          <ChevronLeft aria-hidden="true" className="absolute left-4 size-4" strokeWidth={2.25} />
           Previous slide
           {!onPrevious && <span className="sr-only"> (this is the first slide)</span>}
         </button>
@@ -185,7 +185,7 @@ export function ModulePlayerFooter({
           )}
         >
           {label}
-          <ChevronRight aria-hidden="true" className="absolute right-4 size-4" />
+          <ChevronRight aria-hidden="true" className="absolute right-4 size-4" strokeWidth={2.25} />
           {disabled && (
             <span className="sr-only">
               {' '}

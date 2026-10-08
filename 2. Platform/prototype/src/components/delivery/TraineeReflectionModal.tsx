@@ -166,7 +166,7 @@ function StepBar({ step }: { step: number }) {
                       : 'border-hairline bg-card text-ink-faint',
                 )}
               >
-                {done ? <Check className="size-4" strokeWidth={3} /> : i + 1}
+                {done ? <Check className="size-4" strokeWidth={2.25}  /> : i + 1}
               </span>
               {/* The stroke belongs to the gap *after* a circle, so the last
                   circle has none — `last:flex-none` stops that final item
@@ -1040,7 +1040,7 @@ function WelcomeScreen({
                   aria-hidden="true"
                   className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-full bg-purple-50 text-primary"
                 >
-                  <Icon className="size-6" />
+                  <Icon className="size-6" strokeWidth={1.75} />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <p className="text-body-md text-ink">{s.label}</p>

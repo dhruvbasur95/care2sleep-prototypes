@@ -146,8 +146,7 @@ function SelectChevron() {
   return (
     <ChevronDown
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-    />
+      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
   )
 }
 
@@ -732,7 +731,7 @@ function OverviewTab({
                       tone="neutral"
                       size="icon"
                     >
-                      <ChevronRight aria-hidden="true" className="size-4" />
+                      <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
                     </Button>
                   </td>
                 </tr>
@@ -809,8 +808,7 @@ function CoachNotificationPreferencesCard({
               />
               <Check
                 aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
-              />
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
             </span>
             Email
           </label>
@@ -827,8 +825,7 @@ function CoachNotificationPreferencesCard({
               />
               <Check
                 aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100"
-              />
+                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
             </span>
             SMS
           </label>
@@ -2114,7 +2111,7 @@ export function SessionTracker({
               aria-hidden="true"
               className="flex size-14 items-center justify-center rounded-full bg-primary/15"
             >
-              <CalendarPlus className="size-7 text-primary" />
+              <CalendarPlus className="size-6 text-primary" strokeWidth={1.75} />
             </span>
             <div>
               <p className="text-body font-semibold text-ink">No session plan yet</p>
@@ -2210,7 +2207,7 @@ export function SessionTracker({
                             rel="noreferrer"
                             className="relative inline-flex w-fit items-center gap-1 text-caption font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <Video aria-hidden="true" className="size-3.5" />
+                            <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                             Join Zoom
                             <span className="sr-only"> for Session {displayNumber}</span>
                           </a>
@@ -2259,7 +2256,7 @@ export function SessionTracker({
                                 aria-label={`More actions for Session ${displayNumber} (${session.name})`}
                                 className="flex size-9 shrink-0 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                               >
-                                <MoreVertical aria-hidden="true" className="size-4" />
+                                <MoreVertical aria-hidden="true" className="size-4" strokeWidth={2.25} />
                               </Menu.Trigger>
                               <Menu.Portal>
                                 <Menu.Positioner side="bottom" align="end" className="z-50 outline-none">
@@ -4323,7 +4320,7 @@ export function SupervisionRecords({
                     <td className="py-4 text-caption whitespace-nowrap text-ink">{n.time}</td>
                     <td className="py-4 text-caption text-ink">
                       <span className="inline-flex items-center gap-1.5">
-                        <Paperclip aria-hidden="true" className="size-4 text-ink-faint" />
+                        <Paperclip aria-hidden="true" className="size-4 text-ink-faint" strokeWidth={2.25} />
                         {n.attachments.length}
                       </span>
                     </td>
@@ -4366,7 +4363,7 @@ export function SupervisionRecords({
                           size="icon"
                           className="shrink-0"
                         >
-                          <Trash2 aria-hidden="true" className="size-4" />
+                          <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                         </Button>
                       </div>
                     </td>
@@ -4644,7 +4641,7 @@ function SupervisionNoteViewer({
               {shown.attachments.map((file) => (
                 <li key={file} className="flex min-w-0">
                   <span className="inline-flex h-[27px] min-w-0 max-w-[320px] items-center gap-1.5 rounded-full bg-purple-50 px-3 text-fine text-primary">
-                    <FileText aria-hidden="true" className="size-3.5 shrink-0" />
+                    <FileText aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                     <span className="truncate">{file}</span>
                   </span>
                 </li>
@@ -4869,7 +4866,7 @@ export function SpacesCoachProfilePage() {
             to="/research/spaces-coaches"
             className="-my-3 flex w-fit items-center gap-1 rounded-sm py-3 text-caption-medium text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-white"
           >
-            <ChevronLeft aria-hidden="true" className="size-4" />
+            <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Back to Coach Management
           </Link>
 
@@ -5063,7 +5060,7 @@ export function SpacesCoachProfilePage() {
                 className={btn({ variant: 'secondary' })}
               >
                 Go to consumer profile details
-                <ChevronRight aria-hidden="true" className="size-4" />
+                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </Link>
             </div>
           )

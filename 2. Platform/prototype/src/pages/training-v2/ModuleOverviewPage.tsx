@@ -125,7 +125,7 @@ function OutlineRowView({ row, number }: { row: OutlineRow; number: number }) {
       )}
       {row.lockHint && (
         <span className="flex shrink-0 items-center gap-1.5 text-caption text-ink-faint">
-          <Lock aria-hidden="true" className="size-3.5" />
+          <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
           {row.lockHint}
         </span>
       )}
@@ -454,7 +454,7 @@ export function ModuleOverviewPage() {
                 onClick={backToTimeline}
                 className="-m-2 inline-flex w-fit items-center gap-1.5 rounded-full p-2 text-caption-medium text-white outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-white"
               >
-                <ArrowLeft aria-hidden="true" className="size-3.5" />
+                <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Back to Learning
               </button>
 

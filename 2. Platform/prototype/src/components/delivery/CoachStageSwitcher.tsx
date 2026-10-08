@@ -31,7 +31,7 @@ export function CoachStageSwitcher() {
   return (
     <div className="fixed right-6 bottom-6 z-50 flex items-center gap-3 rounded-full border border-parchment bg-card py-2 pr-2 pl-4 shadow-card">
       <span className="flex items-center gap-2 text-fine text-ink-muted">
-        <FlaskConical aria-hidden="true" className="size-4" />
+        <FlaskConical aria-hidden="true" className="size-4" strokeWidth={2.25} />
         Demo view
       </span>
       <div

@@ -308,7 +308,7 @@ function ModuleBar({
             before it ("home icon does not match the UI", then "its too small,
             thin"): a 2-unit stroke rendered into a 16px box paints 1.33 device
             px and reads lighter than the 16/600 label beside it. */}
-        <ChevronLeft aria-hidden="true" strokeWidth={2.25} className="size-5 shrink-0" />
+        <ChevronLeft aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
         <span className="sr-only min-[640px]:not-sr-only">{EXIT_LABEL}</span>
       </button>
 
@@ -482,7 +482,7 @@ function FollowAlongCard({
               {/* Same 20px / 2.25 treatment as the Go home glyph — at 16px on
                   lucide's default stroke these read visibly lighter than the
                   16/600 label they sit beside. */}
-              <Icon aria-hidden="true" strokeWidth={2.25} className="size-5 shrink-0" />
+              <Icon aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
               {label}
             </button>
           )
@@ -664,7 +664,7 @@ function ChapterCarousel({
               off && 'pointer-events-none opacity-0',
             )}
           >
-            <Icon aria-hidden="true" className="size-5" />
+            <Icon aria-hidden="true" className="size-6" strokeWidth={1.75} />
             <span className="sr-only">
               {side === 'left' ? 'Show earlier chapters' : 'Show later chapters'}
             </span>
@@ -837,7 +837,7 @@ function SummaryStage({
           aria-hidden="true"
           className="flex size-[75px] shrink-0 items-center justify-center text-consumer-primary"
         >
-          <BookOpen className="size-14" strokeWidth={1.75} />
+          <BookOpen className="size-10" strokeWidth={1.2} />
         </span>
         <div className="flex flex-col gap-2">
           <h1
@@ -983,7 +983,7 @@ function ReflectionStage({
           aria-hidden="true"
           className="flex size-[75px] shrink-0 items-center justify-center text-consumer-primary"
         >
-          <NotebookPen className="size-14" strokeWidth={1.75} />
+          <NotebookPen className="size-10" strokeWidth={1.2} />
         </span>
         <div className="flex flex-col gap-2">
           <h1
@@ -1091,7 +1091,7 @@ function ReflectionStage({
                       : 'border-consumer-primary bg-white text-consumer-primary hover:bg-purple-50',
                   )}
                 >
-                  {on ? <Check aria-hidden="true" className="size-6 shrink-0" strokeWidth={3} /> : null}
+                  {on ? <Check aria-hidden="true" className="size-6 shrink-0" strokeWidth={1.75}  /> : null}
                   {choice.label}
                 </button>
               )

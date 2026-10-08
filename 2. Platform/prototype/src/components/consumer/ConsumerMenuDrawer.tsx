@@ -254,7 +254,7 @@ export function ConsumerMenuDrawer() {
               onClick={dismiss}
               className="flex size-11 items-center justify-center rounded-full text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary"
             >
-              <X aria-hidden="true" className="size-7" />
+              <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
               <span className="sr-only">Close menu</span>
             </button>
           </div>
@@ -297,17 +297,16 @@ export function ConsumerMenuDrawer() {
                         dropdown used, in `consumer-primary`. */}
                     <Icon
                       aria-hidden="true"
-                      className="size-8 shrink-0 text-consumer-primary"
+                      className="size-6 shrink-0 text-consumer-primary"
                       strokeWidth={1.75}
-                    />
+                     />
                     <span className="text-consumer-card-title-sm min-w-0 text-ink">
                       {row.label}
                     </span>
                   </span>
                   <ChevronRight
                     aria-hidden="true"
-                    className="size-7 shrink-0 text-consumer-primary"
-                  />
+                    className="size-6 shrink-0 text-consumer-primary" strokeWidth={1.75} />
                 </motion.button>
               )
             })}

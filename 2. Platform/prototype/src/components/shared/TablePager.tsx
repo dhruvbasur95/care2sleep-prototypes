@@ -80,7 +80,7 @@ export function TablePager({
         aria-label="First page"
         {...PAGER_BUTTON}
       >
-        <ChevronFirst aria-hidden="true" className="size-4" />
+        <ChevronFirst aria-hidden="true" className="size-4" strokeWidth={2.25} />
       </Button>
       <Button
         type="button"
@@ -92,7 +92,7 @@ export function TablePager({
         aria-label="Previous page"
         {...PAGER_BUTTON}
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
       </Button>
       <Button
         type="button"
@@ -104,7 +104,7 @@ export function TablePager({
         aria-label="Next page"
         {...PAGER_BUTTON}
       >
-        <ChevronRight aria-hidden="true" className="size-4" />
+        <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
       </Button>
       <Button
         type="button"
@@ -116,7 +116,7 @@ export function TablePager({
         aria-label="Last page"
         {...PAGER_BUTTON}
       >
-        <ChevronLast aria-hidden="true" className="size-4" />
+        <ChevronLast aria-hidden="true" className="size-4" strokeWidth={2.25} />
       </Button>
     </div>
   )

@@ -394,7 +394,7 @@ export function ResearchPrioritiesSection({
                   tone="neutral"
                   size="icon"
                 >
-                  <MoreVertical aria-hidden="true" className="size-4" />
+                  <MoreVertical aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   <span className="sr-only">Options for {item.title}</span>
                 </Button>
                 {openMenu === item.id && (

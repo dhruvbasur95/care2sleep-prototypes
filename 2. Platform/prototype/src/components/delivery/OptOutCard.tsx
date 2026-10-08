@@ -54,7 +54,7 @@ export function OptOutCard() {
       <Card className="gap-0 overflow-hidden rounded-lg border-destructive/30 py-0">
         <div className="bg-destructive/10 p-6">
           <div className="flex items-start gap-3">
-            <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-destructive" strokeWidth={1.75} />
             <div className="flex flex-col gap-1">
               {/* `ink`, not `destructive`. Red-on-red measured **4.51:1** here
                   — `#d70015` against the painted `rgb(251,230,232)` band — which
@@ -78,7 +78,7 @@ export function OptOutCard() {
         <div className="border-t border-destructive/20 bg-destructive/5 p-6">
           {optedOut ? (
             <div className="flex items-start gap-3">
-              <CircleCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-destructive" />
+              <CircleCheck aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-destructive" strokeWidth={1.75} />
               {/* `role="status"` so the change is announced, `tabIndex={-1}` so
                   focus can land here once the button it replaced is gone. */}
               <p

@@ -259,7 +259,7 @@ function WelcomeScreen({
                   aria-hidden="true"
                   className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-full bg-purple-50 text-primary"
                 >
-                  <Icon className="size-6" />
+                  <Icon className="size-6" strokeWidth={1.75} />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <p className="text-body-md text-ink">{s.label}</p>
@@ -1292,7 +1292,7 @@ export function AddAnnotationSummaryModal({
             interface would be exactly that. Replace the box with the real
             export when it exists. */}
         <div className="mt-2 flex h-[220px] flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-ink-faint bg-purple-50 px-8 text-center">
-          <ImageIcon aria-hidden="true" className="size-8 text-ink-faint" />
+          <ImageIcon aria-hidden="true" className="size-6 text-ink-faint" strokeWidth={1.75} />
           <span className="text-caption-medium text-ink">Screenshot to come</span>
           <span className="text-fine text-ink-muted">
             A walkthrough of downloading a transcript from Zoom

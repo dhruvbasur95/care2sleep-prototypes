@@ -184,7 +184,7 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
                   aria-hidden="true"
                   className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-consumer-primary"
                 >
-                  <Check className="size-4 text-white" strokeWidth={3.5} />
+                  <Check className="size-4 text-white" strokeWidth={2.25}  />
                 </span>
                 <span className="text-consumer-chip text-consumer-primary">Module complete</span>
               </span>

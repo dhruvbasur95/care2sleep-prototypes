@@ -210,7 +210,7 @@ function AnswerRow({
                 transition={{ type: 'spring', stiffness: 620, damping: 24 }}
                 className="flex"
               >
-                <Check aria-hidden="true" className="size-7" strokeWidth={3} />
+                <Check aria-hidden="true" className="size-6" strokeWidth={1.75}  />
               </motion.span>
             ) : null}
           </motion.button>
@@ -538,7 +538,7 @@ export function ModuleReflection({
       >
         {index > 0 && (
           <button type="button" onClick={() => onIndexChange(index - 1)} className={cn(NAV, 'border border-ink bg-white text-ink')}>
-            <ChevronLeft aria-hidden="true" className="size-4 shrink-0" />
+            <ChevronLeft aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
             Go back
           </button>
         )}
@@ -588,7 +588,7 @@ export function ModuleReflection({
               {/* Direct instruction: "for after last question it should say
                   review answers". */}
               {index === questions.length - 1 ? 'Review answers' : 'Next'}
-              <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
             </button>
           </BlockedHint>
         )}

@@ -337,7 +337,7 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
                       {upcoming?.time ? formatTime(upcoming.time) : <span className="text-ink-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" />
+                      <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
                     </td>
                   </tr>
                 )
@@ -386,7 +386,7 @@ function NeedHelpButton() {
       appearance="active"
       className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-body-md text-destructive outline-none transition-all hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.97]"
     >
-      <MessageCircleQuestionMark aria-hidden="true" className="size-5" />
+      <MessageCircleQuestionMark aria-hidden="true" className="size-6" strokeWidth={1.75} />
     </InertButton>
   )
 }
@@ -1285,7 +1285,7 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
             >
               {/* lucide, not the frame's exported glyph (CLAUDE.md). */}
-              <Award aria-hidden="true" className="size-6" strokeWidth={1.75} />
+              <Award aria-hidden="true" className="size-6" strokeWidth={1.75}  />
               Download my certificate
             </button>
             {/* Unwired — there is no "about SPACES delivery" destination yet. */}
@@ -1801,10 +1801,10 @@ function TrainingPathway({
               <Award
                 aria-hidden="true"
                 className={cn(
-                  'size-7',
+                  'size-6',
                   activeStage >= PATHWAY_STAGES.length ? 'text-primary' : 'text-ink-faint',
                 )}
-                strokeWidth={1.5}
+                strokeWidth={1.75}
               />
             </div>
           </div>
@@ -1983,11 +1983,11 @@ function PathwayDot({ active, done = false }: { active: boolean; done?: boolean 
       <span
         className={cn(
           'flex items-center justify-center rounded-full border-[3px] border-white',
-          done ? 'size-7' : 'size-6',
+          'size-6',
           done ? 'bg-success' : active ? 'bg-primary' : 'bg-hairline',
         )}
       >
-        {done && <Check className="size-3.5 text-white" strokeWidth={4} />}
+        {done && <Check className="size-4 text-white" strokeWidth={2.25}  />}
       </span>
     </span>
   )
@@ -2462,7 +2462,7 @@ function MeetingCard() {
                 rel="noreferrer"
                 className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-sm bg-primary px-5 text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Video aria-hidden="true" className="size-4" />
+                <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Join Zoom
               </a>
             </div>

@@ -37,7 +37,11 @@ export function CardIcon({ icon: Icon }: { icon: LucideIcon }) {
       aria-hidden="true"
       className="flex size-[52px] shrink-0 items-center justify-center text-consumer-primary"
     >
-      <Icon className="size-10" strokeWidth={1.75} />
+      {/* The Consumer Portal's own 40px icon tier: a **2px painted** outline,
+          heavier than the 24px tier's 1.75 so the mark holds its weight at
+          this size. `strokeWidth` is in viewBox units, so painting 2px at 40px
+          needs 2 x (24/40) = 1.2 — writing `2` here would paint 3.33. */}
+      <Icon className="size-10" strokeWidth={1.2} />
     </span>
   )
 }

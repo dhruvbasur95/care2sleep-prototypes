@@ -180,7 +180,7 @@ export function KeyUpdatesPanel({
                   tone="neutral"
                   size="icon"
                 >
-                  <MoreVertical aria-hidden="true" className="size-4" />
+                  <MoreVertical aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   <span className="sr-only">Options for {u.label}</span>
                 </Button>
                 {openMenu === u.id && (

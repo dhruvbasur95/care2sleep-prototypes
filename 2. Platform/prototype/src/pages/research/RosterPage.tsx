@@ -331,8 +331,7 @@ export function RosterPage() {
                   </select>
                   <ChevronDown
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-                  />
+                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
                 </div>
                 <div className="relative">
                   <label htmlFor="activity-filter" className="sr-only">
@@ -352,8 +351,7 @@ export function RosterPage() {
                   </select>
                   <ChevronDown
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-                  />
+                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
                 </div>
               </>
             )}
@@ -441,7 +439,7 @@ export function RosterPage() {
             ) : tab === 'certified' ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
                 <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-                  <Award className="size-8 text-primary" strokeWidth={1.75} />
+                  <Award className="size-6 text-primary" strokeWidth={1.75}  />
                 </span>
                 <p className="text-body text-ink-muted">No data available.</p>
               </div>
@@ -546,14 +544,14 @@ export function RosterPage() {
                           )}
                           {isFlaggedInactive(c.participantId) && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-destructive/8 px-2 py-0.5 text-fine text-destructive">
-                              <TriangleAlert aria-hidden="true" className="size-3" />
+                              <TriangleAlert aria-hidden="true" className="size-4" strokeWidth={2.25} />
                               {INACTIVE_DAYS}+ days
                             </span>
                           )}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" />
+                        <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
                       </td>
                     </tr>
                   ))}

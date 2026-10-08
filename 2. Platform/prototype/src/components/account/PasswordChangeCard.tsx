@@ -136,7 +136,7 @@ export function PasswordChangeCard({
                 aria-hidden="true"
                 className={cn('flex size-10 shrink-0 items-center justify-center rounded-full', t.accentBg)}
               >
-                <Mail className={cn('size-5', t.accent)} strokeWidth={1.75} />
+                <Mail className={cn('size-6', t.accent)} strokeWidth={1.75}  />
               </span>
               <div>
                 <p ref={confirmationRef} tabIndex={-1} role="status" className={cn('font-semibold text-ink outline-none', t.body)}>

@@ -201,7 +201,7 @@ export function ConsumerFlowFooter({
             )}
           >
             <span className="flex-1 whitespace-nowrap text-center">{label}</span>
-            <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
           </button>
         </BlockedHint>
       </div>

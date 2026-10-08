@@ -105,8 +105,7 @@ export function OnboardCoachDialog({
               </select>
               <ChevronDown
                 aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-              />
+                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
             </div>
           </div>
         )}

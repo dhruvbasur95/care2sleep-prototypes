@@ -55,7 +55,7 @@ export function ReflectionStepBar({ step, count }: { step: number; count: number
                       : 'border-hairline bg-card text-ink-faint',
                 )}
               >
-                {done ? <Check className="size-4" strokeWidth={3} /> : i + 1}
+                {done ? <Check className="size-4" strokeWidth={2.25}  /> : i + 1}
               </span>
               {/* The stroke belongs to the gap *after* a circle, so the last
                   circle has none — `last:flex-none` stops that final item

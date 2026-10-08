@@ -408,8 +408,7 @@ function NavTabs({
                   {isActive && (
                     <Icon
                       aria-hidden="true"
-                      className="relative z-10 hidden size-5 shrink-0 sm:block"
-                    />
+                      className="relative z-10 hidden size-6 shrink-0 sm:block" strokeWidth={1.75} />
                   )}
                   <span className="relative z-10 truncate">{label}</span>
                 </>
@@ -643,7 +642,7 @@ export function ConsumerHeader({
           onClick={() => openConsumerMenu(dyadId)}
           className="flex size-11 shrink-0 items-center justify-center rounded-sm text-ink outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary min-[1200px]:hidden"
         >
-          <MenuIcon aria-hidden="true" className="size-6" />
+          <MenuIcon aria-hidden="true" className="size-6" strokeWidth={1.75} />
         </button>
 
 
@@ -769,8 +768,7 @@ export function ConsumerHeader({
               <span className="text-body-md">My account</span>
               <ChevronDown
                 aria-hidden="true"
-                className="size-4 transition-transform group-data-[popup-open]:rotate-180"
-              />
+                className="size-4 transition-transform group-data-[popup-open]:rotate-180" strokeWidth={2.25} />
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner
@@ -804,15 +802,14 @@ export function ConsumerHeader({
                       <span className="flex min-w-0 items-center gap-4">
                         <row.icon
                           aria-hidden="true"
-                          className="size-7 shrink-0 text-consumer-primary"
+                          className="size-6 shrink-0 text-consumer-primary"
                           strokeWidth={1.75}
-                        />
+                         />
                         <span className="text-consumer-lesson min-w-0">{row.label}</span>
                       </span>
                       <ChevronRight
                         aria-hidden="true"
-                        className="size-6 shrink-0 text-consumer-primary"
-                      />
+                        className="size-6 shrink-0 text-consumer-primary" strokeWidth={1.75} />
                     </Menu.Item>
                   ))}
                 </Menu.Popup>

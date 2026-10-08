@@ -310,7 +310,7 @@ export function ConsumerManagementPage() {
               appearance="active"
               className={btn()}
             >
-              <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2} />
+              <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2.25}  />
             </InertButton>
           }
         />
@@ -415,8 +415,7 @@ export function ConsumerManagementPage() {
                     </select>
                     <ChevronDown
                       aria-hidden="true"
-                      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint"
-                    />
+                      className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
                   </div>
                 ))}
               </>
@@ -638,7 +637,7 @@ export function ConsumerManagementPage() {
                     )}
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" />
+                    <ChevronRight aria-hidden="true" className="inline size-4 text-ink-faint" strokeWidth={2.25} />
                   </td>
                 </tr>
               ))}

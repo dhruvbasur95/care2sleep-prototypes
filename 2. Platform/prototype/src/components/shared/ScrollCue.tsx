@@ -263,7 +263,7 @@ export function ScrollCue({
               reduceMotion ? undefined : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
             }
           >
-            <ChevronDown aria-hidden="true" className={size === 'compact' ? 'size-4' : 'size-6'} />
+            <ChevronDown aria-hidden="true" className={size === 'compact' ? 'size-4' : 'size-6'} strokeWidth={size === 'compact' ? 2.25 : 1.75} />
           </motion.span>
         </motion.button>
       )}

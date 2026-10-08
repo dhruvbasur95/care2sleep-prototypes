@@ -185,9 +185,9 @@ export function DeliverySidebar() {
             className="flex size-9 items-center justify-center rounded-sm text-ink outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
           >
             {collapsed ? (
-              <PanelLeftOpen aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <PanelLeftOpen aria-hidden="true" className="size-6" strokeWidth={1.75}  />
             ) : (
-              <PanelLeftClose aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <PanelLeftClose aria-hidden="true" className="size-6" strokeWidth={1.75}  />
             )}
           </button>
         </div>

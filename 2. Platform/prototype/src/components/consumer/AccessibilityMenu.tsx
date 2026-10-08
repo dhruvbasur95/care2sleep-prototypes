@@ -66,7 +66,9 @@ function Tile({
   onClick,
   disabledReason,
 }: {
-  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  /** `strokeWidth` is part of the contract: every icon in the app is drawn at
+   *  1.5 (16px) or 1.75 (24px), and this tile renders at 24. */
+  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean; strokeWidth?: number }>
   /** Two lines, as the frame sets them — "Increase" / "Text". An array rather
    *  than a string with a `<br>`, so the wrap is data and not markup. */
   lines: [string, string]
@@ -88,7 +90,7 @@ function Tile({
         disabledReason && 'text-ink/55',
       )}
     >
-      <Icon aria-hidden={true} className="size-5 shrink-0" />
+      <Icon aria-hidden={true} className="size-6 shrink-0" strokeWidth={1.75} />
       <span>
         {lines[0]}
         <br />
@@ -225,7 +227,7 @@ export function AccessibilityMenu({
           bar is `lucide-menu` at 24px/2, and `phone`/`mail` on the page are
           24px/2. Matching the library default IS matching the other icons here.
         */}
-        <PersonStanding aria-hidden="true" className="size-6" />
+        <PersonStanding aria-hidden="true" className="size-6" strokeWidth={1.75} />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner
@@ -295,7 +297,7 @@ export function AccessibilityMenu({
                   aria-label="Close accessibility tools"
                   className="-mt-2 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary"
                 >
-                  <X aria-hidden="true" className="size-7" />
+                  <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
                 </Popover.Close>
               </div>
 

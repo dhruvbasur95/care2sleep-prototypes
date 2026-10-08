@@ -79,7 +79,7 @@ function Swatch({
           style={guide ? GUIDE : undefined}
           className={btn({ variant, tone, state, size, surface })}
         >
-          {icon && <Plus aria-hidden="true" className="size-4" />}
+          {icon && <Plus aria-hidden="true" className="size-4" strokeWidth={2.25} />}
           Button
           {state === 'deactive' && <span className="sr-only"> (unavailable)</span>}
         </button>
@@ -223,7 +223,7 @@ export function ButtonSystemPage() {
               <div key={size} className="flex flex-col gap-2">
                 <button type="button" className={btn({ variant: 'primary', size })}>
                   Continue
-                  <ArrowRight aria-hidden="true" className="size-4" />
+                  <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 </button>
                 <p className="text-fine text-ink-faint">{note}</p>
               </div>
@@ -231,14 +231,14 @@ export function ButtonSystemPage() {
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
                 <button type="button" aria-label="Add" className={btn({ variant: 'secondary', size: 'icon' })}>
-                  <Plus aria-hidden="true" className="size-4" />
+                  <Plus aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 </button>
                 <button
                   type="button"
                   aria-label="Delete"
                   className={btn({ variant: 'secondary', tone: 'destructive', size: 'icon' })}
                 >
-                  <Trash2 aria-hidden="true" className="size-4" />
+                  <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 </button>
               </div>
               <p className="text-fine text-ink-faint">icon · square</p>
@@ -260,7 +260,7 @@ export function ButtonSystemPage() {
                   Mark complete
                 </button>
                 <button type="button" className={btn({ variant })}>
-                  <Check aria-hidden="true" className="size-4" />
+                  <Check aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Mark complete
                 </button>
               </div>

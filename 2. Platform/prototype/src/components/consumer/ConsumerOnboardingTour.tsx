@@ -475,7 +475,7 @@ export function ConsumerOnboardingTour({
                     onClick={() => setStep((s) => s - 1)}
                     className="text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] border border-consumer-primary bg-white px-4 whitespace-nowrap text-consumer-primary sm:w-[136px] outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
                   >
-                    <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+                    <ChevronLeft className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                     Go back
                   </button>
                 )}
@@ -487,7 +487,7 @@ export function ConsumerOnboardingTour({
                   <span className="min-w-0 flex-1 text-center">
                     {isLast ? 'Start my journey' : 'Next'}
                   </span>
-                  <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+                  <ChevronRight className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                 </button>
               </div>
             </motion.div>

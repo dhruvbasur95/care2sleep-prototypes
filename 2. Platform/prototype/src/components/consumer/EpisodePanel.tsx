@@ -402,7 +402,7 @@ export function EpisodePanel({
                 standing rule, and a play triangle is the case the rule was
                 written for. `fill` as well as stroke, because at 56px an
                 outlined triangle reads as an outline rather than a button. */}
-            <Play aria-hidden="true" className="size-14 translate-x-1 fill-white text-white" />
+            <Play aria-hidden="true" className="size-10 translate-x-1 fill-white text-white" strokeWidth={1.2} />
             <span className="sr-only">Play the video (coming soon)</span>
           </button>
         </>

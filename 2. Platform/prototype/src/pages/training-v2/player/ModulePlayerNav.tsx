@@ -161,11 +161,11 @@ export function ModulePlayerNav({
           className="flex size-11 shrink-0 items-center justify-center rounded-[12px] text-ink-faint outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring"
         >
           {open ? (
-            <PanelLeftClose aria-hidden="true" className="size-[18px]" />
+            <PanelLeftClose aria-hidden="true" className="size-6" strokeWidth={1.75} />
           ) : (
             // Collapsed, the control is the only thing in the rail's header, so
             // it reads as a plain menu rather than a panel-specific glyph.
-            <Menu aria-hidden="true" className="size-5" />
+            <Menu aria-hidden="true" className="size-6" strokeWidth={1.75} />
           )}
           <span className="sr-only">
             {open ? 'Collapse module outline' : 'Expand module outline'}
@@ -178,7 +178,7 @@ export function ModulePlayerNav({
           without any of the labels that give a disc its meaning. */}
       {!open && (
         <div className="mt-6 flex flex-col items-center gap-4">
-          <Flag aria-hidden="true" className="size-5 text-primary" />
+          <Flag aria-hidden="true" className="size-6 text-primary" strokeWidth={1.75} />
           <p className="text-body-md text-ink tabular-nums">
             {activeIndex}/{sections.length}
             <span className="sr-only"> sections complete</span>
@@ -273,7 +273,7 @@ export function ModulePlayerNav({
                       !done && state !== 'ahead' && 'bg-purple-200',
                     )}
                   >
-                    {done && <Check className="size-3.5" strokeWidth={3} />}
+                    {done && <Check className="size-4" strokeWidth={2.25}  />}
                   </span>
 
                   {open ? (
@@ -325,11 +325,10 @@ export function ModulePlayerNav({
                       className={cn(
                         // The frame's 12x6 vector reads as a hairline at this
                         // size; 20px is the app's own chevron weight.
-                        'size-5 transition-transform duration-200',
+                        'size-6 transition-transform duration-200',
                         state === 'current' ? 'text-primary' : 'text-ink-faint',
                         isOpen && 'rotate-180',
-                      )}
-                    />
+                      )} strokeWidth={1.75} />
                     <span className="sr-only">
                       {isOpen ? `Hide ${section.label} steps` : `Show ${section.label} steps`}
                     </span>
@@ -444,7 +443,7 @@ export function ModulePlayerNav({
                            *  which was leaving 24px of dead space in front of
                            *  every unticked label. */}
                           {subDone && (
-                            <CircleCheck aria-hidden="true" className="size-4 shrink-0 text-success" />
+                            <CircleCheck aria-hidden="true" className="size-4 shrink-0 text-success" strokeWidth={2.25} />
                           )}
                           {sub.label}
                           {subDone && <span className="sr-only"> (complete)</span>}

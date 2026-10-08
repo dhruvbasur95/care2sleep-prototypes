@@ -1102,7 +1102,7 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
                                when the two happen to agree today. */
                             className="text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] border border-consumer-primary bg-white px-4 whitespace-nowrap text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 sm:w-40"
                           >
-                            <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+                            <ChevronLeft className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                             Go back
                           </button>
                         )}
@@ -1115,7 +1115,7 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
                           className="bg-consumer-primary text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] px-4 text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 sm:w-60"
                         >
                           <span className="min-w-0 flex-1 text-center">{s.cta}</span>
-                          <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+                          <ChevronRight className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                         </button>
                       </div>
                     </CellFade>

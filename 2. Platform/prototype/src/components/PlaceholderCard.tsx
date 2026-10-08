@@ -26,7 +26,7 @@ export function PlaceholderCard({
             aria-hidden="true"
             className="flex size-10 items-center justify-center rounded-full bg-divider-soft"
           >
-            <Icon className="size-5 text-ink-faint" strokeWidth={1.75} />
+            <Icon className="size-6 text-ink-faint" strokeWidth={1.75}  />
           </span>
           <Badge
             variant="secondary"

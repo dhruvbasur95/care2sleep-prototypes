@@ -207,7 +207,7 @@ function ContactRow({
         aria-hidden="true"
         className="size-6 shrink-0 text-consumer-primary"
         strokeWidth={1.75}
-      />
+       />
       {label}
     </a>
   )
@@ -307,7 +307,7 @@ function HelpSearch({
           app — kept, because it is what makes a white pill read as an input
           against a white-ish canvas with no fill of its own to do that job. */}
       <div className="flex w-full items-center gap-2.5 rounded-full border-[1.5px] border-consumer-primary bg-white px-6 py-4 focus-within:ring-2 focus-within:ring-consumer-primary focus-within:ring-offset-2">
-        <Search aria-hidden="true" className="size-6 shrink-0 text-consumer-primary" />
+        <Search aria-hidden="true" className="size-6 shrink-0 text-consumer-primary" strokeWidth={1.75} />
         <input
           ref={inputRef}
           id={id}
@@ -389,7 +389,7 @@ function FaqRow({ question }: { question: string }) {
               animate={{ rotate: open ? 180 : 0 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             >
-              <ChevronDown aria-hidden="true" className="size-7 text-ink" strokeWidth={2} />
+              <ChevronDown aria-hidden="true" className="size-6 text-ink" strokeWidth={1.75}  />
             </motion.span>
           </span>
         </button>

@@ -107,9 +107,9 @@ export function VideoPlaceholder({
           )}
         >
           {state === 'watched' ? (
-            <Check aria-hidden="true" className="size-6 text-success" />
+            <Check aria-hidden="true" className="size-6 text-success" strokeWidth={1.75} />
           ) : (
-            <Play aria-hidden="true" className="ml-0.5 size-6" fill="currentColor" />
+            <Play aria-hidden="true" className="ml-0.5 size-6" fill="currentColor" strokeWidth={1.75} />
           )}
         </button>
       </div>

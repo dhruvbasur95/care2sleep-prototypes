@@ -927,8 +927,7 @@ function EditSessionNoteDialog({
             </select>
             <ChevronDown
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-ink-faint"
-            />
+              className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-ink-faint" strokeWidth={2.25} />
           </div>
         </div>
 
@@ -1550,7 +1549,7 @@ function UpcomingSessionCard({
                   aria-disabled="true"
                   className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-divider-soft px-[18px] text-caption-medium text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <Video aria-hidden="true" className="size-4" />
+                  <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
                   <span className="sr-only">(this session has already been held)</span>
                 </button>
@@ -1567,7 +1566,7 @@ function UpcomingSessionCard({
                   onClick={onJoin}
                   className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
                 >
-                  <Video aria-hidden="true" className="size-4" />
+                  <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
                 </button>
               ) : (
@@ -1576,7 +1575,7 @@ function UpcomingSessionCard({
                   aria-disabled="true"
                   className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-divider-soft px-[18px] text-caption-medium text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <Video aria-hidden="true" className="size-4" />
+                  <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
                   <span className="sr-only">(no meeting link yet)</span>
                 </button>
@@ -1775,7 +1774,7 @@ function ClientFitbitSummary({ dyad }: { dyad: ConsumerDyad }) {
               window those two fields define, so it reads as the end of that
               control group rather than a fifth independent thing. */}
           <button type="button" onClick={handleExport} className={EXPORT_BUTTON}>
-            <Download aria-hidden="true" className="size-4" />
+            <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Export
             <span className="sr-only"> this Fitbit data</span>
           </button>
@@ -1968,7 +1967,7 @@ function PreviousSessionNotesPanel({ dyad }: { dyad: ConsumerDyad }) {
               className="inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-2 rounded-full border border-primary bg-card px-4 text-caption-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Ask anything
-              <ArrowRight aria-hidden="true" className="size-4" />
+              <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               <span className="sr-only">(coming soon)</span>
             </button>
           </div>
@@ -1979,7 +1978,7 @@ function PreviousSessionNotesPanel({ dyad }: { dyad: ConsumerDyad }) {
           more honest place for it — the sentence is about every note, where
           inside the card it read as a property of this one. */}
       <div className="flex min-w-0 items-center gap-2">
-        <Info aria-hidden="true" className="size-4 shrink-0 text-primary" />
+        <Info aria-hidden="true" className="size-4 shrink-0 text-primary" strokeWidth={2.25} />
         <p className="text-caption-medium text-ink-muted">
           {'All case notes are on the '}
           {/* Not a link: this panel sits inside a tab panel on the same page,
@@ -2094,7 +2093,7 @@ function PanelHeader({
         {subtitle && <p className="mt-1 text-caption text-ink-muted">{subtitle}</p>}
       </div>
       <button type="button" onClick={onExport} className={EXPORT_BUTTON}>
-        <Download aria-hidden="true" className="size-4" />
+        <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
         Export
         <span className="sr-only"> {exportLabel}</span>
       </button>
@@ -2542,7 +2541,7 @@ function ConsumerReflectionsPanel({
                                   : 'border-hairline bg-card',
                               )}
                             >
-                              {picked && <Check className="size-3.5" strokeWidth={3} />}
+                              {picked && <Check className="size-4" strokeWidth={2.25}  />}
                             </span>
                             <span className="sr-only">
                               {p.name} {picked ? 'selected' : 'did not select'}: {o.label}
@@ -2850,7 +2849,7 @@ export function DeliveryConsumerDetailPage() {
             to="/delivery"
             className="inline-flex min-h-11 items-center gap-1 rounded-sm text-caption-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ChevronLeft aria-hidden="true" className="size-4" />
+            <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Back to Home
           </Link>
 

@@ -123,7 +123,7 @@ export function LessonPlayCta({
 }) {
   const inner = (
     <>
-      <Play aria-hidden="true" className="size-4 fill-current" />
+      <Play aria-hidden="true" className="size-4 fill-current" strokeWidth={2.25} />
       {CTA_LABEL[state]}
     </>
   )
@@ -250,7 +250,7 @@ export function LessonCompleteChip({
         aria-hidden="true"
         className={cn('flex shrink-0 items-center justify-center rounded-full', discClassName)}
       >
-        <Check className={cn('size-4', checkClassName)} strokeWidth={3.5} />
+        <Check className={cn('size-4', checkClassName)} strokeWidth={2.25}  />
       </span>
       <span className={cn('text-consumer-chip', labelClassName)}>{label}</span>
     </span>

@@ -43,7 +43,7 @@ function OptedOutBanner() {
   return (
     <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-16">
       <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.25} />
         <p className="text-body font-semibold text-white">
           You have opted out of Care2Sleep. Someone from the research team will be in touch
           with you.

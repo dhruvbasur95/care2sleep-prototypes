@@ -521,7 +521,7 @@ function TimelineModuleCard({
           )}
         >
           {locked ? (
-            <Lock aria-hidden="true" className="size-3" />
+            <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
           ) : completed ? (
             // Bumped from `size-3` (12px, the same size every other chip
             // icon here still uses) to `size-4` (16px) per direct feedback
@@ -535,11 +535,11 @@ function TimelineModuleCard({
             // completed checkmark carrying a stronger positive signal now
             // that it's coloured `text-success`, not a general chip-icon
             // resize.
-            <CheckCircle2 aria-hidden="true" className="size-4" />
+            <CheckCircle2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
           ) : inProgress ? (
-            <PlayCircle aria-hidden="true" className="size-3" />
+            <PlayCircle aria-hidden="true" className="size-4" strokeWidth={2.25} />
           ) : (
-            <Clock aria-hidden="true" className="size-3" />
+            <Clock aria-hidden="true" className="size-4" strokeWidth={2.25} />
           )}
           {locked
             ? 'Locked'
@@ -736,7 +736,7 @@ function TimelineModuleCard({
                 ),
           )}
         >
-          {locked && <Lock aria-hidden="true" className="size-3" />}
+          {locked && <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />}
           {locked ? 'Locked' : timelineCtaLabel(status, displayNumber ?? index + 1)}
           {locked && <span className="sr-only"> (complete the module above first)</span>}
         </button>
@@ -846,7 +846,7 @@ export function CertificateCard() {
                 : 'cursor-not-allowed bg-divider-soft text-ink-muted',
             )}
           >
-            {!isCertified && <Lock aria-hidden="true" className="size-3.5" />}
+            {!isCertified && <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />}
             {/* Correction while implementing this pass's own instruction:
              *  this button never actually said "Locked" — unlike every other
              *  locked CTA in this file, it always showed "Download
@@ -1379,7 +1379,7 @@ function ModuleScrollRow({ children, itemCount }: { children: ReactNode; itemCou
             // height convention.
             className="absolute top-1/2 left-1 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black shadow-card outline-none hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-ring md:flex"
           >
-            <ChevronLeft aria-hidden="true" className="size-5 text-white" />
+            <ChevronLeft aria-hidden="true" className="size-6 text-white" strokeWidth={1.75} />
           </button>
         )}
         {canScrollRight && (
@@ -1391,7 +1391,7 @@ function ModuleScrollRow({ children, itemCount }: { children: ReactNode; itemCou
             aria-label="Scroll to next page of modules"
             className="absolute top-1/2 right-1 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black shadow-card outline-none hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-ring md:flex"
           >
-            <ChevronRight aria-hidden="true" className="size-5 text-white" />
+            <ChevronRight aria-hidden="true" className="size-6 text-white" strokeWidth={1.75} />
           </button>
         )}
       </div>

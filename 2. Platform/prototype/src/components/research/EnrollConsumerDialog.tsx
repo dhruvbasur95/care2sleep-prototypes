@@ -1058,7 +1058,7 @@ export function EnrollConsumerDialog({
                                     )}
                                   >
                                     {consentObtained === opt.value && (
-                                      <Check className="size-3.5" strokeWidth={3} />
+                                      <Check className="size-4" strokeWidth={2.25}  />
                                     )}
                                   </span>
                                   <span>

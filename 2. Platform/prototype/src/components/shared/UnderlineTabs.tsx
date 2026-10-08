@@ -116,8 +116,7 @@ export function UnderlineTabs<T extends string>({
             {t.warn && (
               <TriangleAlert
                 aria-hidden="true"
-                className="mr-1.5 inline-block size-4 shrink-0 align-[-3px] text-amber-600"
-              />
+                className="mr-1.5 inline-block size-4 shrink-0 align-[-3px] text-amber-600" strokeWidth={2.25} />
             )}
             {t.label}
             {t.count !== undefined && (

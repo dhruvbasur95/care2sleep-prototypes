@@ -133,7 +133,7 @@ export function SlideOverPanel({
                 size="icon"
                 className="shrink-0"
               >
-                <X aria-hidden="true" className="size-5" />
+                <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
               </Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>

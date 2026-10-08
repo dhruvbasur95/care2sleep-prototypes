@@ -139,7 +139,7 @@ export function DeliveryMeetingsPage() {
             appearance="active"
             className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
           >
-            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.25}  />
           </InertButton>
         </div>
 

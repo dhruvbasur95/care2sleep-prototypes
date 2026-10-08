@@ -443,7 +443,7 @@ function NoteRow({
             title="Delete note"
             className="-my-2 inline-flex size-9 shrink-0 items-center justify-center rounded-sm text-destructive outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Trash2 aria-hidden="true" className="size-4" />
+            <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
           </button>
         </div>
       </td>

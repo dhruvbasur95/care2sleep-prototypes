@@ -200,7 +200,7 @@ function StudyDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['co
               canDownload ? 'hover:bg-primary/10' : 'cursor-not-allowed opacity-50',
             )}
           >
-            <Download aria-hidden="true" className="size-4" />
+            <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Download certificate
             {!canDownload && <span className="sr-only"> (not available yet)</span>}
           </button>

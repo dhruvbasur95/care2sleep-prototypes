@@ -173,7 +173,7 @@ export const PRACTICE_SKILLS_INTRO =
 export function SectionEyebrow({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <p className="flex items-center gap-2 text-title text-primary">
-      <Icon aria-hidden="true" className="size-8 shrink-0" strokeWidth={1.75} />
+      <Icon aria-hidden="true" className="size-6 shrink-0" strokeWidth={1.75}  />
       {label}
     </p>
   )
@@ -238,7 +238,7 @@ function InteractivePlaceholder({
 
   return (
     <Card className="border-dashed bg-yellow-50/60 p-8 text-center shadow-none">
-      <Sparkles aria-hidden="true" className="mx-auto size-5 text-yellow-400" />
+      <Sparkles aria-hidden="true" className="mx-auto size-6 text-yellow-400" strokeWidth={1.75} />
       <Heading
         data-slide-heading={isFirst || undefined}
         tabIndex={isFirst ? -1 : undefined}
@@ -1407,7 +1407,7 @@ export function ComingUpNextCard({ block }: { block: Extract<Block, { tag: 'chap
               goes. */}
           <OutroButton className="gap-2 bg-white text-primary hover:bg-purple-50">
             Continue with next module
-            <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
           </OutroButton>
         </div>
       </div>

@@ -190,8 +190,7 @@ export function FileDropzone({
         >
           <UploadCloud
             aria-hidden="true"
-            className={cn('size-8', dragging ? 'text-primary' : 'text-ink-faint')}
-          />
+            className={cn('size-6', dragging ? 'text-primary' : 'text-ink-faint')} strokeWidth={1.75} />
           <span className="text-caption-medium text-ink">
             {dragging ? `Drop the ${noun} here` : `Drag the ${noun} here, or browse`}
           </span>
@@ -250,7 +249,7 @@ export function FileDropzone({
                   nothing to separate it. The shadow is the app's neutral one,
                   not its warm gold, since gold on purple reads as a smudge. */}
               <span className="inline-flex h-9 min-w-0 max-w-[320px] items-center gap-2 rounded-full bg-primary px-4 text-caption-medium text-white shadow-notice-card">
-                <FileText aria-hidden="true" className="size-4 shrink-0" />
+                <FileText aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                 <span className="truncate">{file.name}</span>
               </span>
               {/* The bin gets its own white disc so it reads as a control on
@@ -261,7 +260,7 @@ export function FileDropzone({
                 onClick={remove}
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-card text-destructive shadow-notice-card outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Trash2 aria-hidden="true" className="size-4" />
+                <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 <span className="sr-only">Remove {file.name}</span>
               </button>
             </div>

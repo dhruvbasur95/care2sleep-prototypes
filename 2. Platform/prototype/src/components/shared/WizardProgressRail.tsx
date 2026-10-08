@@ -104,7 +104,7 @@ export function WizardProgressRail({
                   )}
                 >
                   {state === 'answered' ? (
-                    <Check className="size-3.5 md:size-4" />
+                    <Check className="size-4 md:size-4" strokeWidth={1.5} />
                   ) : state === 'current' ? (
                     i + 1
                   ) : /* Nothing. The inner `size-2` dot is gone — an outlined

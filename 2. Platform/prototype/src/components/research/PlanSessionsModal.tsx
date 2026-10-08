@@ -1169,7 +1169,7 @@ export function PlanSessionsModal({
                                   badgeClass,
                                 )}
                               >
-                                <Icon className="size-6" />
+                                <Icon className="size-6" strokeWidth={1.75} />
                               </span>
                               <div className="flex w-full flex-col items-center gap-4">
                                 <p className="text-caption-medium text-ink-faint">Step {i + 1}</p>
@@ -1277,8 +1277,7 @@ export function PlanSessionsModal({
                                     />
                                     <ChevronDown
                                       aria-hidden="true"
-                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink"
-                                    />
+                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                                   </div>
                                   <span className="shrink-0 text-caption-medium text-ink-muted">to</span>
                                   <label htmlFor="plan-catchup-end-time" className="sr-only">
@@ -1301,8 +1300,7 @@ export function PlanSessionsModal({
                                     />
                                     <ChevronDown
                                       aria-hidden="true"
-                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink"
-                                    />
+                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                                   </div>
                                 </div>
                               </div>
@@ -1316,8 +1314,7 @@ export function PlanSessionsModal({
                               >
                                 <AlertTriangle
                                   aria-hidden="true"
-                                  className="mt-0.5 size-4 shrink-0 text-destructive"
-                                />
+                                  className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={2.25} />
                                 <p className="text-caption text-ink">
                                   <span className="font-semibold">Check the session time.</span> The session needs
                                   to end after it starts.
@@ -1537,7 +1534,7 @@ export function PlanSessionsModal({
                                     size="icon"
                                     className="shrink-0"
                                   >
-                                    <ChevronLeft aria-hidden="true" className="size-4" />
+                                    <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
                                     <span className="sr-only">Previous step</span>
                                   </Button>
                                   <p
@@ -1556,7 +1553,7 @@ export function PlanSessionsModal({
                                     size="icon"
                                     className="shrink-0"
                                   >
-                                    <ChevronRight aria-hidden="true" className="size-4" />
+                                    <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
                                     <span className="sr-only">Next step</span>
                                   </Button>
                                 </div>

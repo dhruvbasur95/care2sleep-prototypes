@@ -60,7 +60,7 @@ export function KpiTile({
             number/subtext keep the tile's full width. `pr-7` on the term
             reserves exactly the width the old flex row's icon + gap took
             (20px + 8px), so nothing moves. */}
-        <Icon aria-hidden="true" className={`absolute top-5 right-5 size-5 shrink-0 ${iconColor}`} />
+        <Icon aria-hidden="true" className={`absolute top-5 right-5 size-6 shrink-0 ${iconColor}`} strokeWidth={1.75} />
         <dl className="flex flex-1 flex-col">
           <dt className="pr-7 text-caption text-ink">{label}</dt>
           {/* Round 22 direct edit: KPI numbers capped at 32px app-wide

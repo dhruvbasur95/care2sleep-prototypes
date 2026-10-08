@@ -138,7 +138,7 @@ export function StatCard({
               title style was changed back to regular. */}
           <dt className="text-caption text-ink">{label}</dt>
           <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center">
-            <Icon className="size-[18px] text-purple-500" />
+            <Icon className="size-6 text-purple-500" strokeWidth={1.75} />
           </span>
         </div>
         {/* Titles and numbers are all `text-ink` — no grey anywhere on this
@@ -256,8 +256,8 @@ export function StatCard({
                 {part.trend && (
                   <TrendIcon
                     aria-hidden="true"
-                    className="size-5 shrink-0"
-                    strokeWidth={2.5}
+                    className="size-6 shrink-0"
+                    strokeWidth={1.75}
                     trend={part.trend}
                   />
                 )}

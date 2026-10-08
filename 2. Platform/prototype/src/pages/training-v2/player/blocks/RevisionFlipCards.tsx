@@ -426,7 +426,7 @@ function FlipCard({
               48px squares were. `primary` is the "blue" asked for; this portal
               has no blue, and the same word was used for the purple wave
               earlier in the same session. No background, as instructed. */}
-          <Glyph aria-hidden="true" className="size-8 shrink-0 text-primary" strokeWidth={1.75} />
+          <Glyph aria-hidden="true" className="size-6 shrink-0 text-primary" strokeWidth={1.75} />
           {/* `<Text block_3>` — Sub title over Body, the frame's own pairing. */}
           <span className="flex w-full flex-col gap-2 text-ink-muted">
             <span className="text-sub-greeting leading-[1.4]">{term.term}</span>

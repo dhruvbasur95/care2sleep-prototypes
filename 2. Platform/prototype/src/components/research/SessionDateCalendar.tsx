@@ -190,7 +190,7 @@ export function SessionDateCalendar({
         )}
       >
         <span>{value ? formatDate(value) : 'Select a day first'}</span>
-        <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
       </button>
 
       {open &&
@@ -213,7 +213,7 @@ export function SessionDateCalendar({
                 onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
                 className="flex size-9 items-center justify-center rounded-xs text-ink outline-none hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <ChevronLeft aria-hidden="true" className="size-4" />
+                <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </button>
               <button
                 type="button"
@@ -221,7 +221,7 @@ export function SessionDateCalendar({
                 onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
                 className="flex size-9 items-center justify-center rounded-xs text-ink outline-none hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <ChevronRight aria-hidden="true" className="size-4" />
+                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               </button>
             </div>
           </div>

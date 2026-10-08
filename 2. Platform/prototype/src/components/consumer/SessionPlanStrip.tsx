@@ -202,7 +202,7 @@ function SessionCell({ row, status }: { row: SessionPlanRow; status: CellStatus 
     >
       <span className={cn(BADGE_BASE, BADGE_TONE[status])}>
         {(status === 'completed' || isNext) && (
-          <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.5} />
+          <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25}  />
         )}
         {BADGE_LABEL[status]}
       </span>
@@ -566,7 +566,7 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
             aria-label="Show earlier sessions"
             className={CHEVRON}
           >
-            <ChevronLeft aria-hidden="true" className="size-6" strokeWidth={2.25} />
+            <ChevronLeft aria-hidden="true" className="size-6" strokeWidth={1.75}  />
           </button>
 
           {/*
@@ -624,7 +624,7 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
             aria-label="Show later sessions"
             className={CHEVRON}
           >
-            <ChevronRight aria-hidden="true" className="size-6" strokeWidth={2.25} />
+            <ChevronRight aria-hidden="true" className="size-6" strokeWidth={1.75}  />
           </button>
         </div>
       )}

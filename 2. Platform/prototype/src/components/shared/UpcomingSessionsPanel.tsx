@@ -134,7 +134,7 @@ export function UpcomingSessionsPanel({
                           rel="noreferrer"
                           className="relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
                         >
-                          <Video aria-hidden="true" className="size-4" />
+                          <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                           Join Zoom
                           <span className="sr-only"> for {row.title}</span>
                         </a>
@@ -157,7 +157,7 @@ export function UpcomingSessionsPanel({
               : 'relative mt-5 flex h-9 w-full shrink-0 items-center justify-center gap-2 rounded-sm border border-primary text-caption-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]'
           }
         >
-          <CalendarPlus aria-hidden="true" className="size-4" />
+          <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.25} />
           {ctaLabel}
           {/* Round 6.1.1 accessibility fix, still true where no handler is
            *  wired: a real, focusable button that visually looks the same

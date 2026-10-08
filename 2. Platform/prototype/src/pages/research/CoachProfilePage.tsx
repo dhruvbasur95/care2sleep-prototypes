@@ -601,7 +601,7 @@ function WithdrawnBanner({ coach }: { coach: Coach }) {
   return (
     <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
       <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" />
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.25} />
         <p className="text-caption font-semibold text-white">
           {coach.fullName} has withdrawn from the study
           {coach.withdrawnOn ? ` on ${formatDate(coach.withdrawnOn)}` : ''}. They no longer have
@@ -616,7 +616,7 @@ function PendingInviteBanner({ coach }: { coach: Coach }) {
   return (
     <div role="status" className="border-b border-amber-200 bg-amber-100 px-6 py-3 md:px-8">
       <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-800" />
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-800" strokeWidth={2.25} />
         <p className="text-caption font-semibold text-amber-900">
           {coach.fullName} hasn't accepted their platform invite yet. Their training and tracking
           details aren't available until they do.
@@ -1141,9 +1141,9 @@ function ModuleSlides({ coach, record }: { coach: Coach; record: ModuleRecord })
                     )}
                   >
                     {isCorrect ? (
-                      <CheckCircle2 aria-hidden="true" className="size-3" />
+                      <CheckCircle2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                     ) : (
-                      <XCircle aria-hidden="true" className="size-3" />
+                      <XCircle aria-hidden="true" className="size-4" strokeWidth={2.25} />
                     )}
                     {isCorrect ? 'Correct' : 'Incorrect'}
                   </span>
@@ -1306,7 +1306,7 @@ export function NoDetailsAvailable({
           aria-hidden="true"
           className="flex size-16 items-center justify-center rounded-full bg-primary/10"
         >
-          <Icon className="size-8 text-primary" />
+          <Icon className="size-6 text-primary" strokeWidth={1.75} />
         </span>
         <p className="text-body font-semibold text-ink">{heading}</p>
         <p className="max-w-sm text-caption text-ink-faint">{body}</p>
@@ -2191,7 +2191,7 @@ function StageTimeline({
                 )}
               >
                 {done ? (
-                  <Check className="size-6" />
+                  <Check className="size-6" strokeWidth={1.75} />
                 ) : (
                   <span className={cn('size-3 rounded-full', current ? 'bg-primary' : 'bg-purple-200')} />
                 )}
@@ -2411,8 +2411,7 @@ function TrackerSection({
           className={cn(
             'size-4 shrink-0 text-ink-faint transition-transform duration-200',
             open && 'rotate-180',
-          )}
-        />
+          )} strokeWidth={2.25} />
       </button>
       <motion.div
         initial={false}
@@ -2542,7 +2541,7 @@ export function LearningFlagsCard({ flags }: { flags: LearningFlag[] }) {
       <ul className="space-y-3">
         {flags.map((flag, i) => (
           <li key={i} className="flex items-start gap-2">
-            <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={2.25} />
             <p className="text-caption text-ink-muted">{LEARNING_FLAG_COPY[flag.kind](flag)}</p>
           </li>
         ))}
@@ -2644,7 +2643,7 @@ function ReviewsSharedTile({ coach }: { coach: Coach }) {
         <div className="flex items-start justify-between gap-2">
           <p className="text-caption text-ink">Reviews shared</p>
           <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center">
-            <TriangleAlert className="size-[18px] text-purple-500" />
+            <TriangleAlert className="size-6 text-purple-500" strokeWidth={1.75} />
           </span>
         </div>
         <dl className="mt-auto flex gap-4">
@@ -3254,7 +3253,7 @@ function LearningProgress({ coach }: { coach: Coach }) {
           >
             <span className="flex items-center gap-1 rounded-full bg-card px-3 py-1 text-fine font-semibold text-primary shadow-card ring-1 ring-hairline">
               Show more
-              <ChevronDown aria-hidden="true" className="size-3.5" />
+              <ChevronDown aria-hidden="true" className="size-4" strokeWidth={2.25} />
             </span>
           </button>
         </div>
@@ -3400,7 +3399,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
       <div className="flex flex-1 flex-col px-6 py-4">
         {coach.certification.outcome === 'pass' && (
           <p className="mb-2 flex items-center gap-1.5 text-fine text-ink-muted">
-            <Lock aria-hidden="true" className="size-3.5" />
+            <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
             All stages are locked while certification is Pass.
           </p>
         )}
@@ -3473,7 +3472,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
                     )}
                   >
                     {done ? (
-                      <Check className="size-4" />
+                      <Check className="size-4" strokeWidth={2.25} />
                     ) : (
                       <span
                         className={cn(
@@ -3577,7 +3576,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
                           className="group inline-flex h-9 max-w-[260px] items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span className="inline-flex h-[27px] min-w-0 items-center gap-1.5 rounded-full bg-purple-50 px-3 text-fine text-primary transition-colors group-hover:bg-purple-200">
-                            <FileText aria-hidden="true" className="size-3.5 shrink-0" />
+                            <FileText aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                             <span className="truncate">{report.name}</span>
                           </span>
                           <span className="sr-only">, download the feedback report</span>
@@ -3591,7 +3590,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
                       title={`Locked. ${firstName}'s certification is recorded as Pass. Record a different outcome to unlock editing.`}
                       className="flex size-9 shrink-0 items-center justify-center text-ink-faint"
                     >
-                      <Lock aria-hidden="true" className="size-4" />
+                      <Lock aria-hidden="true" className="size-4" strokeWidth={2.25} />
                       <span className="sr-only">
                         Locked. {firstName}'s certification is recorded as Pass. Record a
                         different outcome to unlock editing.
@@ -3603,7 +3602,7 @@ function StagePipeline({ coach }: { coach: Coach }) {
                         aria-label={`More actions for ${stageShortName(phase.number)}: ${phase.shortLabel}`}
                         className="flex size-9 shrink-0 items-center justify-center rounded-sm text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
                       >
-                        <MoreVertical aria-hidden="true" className="size-4" />
+                        <MoreVertical aria-hidden="true" className="size-4" strokeWidth={2.25} />
                       </Menu.Trigger>
                       <Menu.Portal>
                         <Menu.Positioner side="bottom" align="end" className="z-50 outline-none">
@@ -3805,7 +3804,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <Lock aria-hidden="true" className="size-[22px] shrink-0 text-ink" />
+                <Lock aria-hidden="true" className="size-6 shrink-0 text-ink" strokeWidth={1.75} />
                 {/* 24/700 with -0.24px tracking, per the frame. Not a named
                     step (Round 21.3 retired the 24px one) and deliberately not
                     re-added for a single card title. */}
@@ -3935,7 +3934,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
                 type="button"
                 onClick={() => setActionMsg('Certificate downloaded (prototype).')}
               >
-                <Download aria-hidden="true" className="size-4" />
+                <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Download
               </Button>
               <Button
@@ -3943,7 +3942,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
                 onClick={() => setActionMsg('Shareable certificate link copied.')}
                 variant="secondary"
               >
-                <Link2 aria-hidden="true" className="size-4" />
+                <Link2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Share link
               </Button>
               <button
@@ -3951,7 +3950,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
                 onClick={() => setActionMsg(`Certificate emailed to ${coach.email}.`)}
                 className={cn(OUTLINE_FILLED_BUTTON, 'gap-2')}
               >
-                <Mail aria-hidden="true" className="size-4" />
+                <Mail aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 Send email
               </button>
             </div>
@@ -3960,7 +3959,7 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
                 className="mt-3 flex items-center gap-1.5 text-caption font-semibold text-success"
                 role="status"
               >
-                <CheckCircle2 aria-hidden="true" className="size-4" />
+                <CheckCircle2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 {actionMsg}
               </p>
             )}
@@ -4165,7 +4164,7 @@ export function CoachProfilePage() {
                frame's 17px to the flow. */
             className="-my-3 flex w-fit items-center gap-2 rounded-sm py-3 text-caption-medium text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-white"
           >
-            <ChevronLeft aria-hidden="true" className="size-3" />
+            <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
             Back to roster
           </Link>
 

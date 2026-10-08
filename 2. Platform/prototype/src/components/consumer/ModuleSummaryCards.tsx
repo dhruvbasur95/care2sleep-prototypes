@@ -645,7 +645,7 @@ function CardBack({
               className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-sm text-body-md text-consumer-primary"
             >
               Scroll to see more
-              <ChevronDown strokeWidth={2.25} className="size-4 shrink-0" />
+              <ChevronDown strokeWidth={2.25} className="size-4 shrink-0"  />
             </button>
           </div>
         ) : null}

@@ -463,7 +463,7 @@ export function SessionFeedbackModal({
                     >
                       Continue
                       {!mood && <span className="sr-only"> (choose how it went first)</span>}
-                      <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+                      <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                     </button>
                     <button type="button" onClick={onClose} className={PILL_BACK}>
                       Cancel
@@ -478,10 +478,10 @@ export function SessionFeedbackModal({
                       className={PILL_FORWARD}
                     >
                       Submit Feedback
-                      <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+                      <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                     </button>
                     <button type="button" onClick={() => setStep('mood')} className={PILL_BACK}>
-                      <ChevronLeft aria-hidden="true" className="size-4 shrink-0" />
+                      <ChevronLeft aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
                       Go Back
                     </button>
                   </>

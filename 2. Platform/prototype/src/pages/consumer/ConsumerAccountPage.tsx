@@ -105,7 +105,7 @@ function OptOutCard({
   if (dyad.optedOut) {
     return (
       <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-6">
-        <TriangleAlert aria-hidden="true" className="mt-1 size-5 shrink-0 text-destructive" />
+        <TriangleAlert aria-hidden="true" className="mt-1 size-6 shrink-0 text-destructive" strokeWidth={1.75} />
         <div className="min-w-0">
           <h2
             ref={optedOutHeadingRef}

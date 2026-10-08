@@ -30,7 +30,7 @@ function PortalTile({
           aria-hidden="true"
           className="flex size-10 items-center justify-center rounded-full bg-primary/10"
         >
-          <Icon className="size-5 text-primary" strokeWidth={1.75} />
+          <Icon className="size-6 text-primary" strokeWidth={1.75}  />
         </span>
         <div className="space-y-1">
           <h2 className="text-body leading-[1.24] font-semibold tracking-[-0.374px]">
@@ -44,7 +44,7 @@ function PortalTile({
         >
           Open
           <span className="sr-only"> {title}</span>
-          <ArrowRight aria-hidden="true" className="size-4" />
+          <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
         </Link>
       </div>
     </Card>

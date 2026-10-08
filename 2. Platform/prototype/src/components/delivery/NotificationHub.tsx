@@ -242,8 +242,8 @@ function NotificationItemCard({
     >
       <Icon
         className={cn('size-4', hasSeverity ? severityText : isAlert ? 'text-destructive' : 'text-green-700')}
-        strokeWidth={1.75}
-      />
+        strokeWidth={2.25}
+       />
     </span>
   )
 
@@ -268,9 +268,9 @@ function NotificationItemCard({
         // the 36px hit area stays, since this app has repeatedly enforced that
         // floor for dismiss controls (Round 18 raised this very button from
         // 24px, Round 20 raised the needs-support banner's from the same).
-        <CircleX aria-hidden="true" className="size-4 text-ink" strokeWidth={2} />
+        <CircleX aria-hidden="true" className="size-4 text-ink" strokeWidth={2.25}  />
       ) : (
-        <X aria-hidden="true" className="size-4" strokeWidth={2} />
+        <X aria-hidden="true" className="size-4" strokeWidth={2.25}  />
       )}
     </button>
   )
@@ -321,9 +321,9 @@ function NotificationItemCard({
                 Round 20.2 added. Uniform shape, meaningful colour. */}
             <CircleAlert
               aria-hidden="true"
-              className={cn('size-5 shrink-0', hasSeverity ? severityText : 'text-alert-pastel')}
-              strokeWidth={2}
-            />
+              className={cn('size-6 shrink-0', hasSeverity ? severityText : 'text-alert-pastel')}
+              strokeWidth={1.75}
+             />
             {dismissButton}
           </div>
           <p className="line-clamp-2 pr-6 text-left text-caption text-ink">
@@ -606,7 +606,7 @@ function ResearchEmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
       <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-        <CheckCircle2 className="size-8 text-primary" strokeWidth={1.75} />
+        <CheckCircle2 className="size-6 text-primary" strokeWidth={1.75}  />
       </span>
       <p className="text-body font-semibold text-ink">You're all caught up</p>
       <p className="text-caption text-ink-faint">Nothing needs your attention right now.</p>
@@ -621,7 +621,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
       <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-full bg-green-100">
-        <CheckCircle2 className="size-5 text-green-700" strokeWidth={1.75} />
+        <CheckCircle2 className="size-6 text-green-700" strokeWidth={1.75}  />
       </span>
       <p className="text-caption font-semibold text-ink">You're all caught up</p>
       <p className="text-caption text-ink-faint">Nothing needs your attention right now.</p>
@@ -897,7 +897,7 @@ export function NotificationHubView({
           aria-hidden="true"
           className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100"
         >
-          <Bell className="size-5 text-green-700" strokeWidth={1.75} />
+          <Bell className="size-6 text-green-700" strokeWidth={1.75}  />
         </span>
         <div>
           <h2 ref={headingRef} tabIndex={-1} className="font-display text-title outline-none">
