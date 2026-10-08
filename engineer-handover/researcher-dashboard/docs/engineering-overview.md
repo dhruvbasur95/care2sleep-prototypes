@@ -86,7 +86,7 @@ Two things to know before you do:
    into the authoring machine's original prototype:
 
    ```
-   app/node_modules -> ../../../design/prototype/care2sleep-prototype/node_modules
+   app/node_modules -> ../../../design/prototype/node_modules
    ```
 
    That link will be broken or absent on your machine. Delete it before

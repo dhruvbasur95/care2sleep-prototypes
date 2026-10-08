@@ -5,7 +5,7 @@
 **Source of truth.** Code first. Where `design/design-tokens.md` §74–§79 and the code disagree, **the code wins** and the divergence is called out inline.
 
 **Path convention.** All file paths are relative to
-`design/prototype/care2sleep-prototype/src/`.
+`design/prototype/src/`.
 
 **Library.** `framer-motion` (imported as `framer-motion`, not `motion/react`). Tailwind v4 for CSS transitions. There is no other animation library. There is no CSS `@keyframes` authored in this project — the only keyframe animation used is Tailwind's own `animate-spin`, plus `animate-ping` which lives in the *researcher* portal and is out of scope here.
 

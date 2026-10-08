@@ -9257,11 +9257,16 @@ underline as their only non-colour affordance (WCAG 1.4.1).
 
 ### 99.7 Where it lives
 
-- **App:** `src/components/shared/buttonSystem.ts` — one `btn({ variant, tone, state,
-  size, surface })` returning a class string. A string rather than a component on
-  purpose: the call sites are `<button>`, `<a>`, `<label>` wrapping a file input, and
-  Base UI primitives, and a component would force a `render`/`asChild` escape hatch at
-  most of them.
+- **Entry point:** `src/components/ui/button.tsx` — exports **`Button`** (the
+  component) and **`buttonVariants`** (the class-string function). This is the file to
+  import from. See §99.9.
+- **Definition:** `src/components/shared/buttonSystem.ts` — one `btn({ variant, tone,
+  state, size, surface })` returning a class string, plus every measured rule behind the
+  five axes. **Nothing else defines a button.** `buttonVariants` *is* `btn`,
+  re-exported; `Button` calls it.
+- **Aliases:** `src/components/shared/buttonStyles.ts` — the pre-2026-10-07 names
+  (`GHOST_BUTTON`, `PILL_PRIMARY`, `HELP_BUTTON`, …) as thin wrappers over `btn()`.
+  Do not add to it.
 - **Spec page:** `/button-system`, rendered from `btn(...)` itself so it cannot drift
   from what ships.
 - **Figma:** the `Button` component set, rebuilt on the same five axes.
@@ -9281,3 +9286,85 @@ underline as their only non-colour affordance (WCAG 1.4.1).
 | `Ghost` · `Ghost icon` | `ghost` (+ `size: icon`) |
 | `Locked` | `state: deactive` |
 | **`Utility`** | **removed — no replacement** |
+
+### 99.9 `ui/button.tsx` — the shadcn entry point (2026-10-08)
+
+**What changed:** `src/components/ui/button.tsx` was untouched shadcn starter
+boilerplate — a `cva` block with grey `default`/`outline`/`secondary`/`ghost`/
+`destructive`/`link` variants, 8px radii and `h-8`/`h-9` sizes — with **zero
+importers**. Meanwhile the real system lived in `buttonSystem.ts` and was used at 95
+call sites across 25 files. The project's documentation says it uses shadcn, so an
+engineer opened the file literally called `Button`, found generic dead code, and
+reported it. The documentation was effectively false and the file was a trap: the next
+person needing a button imports `Button`, gets a grey 32px pill, and starts a third
+system.
+
+**What it is now.** The file wraps `btn()`. It does **not** re-implement the styling,
+does not convert the lookup tables to `cva`, and does not move anything out of
+`buttonSystem.ts`. That is what makes the change provably inert — `Button` and
+`buttonVariants` emit the same class strings as the `btn()` call they replace, because
+they *are* that call.
+
+```tsx
+import { Button, buttonVariants } from '@/components/ui/button'
+
+<Button variant="secondary" tone="destructive" onClick={…}>Withdraw</Button>
+<a className={buttonVariants({ variant: 'ghost' })} href={…}>…</a>
+```
+
+- **`buttonVariants` is `btn` itself** (`export const buttonVariants = btn`), not a
+  wrapper around it. Same function object, shadcn's conventional name.
+- **`Button`** takes `variant` · `tone` · `state` · `size` · `surface` plus all normal
+  button props, and composes `cn(buttonVariants({…}), className)` — **btn first,
+  caller's class second**, the order the call sites already used when they wrote
+  `cn(btn({…}), 'shrink-0')` by hand, and the order tailwind-merge needs for the
+  caller's class to win.
+- The five axis types are re-exported, so a consumer of this file needs only this
+  import.
+
+**The class-string form is still correct**, and 17 call sites deliberately keep it: an
+`<a>`, a `<label>` wrapping a hidden file input, a react-router `<Link>`, a component
+that takes a class string as a prop (`InertButton`), and two module-level constants.
+That is shadcn's own documented pattern for links. Leaving a call site alone is always
+acceptable; moving one and breaking it is not.
+
+**Polymorphism: Base UI's `render` prop, via `useRender`, not the `Button` primitive.**
+`@base-ui/react` 1.6 is installed and its `Button` primitive is what the boilerplate
+imported — but that primitive wraps `onClick`/`onKeyDown`/`onKeyUp`/`onMouseDown`,
+emits `data-disabled`, and carries a `focusableWhenDisabled` contract. Adopting it
+would have been a behaviour change across 95 call sites, several of which are
+deliberately `aria-disabled` **and focusable** (the "(coming soon)" controls). Base UI's
+public `useRender` hook gives the same `render` prop with none of that: with `render`
+omitted and no `state` passed it is `React.createElement('button', props)` and nothing
+else — no injected attributes, no injected handlers.
+
+⚠️ **No default `type`.** A bare `<button>` inside a `<form>` defaults to
+`type="submit"` and call sites rely on it. A `type="button"` default here would silently
+stop forms submitting. Checked explicitly.
+
+**Verification — the reason this is safe to trust.** Three gates, all by measurement:
+
+1. **Component/class-string parity, 361 pairs.** A throwaway `/__btn-parity` route
+   rendered every `variant × tone × state × size × surface` combination (plus the
+   per-surface `size` default, plus a `className` pass-through case) twice — once as
+   `<button className={btn(…)}>`, once as `<Button {…}>` — and asserted the rendered
+   `className` strings and 13 computed-style fields were identical. **0 differences.**
+   The `render` prop was checked the same way on an `<a>` and a `<label>`: same classes,
+   `href` preserved. Route and page deleted afterwards.
+2. **Live DOM diff, before vs after, 21 captures / 152 elements / 11 fields each.**
+   Every `<button>`/`<a>`/`<label>` carrying button styling on 18 routes across all four
+   portals plus three modals (Add coach trainee, Onboard coach, Assign consumer), each
+   compared on tag, text, full `className`, height, width, background, colour, border,
+   radius, font size/weight and disabled state. **0 differences.**
+3. **Heights.** 137 of the 152 are `btn()`-derived: **106 app-surface at 40px**, 30
+   consumer-surface at 48px, and one deliberate `size="lg"` demo swatch on
+   `/button-system`. The other 15 are hand-rolled classes in the coach portal
+   (36px/44px) that never went through `btn()` — unchanged, and not in scope.
+
+**Testing note, carried forward.** The preview pane reports `document.hidden === true`,
+which throttles `requestAnimationFrame`, which means `AnimatePresence mode="wait"` can
+never finish an exit. Two consequences bit this round: **in-page hash navigation does
+not re-render at all** (every route must be reached with a full reload), and a modal
+stays mounted after it is dismissed. Both are harness artifacts, not app behaviour —
+the same finding Round 16 recorded. Overriding `window.requestAnimationFrame` does not
+help; framer-motion captures it at module init.

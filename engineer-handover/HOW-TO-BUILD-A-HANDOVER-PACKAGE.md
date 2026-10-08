@@ -189,7 +189,7 @@ existing package, **measure it** rather than assuming:
 ```bash
 # how far has the package drifted from the live app?
 H=engineer-handover/<portal>/app/src
-L=design/prototype/care2sleep-prototype/src
+L=design/prototype/src
 find $H -type f | while read f; do rel=${f#$H/};
   if [ -f "$L/$rel" ]; then diff -q "$f" "$L/$rel" >/dev/null || echo "CHANGED  $rel";
   else echo "GONE FROM LIVE  $rel"; fi; done
