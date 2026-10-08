@@ -30,13 +30,14 @@ pnpm-debug.log*
 # =====================================================================
 /research/
 /_project/
+/Project/
 /module framework + content/
 /Coaching modules master/
 /Scripts/
 /CLAUDE.md
 
-/design/claude-handover/
-/design/logs/
+/_START-HERE/
+/_archive/
 /design/reviews/
 /design/wireframes/
 /design/prototype/*.md
