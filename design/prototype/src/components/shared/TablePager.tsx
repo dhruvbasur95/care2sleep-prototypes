@@ -13,6 +13,24 @@ import { Button } from '@/components/ui/button'
  * with no other announcement, so without it a screen-reader user gets silence.
  * Buttons are disabled at the ends rather than hidden — a control that vanishes
  * shifts the other three under the pointer mid-click.
+ *
+ * ## Why the ends are `aria-disabled`, not `disabled`
+ *
+ * The real `disabled` attribute removes a control from the tab order, and the
+ * browser **blurs it the instant the attribute appears**. Tab to "Next page",
+ * press it until you reach the last page, and focus lands on `<body>` — the
+ * keyboard user's place in the page is gone, and a screen reader simply stops
+ * announcing. Measured 2026-10-08 on the Research Home attention list.
+ *
+ * `aria-disabled` keeps the control focusable and announced as unavailable, so
+ * focus stays exactly where the user put it. The trade is that the click still
+ * fires, so **every handler guards its own edge** — without that, "Next" at the
+ * last page would call `onPageChange(lastPage + 1)`.
+ *
+ * This is the project's most-repeated defect class (focus falling to `<body>`),
+ * and `buttonStyles.ts` already recommended this exact fix for controls inside
+ * a focus trap. The paint is unchanged — the `disabled:` utilities simply moved
+ * to their `aria-disabled:` equivalents.
  */
 export function TablePager({
   page,
@@ -42,7 +60,8 @@ export function TablePager({
     variant: 'ghost',
     tone: 'neutral',
     size: 'icon',
-    className: 'disabled:cursor-not-allowed disabled:text-ink-faint disabled:opacity-40',
+    className:
+      'aria-disabled:cursor-not-allowed aria-disabled:text-ink-faint aria-disabled:opacity-40',
   } as const
 
   return (
@@ -53,8 +72,11 @@ export function TablePager({
       </p>
       <Button
         type="button"
-        onClick={() => onPageChange(0)}
-        disabled={atStart}
+        onClick={() => {
+          if (atStart) return
+          onPageChange(0)
+        }}
+        aria-disabled={atStart}
         aria-label="First page"
         {...PAGER_BUTTON}
       >
@@ -62,8 +84,11 @@ export function TablePager({
       </Button>
       <Button
         type="button"
-        onClick={() => onPageChange(page - 1)}
-        disabled={atStart}
+        onClick={() => {
+          if (atStart) return
+          onPageChange(page - 1)
+        }}
+        aria-disabled={atStart}
         aria-label="Previous page"
         {...PAGER_BUTTON}
       >
@@ -71,8 +96,11 @@ export function TablePager({
       </Button>
       <Button
         type="button"
-        onClick={() => onPageChange(page + 1)}
-        disabled={atEnd}
+        onClick={() => {
+          if (atEnd) return
+          onPageChange(page + 1)
+        }}
+        aria-disabled={atEnd}
         aria-label="Next page"
         {...PAGER_BUTTON}
       >
@@ -80,8 +108,11 @@ export function TablePager({
       </Button>
       <Button
         type="button"
-        onClick={() => onPageChange(lastPage)}
-        disabled={atEnd}
+        onClick={() => {
+          if (atEnd) return
+          onPageChange(lastPage)
+        }}
+        aria-disabled={atEnd}
         aria-label="Last page"
         {...PAGER_BUTTON}
       >
