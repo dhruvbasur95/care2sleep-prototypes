@@ -82,10 +82,18 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
     // stays `portal-orientation` while the copy does not.
     id: 'portal-orientation',
     // Both strings are the source's own, from `Modules/Module 6.md`'s MODULE
-    // SETUP table — the title from "Module name / number" (which carries the
-    // leading "The"), the description from "Core message". They are NOT
-    // written here: a first pass invented a hero sub-line and it was caught.
-    title: 'The Building Blocks of Good Sleep',
+    // SETUP table — the description from "Core message". They are NOT written
+    // here: a first pass invented a hero sub-line and it was caught.
+    //
+    // The TITLE carries a "(sample module)" suffix, added 2026-10-08 on direct
+    // instruction. Without it this card and `building-blocks-good-sleep` in the
+    // Sleep group read as the same module listed twice — the source's own title
+    // carries a leading "The", which is a one-word difference nobody spots. The
+    // duplication is real and deliberate: this slot hosts Module 6's content so
+    // a reviewer meets it first, while the Sleep-group entry is the curriculum's
+    // own slot for that topic and has no content yet. The suffix says which is
+    // which. Drop it when the content moves to its proper slot.
+    title: 'The Building Blocks of Good Sleep (sample module)',
     description:
       'Understand the key foundations of good, consistent sleep, what sleep drive is, and simple ways to strengthen your body\u2019s natural drive for sleep.',
     // `not-started`, not `completed`: the card is the way into content a
