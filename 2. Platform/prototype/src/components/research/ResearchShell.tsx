@@ -95,6 +95,7 @@ export function ResearchShell({
   heroBelow,
   heroFlushBelow,
   topBanner,
+  topBannerSticky = true,
 }: {
   children: ReactNode
   hero?: ReactNode
@@ -106,6 +107,21 @@ export function ResearchShell({
    *  leave unset for a hero that needs breathing room above the band. */
   heroFlushBelow?: boolean
   topBanner?: ReactNode
+  /**
+   * Whether `topBanner` pins under the global header. Default `true`, so
+   * every existing caller is byte-identical.
+   *
+   * `false` exists for a page that **also** has a sticky `heroBelow` band:
+   * both default to `top-12`, so on scroll the band slides up and parks
+   * exactly on top of the banner (equal `z-20`, and the band is later in the
+   * DOM, so it wins). The SPACES coach record is that page — its consumer
+   * picker is pinned context you need while reading, where a transfer notice
+   * is a one-time statement you read once. Letting the notice scroll away
+   * and the band pin is the right order; offsetting the band by the banner's
+   * height instead would mean hardcoding a height that changes the moment
+   * the copy wraps.
+   */
+  topBannerSticky?: boolean
 }) {
   return (
     <div className="min-h-screen bg-background">
@@ -128,7 +144,9 @@ export function ResearchShell({
           tabIndex={-1}
           className="min-w-0 flex-1 outline-none"
         >
-          {topBanner && <div className="sticky top-12 z-20">{topBanner}</div>}
+          {topBanner && (
+            <div className={cn('z-20', topBannerSticky && 'sticky top-12')}>{topBanner}</div>
+          )}
           {hero && (
             <div
               className={cn(

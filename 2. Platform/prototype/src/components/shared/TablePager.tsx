@@ -54,14 +54,23 @@ export function TablePager({
   const atStart = page <= 0
   const atEnd = page >= lastPage
 
-  // Ghost icon, neutral tone. The 36px hit area this component was created to
-  // fix (Round 21 caught a 22px one against WCAG 2.2's 24px floor) is now 40.
+  /**
+   * Ghost icon, neutral tone, **36px** — direct instruction 2026-10-09, aligning
+   * the app to the Figma frames rather than the other way round.
+   *
+   * ⚠️ This deliberately overrides the button system's `icon` size (40). The
+   * 36px step was retired app-wide in Round 28, so `size-9` here is a local
+   * exception, not a return to that step — do not copy it onto other controls.
+   * It still clears WCAG 2.2's 24px minimum and this project's own 36px
+   * control floor, so nothing is lost on the accessibility side; what changes
+   * is that a pager button is now 4px smaller than every other icon button.
+   */
   const PAGER_BUTTON = {
     variant: 'ghost',
     tone: 'neutral',
     size: 'icon',
     className:
-      'aria-disabled:cursor-not-allowed aria-disabled:text-ink-faint aria-disabled:opacity-40',
+      'size-9 aria-disabled:cursor-not-allowed aria-disabled:text-ink-faint aria-disabled:opacity-40',
   } as const
 
   return (

@@ -921,6 +921,97 @@ export interface ConsumerDyad {
    * count. Exactly one list filters on it.
    */
   omitFromConsumerRoster?: boolean
+  /**
+   * Set when the research team moves this consumer from one coach to another.
+   *
+   * `coachId` always names the coach who holds the consumer **now**, so a
+   * transfer is not inferable from it — this record is what remembers that
+   * someone else held them before, who, when, and why. Without it the
+   * hand-over is invisible the instant it commits: "Assigned on 3 Apr 2026"
+   * keeps naming an assignment to a coach who no longer has the consumer, and
+   * neither coach's screen can say anything.
+   *
+   * One transfer, not a list. A second transfer overwrites the first, which
+   * is the honest shape for a prototype demonstrating the state — a real
+   * study would keep the chain.
+   */
+  transfer?: ConsumerTransfer
+}
+
+/**
+ * A completed coach-to-coach hand-over.
+ *
+ * `sessionsWithPreviousCoach` is **frozen at the moment of transfer** rather
+ * than derived later, and that is the whole point of storing it: sessions
+ * keep being held after the hand-over, so a count read live would climb and
+ * the timeline would keep moving the "Coach re-assigned" card further right.
+ * The consumer does not repeat the sessions they already did — they carry on
+ * from where they were — so the split has to stay where it happened.
+ */
+export interface ConsumerTransfer {
+  /** The coach who held this consumer immediately before the hand-over. */
+  fromCoachId: string
+  /**
+   * The **first** coach this consumer ever had — written once, on the first
+   * transfer, and never overwritten.
+   *
+   * ⚠️ Not the same as `fromCoachId` the moment a consumer is transferred
+   * twice, and the timeline needs this one. Its opening "Coach assigned"
+   * card pairs `coachAssignedDate` with a coach's name, so reading
+   * `fromCoachId` there put the *second-to-last* coach against the original
+   * assignment date — a pairing that never happened. Found live after a
+   * transfer was reversed: the card read "Coach: Fatima Haidari · 22 Jun
+   * 2026" on a consumer Helen Zhang had held on that date.
+   *
+   * This is still one record rather than a chain, so the intermediate coaches
+   * of a longer sequence are not kept. Both ends of it now are.
+   */
+  originalCoachId: string
+  /** The date the research team actioned it. */
+  date: string
+  /** A `TRANSFER_REASONS` id — never a label written at a call site. */
+  reason: string
+  /** Optional free text the researcher adds beside the fixed reason. */
+  note?: string
+  /** Catch-up sessions held under the previous coach, frozen (see above). */
+  sessionsWithPreviousCoach: number
+  /**
+   * The date the **new** coach built their own session plan for the sessions
+   * that remain.
+   *
+   * A hand-over does not inherit a plan: the incoming coach still runs a
+   * planning session with the consumer, because the plan is an agreement
+   * between those two people and not a schedule attached to the record.
+   * Absent until they have done it, which is what makes "Sessions re-planned"
+   * render as the pairing's live next step rather than as history.
+   */
+  replanDate?: string
+}
+
+/**
+ * Why a consumer was moved to a different coach.
+ *
+ * A fixed list rather than free text, on direct instruction that a reason is
+ * **required**: a transfer is a study-governance event, and a reason that
+ * exists only as prose cannot be counted, filtered or audited. `other` is the
+ * escape hatch, and the optional note carries the detail in every case.
+ */
+export const TRANSFER_REASONS = [
+  { id: 'coach-withdrawn', label: 'Coach has left the study' },
+  { id: 'coach-leave', label: 'Coach on extended leave' },
+  { id: 'caseload', label: 'Caseload rebalanced' },
+  { id: 'consumer-request', label: 'Consumer requested a change' },
+  { id: 'conflict', label: 'Conflict of interest' },
+  { id: 'other', label: 'Other' },
+] as const
+
+export type TransferReasonId = (typeof TRANSFER_REASONS)[number]['id']
+
+/** The reason's label. Every surface naming a transfer reason reads this —
+ *  none of them writes the words, so the researcher's dialog, both coaches'
+ *  banners and the study log cannot drift apart. */
+export function transferReasonLabel(id: string): string {
+  return TRANSFER_REASONS.find((r) => r.id === id)?.label ?? id
 }
 
 /** One 5-night base pattern of Consensus Sleep Diary Q1-9 answers per day

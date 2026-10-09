@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -28,6 +28,7 @@ import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
 import { KeyUpdatesPanel, type KeyUpdateItem } from '@/components/research/KeyUpdatesPanel'
+import { TablePager } from '@/components/shared/TablePager'
 import {
   RECORD_GRID,
   RecordFieldList,
@@ -49,6 +50,7 @@ import {
   moduleIndex,
   moduleUnlockState,
   sessionRowLabel,
+  transferReasonLabel,
   type ConsumerDyad,
   type HealthLogEntry,
   type NotificationPreferences,
@@ -1892,7 +1894,7 @@ function learningCycles(
  *  Status labels sit on **white**, never on the card's own tint: the frame
  *  painted green-on-green and red-on-red, which is the legibility problem
  *  this fixes. */
-type ToneKey = LearningCycle['tone'] | 'milestone'
+type ToneKey = LearningCycle['tone'] | 'milestone' | 'transfer'
 
 /**
  * Timeline node treatments — **two resting states, plus the one the consumer is
@@ -1916,19 +1918,45 @@ type ToneKey = LearningCycle['tone'] | 'milestone'
  */
 const CYCLE_TONE: Record<ToneKey | 'current', { card: string; marker: string; ring: string }> = {
   /* COMPLETED — a milestone that happened, or a catch-up that has been held.
-     **Light green** (direct instruction): grey made a reached timepoint look
-     identical to one still ahead, so the timeline carried no completion signal
-     at all except position.
-     The green is composited from the single `--color-success` token rather
-     than a new three-step green ramp the palette does not have — the same
-     derivation the certificate rosette uses. `success/10` for the fill,
-     `success` for the marker and ring. */
-  milestone: { card: 'border-success/30 bg-success/10', marker: 'bg-success', ring: 'border-success' },
-  complete: { card: 'border-success/30 bg-success/10', marker: 'bg-success', ring: 'border-success' },
-  /* NOT completions, so deliberately NOT green — `attention` is a module left
-     incomplete after its session, `ongoing` is still in flight. Turning either
-     green would say the opposite of what it means. They keep the neutral grey. */
-  attention: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
+     **Grey card, green marker** (direct instruction: *"can we just use grey
+     for all timeline cards, except the up next one"*). This reverts the light
+     green fill these two carried; the card surface now makes no distinction
+     at all, so the single primary-stroked `current` card is the only thing
+     the eye is drawn to in the whole row.
+     The marker and ring stay `success`. They are the spine, not the card, and
+     they are what still answers "how far have they got" at a glance — without
+     them an all-grey row has no completion signal except position, which is
+     the state that prompted the green in the first place. The status chip
+     inside each card carries the detail either way. */
+  milestone: { card: 'border-parchment bg-parchment', marker: 'bg-success', ring: 'border-success' },
+  complete: { card: 'border-parchment bg-parchment', marker: 'bg-success', ring: 'border-success' },
+  /* THE HAND-OVER — the one exception to the all-grey rule above (direct
+     instruction: *"Coach re-assigned card can use yellow"*).
+     It earns it by being the only node in the row that is not part of the
+     study's own arc: everything else is a step the consumer takes, and this
+     is an administrative event that happened *to* them. Grey filed it beside
+     the sessions it sits between, which is exactly where it should not read.
+     `yellow-50` / `yellow-300` is the `Chip tone="yellow"` pairing, so the
+     card, the flag pill above it, the page banner and the caseload chip are
+     one colour story. `yellow-400` (#ffb600) for the marker — the ramp's
+     darkest step, and the only one that reads as a filled dot on the spine. */
+  transfer: { card: 'border-yellow-300 bg-yellow-50', marker: 'bg-yellow-400', ring: 'border-yellow-400' },
+  /* NEEDS ATTENTION — a module left incomplete after its session was held, or
+     a session that was moved. **Red** (direct instruction), card, marker and
+     stroke together.
+     These are the two cards a researcher is actually scanning for, and under
+     the all-grey rule they looked identical to a session that went fine — the
+     only signal was a `destructive` chip three lanes down inside the card.
+     `destructive/8` + `/30` is the `Chip tone="destructive"` pairing, so the
+     card and the chip it contains are one colour rather than two reds. */
+  attention: {
+    card: 'border-destructive/30 bg-destructive/8',
+    marker: 'bg-destructive',
+    ring: 'border-destructive',
+  },
+  /* `ongoing` is still in flight — not a failure and not a completion — so it
+     keeps the neutral grey. Turning it red would cry wolf on every consumer
+     mid-module. */
   ongoing: { card: 'border-parchment bg-parchment', marker: 'bg-ink-faint', ring: 'border-ink-faint' },
   /* NOT REACHED — the same neutral grey card as every reached node (direct
      instruction: "make all neutral grey except the current one"). Only the
@@ -2314,6 +2342,28 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
   const plan = sessionPlans[dyad.id]
   const unlocks = manualModuleUnlocks[dyad.id] ?? []
   const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+  /* The coach the consumer STARTED with.
+     After a hand-over `coachId` names the coach who holds them *now*, so
+     reading it for the opening "Coach assigned" card would backdate the
+     incoming coach to the original assignment and erase the predecessor from
+     the arc — the timeline would show one coach running sessions they never
+     ran. The transfer record is the only place the first coach survives. */
+  /* ⚠️ `originalCoachId`, NOT `fromCoachId`. They are the same until a
+     consumer is transferred twice, and then `fromCoachId` is the *previous*
+     coach rather than the first — which put the second-to-last coach's name
+     against the original assignment date on the opening card. Measured live
+     after a transfer was reversed: "Coach: Fatima Haidari · 22 Jun 2026" on a
+     consumer Helen Zhang held on that date. */
+  const originalCoach = dyad.transfer
+    ? coaches.find((c) => c.id === dyad.transfer?.originalCoachId)
+    : coach
+  /* The coach who handed this consumer over — the *previous* one, which for a
+     single transfer is the same person as `originalCoach` and after a second
+     one is not. The hand-over card documents one specific hand-over, so it
+     wants this; the opening "Coach assigned" card wants the other. */
+  const handedOverBy = dyad.transfer
+    ? coaches.find((c) => c.id === dyad.transfer?.fromCoachId)
+    : undefined
   const cycles = learningCycles(dyad, plan, completed, unlocks)
   /* Round 25, direct instruction: the timeline is bookended. Reading left to
      right it is now — study start, the date the sessions were planned, the six
@@ -2339,6 +2389,15 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
         date?: string
         time?: string
         tone: ToneKey
+        /** Drop the "Status: Yes/No" lane. For a milestone whose title is
+         *  already the whole statement — "Coach re-assigned" is a thing that
+         *  happened, so a chip confirming it happened says nothing (direct
+         *  instruction). Frees its lane for a real fact. */
+        noStatus?: boolean
+        /** A pill in the 56px slot above the marker — the same slot the
+         *  current column spends on "Up next". For a node that needs calling
+         *  out without being the step the pairing is up to. */
+        flag?: string
         /** A bare value under the title, for a milestone that is only a date
          *  (the frame draws no label beside it). */
         lead?: string
@@ -2346,6 +2405,15 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
          *  above its marker, in the slot the session columns use for their
          *  date. */
         isNext?: boolean
+        /**
+         * At most three (two alongside a status lane) — the card renders a
+         * fixed three-lane grid and silently drops the rest.
+         *
+         * A 224px card is 190px inside, so a long value truncates beside its
+         * label; the lane carries a `title` so hovering gives it in full.
+         * A two-lane-tall stacked variant was built for the transfer reason
+         * and removed when that card gained a third fact.
+         */
         rows: { label: string; value: string }[]
       }
 
@@ -2362,6 +2430,108 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
   const isOnboarded = !!consentDate
   const isCoachAssigned = !!coach
   const isPlanned = !!planningRow?.date
+
+  /* ---------------------------------------------------------------------
+     The hand-over, dropped into the arc at the point it happened.
+
+     A transfer is not a step the consumer reaches at the end — it lands
+     *between* two sessions, and where it lands is the whole fact: sessions
+     to its left were delivered by the previous coach and are not repeated,
+     sessions to its right belong to the new one. Appending it to the tail
+     would say the opposite.
+
+     Two cards, not one. "Coach re-assigned" is the hand-over; "Sessions
+     re-planned" is what it costs. The incoming coach does not inherit the
+     plan — they run their own planning session with the consumer, because
+     the plan is an agreement between those two people rather than a
+     schedule attached to the record — so until they have, the arc to the
+     right of the transfer is scheduled by someone who is no longer on it.
+     That gap is real and the timeline shows it rather than smoothing it
+     over.
+
+     `sessionsWithPreviousCoach` is frozen on the record, never recounted
+     here: sessions keep being held after a hand-over, so a live count would
+     walk these two cards further right every time one is, and the split
+     they mark would stop being where the split happened.
+     --------------------------------------------------------------------- */
+  const transfer = dyad.transfer
+  const cycleNodes: TimelineNode[] = cycles.map((c) => ({
+    kind: 'cycle' as const,
+    key: `c${c.session}`,
+    cycle: c,
+  }))
+  const remaining = SPACES_CATCHUP_COUNT - (transfer?.sessionsWithPreviousCoach ?? 0)
+  const arcNodes: TimelineNode[] = transfer
+    ? [
+        // `slice` by count, not by session number: `cycleNodes[0]` is session
+        // 1, so N sessions held is exactly the first N nodes. A transfer
+        // before any session (N = 0) correctly puts both cards ahead of the
+        // whole arc.
+        ...cycleNodes.slice(0, transfer.sessionsWithPreviousCoach),
+        {
+          kind: 'milestone' as const,
+          key: 'reassigned',
+          title: 'Coach re-assigned',
+          tone: 'transfer' as ToneKey,
+          /* No status chip: "Coach re-assigned" is recorded only once it has
+             happened, so a lane reading "Status: Yes" restates the title
+             (direct instruction). Dropping it frees the third lane. */
+          noStatus: true,
+          /* Called out above the marker in yellow — the same yellow as the
+             page banner and the caseload chip, so the hand-over is findable
+             by colour in a row of otherwise identical grey cards. */
+          flag: 'Consumer transfer',
+          /* ⚠️ AT MOST THREE rows (two with a status lane). The card renders
+             a fixed three-lane grid, because the point of the row of cards is
+             that the eye can run along one lane across all of them. A fourth
+             row is not truncated visibly, it is silently dropped — which is
+             how this card first shipped with its date and reason missing.
+
+             Of the four facts a hand-over has, these are the two not already
+             on screen: the timeline only ever renders on the **new** coach's
+             page (the previous coach's tab is replaced by
+             `TransferredAwayNotice`), so "New coach" is the page you are
+             already on and "Previous coach" is in the banner at the top of
+             it. */
+          /* Three lanes, three facts: when, who from, and why.
+             The reason goes back to a single lane with a `title` — adding the
+             outgoing coach (direct instruction) used the lane the stacked
+             version was spending on a second line, and of the three this is
+             the one that survives truncation best: "Coach on extended lea…"
+             still reads, and hovering gives it in full. */
+          rows: [
+            { label: 'Date', value: formatDate(transfer.date) },
+            // "From", not "Previous coach": the longer label is ~98px of a
+            // 190px lane, which truncates a two-word name beside it. In a
+            // card titled "Coach re-assigned" the short one is unambiguous.
+            { label: 'From', value: handedOverBy?.fullName ?? 'Not recorded' },
+            { label: 'Reason', value: transferReasonLabel(transfer.reason) },
+          ],
+        },
+        {
+          kind: 'milestone' as const,
+          key: 'replan',
+          title: 'Sessions re-planned',
+          tone: (transfer.replanDate ? 'milestone' : 'upcoming') as ToneKey,
+          isNext: !transfer.replanDate,
+          rows: [
+            {
+              label: 'Date',
+              value: transfer.replanDate ? formatDate(transfer.replanDate) : 'Not planned yet',
+            },
+            {
+              // The point of the card: the consumer picks up where they left
+              // off. Spelled out here because the cards to the left of the
+              // transfer look identical to the ones to the right, and nothing
+              // else on the timeline says the earlier ones do not recur.
+              label: 'Sessions remaining',
+              value: `${remaining} of ${SPACES_CATCHUP_COUNT}`,
+            },
+          ],
+        },
+        ...cycleNodes.slice(transfer.sessionsWithPreviousCoach),
+      ]
+    : cycleNodes
 
   const nodes: TimelineNode[] = [
     {
@@ -2384,7 +2554,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
       tone: isCoachAssigned ? 'milestone' : 'upcoming',
       isNext: isOnboarded && !isCoachAssigned,
       rows: [
-        { label: 'Coach', value: coach?.fullName ?? 'Not assigned' },
+        { label: 'Coach', value: originalCoach?.fullName ?? 'Not assigned' },
         {
           label: 'Date',
           value: dyad.coachAssignedDate ? formatDate(dyad.coachAssignedDate) : 'Not recorded',
@@ -2421,7 +2591,7 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
     // From the plan onwards the whole arc is known, so it is all drawn.
     ...(isPlanned
       ? [
-          ...cycles.map((c) => ({ kind: 'cycle' as const, key: `c${c.session}`, cycle: c })),
+          ...arcNodes,
           {
             kind: 'milestone' as const,
             key: 'end',
@@ -2482,9 +2652,17 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
      is actually live. The first pending node in study order is the current one;
      once a plan exists it is the first catch-up not yet held. */
   const currentKey =
-    currentCycleSession !== undefined && nodes.some((n) => n.key === `c${currentCycleSession}`)
-      ? `c${currentCycleSession}`
-      : nodes.find((n) => n.kind === 'milestone' && n.isNext)?.key
+    /* A hand-over with no new plan yet outranks the next unheld session.
+       Both are pending, but the session cannot happen until the plan exists —
+       pointing the one accent in the timeline at the session would send the
+       researcher to the step that is blocked rather than to the one doing the
+       blocking, and the two sit side by side, so the wrong one is genuinely
+       misleading rather than merely imprecise. */
+    transfer && !transfer.replanDate
+      ? 'replan'
+      : currentCycleSession !== undefined && nodes.some((n) => n.key === `c${currentCycleSession}`)
+        ? `c${currentCycleSession}`
+        : nodes.find((n) => n.kind === 'milestone' && n.isNext)?.key
 
   /* Study progress timeline (`212:4665`).
      §35a card-header band + border-t divider, matching Trainee's
@@ -2579,14 +2757,30 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                           up to, so it is deliberately a word rather than a
                           colour — "Up next" is legible to someone who cannot
                           separate the primary stroke from a parchment one. */}
-                      <p
-                        className={cn(
-                          'text-caption-medium',
-                          isCurrent ? 'text-primary' : 'text-ink',
-                        )}
-                      >
-                        {isCurrent ? 'Up next' : ''}
-                      </p>
+                      {/* "Up next" outranks a flag: a node can be both (a
+                          hand-over whose re-plan is the live step is not, but
+                          nothing stops one), and the current marker is the
+                          single accent the whole row is built around. */}
+                      {!isCurrent && n.kind === 'milestone' && n.flag ? (
+                        /* `rounded-2xl` not `rounded-full`, and `text-center`:
+                           the label wraps inside the 224px column rather than
+                           widening the pill past it (direct instruction: "wrap
+                           text if needed"), and a pill rule is a capsule only
+                           while it is one line — on two, `rounded-full` bows
+                           the sides inwards. */
+                        <span className="max-w-full rounded-2xl bg-yellow-200 px-3 py-0.5 text-center text-fine text-ink">
+                          {n.flag}
+                        </span>
+                      ) : (
+                        <p
+                          className={cn(
+                            'text-caption-medium',
+                            isCurrent ? 'text-primary' : 'text-ink',
+                          )}
+                        >
+                          {isCurrent ? 'Up next' : ''}
+                        </p>
+                      )}
                       {/* The block keeps its 56px height whether or not it
                           speaks, so every marker still lands on the spine. */}
                       <p className="text-fine text-ink-muted">
@@ -2671,51 +2865,71 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                           const plain = (v: string) => (
                             <span className="text-caption-medium text-ink">{v}</span>
                           )
-                          const lanes =
+                          /** `raw` is the value as plain text, for the
+                           *  `title` on a lane that truncates — a 224px card
+                           *  cannot fit every string, and a value clipped to
+                           *  "Coach has left the ..." is worse than no value
+                           *  at all (direct instruction: *"can it be on hover
+                           *  I can read"*). Separate from `value` because
+                           *  that is a node: a chip, not a string. */
+                          type Lane = { label: string; value: ReactNode; raw?: string }
+                          const lanes: Lane[] =
                             n.kind === 'milestone'
                               ? [
-                                  {
-                                    label: 'Status',
-                                    value: chip(
-                                      n.tone === 'milestone' ? 'Yes' : 'No',
-                                      n.tone === 'milestone' ? 'success' : 'muted',
-                                    ),
-                                  },
-                                  ...n.rows.slice(0, 2).map((r) => ({
+                                  /* A milestone that drops its status lane
+                                     gets that lane back for a real fact, so
+                                     the slice grows by one and the card still
+                                     renders exactly three. */
+                                  ...(n.noStatus
+                                    ? []
+                                    : [
+                                        {
+                                          label: 'Status',
+                                          value: chip(
+                                            n.tone === 'milestone' ? 'Yes' : 'No',
+                                            n.tone === 'milestone' ? 'success' : 'muted',
+                                          ),
+                                        },
+                                      ]),
+                                  ...n.rows.slice(0, n.noStatus ? 3 : 2).map((r) => ({
                                     label: r.label,
                                     value: plain(r.value),
+                                    raw: r.value,
                                   })),
                                 ]
                               : [
-                                  {
-                                    label: 'Status',
-                                    value: chip(
-                                      n.cycle.rescheduled
-                                        ? 'Rescheduled'
-                                        : n.cycle.sessionHeld
-                                          ? 'Complete'
-                                          : 'To be held',
-                                      n.cycle.rescheduled
-                                        ? 'destructive'
-                                        : n.cycle.sessionHeld
-                                          ? 'success'
-                                          : 'muted',
-                                    ),
-                                  },
-                                  {
-                                    label: 'Scheduled date',
-                                    value: plain(
-                                      n.cycle.sessionDate
-                                        ? formatDate(n.cycle.sessionDate)
-                                        : 'Not scheduled',
-                                    ),
-                                  },
+                                  (() => {
+                                    const label = n.cycle.rescheduled
+                                      ? 'Rescheduled'
+                                      : n.cycle.sessionHeld
+                                        ? 'Complete'
+                                        : 'To be held'
+                                    return {
+                                      label: 'Status',
+                                      value: chip(
+                                        label,
+                                        n.cycle.rescheduled
+                                          ? 'destructive'
+                                          : n.cycle.sessionHeld
+                                            ? 'success'
+                                            : 'muted',
+                                      ),
+                                      raw: label,
+                                    }
+                                  })(),
+                                  (() => {
+                                    const date = n.cycle.sessionDate
+                                      ? formatDate(n.cycle.sessionDate)
+                                      : 'Not scheduled'
+                                    return { label: 'Scheduled date', value: plain(date), raw: date }
+                                  })(),
                                   {
                                     label: `Module ${n.cycle.moduleIndex}`,
                                     value: chip(
                                       MODULE_STATUS_LABEL[n.cycle.moduleStatus],
                                       moduleBadgeTone(n.cycle.moduleStatus),
                                     ),
+                                    raw: MODULE_STATUS_LABEL[n.cycle.moduleStatus],
                                   },
                                 ]
                           return (
@@ -2734,7 +2948,13 @@ export function StudyProgressTimelineCard({ dyad }: { dyad: ConsumerDyad }) {
                                   <dt className="shrink-0 text-fine whitespace-nowrap text-ink-muted">
                                     {r.label}:
                                   </dt>
-                                  <dd className="min-w-0 truncate">{r.value}</dd>
+                                  {/* `title` on the `<dd>`, so a value this
+                                      card is too narrow to show in full is
+                                      still readable on hover. Harmless when
+                                      nothing is clipped. */}
+                                  <dd className="min-w-0 truncate" title={r.raw}>
+                                    {r.value}
+                                  </dd>
                                 </div>
                               ))}
                               {/* Pads a short card to the row's three lanes.
@@ -2779,11 +2999,6 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
   const coach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
   const [logPage, setLogPage] = useState(0)
   const [colsOpen, setColsOpen] = useState(false)
-  const newerBtnRef = useRef<HTMLButtonElement | null>(null)
-  const olderBtnRef = useRef<HTMLButtonElement | null>(null)
-  /** Which pager the user last activated, so the effect below knows whether to
-   *  rescue focus and where to. */
-  const pagedRef = useRef<'newer' | 'older' | null>(null)
   const [dragCol, setDragCol] = useState<LogColKey | null>(null)
   const [logColumns, setLogColumns] = useState(() =>
     LOG_COLUMNS.map((c) => ({ ...c, visible: true })),
@@ -2820,25 +3035,14 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
   const page = Math.min(logPage, pageCount - 1)
   const pageStart = page * LOG_PAGE
   const shown = events.slice(pageStart, pageStart + LOG_PAGE)
-  const remaining = Math.max(0, events.length - (pageStart + shown.length))
 
-  /* Paging to either end of the range disables the very button that was just
-   * pressed, and a `disabled` control cannot hold focus — the browser drops it
-   * to `<body>`. This project's most-repeated defect class, and it was caught
-   * here by a live `activeElement` read rather than by looking.
-   *
-   * It has to run in an effect, not in the click handler: inside the handler
-   * the sibling is still disabled from the previous render, so focusing it
-   * silently does nothing. */
-  useEffect(() => {
-    const pressed = pagedRef.current
-    if (!pressed) return
-    pagedRef.current = null
-    const stillUsable = pressed === 'newer' ? page > 0 : remaining > 0
-    if (stillUsable) return
-    const sibling = pressed === 'newer' ? olderBtnRef.current : newerBtnRef.current
-    sibling?.focus()
-  }, [page, remaining])
+  /* No focus-rescue effect here any more. The bespoke pager this section used
+     to carry went `disabled` at the ends of the range, which blurs the control
+     the browser just disabled and drops focus to `<body>` — this project's
+     most-repeated defect — so it needed an effect to hand focus to the
+     sibling. `TablePager` solves the same problem at the component level by
+     using `aria-disabled` instead, keeping the control focusable and
+     announced, so the rescue has nothing left to rescue. */
   /* Study log (`212:4840`). */
   return (
       <section className="flex flex-col gap-4">
@@ -3072,59 +3276,27 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
             </table>
           </div>
           )}
-        </Card>
-
-        {events.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-fine text-ink-faint">
-            Showing {events.length === 0 ? 0 : pageStart + 1}
-            {shown.length > 1 ? `\u2013${pageStart + shown.length}` : ''} of {events.length} events
-          </p>
-          {/* Round 25, direct instruction: pagination, not a disclosure.
-              **Labels run backwards in time, because the log does.** Page 1 is
-              the 10 most recent events, so paging forward shows *older* ones —
-              "Previous 10", not "Next 10" — and the return control is "Newer".
-              Calling it "Next" would have implied the opposite direction to the
-              one the table actually moves in.
-              Both controls stay mounted and go `disabled` at the ends of the
-              range, so the row's geometry does not shift; both clear the 36px
-              control floor, which the Round 21 audit caught a 22px pagination
-              hit area failing once already. A `disabled` control cannot hold
-              focus, so whichever button the click disables hands focus to its
-              sibling — without that, paging to either end dropped focus to
-              `<body>`, which a live `activeElement` read caught. */}
-          {pageCount > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                ref={newerBtnRef}
-                onClick={() => {
-                  pagedRef.current = 'newer'
-                  setLogPage(page - 1)
-                }}
-                disabled={page === 0}
-                className={PAGER_BTN}
-              >
-                <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                Newer
-              </button>
-              <button
-                type="button"
-                ref={olderBtnRef}
-                onClick={() => {
-                  pagedRef.current = 'older'
-                  setLogPage(page + 1)
-                }}
-                disabled={remaining === 0}
-                className={PAGER_BTN}
-              >
-                Previous {remaining > 0 ? Math.min(LOG_PAGE, remaining) : LOG_PAGE}
-                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
-              </button>
+          {/* Inside the Card, under the table (direct instruction: *"I want the
+              one that is integrated within the table, refer to Items that need
+              your attention card"*). Same treatment that card uses — a
+              `hairline` rule, then the shared pager — rather than the loose
+              "Showing 1-10 of 15 events" row plus two bespoke pills that used
+              to sit outside the card entirely.
+              `px-6` lines the range label and the chevrons up with the table's
+              own first and last columns, which carry `px-6`. */}
+          {events.length > LOG_PAGE && (
+            <div className="border-t border-hairline px-6 py-3">
+              <TablePager
+                page={page}
+                pageSize={LOG_PAGE}
+                total={events.length}
+                onPageChange={setLogPage}
+                itemLabel="events"
+              />
             </div>
           )}
-        </div>
-        )}
+        </Card>
+
       </section>
   )
 }

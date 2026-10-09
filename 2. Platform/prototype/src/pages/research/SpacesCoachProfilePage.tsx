@@ -3,6 +3,7 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu } from '@base-ui/react/menu'
 import {
+  ArrowLeftRight,
   BookOpenCheck,
   CalendarCheck,
   CalendarClock,
@@ -37,6 +38,7 @@ import {
 import { FEEDBACK_MOODS } from '@/components/shared/FeedbackPillow'
 import { ResearchShell } from '@/components/research/ResearchShell'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
+import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
 import { PlanSessionsModal } from '@/components/research/PlanSessionsModal'
 import { EditSessionPlanModal } from '@/components/research/EditSessionPlanModal'
 import { SessionsPlanOverview } from '@/components/research/SessionsPlanOverview'
@@ -54,7 +56,12 @@ import {
   StudyProgressTimelineCard,
 } from '@/pages/research/ConsumerDetailPage'
 import { Chip, CertificationChip, CoachStatusChip } from '@/components/research/StatusChip'
-import { RECORD_GRID, RecordFieldList, RecordInput } from '@/components/research/RecordFields'
+import {
+  RECORD_GRID,
+  RECORD_TEXTAREA,
+  RecordFieldList,
+  RecordInput,
+} from '@/components/research/RecordFields'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
 import { TablePager } from '@/components/shared/TablePager'
@@ -79,6 +86,8 @@ import {
   isPlanSet,
   moduleUnlockState,
   nextUpcomingSessionEntry,
+  TRANSFER_REASONS,
+  transferReasonLabel,
   type AnnotationSummaryEntry,
   type ConsumerDyad,
   type HealthLogEntry,
@@ -282,6 +291,46 @@ const CASELOAD_TABS = [
   { id: 'complete', label: 'Study complete' },
 ] as const
 type CaseloadTab = (typeof CASELOAD_TABS)[number]['id']
+
+/* ------------------------------------------------------------------------ */
+/* Transfers — who belongs on whose record                                   */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * True when this coach **used to** hold the consumer and handed them over.
+ *
+ * Not the same question as "was this consumer ever transferred": after a
+ * hand-over the dyad carries one `transfer` record that both coaches read,
+ * and each needs the opposite answer from it. Helen asks "did I give them
+ * away" and gets the from-coach banner; Fatima asks "did I receive them" and
+ * gets the chip and the yellow band. One record, two readings — which is
+ * exactly why this is a function of the coach, not a flag on the dyad.
+ */
+function wasTransferredAwayFrom(dyad: ConsumerDyad, coachId: string): boolean {
+  return dyad.transfer?.fromCoachId === coachId && dyad.coachId !== coachId
+}
+
+/** True when this coach **received** the consumer from someone else. */
+function wasTransferredTo(dyad: ConsumerDyad, coachId: string): boolean {
+  return !!dyad.transfer && dyad.coachId === coachId
+}
+
+/**
+ * Every consumer whose record belongs under this coach's **Assigned
+ * Consumers** tab: the live caseload, plus anyone they handed over.
+ *
+ * A transferred-away consumer deliberately stays reachable here while being
+ * gone from the Overview tab's caseload table and KPIs (direct instruction).
+ * Those two are not in conflict — the Overview answers "who is this coach
+ * working with", where a handed-over consumer is a wrong answer, and this tab
+ * answers "whose record can I open from this coach's page", where dropping
+ * them would make the hand-over untraceable from either end the moment it
+ * commits. What they get here is a dead end by design: one banner and a route
+ * onward, no progress data (see `ConsumersDetailsTab`).
+ */
+function caseloadIncludingTransfersOut(dyads: ConsumerDyad[], coachId: string): ConsumerDyad[] {
+  return dyads.filter((d) => d.coachId === coachId || wasTransferredAwayFrom(d, coachId))
+}
 
 function OverviewTab({
   coach,
@@ -654,7 +703,7 @@ function OverviewTab({
                     )}
                   >
                     <td className="px-6 py-3">
-                    <div className="flex flex-col gap-0.5 text-caption">
+                    <div className="flex flex-col items-start gap-0.5 text-caption">
                       {d.patient && (
                         <span className="text-ink">
                           <span className="text-ink-faint">PLE:</span> {d.patient.name}
@@ -663,6 +712,22 @@ function OverviewTab({
                       <span className="text-ink">
                         <span className="text-ink-faint">Carer:</span> {d.carer.name}
                       </span>
+                      {/* Under the names, after the carer (direct
+                          instruction) — the same slot and the same yellow the
+                          Consumer Management roster gives "Withdrawal
+                          requested", so the two read as one vocabulary of
+                          consumer-state flags rather than two inventions.
+                          `mt-1` because the names are a 2px-gap stack and a
+                          27px chip butting straight onto them reads as a
+                          third name.
+                          `items-start` on the column above: a chip in a
+                          `flex-col` stretches to the column's full width
+                          without it, which turns a pill into a bar. */}
+                      {wasTransferredTo(d, coach.id) && (
+                        <span className="mt-1">
+                          <Chip tone="yellow" label="Transferred" />
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-caption text-ink-muted">
@@ -1001,7 +1066,11 @@ function WithdrawCoachDialog({
   const commit = () => {
     dyads.forEach((d) => {
       const to = targets[d.id]
-      if (to) transferDyad(d.id, to)
+      /* A withdrawal hand-over is a transfer with a known cause, so it names
+         it rather than falling through to "Other" — this is the one reason
+         in the list the platform can fill in for itself. The researcher's own
+         withdrawal reason rides along as the note. */
+      if (to) transferDyad(d.id, to, 'coach-withdrawn', reasonNote || reason)
     })
     withdrawCoach(coach.id, reasonNote || reason)
     onClose()
@@ -3080,6 +3149,377 @@ const CONSUMER_SUBTABS = [
 ] as const
 type ConsumerSubtab = (typeof CONSUMER_SUBTABS)[number]['id']
 
+/* ------------------------------------------------------------------------ */
+/* Transfer notices                                                          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The hand-over's facts as a **two-column summary table** — the same
+ * `Measure | value` shape this tab's own "Fitbit and sleep diary details"
+ * table already uses, with the app's standard `purple-50` header row.
+ *
+ * A table rather than the inline `label ....... value` rows this started as:
+ * six facts stacked as bare text read as a paragraph that happened to be
+ * aligned, with nothing separating the labels from the values but whitespace.
+ * The glyph in each label cell is the other half of that — it gives the
+ * column a left edge and makes the row scannable without reading it, which is
+ * the whole point of a summary.
+ *
+ * Shared by both notices so the coach who gave the consumer up and the coach
+ * who received them read the same rows in the same order. The record only
+ * works if the two ends agree.
+ */
+/**
+ * Spacing for the transfer dialog's scrolling content box, so the summary
+ * table's `shadow-card` has somewhere to land.
+ *
+ * ⚠️ `ConfirmDialog` wraps `children` in `overflow-y-auto`, and a box with
+ * `overflow-y` set computes `overflow-x` to `auto` as well — so the box
+ * clips its children's shadows on **all four** sides, not just vertically.
+ *
+ * The numbers are the shadow's own reach, measured off `shadow-card`
+ * (`2px 4px 16px`): it extends 14px left, 18px right, 12px up and 20px down.
+ * `-mx-5 px-5` buys 20px either side and cancels out, so nothing moves.
+ * Vertically there is nothing to cancel against — a negative top margin
+ * would fight the chassis' own `mt-4` and tailwind-merge drops one of them —
+ * so the gap is rebuilt instead: `mt-1` + `pt-3` is the same 16px the `mt-4`
+ * it replaces gave, with the 12px now *inside* the clipping box where the
+ * shadow needs it. `pb-5` covers the 20px below.
+ *
+ * A first pass did the horizontal half only and the shadow was still sheared
+ * top and bottom.
+ */
+const TRANSFER_DIALOG_CONTENT = 'mt-1 -mx-5 px-5 pt-3 pb-5'
+
+/* ---------------------------------------------------------------------------
+   TWO tables, deliberately separate.
+
+   They show the same kind of facts and they are NOT one component. The
+   pop-up modal and the post-transfer record card are different surfaces with
+   different chrome, and sharing them made every piece of feedback on one
+   silently change the other — the shadow was removed for the card and that
+   took it off the modal, then restored for the modal and that put it back on
+   the card. Each surface now owns its own markup.
+
+   What they must keep in common is only the content: the same labels, in the
+   same order, with a colon after each. If a row is added to one, add it to
+   the other.
+   --------------------------------------------------------------------------- */
+
+/**
+ * **Pop-up modal** summary — both steps of the transfer flow.
+ *
+ * The heading is a full-width `purple-50` row *inside* the table, and the
+ * label cells below it are white (direct instruction: *"I preferred this for
+ * when I click transfer consumer"*). Carries its own `shadow-card`: it sits
+ * on the dialog panel's flat white, which gives it nothing to sit on.
+ *
+ * ⚠️ That shadow needs room from an ANCESTOR, not from this box. A
+ * `box-shadow` paints outside the border box, so a scrolling ancestor clips
+ * it — and `ConfirmDialog`'s children wrapper is `overflow-y-auto`, which
+ * makes `overflow-x` compute to `auto` too, shearing the left and right
+ * edges. The `-mx-5 px-5` both steps pass as `contentClassName` is the fix;
+ * it cannot be done from in here.
+ */
+function TransferModalSummary({
+  caption,
+  heading,
+  rows,
+}: {
+  caption: string
+  heading: string
+  rows: { label: string; value: string }[]
+}) {
+  return (
+    <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-parchment shadow-card">
+      <table className="w-full min-w-[420px] border-collapse text-left">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="bg-purple-50">
+            {/* `colSpan={2}`: the heading names the whole table, not the
+                column it sits in. Spanning says so, and it avoids the
+                `sr-only` filler cell a second header would need. */}
+            <th
+              scope="colgroup"
+              colSpan={2}
+              className="px-5 py-3 text-caption-medium whitespace-nowrap text-ink"
+            >
+              {heading}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.label} className={cn(i > 0 && 'border-t border-hairline')}>
+              {/* `scope="row"` on a real `<th>`: these are row headers, not
+                  data, so a screen reader announces "Reason: coach on
+                  extended leave" rather than two unrelated cells.
+                  The colon is this dashboard's own convention for a term —
+                  the coach overview's detail rows and the consumer band both
+                  write `Coach ID:` / `Carer:` exactly this way. */}
+              {/* `border-r` so the two columns read as cells (direct
+                  instruction). The record card's table does not need one —
+                  its label column is tinted `purple-50`, so the colour change
+                  already draws the edge. Here both columns are white and the
+                  only thing separating them was whitespace. */}
+              <th
+                scope="row"
+                className="w-[240px] border-r border-hairline px-5 py-3 text-left align-top font-normal"
+              >
+                <span className="text-caption text-ink-muted">{r.label}:</span>
+              </th>
+              <td className="px-5 py-3 align-top text-caption text-ink">{r.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/**
+ * **Record card** summary — the previous coach's Assigned Consumers tab,
+ * after the hand-over.
+ *
+ * Differs from the modal's on three counts, all by direct instruction:
+ * the heading is a subtitle *above* the table rather than a row inside it,
+ * the label column is `purple-50` so the terms read as one tinted stripe,
+ * and there is **no shadow** — it sits inside a `Card` that already casts
+ * one, where a second shadow 24px inside the first reads as a seam.
+ */
+function TransferRecordSummary({
+  caption,
+  heading,
+  rows,
+}: {
+  caption: string
+  heading: string
+  rows: { label: string; value: string }[]
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <h4 className="text-caption-medium text-ink">{heading}</h4>
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-parchment">
+        <table className="w-full min-w-[420px] border-collapse text-left">
+          <caption className="sr-only">{caption}</caption>
+          {/* No `<thead>`: the heading is already above the table, and a
+              header row here would be a second one. */}
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.label} className={cn(i > 0 && 'border-t border-hairline')}>
+                {/* Fixed width, not auto: auto sizes to the longest label,
+                    so the tinted stripe's edge would move with the content. */}
+                <th
+                  scope="row"
+                  className="w-[240px] bg-purple-50 px-5 py-3 text-left align-top font-normal"
+                >
+                  <span className="text-caption text-ink-muted">{r.label}:</span>
+                </th>
+                <td className="px-5 py-3 align-top text-caption text-ink">{r.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * What the **previous** coach's Assigned Consumers tab shows for a consumer
+ * they handed over: what happened, the summary, and a route to the record
+ * under its new coach (direct instruction).
+ *
+ * This replaces the three sub-tabs outright rather than disabling them.
+ * Disabled tabs would imply the data is still this coach's to read and merely
+ * out of reach; it is not — the consumer moved, and progress from here
+ * belongs on the new coach's page. A dead end with an exit is the honest
+ * shape.
+ *
+ * Built on the §35a card grammar every other card in this dashboard uses —
+ * `purple-50` header band, `border-t` divider, content below — rather than
+ * the yellow notice panel this started as. Yellow is this feature's *flag*
+ * colour: it marks the row in the caseload table and the banner under the
+ * header, both of which are things you notice in passing. This card is the
+ * destination, not the flag, and painting it the same yellow made the page
+ * you had arrived at look like one more warning.
+ */
+function TransferredAwayNotice({
+  coach,
+  dyad,
+  transfer,
+}: {
+  coach: Coach
+  dyad: ConsumerDyad
+  transfer: NonNullable<ConsumerDyad['transfer']>
+}) {
+  const { coaches } = useResearch()
+  const newCoach = dyad.coachId ? coaches.find((c) => c.id === dyad.coachId) : undefined
+
+  return (
+    <Card className="gap-0 rounded-lg py-0">
+      {/* `yellow-200` (direct instruction), not the §35a `purple-50` band.
+          It is the same yellow as the top banner and the caseload row's
+          `Transferred` chip, so the three places this state shows up are one
+          signal at three zoom levels. */}
+      <div className="flex items-start gap-4 bg-yellow-200 p-6">
+        {/* Circle + glyph, the treatment `EmptyState` gives every "nothing
+            here" state in this dashboard. This panel is a near relative of
+            one — the three sub-tabs it replaces are empty for a reason — so
+            it opens the same way rather than inventing a second vocabulary.
+            White rather than the usual `primary/8` tint: a purple wash over
+            yellow composites to a muddy olive, and the glyph inside it goes
+            with it. */}
+        <span
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white"
+        >
+          <ArrowLeftRight className="size-5 text-ink" strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0">
+          {/* Says what happened, in the past tense, naming the consumer. The
+              researcher may have arrived here from a link rather than from
+              the transfer they just made. */}
+          {/* Names the destination and agrees in number, for the same two
+              reasons the top banner does — see `TransferTopBanner`. */}
+          <h3 className="text-title text-ink text-balance">
+            {dyadTitle(dyad)} {dyad.patient ? 'were' : 'was'} transferred to{' '}
+            {newCoach?.fullName ?? 'another coach'}
+          </h3>
+          {/* `text-ink`, not `ink-muted`: muted grey is calibrated for white
+              and the `purple-50` band, and this one is yellow. */}
+          <p className="mt-1 text-caption text-ink text-balance">
+            {/* Says why the panel is empty, not just that it is. Without this
+                the researcher is looking at a coach page with no progress
+                data and no account of where it went. */}
+            This consumer is no longer on {coach.fullName}’s caseload, so their study progress,
+            sleep data and session reflections are now kept under their new coach.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-6 border-t border-hairline p-6">
+        <TransferRecordSummary
+          caption={`Transfer details for ${dyadTitle(dyad)}`}
+          heading="Transfer details"
+          rows={[
+            { label: 'Previous coach', value: coach.fullName },
+            { label: 'New coach', value: newCoach?.fullName ?? 'Not recorded' },
+            { label: 'Transferred on', value: formatDate(transfer.date) },
+            { label: 'Reason', value: transferReasonLabel(transfer.reason) },
+            {
+              label: 'Sessions held before transfer',
+              value: `${transfer.sessionsWithPreviousCoach} of ${SPACES_CATCHUP_COUNT}`,
+            },
+            ...(transfer.note ? [{ label: 'Notes', value: transfer.note }] : []),
+          ]}
+        />
+        {/* A real `<Link>` carrying button paint, not a `<Button>` with an
+            onClick — this is navigation, so it should open in a new tab if a
+            researcher middle-clicks it. `buttonVariants` on an anchor is
+            shadcn's own documented pattern and what CLAUDE.md points at.
+            The label does not name the coach (direct instruction): the row
+            directly above it already does, and repeating the name inside the
+            button made the control read as being about a person rather than
+            about the record it opens. */}
+        {newCoach && (
+          <Link
+            to={`/research/spaces-coaches/${newCoach.id}?tab=${encodeURIComponent('Assigned Consumers')}&dyad=${dyad.id}`}
+            className={cn(btn({ variant: 'primary', tone: 'brand' }), 'w-fit')}
+          >
+            Open this consumer under their new coach
+          </Link>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * The transfer notice, pinned at the top of the page under the global header
+ * — the placement every other account-state notice in this dashboard uses
+ * (`CoachProfilePage`'s withdrawn/pending banners, the consumer record's
+ * withdrawal-request banner), on direct instruction: *"same banner should be
+ * presented up top as we do for other screens"*.
+ *
+ * **One component, read from whichever coach's page you are on.** A
+ * hand-over writes a single record that both coaches carry, and each needs
+ * the opposite sentence out of it — the coach who gave the consumer up is
+ * told where they went, the coach who received them is told what they are
+ * inheriting. Two components would be two places for the same facts to drift
+ * apart; the direction is a derivation, not a duplicate.
+ *
+ * Yellow rather than the red `WithdrawnBanner` treatment or the amber
+ * pending one: a transfer is neither terminal nor a waiting state, it is a
+ * completed administrative fact. It uses the brand ramp's `yellow-200`,
+ * which is also the `Chip tone="yellow"` family this feature already flags
+ * the caseload row with — the banner and the chip are the same signal seen
+ * at two zoom levels.
+ *
+ * `text-ink` on `yellow-200`, never white: the ramp tops out at `yellow-400`
+ * and every step of it is a light tone, so white fails AA on all of them.
+ */
+function TransferTopBanner({
+  coach,
+  dyad,
+  transfer,
+}: {
+  coach: Coach
+  dyad: ConsumerDyad
+  transfer: NonNullable<ConsumerDyad['transfer']>
+}) {
+  const { coaches } = useResearch()
+  /* Which side of the hand-over this page is. `coachId` names the holder
+     now, so "is this page's coach the holder" is the whole question. */
+  const received = dyad.coachId === coach.id
+  const otherCoach = coaches.find(
+    (c) => c.id === (received ? transfer.fromCoachId : dyad.coachId),
+  )
+
+  return (
+    /* Geometry copied from `CoachProfilePage`'s own top banners so the four
+       notices in this dashboard are one treatment: full-bleed fill, a 1px
+       black/10 rule closing it off, and the content on the page's own
+       1320px content measure rather than the full viewport. */
+    <div role="status" className="border-b border-black/10 bg-yellow-200 px-6 py-3 md:px-8">
+      <div className="mx-auto flex max-w-[1320px] items-start gap-3">
+        <ArrowLeftRight aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink" strokeWidth={2.25} />
+        <p className="text-caption text-ink">
+          {/* ⚠️ Name the destination coach ONCE.
+              This read "…has been transferred to another coach on 22 Jul 2026
+              to Fatima Haidari" — two destinations in one sentence, the vague
+              one first. "Another coach" is only the right phrase where the
+              coach cannot be named; here they can, so they are.
+
+              Verb agreement is derived, not written: a dyad is two people
+              ("Bruce Whitfield & Joan Whitfield **were** transferred") and a
+              carer-only household is one ("Beverley Nkomo **was**"). `patient`
+              is the field that decides it everywhere else in this app, so it
+              decides it here. A single hardcoded verb is wrong for one of the
+              two every time. */}
+          <span className="font-semibold">
+            {dyadTitle(dyad)} {dyad.patient ? 'were' : 'was'} transferred to{' '}
+            {received ? 'this coach' : (otherCoach?.fullName ?? 'another coach')}
+          </span>{' '}
+          on {formatDate(transfer.date)}
+          {received && otherCoach ? ` from ${otherCoach.fullName}` : ''}.{' '}
+          {/* No reason here (direct instruction). It is a banner, not a
+              record: the reason is one click away on the "Coach re-assigned"
+              card in the timeline below, and on the previous coach's own
+              transfer-details table. */}
+          {received
+            ? /* The count is what makes the timeline below legible — without
+                 it, sessions held by the previous coach read as this coach's
+                 own. Off the frozen `sessionsWithPreviousCoach`, never a live
+                 count, so it keeps naming the sessions that actually predate
+                 the hand-over. */
+              `${transfer.sessionsWithPreviousCoach} of ${SPACES_CATCHUP_COUNT} sessions were held before the transfer and are not repeated.`
+            : `This consumer is no longer on ${coach.fullName}’s caseload.`}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function ConsumersDetailsTab({
   coach,
   selectedId,
@@ -3093,7 +3533,10 @@ function ConsumersDetailsTab({
   subtab: ConsumerSubtab
 }) {
   const { consumerDyads, sessionCompletion, sessionPlans } = useResearch()
-  const dyads = consumerDyads.filter((d) => d.coachId === coach.id)
+  /* Includes consumers this coach handed over — see
+     `caseloadIncludingTransfersOut`. They render as a banner and a route
+     onward rather than as a progress panel. */
+  const dyads = caseloadIncludingTransfersOut(consumerDyads, coach.id)
   const selected = dyads.find((d) => d.id === selectedId) ?? dyads[0]
 
   if (dyads.length === 0) {
@@ -3102,6 +3545,18 @@ function ConsumersDetailsTab({
         <EmptyState icon={Users} copy="No consumers assigned yet" />
       </Card>
     )
+  }
+
+  /* A consumer this coach handed over: the whole panel collapses to one
+     banner and a route onward (direct instruction — "hide study progress,
+     consumer sleep.., and reflection tabs -> this all converges to a single
+     banner"). Rendered *before* the tabpanel below rather than as a case
+     inside it, because there is no sub-tab left to label it with: the row
+     that switches between the three is hidden, so a `role="tabpanel"`
+     pointing at a tab that is not on screen would be a lie to a screen
+     reader. */
+  if (selected && wasTransferredAwayFrom(selected, coach.id) && selected.transfer) {
+    return <TransferredAwayNotice coach={coach} dyad={selected} transfer={selected.transfer} />
   }
 
   return (
@@ -3285,6 +3740,14 @@ function TransferConsumerDialog({
   const { coaches, spacesCoaches, transferDyad } = useResearch()
   const [confirming, setConfirming] = useState(false)
   const [targetId, setTargetId] = useState('')
+  /* Empty on purpose — the reason is **required** (direct instruction), so
+     there is no defensible default to pre-select. Seeding the first option
+     would let a researcher confirm a transfer recorded as "Coach has left the
+     study" without ever reading the field, which is worse than no reason at
+     all: it is a wrong one, stamped on the consumer's record and shown to
+     both coaches. The empty value backs the disabled confirm below. */
+  const [reason, setReason] = useState('')
+  const [note, setNote] = useState('')
   const [confirmation, setConfirmation] = useState<string | null>(null)
 
   const transferTargets = spacesCoaches
@@ -3296,6 +3759,8 @@ function TransferConsumerDialog({
   useEffect(() => {
     if (open) {
       setTargetId(transferTargets[0]?.id ?? '')
+      setReason('')
+      setNote('')
       setConfirming(false)
     }
     // only re-seed the selection when the dialog opens, not on every roster change
@@ -3314,11 +3779,24 @@ function TransferConsumerDialog({
         open={open && !confirming}
         title="Transfer consumer"
         body="Choose the coach who will take over this consumer's SPACES delivery."
+        /* 720 and the wizard padding, not the chassis' default 440/`p-6`
+           (direct instruction, twice: "increase the transfer pop-up modal
+           dimensions", then "still feels too cluttered"). This step carries a
+           summary table, two selects, a hint line and a textarea — the shape
+           of a wizard, not of a confirm — so it takes the same `p-6 md:p-8`
+           panel `PlanSessionsModal` and the other wizard-shaped modals use.
+           ⚠️ The padding and the footer bleed are ONE decision, not two:
+           `MODAL_FOOTER_SURFACE_COMPACT`'s `-mx-6` is calibrated to a
+           `p-6`-only panel, so `md:p-8` without the wide footer below leaves
+           an 8px white gutter either side of the grey bar at `md`+. */
+        panelClassName="max-h-[85vh] w-full max-w-[720px] p-6 md:p-8"
+        footerClassName={MODAL_FOOTER_SURFACE}
+        contentClassName={TRANSFER_DIALOG_CONTENT}
         confirmLabel="Continue"
         cancelLabel="Cancel"
-        confirmDisabled={!dyad || transferTargets.length === 0}
+        confirmDisabled={!dyad || transferTargets.length === 0 || !reason}
         onConfirm={() => {
-          if (targetId) setConfirming(true)
+          if (targetId && reason) setConfirming(true)
         }}
         onClose={onClose}
       >
@@ -3329,17 +3807,23 @@ function TransferConsumerDialog({
             No other joined coach is available to transfer to right now.
           </p>
         ) : (
-          <div className="space-y-4">
-            <dl>
-              <div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-[140px_1fr]">
-                <dt className="text-caption text-ink-faint">Current coach</dt>
-                <dd className="text-caption text-ink">{coach.fullName}</dd>
-              </div>
-              <div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-[140px_1fr]">
-                <dt className="text-caption text-ink-faint">Consumer</dt>
-                <dd className="text-caption text-ink">{dyadTitle(dyad)}</dd>
-              </div>
-            </dl>
+          /* `space-y-6`, up from 4 (direct instruction: still cluttered).
+             Five blocks at 16px apart read as one undifferentiated column;
+             24px is the gap the rest of the app puts between a control and
+             the next labelled thing. */
+          <div className="space-y-6">
+            {/* The same table the confirm step and the record card use, so the
+                researcher sees one shape for these facts at every point in the
+                flow rather than a dl here, a paragraph next and a table at the
+                end. */}
+            <TransferModalSummary
+              caption={`Current assignment for ${dyadTitle(dyad)}`}
+              heading="Current assignment"
+              rows={[
+                { label: 'Consumer', value: dyadTitle(dyad) },
+                { label: 'Current coach', value: coach.fullName },
+              ]}
+            />
             <div className="flex flex-col gap-1">
               <label htmlFor="transfer-target-coach" className="text-fine text-ink-faint">
                 Transfer to
@@ -3360,24 +3844,123 @@ function TransferConsumerDialog({
                 <SelectChevron />
               </div>
             </div>
+
+            {/* Required, on direct instruction. A fixed list rather than free
+                text: the reason is read back on both coaches' screens and in
+                the consumer's study log, so it has to be one of a known set
+                of words rather than whatever was typed on the day. The note
+                beside it carries the detail. */}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="transfer-reason" className="text-fine text-ink-faint">
+                Reason for transfer
+              </label>
+              <div className="relative">
+                <select
+                  id="transfer-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  /* `aria-describedby`, not `required`: the browser's own
+                     validation bubble never fires here — this is a dialog
+                     button, not a form submit — so the constraint is carried
+                     by the disabled confirm and said out loud below. */
+                  aria-describedby="transfer-reason-hint"
+                  className={selectClass}
+                >
+                  <option value="">Select a reason</option>
+                  {TRANSFER_REASONS.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <SelectChevron />
+              </div>
+              <p id="transfer-reason-hint" className="text-fine text-ink-faint">
+                Required. Shown to both coaches and recorded in the consumer’s study log.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="transfer-note" className="text-fine text-ink-faint">
+                Notes (optional)
+              </label>
+              <textarea
+                id="transfer-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                placeholder="Anything the incoming coach should know"
+                /* The app's own text-field skin (direct instruction: "light
+                   grey, as done for any text field") — `pearl` fill, `pearl`
+                   border, 14px, real focus ring. `RecordFields` is the one
+                   place that skin lives, so this cannot drift from the
+                   profile-details fields it is copying. `resize-y` on top:
+                   a transfer note can run long and this is the only
+                   free-text control in the flow. */
+                className={cn(RECORD_TEXTAREA, 'resize-y')}
+              />
+            </div>
           </div>
         )}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={open && confirming}
-        title={`Transfer to ${transferTarget?.fullName ?? ''}?`}
-        body={`${dyad ? dyadTitle(dyad) : 'This consumer'} moves from ${coach.fullName} to ${transferTarget?.fullName ?? ''}. Session history, health data, and reflections stay with the consumer.`}
+        /* Direct instruction. The title no longer names the coach — the old
+           one ("Transfer to Helen Zhang?") read as a routing question, as if
+           the only thing at stake were a destination, when what this screen
+           is actually asking about is revoking one coach's access. Names also
+           belong in the summary below, where they sit beside their labels,
+           rather than in a heading that has to carry them without context. */
+        title="Are you sure you want to transfer this consumer?"
+        /* The consequence, stated for **both** parties (direct instruction):
+           what the researcher will see afterwards, and what the outgoing
+           coach loses. Written without names so it reads the same for every
+           transfer — the who is directly above it, in the summary.
+
+           "Consumer", not "client": this is a researcher-facing surface, and
+           the terminology is audience-dependent (CLAUDE.md). The coach-facing
+           half of this feature says "client" for the same people. */
+        body="The current coach will lose access to this consumer’s record, session history and sleep data as soon as you confirm. You will find the consumer on the new coach’s page from here on."
+        /* Matches step 1 exactly, so the dialog does not resize between the
+           two — a panel that jumps narrower on the last step reads as a
+           different dialog rather than the next question in the same one.
+           The footer override is part of the same pairing; see step 1. */
+        panelClassName="max-h-[85vh] w-full max-w-[720px] p-6 md:p-8"
+        footerClassName={MODAL_FOOTER_SURFACE}
+        contentClassName={TRANSFER_DIALOG_CONTENT}
+        /* `primary · destructive` (direct instruction). The write revokes a
+           coach's access, which is the one thing on this screen a researcher
+           cannot undo from the same page. */
+        confirmTone="destructive"
         confirmLabel="Transfer consumer"
         cancelLabel="Go back"
         onConfirm={() => {
           if (!transferTarget || !dyad) return
-          transferDyad(dyad.id, transferTarget.id)
+          transferDyad(dyad.id, transferTarget.id, reason, note)
           onClose()
           setConfirmation(`${dyadTitle(dyad)} transferred to ${transferTarget.fullName}.`)
         }}
         onClose={() => setConfirming(false)}
-      />
+      >
+        {/* The three choices read back as labelled rows rather than buried in
+            the body sentence. This is the last screen before the write, and a
+            researcher who picked the wrong coach or the wrong reason has no
+            other chance to catch it — the next place either appears is on two
+            coaches' dashboards. A paragraph hides a wrong dropdown; a
+            two-column list does not. */}
+        <TransferModalSummary
+          caption={`Transfer summary for ${dyad ? dyadTitle(dyad) : 'this consumer'}`}
+          heading="Transfer summary"
+          rows={[
+            { label: 'Consumer', value: dyad ? dyadTitle(dyad) : '—' },
+            { label: 'Current coach', value: coach.fullName },
+            { label: 'New coach', value: transferTarget?.fullName ?? '—' },
+            { label: 'Reason', value: transferReasonLabel(reason) },
+            ...(note.trim() ? [{ label: 'Notes', value: note.trim() }] : []),
+          ]}
+        />
+      </ConfirmDialog>
 
       {confirmation && (
         <div
@@ -4739,13 +5322,29 @@ export function SpacesCoachProfilePage() {
 
   // Shared across all tabs so picking a consumer in one carries over to the
   // others, rather than each tab resetting to the first dyad independently.
-  const dyads = coach ? consumerDyads.filter((d) => d.coachId === coach.id) : []
+  /* Transferred-away consumers stay in the picker so their record is still
+     reachable from the coach who used to hold them. */
+  const dyads = coach ? caseloadIncludingTransfersOut(consumerDyads, coach.id) : []
   const [selectedDyadId, setSelectedDyadId] = useState(() => searchParams.get('dyad') ?? '')
   /* A `?dyad=` that is not on this coach's caseload is ignored rather than
      honoured: it would set the `<select>` to a value none of its `<option>`s
      carry, which renders as a blank control. */
   const effectiveDyadId =
     (dyads.some((d) => d.id === selectedDyadId) ? selectedDyadId : '') || dyads[0]?.id || ''
+  /* A consumer this coach handed over has no progress panel under their old
+     coach — the sub-tabs are replaced by a single banner, so the row that
+     switches between them is hidden rather than left pointing at nothing
+     (direct instruction). `ConsumersDetailsTab` makes the same call off the
+     same helper, so the row and the panel cannot disagree. */
+  const selectedDyad = dyads.find((d) => d.id === effectiveDyadId)
+  const selectedTransferredAway =
+    !!coach && !!selectedDyad && wasTransferredAwayFrom(selectedDyad, coach.id)
+  /* The top banner is per-consumer, so it only shows on the tab where a
+     consumer is selected. On Overview or Profile details there is no one
+     consumer the notice would be about, and a banner naming one while the
+     table below lists several would read as a page-level state. */
+  const transferBannerDyad =
+    tab === 'Assigned Consumers' && selectedDyad?.transfer ? selectedDyad : undefined
 
   const viewDyad = (dyadId: string) => {
     setSelectedDyadId(dyadId)
@@ -4777,6 +5376,19 @@ export function SpacesCoachProfilePage() {
          underline, 40px top / 80px side insets. Applied here so the three
          researcher record pages stay one treatment; see `CoachProfilePage` for
          the measured derivation of `pt-10` and the tab row's `mt-[33px]`. */
+      /* Scrolls away rather than pinning — the consumer picker band below is
+         already sticky at the same offset, and two stickies at `top-12`
+         park on top of each other. See `ResearchShell`'s own note. */
+      topBannerSticky={false}
+      topBanner={
+        transferBannerDyad?.transfer ? (
+          <TransferTopBanner
+            coach={coach}
+            dyad={transferBannerDyad}
+            transfer={transferBannerDyad.transfer}
+          />
+        ) : undefined
+      }
       heroClassName="bg-primary px-6 pt-10 md:px-20 md:pt-10"
       /* Round 27, frame `306:155` node `297:1883`. Consumer selection is a
          full-bleed `purple-50` band flush under the hero. It goes through
@@ -4846,11 +5458,22 @@ export function SpacesCoachProfilePage() {
                 >
                   View consumer details
                 </Button>
-                {coach.status !== 'withdrawn' && (
+                {/* `secondary · destructive` (direct instruction). A
+                    transfer takes the consumer off this coach permanently and
+                    revokes their access, so it reads in the destructive tone —
+                    but `secondary`, not `primary`: the primary action on this
+                    band is reading the consumer, and a solid red pill beside
+                    it would make the irreversible one the loudest thing on the
+                    page.
+                    Hidden once the consumer has already been handed over —
+                    they are not this coach's to transfer any more, and the
+                    panel behind this band is a dead-end notice. */}
+                {coach.status !== 'withdrawn' && !selectedTransferredAway && (
                   <Button
                     type="button"
                     onClick={() => setTransferOpen(true)}
                     variant="secondary"
+                    tone="destructive"
                   >
                     Transfer consumer
                   </Button>
@@ -4987,7 +5610,7 @@ export function SpacesCoachProfilePage() {
             first thing on the panel rather than as a divider inside it.
             The shared `UnderlineTabs` rather than a second copy of the hero's
             own tab row; its `layoutId` must not collide with that row's. */}
-        {tab === 'Assigned Consumers' && dyads.length > 0 && (
+        {tab === 'Assigned Consumers' && dyads.length > 0 && !selectedTransferredAway && (
           /* `mb-6` on top of the tabpanel's own `gap-10`: 40px read as too
              tight under a row that governs the whole panel below it (direct
              instruction). 40 + 24 + `TabIntro`'s own 16 = 80px. */

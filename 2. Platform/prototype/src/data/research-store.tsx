@@ -17,6 +17,7 @@ import {
 } from './research'
 import {
   CONSUMER_MODULES,
+  catchupSessionsCompleted,
   consumerDyads as initialDyads,
   emptySessionPlan,
   researchNotes as initialResearchNotes,
@@ -123,8 +124,22 @@ export interface ResearchStore {
       caregivingContext: string
     },
   ) => void
-  /** Move a dyad to a different coach — the "no longer participating" hand-off. */
-  transferDyad: (dyadId: string, newCoachId: string) => void
+  /**
+   * Point a dyad at a coach. Serves **both** a first assignment (the dyad had
+   * no coach) and a transfer (it had one) — they are the same write, and the
+   * difference is whether anyone held the consumer before.
+   *
+   * On a transfer it also writes the `transfer` record. Repointing `coachId`
+   * alone leaves the hand-over invisible the instant it commits, which is the
+   * state every screen in this flow exists to show.
+   *
+   * `reason` is a `TRANSFER_REASONS` id. It is **required of a transfer**
+   * (direct instruction — an unexplained reassignment is an audit gap in a
+   * research study) and enforced where the researcher actually chooses it:
+   * the dialog's confirm stays disabled until one is picked. It is optional
+   * in this signature because a first assignment has nothing to explain.
+   */
+  transferDyad: (dyadId: string, newCoachId: string, reason?: string, note?: string) => void
   /** Completed SPACES sessions (with date/time) per dyad id. */
   sessionCompletion: Record<string, SessionCompletionRecord[]>
   /** Tick / untick a session in a dyad's tracker. */
@@ -574,11 +589,59 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
-  const transferDyad = useCallback((dyadId: string, newCoachId: string) => {
-    setConsumerDyads((prev) =>
-      prev.map((d) => (d.id === dyadId ? { ...d, coachId: newCoachId } : d)),
-    )
-  }, [])
+  const transferDyad = useCallback(
+    (dyadId: string, newCoachId: string, reason?: string, note?: string) => {
+      setConsumerDyads((prev) =>
+        prev.map((d) => {
+          if (d.id !== dyadId) return d
+          const previousCoachId = d.coachId
+          /* A dyad with no coach is being **assigned**, not transferred:
+             nobody held them before, so there is no hand-over to record and
+             stamping one would put a "transferred from" banner on a consumer
+             who has only ever had this coach. The same write serves both;
+             only the record below is conditional. */
+          if (!previousCoachId) {
+            return { ...d, coachId: newCoachId, coachAssignedDate: d.coachAssignedDate ?? TODAY }
+          }
+          /* Count the sessions held **now** and freeze them onto the record.
+             Derived live this number would keep climbing as the new coach
+             holds sessions, and the timeline's "Coach re-assigned" card would
+             slide further right every time — the one thing it exists to pin
+             down. Read off `sessionCompletion`, the same live source every
+             other session count on every surface reads, so the frozen number
+             is the one the researcher saw when they confirmed. */
+          const held = catchupSessionsCompleted(sessionCompletion[dyadId] ?? [])
+          return {
+            ...d,
+            coachId: newCoachId,
+            /* `coachAssignedDate` is deliberately NOT moved to today.
+               It is the date the consumer first got a coach, and the timeline
+               opens on it — overwriting it would erase the start of the arc
+               and make the record claim the incoming coach had held them all
+               along. The new coach's own start date is `transfer.date`. */
+            transfer: {
+              fromCoachId: previousCoachId,
+              /* Written once. On a second transfer the existing value is
+                 carried forward, so the timeline's opening card keeps naming
+                 the coach who actually held this consumer at the start. */
+              originalCoachId: d.transfer?.originalCoachId ?? previousCoachId,
+              date: TODAY,
+              // Defaulted rather than left blank: every surface reads
+              // `transferReasonLabel()`, and an empty id would render as an
+              // empty row. The dialog never sends one.
+              reason: reason || 'other',
+              note: note?.trim() || undefined,
+              sessionsWithPreviousCoach: held,
+              // The incoming coach has not run their planning session yet.
+              // It is their first job, and the timeline says so.
+              replanDate: undefined,
+            },
+          }
+        }),
+      )
+    },
+    [sessionCompletion],
+  )
 
   const toggleSession = useCallback((dyadId: string, session: number) => {
     setSessionCompletion((prev) => {
