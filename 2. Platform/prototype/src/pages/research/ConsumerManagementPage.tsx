@@ -12,7 +12,8 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
 import { cn } from '@/lib/utils'
 import { formatDate, formatTime } from '@/data/format'
 import {
-  CONSUMER_MODULES,
+  CONSUMER_MODULE_COUNT,
+  moduleByNumber,
   SPACES_CATCHUP_COUNT,
   catchupSessionsCompleted,
   isPlanSet,
@@ -75,16 +76,14 @@ function moduleActivity(
   if (!inProgress) return { title: 'No module in progress', chip: 'muted' }
 
   const index = moduleIndex(inProgress.moduleId)
-  const mod = CONSUMER_MODULES[index]
+  const mod = moduleByNumber(index)
   // The number, not the title: a full module name wrapped to two lines in this
   // column and pushed every other cell around.
   //
-  // Numbered 1-7 across the consumer-facing list as a consumer sees it, so the
-  // always-unlocked "Getting started" module is Module 1 rather than carrying
-  // a "pre-module" caveat this column has no room to explain. Note this runs
-  // one ahead of the unlock index (`moduleUnlockState`'s module N unlocks from
-  // session N), which is internal machinery and never shown.
-  const title = `Module ${index + 1}`
+  // `moduleIndex` returns the module NUMBER (1-6), so this is it. The `+ 1`
+  // it carried existed only because the array's index 0 was a pre-module; with
+  // that gone, adding one would number the six modules 2-7.
+  const title = `Module ${index}`
   // Progress reads as a percentage, never "N of M slides": a consumer-facing
   // module is a single page of audio/video learning, so a slide count is a
   // coach-training concept that would be meaningless here. `slidesCompleted`
@@ -194,7 +193,7 @@ export function ConsumerManagementPage() {
       // "Not scheduled" rather than inventing one.
       nextPlanRow: nextPlannedSession(sessionPlans[dyad.id], completed),
       moduleActivity: moduleActivity(dyad, catchupSessionsCompleted(completed), isPlanSet(sessionPlans[dyad.id]), completed),
-      // Modules finished, out of the 7 consumer-facing modules. Gated on the
+      // Modules finished, out of the 6 consumer-facing modules. Gated on the
       // session plan for the same reason Module Activity is: no plan means no
       // module has opened yet, so the count is 0 by definition rather than
       // whatever stale engagement records might say.
@@ -595,7 +594,7 @@ export function ConsumerManagementPage() {
                     )}
                   </td>
                   <td className="px-4 py-4 text-caption tabular-nums text-ink-muted">
-                    {row.modulesCompleted} of {CONSUMER_MODULES.length}
+                    {row.modulesCompleted} of {CONSUMER_MODULE_COUNT}
                   </td>
                   <td className="px-4 py-4 text-caption">
                     {/* A state ("All modules completed" / "No module in

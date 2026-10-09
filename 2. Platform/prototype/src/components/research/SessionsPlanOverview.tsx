@@ -125,9 +125,12 @@ export function SessionsPlanOverview({ dyad }: { dyad: ConsumerDyad }) {
               </tr>
             </thead>
             <tbody>
-              {CONSUMER_MODULES.slice(1).map((mod, i) => {
-                // Module at index i+1 is reviewed by internal session i+2,
-                // which a coach and researcher read as "Session i+1".
+              {/* No `.slice(1)`: the pre-module it skipped is gone, so the
+                  array is the six real modules. The body is unchanged because
+                  `modIdx = i + 1` was already producing the module NUMBER. */}
+              {CONSUMER_MODULES.map((mod, i) => {
+                // Module i+1 is reviewed by internal session i+2, which a
+                // coach and researcher read as "Session i+1".
                 const modIdx = i + 1
                 const sessionNumber = modIdx + 1
                 const row = plan?.sessions.find((r) => r.session === sessionNumber)

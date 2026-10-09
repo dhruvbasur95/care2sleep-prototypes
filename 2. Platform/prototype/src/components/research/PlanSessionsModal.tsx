@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Globe,
   ListChecks,
   Video,
 } from 'lucide-react'
@@ -23,7 +24,13 @@ import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import {
-  CONSUMER_MODULES,
+  COACH_TIMEZONE,
+  CONSUMER_MODULE_COUNT,
+  dyadInOtherZone,
+  dyadTimezone,
+  timeInZone,
+  zoneAbbreviation,
+  zoneCity,
   DAY_OF_WEEK_OPTIONS,
   DAY_OF_WEEK_OPTIONS_ALL,
   SPACES_CATCHUP_COUNT,
@@ -241,18 +248,13 @@ function ClientStatusTable({
       value: `${sessionsHeld} of ${SPACES_CATCHUP_COUNT} sessions completed`,
     },
     {
-      /* ⚠️ Denominator is `CONSUMER_MODULES.length` = **7**, not 6. The
-         instruction said "3 of 6 modules completed"; 6 is left as the open
-         question rather than typed in, because every other module count in the
-         app (`ConsumerManagementPage`, `ConsumerDetailPage`,
-         `SpacesCoachProfilePage`) is out of 7 — the 6 named modules plus the
-         always-unlocked "Getting started" pre-module — and hardcoding 6 here
-         would put this table in contradiction with all three while reporting a
-         completed count (3) that includes the pre-module it had stopped
-         counting. If the intent is to count only the six NAMED modules, the
-         numerator has to drop to 2 as well, which is a different fix. */
+      /* Resolved 2026-10-09: the curriculum is **6**, and the pre-module that
+         made this "of 7" has been deleted outright. The numerator came down
+         with it — the completed count no longer includes a seventh record — so
+         this client reads 2 of 6 modules against 2 of 6 sessions, which is the
+         1:1 rule the study actually runs on. */
       label: 'Modules completed',
-      value: `${modulesDone} of ${CONSUMER_MODULES.length} modules completed`,
+      value: `${modulesDone} of ${CONSUMER_MODULE_COUNT} modules completed`,
     },
     {
       /* "Preferred" (direct instruction, 2026-10-09). It distinguishes this
@@ -889,6 +891,7 @@ export function PlanSessionsModal({
    *  `moduleUnlockDayLabel()` so the words are never written at a call site.
    *  `undefined` when there is no transfer, or a transfer with no agreed day. */
   const previousUnlockDay = moduleUnlockDayLabel(dyad.transfer?.previousModuleUnlockDay)
+
   const stepCount = steps.length
   const reviewStep = stepCount - 1
 
@@ -900,11 +903,19 @@ export function PlanSessionsModal({
   // has been made (previously defaulted to Monday/Friday, letting a coach
   // advance without ever having chosen anything).
   const [catchupWeekday, setCatchupWeekday] = useState<number | null>(null)
-  const [catchupTime, setCatchupTime] = useState('10:00')
+  /* Empty, not 10:00/10:45 (direct instruction, 2026-10-09: *"can we not have
+     dates prefilled"*). Same reasoning Round 14.6 applied to the weekday
+     directly above: a prefilled control is an answer the coach never gave, and
+     it let them advance past a question they had not read. It mattered more
+     here than on the day picker, because a time that looks already-decided is
+     exactly the one a coach skips — and for a client in another state it is
+     the field that decides whether the session lands at 8am or 7am in their
+     house. */
+  const [catchupTime, setCatchupTime] = useState('')
   // Zoom-style "from … to" pair (Round 38) — booking a session without a
   // stated length was only half a question for a client slotting it between
   // care tasks.
-  const [catchupEndTime, setCatchupEndTime] = useState('10:45')
+  const [catchupEndTime, setCatchupEndTime] = useState('')
   // Index into the next 5 occurrences of the chosen meeting weekday —
   // "First session on" (Round 38). Defaults to the nearest occurrence, which
   // is visible in the control rather than silently assumed.
@@ -971,8 +982,15 @@ export function PlanSessionsModal({
       setPlannerGeneration((g) => g + 1)
       setModuleWeekday(null)
       setCatchupWeekday(null)
-      setCatchupTime('10:00')
-      setCatchupEndTime('10:45')
+      /* ⚠️ Empty here TOO, not just in `useState`. This effect re-seeds every
+         field each time the modal opens, so the initial state is almost dead
+         code — it is only ever read before the first open. Clearing the
+         `useState` default alone compiled, read correctly, and changed nothing
+         on screen; the pickers still came up at 10:00/10:45. If a default ever
+         needs to come back, it has to change in both places or the two
+         disagree. */
+      setCatchupTime('')
+      setCatchupEndTime('')
       setFirstSessionIso(undefined)
       setFirstSessionTouched(false)
       setTimeTouched(false)
@@ -1052,9 +1070,19 @@ export function PlanSessionsModal({
     }
   }
 
+  /* Two different states, deliberately not one flag.
+
+     `timeMissing` is "not answered yet" and `timeOrderInvalid` is "answered,
+     wrongly". Both must block Next, but only the second may raise the red
+     alert — an empty field the coach has not reached yet is not an error, and
+     showing one the moment the step opens is how a real validation message
+     gets ignored. This split only became necessary once the defaults were
+     removed; with 10:00/10:45 prefilled, `missing` could never happen. */
+  const timeMissing = !catchupTime || !catchupEndTime
   // The session must end after it starts — HH:MM strings compare correctly
   // as plain strings within one day.
-  const timeInvalid = catchupEndTime <= catchupTime
+  const timeOrderInvalid = !timeMissing && catchupEndTime <= catchupTime
+  const timeInvalid = timeMissing || timeOrderInvalid
 
   // The next 5 occurrences of the chosen meeting weekday, strictly after
   // today — Session 0 (the planning meeting producing this plan) is today,
@@ -1142,6 +1170,25 @@ export function PlanSessionsModal({
       return [o.value, `${r} ${r === 1 ? 'day' : 'days'}`]
     }),
   )
+  /**
+   * The chosen catch-up window as the CLIENT's clock will show it, or `null`
+   * when they share the coach's zone and there is nothing to translate.
+   *
+   * Keyed off `firstSessionDate` rather than today, because the offset is not
+   * a constant: a Melbourne-Perth pair is 2 hours apart until Melbourne starts
+   * daylight saving in October and 3 after it, and a weekly plan crosses that.
+   */
+  const clientZoneTimes = useMemo(() => {
+    if (!dyadInOtherZone(dyad) || !catchupTime || !catchupEndTime) return null
+    const zone = dyadTimezone(dyad)
+    const on = firstSessionDate || TODAY
+    return {
+      start: timeInZone(on, catchupTime, COACH_TIMEZONE, zone),
+      end: timeInZone(on, catchupEndTime, COACH_TIMEZONE, zone),
+      abbrev: zoneAbbreviation(on, zone),
+    }
+  }, [dyad, catchupTime, catchupEndTime, firstSessionDate])
+
   const dayLabel = (day: number | null) => DAY_OF_WEEK_OPTIONS_ALL.find((o) => o.value === day)?.label
   const bestModuleDay = (moduleDayOptions.length ? moduleDayOptions : DAY_OF_WEEK_OPTIONS_ALL).reduce(
     (a, b) => (runwayFor(b.value) > runwayFor(a.value) ? b : a),
@@ -1683,7 +1730,21 @@ export function PlanSessionsModal({
                                   'flex flex-col gap-4',
                                 )}
                               >
-                                <p className={STEP_QUESTION}>3. At what time?</p>
+                                {/* The zone is named ON the question (direct
+                                    instruction: *"show the time zone"*).
+                                    Without it "10:00" is just a number, and
+                                    this is the one screen where that number
+                                    means two different things to the two
+                                    people in the session. Resolved from the
+                                    first session's own date so it says AEST or
+                                    AEDT correctly rather than guessing. */}
+                                <p className={STEP_QUESTION}>
+                                  3. At what time?{' '}
+                                  <span className="text-caption text-ink-muted">
+                                    ({zoneAbbreviation(firstSessionDate || TODAY, COACH_TIMEZONE)}, your
+                                    time)
+                                  </span>
+                                </p>
                                 <div className="flex items-center gap-2">
                                   <label htmlFor="plan-catchup-time" className="sr-only">
                                     Session start time
@@ -1699,8 +1760,8 @@ export function PlanSessionsModal({
                                         setTimeTouched(true)
                                       }}
                                       disabled={catchupWeekday === null}
-                                      aria-invalid={timeInvalid || undefined}
-                                      aria-describedby={timeInvalid ? timeErrorId : undefined}
+                                      aria-invalid={timeOrderInvalid || undefined}
+                                      aria-describedby={timeOrderInvalid ? timeErrorId : undefined}
                                       className={STEP_TIME_CONTROL}
                                     />
                                     <ChevronDown
@@ -1722,8 +1783,8 @@ export function PlanSessionsModal({
                                         setTimeTouched(true)
                                       }}
                                       disabled={catchupWeekday === null}
-                                      aria-invalid={timeInvalid || undefined}
-                                      aria-describedby={timeInvalid ? timeErrorId : undefined}
+                                      aria-invalid={timeOrderInvalid || undefined}
+                                      aria-describedby={timeOrderInvalid ? timeErrorId : undefined}
                                       className={STEP_TIME_CONTROL}
                                     />
                                     <ChevronDown
@@ -1731,10 +1792,53 @@ export function PlanSessionsModal({
                                       className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                                   </div>
                                 </div>
+                                {/* What the client will actually see on their
+                                    clock (direct instruction: *"if the client
+                                    is not from same time zone system needs to
+                                    inform it will be x-x time for them below
+                                    the time picker"*).
+
+                                    Only when the zones differ — on a
+                                    same-state client this would restate the
+                                    line above it in different words, which is
+                                    how a genuinely important warning gets
+                                    trained out of being read.
+
+                                    `role="status"`: it changes as the coach
+                                    edits the time, and a sighted coach sees it
+                                    move while a screen-reader user would
+                                    otherwise never be told. */}
+                                {clientZoneTimes && (
+                                  <p
+                                    role="status"
+                                    className="flex items-start gap-2 rounded-sm bg-yellow-100 px-3 py-2 text-caption text-ink"
+                                  >
+                                    <Globe
+                                      aria-hidden="true"
+                                      className="mt-0.5 size-4 shrink-0 text-ink"
+                                      strokeWidth={2.25}
+                                    />
+                                    {/* "Your client", not the two first names
+                                        (direct instruction, 2026-10-09). A
+                                        dyad is ONE client everywhere else in
+                                        this portal — the same convention the
+                                        launching banner's "your new client"
+                                        follows — and naming both people here
+                                        forced a `patient ? 'are' : 'is'` verb
+                                        agreement to say nothing extra. */}
+                                    <span>
+                                      Your client is in {zoneCity(dyadTimezone(dyad))}, so this is{' '}
+                                      <span className="font-semibold text-primary">
+                                        {clientZoneTimes.start} to {clientZoneTimes.end}
+                                      </span>{' '}
+                                      ({clientZoneTimes.abbrev}) for them.
+                                    </span>
+                                  </p>
+                                )}
                               </div>
                             </div>
 
-                            {timeInvalid && catchupWeekday !== null && (
+                            {timeOrderInvalid && catchupWeekday !== null && (
                               <div
                                 role="alert"
                                 id={timeErrorId}
@@ -2106,6 +2210,7 @@ export function PlanSessionsModal({
                                 patchRow={patchRow}
                                 rowIssues={rowIssues}
                                 minDate={PLAN_ANCHOR}
+                                clientTimezone={dyadInOtherZone(dyad) ? dyadTimezone(dyad) : undefined}
                                 idPrefix="plan-row"
                               />
                             </div>

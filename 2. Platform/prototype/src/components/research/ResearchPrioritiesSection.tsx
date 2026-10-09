@@ -92,9 +92,41 @@ export interface ResearchPriorityItem {
    High stays `destructive`; see the Figma note in design-tokens.md. */
 const priorityTone = { High: 'destructive', Medium: 'yellow' } as const
 
-/** Four rows a page — the same count the coach list shows before scrolling, so
- *  the two panels are about the same height. */
-const PAGE_SIZE = 4
+/**
+ * Rows per page — **two, app-wide**.
+ *
+ * ⚠️ This is a single constant on purpose and there is deliberately **no
+ * `pageSize` prop** (direct instruction, 2026-10-09: *"make items that need
+ * paginated as currently it is app wide — some users we use different term,
+ * but component/function is same"*). Four call sites render this component
+ * under three different headings — "Items that need your attention" on the
+ * researcher's Home and the trainee record, "Your this week's priorities" on
+ * the coach's — and the **title is the only thing that may differ between
+ * them**. The list behaves identically for every audience.
+ *
+ * Two rather than the original four because of the coach's Home, which is the
+ * tightest frame this has to fit: there the section shares a two-column row
+ * with the 2x2 KPI grid and is the row's height authority, so its height lands
+ * on the tiles. Measured at 1512:
+ *
+ *   rows | priorities column | each KPI tile
+ *      4 |             566px |  249px   (as reported — tiles ballooned)
+ *      3 |             507px |  220px
+ *      2 |             383px |  158px
+ *
+ * The tiles are designed around `min-h-[120px]`, so four rows had them at more
+ * than double their size and three was still 83% over. A row is 108px in every
+ * portal, so no amount of tightening a row would have done this.
+ *
+ * A short-lived `pageSize` prop let the coach pass a smaller number while the
+ * researcher kept four. That was the wrong shape: it made one shared component
+ * behave two ways, which is exactly the drift this component was created to
+ * end when it replaced the coach portal's `PrioritiesSection` lookalike.
+ *
+ * Nothing is hidden at two a page — the count pill always states the true
+ * total and the pager carries the rest.
+ */
+const PAGE_SIZE = 2
 
 /** Shared by the row's three title treatments so the link, the button and the
  *  plain-text case cannot drift apart. The `after:` overlay makes the whole row

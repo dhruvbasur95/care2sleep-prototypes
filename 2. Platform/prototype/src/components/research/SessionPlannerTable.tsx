@@ -1,8 +1,15 @@
 import { Fragment, useState } from 'react'
-import { AlertTriangle, ChevronDown } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Globe } from 'lucide-react'
 import { Chip } from '@/components/research/StatusChip'
 import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
-import { SPACES_SESSIONS, displaySessionNumber, type SessionPlanRow } from '@/data/spaces'
+import {
+  COACH_TIMEZONE,
+  SPACES_SESSIONS,
+  displaySessionNumber,
+  timeInZone,
+  zoneAbbreviation,
+  type SessionPlanRow,
+} from '@/data/spaces'
 import { formatDate, formatTime } from '@/data/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -62,6 +69,7 @@ export function SessionPlannerTable({
   rowIssues,
   minDate,
   lockedFor,
+  clientTimezone,
   idPrefix = 'plan-row',
 }: {
   rows: SessionPlanRow[]
@@ -76,6 +84,15 @@ export function SessionPlannerTable({
    * for an editable row. Omitted entirely by the wizard, which has none.
    */
   lockedFor?: (session: number) => string | null
+  /**
+   * The client's IANA zone, **only when it differs from the coach's** —
+   * `undefined` when they share one and there is nothing to translate.
+   *
+   * A resolved zone rather than the whole dyad: this table edits a plan and
+   * has no other reason to know who it belongs to, and the caller already
+   * knows how to answer "is this client elsewhere" (`dyadInOtherZone`).
+   */
+  clientTimezone?: string
   /** Namespaces the drawer's input ids, so two instances can never collide. */
   idPrefix?: string
 }) {
@@ -241,6 +258,52 @@ export function SessionPlannerTable({
                                 className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
                             </div>
                           </div>
+                          {/* What this week will be on the client's clock
+                              (direct instruction, 2026-10-09: *"modify will
+                              also need some tweaking. If time is changed show
+                              what time it will be for client"*).
+
+                              Per ROW, using that row's own date — not one
+                              figure for the plan. A weekly arc crosses
+                              Melbourne's October daylight-saving changeover
+                              while Perth never moves, so the same 10:00 am is
+                              8:00 am for the client in September and 7:00 am
+                              in November. A single plan-level line would be
+                              wrong for half the table.
+
+                              `role="status"` because it updates as the coach
+                              edits the time beside it. */}
+                          {clientTimezone && row.date && row.time && (
+                            /* The same yellow banner the planning wizard's own
+                               time step uses (direct instruction, 2026-10-09:
+                               *"put this inside banner as well"*), rather than
+                               the plain muted line this started as. The two are
+                               the identical fact about the identical decision,
+                               one while setting the time and one while changing
+                               it, so they should be the same object — a quiet
+                               grey line here read as a caption on the control
+                               above it instead of as something to check. */
+                            <p
+                              role="status"
+                              className="flex items-start gap-2 rounded-sm bg-yellow-100 px-3 py-2 text-caption text-ink"
+                            >
+                              <Globe
+                                aria-hidden="true"
+                                className="mt-0.5 size-4 shrink-0 text-ink"
+                                strokeWidth={2.25}
+                              />
+                              <span>
+                                For your client:{' '}
+                                <span className="font-semibold text-primary">
+                                  {timeInZone(row.date, row.time, COACH_TIMEZONE, clientTimezone)}
+                                  {row.endTime
+                                    ? ` to ${timeInZone(row.date, row.endTime, COACH_TIMEZONE, clientTimezone)}`
+                                    : ''}
+                                </span>{' '}
+                                ({zoneAbbreviation(row.date, clientTimezone)})
+                              </span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>

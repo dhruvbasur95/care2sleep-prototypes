@@ -76,7 +76,9 @@ import { sessionTranscript, transcriptAsText } from '@/data/transcript'
 import { cn } from '@/lib/utils'
 import { type Coach, type NotificationPreferences } from '@/data/research'
 import {
-  CONSUMER_MODULES,
+  CONSUMER_MODULE_COUNT,
+  moduleByNumber,
+  moduleIndex,
   SPACES_CATCHUP_COUNT,
   PLANNING_SESSION,
   SPACES_SESSIONS,
@@ -1633,8 +1635,9 @@ function ModuleStatusCell({
   completed: SessionCompletionRecord[]
   manualUnlocks: number[]
 }) {
+  // `idx` is the module NUMBER: internal session N reviews module N-1.
   const idx = session - 1
-  const mod = CONSUMER_MODULES[idx]
+  const mod = moduleByNumber(idx)
   if (!mod) return <span className="text-caption text-ink-faint">—</span>
   const locked = moduleUnlockState(idx, completed, manualUnlocks) === 'locked'
   const record = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
@@ -2411,8 +2414,9 @@ export function SessionTracker({
                   const done = !!record
                   const row = plan?.sessions.find((s) => s.session === session.number)
                   const displayNumber = displaySessionNumber(session.number)
+                  // Module NUMBER, not an array index.
                   const idx = session.number - 1
-                  const mod = CONSUMER_MODULES[idx]
+                  const mod = moduleByNumber(idx)
                   const locked = mod ? moduleUnlockState(idx, completed, unlocks) === 'locked' : false
                   // A coach can't mark a session complete before its own
                   // scheduled date — nothing to confirm yet. Applies to both
@@ -2926,7 +2930,7 @@ function StudyProgressKpis({ dyad }: { dyad: ConsumerDyad }) {
       />
       <StatCard
         label="Modules completed"
-        value={`${modulesDone} of ${CONSUMER_MODULES.length}`}
+        value={`${modulesDone} of ${CONSUMER_MODULE_COUNT}`}
         icon={BookOpenCheck}
       />
       <StatCard label="Sessions held" value={`${held} of ${SPACES_CATCHUP_COUNT}`} icon={CalendarCheck} />
@@ -3195,8 +3199,8 @@ function dyadPriorityItems(
 ): ResearchPriorityItem[] {
   const items: ResearchPriorityItem[] = []
   const to = `/research/consumers/${dyad.id}`
-  const moduleNumber = (moduleId: string) =>
-    CONSUMER_MODULES.findIndex((m) => m.id === moduleId) + 1
+  // `moduleIndex` already returns the 1-6 number this needed.
+  const moduleNumber = (moduleId: string) => moduleIndex(moduleId)
 
   /* Titles and priorities are the Notion alert classification's own, so a row
      here and the same alert on Research Home read identically rather than as

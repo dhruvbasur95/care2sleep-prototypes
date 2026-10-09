@@ -3080,7 +3080,16 @@ function CoachHome({ dyads }: { dyads: ConsumerDyad[] }) {
 
             `emptyCopy` rather than letting the section collapse: this box is
             one half of a two-column row, so vacating it would leave the KPI
-            tiles beside a hole. `fillHeight` is deliberately NOT set — it moves
+            tiles beside a hole.
+
+            ⚠️ **No page-size override.** This column is the row's height
+            authority and the KPI grid stretches to it, so the list's length
+            lands on the tiles — four rows put them at 249px against the 120px
+            they are designed around. That is fixed in the component's own
+            `PAGE_SIZE` (now 2, app-wide), NOT with a prop here: the heading is
+            the only thing this portal is allowed to change, and a per-caller
+            row count is the same drift that produced the `PrioritiesSection`
+            lookalike this replaced. `fillHeight` is deliberately NOT set — it moves
             the heading inside the card, and "Quick overview" opposite sits on
             the page canvas, so the two column headings would stop lining up. */}
         <ResearchPrioritiesSection

@@ -1,4 +1,4 @@
-import { CONSUMER_MODULES } from '@/data/spaces'
+import { moduleByNumber, moduleIndex } from '@/data/spaces'
 
 /**
  * The content behind a consumer module's inner pages — Round 46, frames
@@ -301,15 +301,15 @@ const MODULE_INTROS: Record<string, string> = {
  *  id is not a numbered consumer module, or has no content yet. */
 export function moduleLesson(moduleId: string | undefined) {
   if (!moduleId) return null
-  const index = CONSUMER_MODULES.findIndex((m) => m.id === moduleId)
-  // Index 0 is the always-unlocked pre-module and is not a numbered module.
+  // The module NUMBER, 1-6; -1 for an id that is not a module.
+  const index = moduleIndex(moduleId)
   if (index < 1) return null
   const episode = MODULE_EPISODES[moduleId]
   if (!episode) return null
   return {
     index,
     id: moduleId,
-    title: CONSUMER_MODULES[index].title,
+    title: moduleByNumber(index)!.title,
     label: `Module ${index}`,
     intro: MODULE_INTROS[moduleId] ?? '',
     episode,

@@ -1,4 +1,9 @@
-import { CONSUMER_MODULES, SPACES_CATCHUP_COUNT, type ConsumerDyad } from '@/data/spaces'
+import {
+  CONSUMER_MODULES,
+  CONSUMER_MODULE_COUNT,
+  moduleByNumber,
+  type ConsumerDyad,
+} from '@/data/spaces'
 
 /**
  * What the Consumer Portal knows about a consumer's lessons — shared by Home's
@@ -34,8 +39,8 @@ export const MINUTES_PER_SLIDE = 2.5
 export type LessonState = 'start' | 'resume' | 'complete'
 
 export interface LessonView {
-  /** Position in `CONSUMER_MODULES`. Always >= 1 — index 0 is the pre-module
-   *  and is not a consumer lesson. */
+  /** The module NUMBER, 1-6. (Was "position in `CONSUMER_MODULES`", which
+   *  only coincided with the number while a pre-module sat at index 0.) */
   index: number
   id: string
   title: string
@@ -51,14 +56,16 @@ export interface LessonView {
   progress: number
 }
 
-/** The page's own headline count — the 6 numbered lessons, not the 7 entries in
- *  `CONSUMER_MODULES` (index 0 is the pre-module). Derived so the sentence
+/** The page's own headline count. Now simply the curriculum's size — the
+ *  pre-module that made this a special case is gone, and `CONSUMER_MODULE_COUNT`
+ *  is itself asserted equal to `SPACES_CATCHUP_COUNT`. Derived so the sentence
  *  cannot drift from the curriculum, which is how "five stages" ended up over a
  *  six-stage rail three times in the coach portal. */
-export const NUMBERED_LESSON_COUNT = SPACES_CATCHUP_COUNT
+export const NUMBERED_LESSON_COUNT = CONSUMER_MODULE_COUNT
 
 function viewFor(index: number, dyad: ConsumerDyad): LessonView {
-  const mod = CONSUMER_MODULES[index]
+  // `index` is the module NUMBER, so the lookup goes through `moduleByNumber`.
+  const mod = moduleByNumber(index)!
   const record = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
   const slides = record?.slidesCompleted ?? 0
   const totalMinutes = Math.round(mod.slideCount * MINUTES_PER_SLIDE)
@@ -92,18 +99,20 @@ function viewFor(index: number, dyad: ConsumerDyad): LessonView {
  * the same lesson or leave one out between them.
  */
 export function releasedLessons(dyad: ConsumerDyad): LessonView[] {
+  // The highest module NUMBER this consumer has touched.
   let highestTouched = 0
   CONSUMER_MODULES.forEach((mod, i) => {
     const record = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
-    if (record && record.status !== 'not-started') highestTouched = Math.max(highestTouched, i)
+    if (record && record.status !== 'not-started') highestTouched = Math.max(highestTouched, i + 1)
   })
 
-  // Stops at 1, not 0. Round 43, direct instruction: "consumer modules will
-  // start from lesson 1. so no getting started". `CONSUMER_MODULES[0]` is the
-  // always-available pre-module — it is real content and the coach-facing
-  // surfaces still count it, but it is not one of the consumer's *lessons*, so
-  // it never appears here and no label ever reads "Lesson 0".
+  /* Round 43's instruction — "consumer modules will start from lesson 1. so no
+     getting started" — is now satisfied by the data rather than by this loop
+     skipping an entry: the pre-module was deleted from the curriculum on
+     2026-10-09, so module 1 IS the first module and no label can read
+     "Module 0". The guard stays at >= 1 because that is simply where the
+     numbering starts. */
   const views: LessonView[] = []
-  for (let i = highestTouched; i >= 1; i -= 1) views.push(viewFor(i, dyad))
+  for (let n = highestTouched; n >= 1; n -= 1) views.push(viewFor(n, dyad))
   return views
 }

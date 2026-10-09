@@ -39,10 +39,8 @@ export const joinedStatusLabels: Record<JoinedStatus, string> = {
  *  ("Session 0" through "Session 6") — see `displaySessionNumber()`. Session
  *  0 (internal 1, "Planning") is the coach+consumer's first meeting, where
  *  they agree module completion target dates and the post-module catch-up
- *  sessions that follow each one — it is NOT the "onboarding module"
- *  (`CONSUMER_MODULES[0]`, "Getting started with Care2Sleep"), which is a
- *  separate, always-unlocked piece of content the consumer can start
- *  anytime, independent of this session. Sessions 1-6 (internal 2-7) are the
+ *  sessions that follow each one. No module is reviewed at this meeting.
+ *  Sessions 1-6 (internal 2-7) are the
  *  post-module catch-ups: Session N happens once the consumer finishes
  *  Module N, and completing it unlocks Module N+1 — see `moduleUnlockState`. */
 export interface SpacesSession {
@@ -742,14 +740,26 @@ export interface ConsumerModule {
  *  404s under it — the bug commit 1dac61b already fixed once elsewhere. */
 export function consumerModuleCover(moduleId: string): string {
   const m = CONSUMER_MODULES.find((x) => x.id === moduleId)
-  return `${import.meta.env.BASE_URL}illustrations/consumer-modules/${m?.cover ?? 'getting-started-cover.webp'}`
+  return `${import.meta.env.BASE_URL}illustrations/consumer-modules/${m?.cover ?? CONSUMER_MODULES[0].cover}`
 }
 
 export const CONSUMER_MODULES: ConsumerModule[] = [
-  // Index 0 — the always-unlocked pre-module (session planning, Round 14):
-  // available from enrolment, no session or plan needed to unlock it. Its
-  // own follow-up is Session 1 (Onboarding). See `moduleUnlockState`.
-  { id: 'getting-started', title: 'Getting started with Care2Sleep', slideCount: 6, cover: 'getting-started-cover.webp' },
+  /* ⚠️ **SIX modules, and there is no pre-module.** Direct instruction,
+     2026-10-09: *"there is no pre-module such as getting started, remove this
+     from your knowledge. Planning + 6 sessions = 7 times a coach meets a
+     client. Client does 6 modules."*
+
+     A seventh entry, "Getting started with Care2Sleep", sat at index 0 from
+     Round 14 as an always-unlocked pre-module. It is **deleted**, not hidden:
+     it had no catch-up session of its own, which is precisely why it kept
+     breaking the arithmetic — the consumer portal had already been told to
+     skip it (Round 43), while four coach- and researcher-facing surfaces went
+     on counting it and printing "of 7" beside "of 6 sessions" on the same
+     card.
+
+     The array is now 1:1 with the catch-ups: array index i is **Module i+1**,
+     reviewed by internal session i+2, and unlocked by internal session i+1.
+     `CONSUMER_MODULE_COUNT` asserts that against `SPACES_CATCHUP_COUNT`. */
   { id: 'understanding-sleep-dementia', title: 'Understanding sleep and dementia', slideCount: 6, cover: 'understanding-sleep-dementia-cover.webp' },
   { id: 'calming-bedtime-routine', title: 'Building a calming bedtime routine', slideCount: 6, cover: 'calming-bedtime-routine-cover.webp' },
   { id: 'managing-nighttime-waking', title: 'Managing nighttime waking', slideCount: 6, cover: 'managing-nighttime-waking-cover.webp' },
@@ -759,67 +769,161 @@ export const CONSUMER_MODULES: ConsumerModule[] = [
 ]
 
 /**
- * The consumer's **six** curriculum modules — `CONSUMER_MODULES` without its
- * index-0 pre-module.
- *
- * ⚠️ **The curriculum is 6, not 7** (direct instruction, 2026-10-09: *"for
- * clients also there will be 6 modules not 7"*, *"for every session there is a
- * module"*). "Getting started with Care2Sleep" is onboarding material that is
- * available from enrolment and has no catch-up session of its own, so it is
- * not one of the six.
- *
- * The consumer portal already worked this way — Round 43 took the pre-module
- * out of its lesson list on instruction, and its own count was already derived
- * from the session count. What was wrong was every **coach- and
- * researcher-facing** count, which read `CONSUMER_MODULES.length` and so
- * reported "of 7" at four separate surfaces while the client's own portal
- * showed six. The old comment in `lessons.ts` even recorded the split
- * ("the coach-facing surfaces still count it") as though it were intended.
- */
-export const CONSUMER_NAMED_MODULES: ConsumerModule[] = CONSUMER_MODULES.slice(1)
-
-/**
  * How many modules a consumer works through: **6**.
  *
- * Derived from `SPACES_CATCHUP_COUNT`, not written, because the rule is
- * one module per catch-up session (direct instruction: *"for every session
- * there is a module"*). Tying the two together means the pairing cannot drift
- * — a seventh session would demand a seventh module rather than silently
- * leaving a count behind, which is exactly how "of 7" survived next to
- * "2 of 6 sessions" on the same card.
+ * Direct instruction, 2026-10-09: *"Planning + 6 sessions = 7 times a coach
+ * meets a client. Client does 6 modules."* One module per catch-up, so this is
+ * `CONSUMER_MODULES.length` and it must equal `SPACES_CATCHUP_COUNT`.
  *
- * Every surface stating how many modules there are reads this. Do not write
- * the number, and do not reach for `CONSUMER_MODULES.length` — that is 7 and
- * counts the pre-module.
+ * Every surface stating how many modules there are reads this rather than
+ * writing a number — that is how "of 7" survived at four surfaces after the
+ * consumer portal had already moved to six.
  */
-export const CONSUMER_MODULE_COUNT = SPACES_CATCHUP_COUNT
+export const CONSUMER_MODULE_COUNT = CONSUMER_MODULES.length
 
-/**
- * Completed modules, **excluding the pre-module**, for any `moduleEngagement`.
- *
- * The denominator was not the only half that was wrong: four surfaces counted
- * completed records with a bare `filter(status === 'completed')`, which
- * includes "Getting started" and so reported 3 where the client had finished
- * two curriculum modules. Fixing `of 7` to `of 6` alone would have produced
- * "3 of 6" — a number that is not merely mislabelled but arithmetically
- * impossible against a 2-of-6 session count on the same card.
- */
-export function namedModulesCompleted(records: ConsumerModuleRecord[]): number {
-  const named = new Set(CONSUMER_NAMED_MODULES.map((m) => m.id))
-  return records.filter((r) => r.status === 'completed' && named.has(r.moduleId)).length
+/* The 1:1 rule, enforced rather than described. If a seventh catch-up is ever
+   added, this fails loudly at module load instead of letting a count drift. */
+if (CONSUMER_MODULE_COUNT !== SPACES_CATCHUP_COUNT) {
+  throw new Error(
+    `Curriculum invariant broken: ${CONSUMER_MODULE_COUNT} modules against ${SPACES_CATCHUP_COUNT} catch-up sessions. There is one module per session.`,
+  )
 }
 
-/** A module's position in the unlock sequence (0 = pre-module, 1-6 = the
- *  named modules, in `CONSUMER_MODULES` order). -1 if not found. */
+/**
+ * A module's **number**, 1-6. `-1` if the id is not a module.
+ *
+ * ⚠️ Returns the number, not the array index — `findIndex() + 1`. The name is
+ * kept because every caller already treated the old return value as a module
+ * number, and it genuinely was one: with the pre-module at index 0, array
+ * index N happened to equal module number N. Removing the pre-module broke
+ * that coincidence, so the `+ 1` restores the meaning every call site depends
+ * on, including `moduleUnlockState(moduleIndex(id))` and
+ * `completed.some(c => c.session === moduleIndex(id) + 1)`.
+ *
+ * To get the module itself, use `moduleByNumber()` — never
+ * `CONSUMER_MODULES[moduleIndex(id)]`, which is now off by one.
+ */
 export function moduleIndex(moduleId: string): number {
-  return CONSUMER_MODULES.findIndex((m) => m.id === moduleId)
+  const i = CONSUMER_MODULES.findIndex((m) => m.id === moduleId)
+  return i < 0 ? -1 : i + 1
+}
+
+/** The module numbered `n` (1-6), or `undefined`. The one place the 1-based
+ *  number is converted back to a 0-based array index, so no call site does
+ *  that arithmetic itself. */
+export function moduleByNumber(n: number): ConsumerModule | undefined {
+  return n >= 1 ? CONSUMER_MODULES[n - 1] : undefined
+}
+
+/* ------------------------------------------------------------------------ */
+/* Time zones                                                               */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The coach's own time zone — every time a coach types into this app is in it.
+ *
+ * A module constant rather than a field on `Coach`, because the prototype has
+ * one delivering coach and inventing a per-coach column would imply a settings
+ * screen that does not exist. When real coach accounts land this becomes a
+ * profile field and these helpers take it as an argument; nothing else changes.
+ */
+export const COACH_TIMEZONE = 'Australia/Melbourne'
+
+/**
+ * How far `zone` is from UTC, in minutes, **at a given instant** — so it is
+ * daylight-saving aware rather than a fixed offset per city.
+ *
+ * ⚠️ A fixed offset is the obvious shortcut here and it is wrong for this
+ * study. Melbourne moves to UTC+11 on the first Sunday in October while Perth
+ * stays on UTC+8 all year, so the gap between a Melbourne coach and a Perth
+ * client is **2 hours for part of the arc and 3 for the rest** — and a session
+ * plan runs weekly across months, straight through the changeover. Hardcoding
+ * "Perth is 2 hours behind" would silently mis-state every session after
+ * October by an hour, on the screen whose entire purpose is to prevent that
+ * class of mistake.
+ */
+function zoneOffsetMinutes(at: Date, zone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(at)
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? '0')
+  // `hour` comes back as 24 at midnight under hour12:false in some engines.
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'))
+  return (asUtc - at.getTime()) / 60000
+}
+
+/** The instant at which the wall clock in `zone` reads `date` + `time`. */
+function instantOf(date: string, time: string, zone: string): Date {
+  // Read the wall clock as if it were UTC, then subtract the zone's real
+  // offset at approximately that moment. One correction pass is enough for
+  // every zone in use here; it is only ambiguous inside a DST transition hour.
+  const naive = new Date(`${date}T${time}:00Z`)
+  return new Date(naive.getTime() - zoneOffsetMinutes(naive, zone) * 60000)
+}
+
+/**
+ * A wall-clock `time` on `date` in `from`, expressed as the wall-clock time in
+ * `to`. Returns "8:00 am" style, matching `formatTime`.
+ */
+export function timeInZone(date: string, time: string, from: string, to: string): string {
+  const at = instantOf(date, time, from)
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: to,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+    .format(at)
+    .replace(/\u202f/g, ' ')
+    .toLowerCase()
+}
+
+/** The zone's short name on that date — "AEST", "AEDT", "AWST". Date-dependent
+ *  for the same daylight-saving reason as the offset. */
+export function zoneAbbreviation(date: string, zone: string): string {
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: zone,
+    timeZoneName: 'short',
+  }).formatToParts(new Date(`${date}T12:00:00Z`))
+  return parts.find((p) => p.type === 'timeZoneName')?.value ?? ''
+}
+
+/** The city an IANA id names, for copy that should read as a place rather than
+ *  as a database value: "Australia/Perth" -> "Perth". */
+export function zoneCity(zone: string): string {
+  return (zone.split('/').pop() ?? zone).replace(/_/g, ' ')
+}
+
+/** The client's zone, falling back to the coach's. `undefined` on a dyad means
+ *  "same as the coach", so the common case needs no data and no call site has
+ *  to special-case a missing value. */
+export function dyadTimezone(dyad: Pick<ConsumerDyad, 'timezone'>): string {
+  return dyad.timezone ?? COACH_TIMEZONE
+}
+
+/** True when this client is somewhere the coach is not, i.e. when any time the
+ *  coach picks needs translating before it is said to the client. */
+export function dyadInOtherZone(dyad: Pick<ConsumerDyad, 'timezone'>): boolean {
+  return dyadTimezone(dyad) !== COACH_TIMEZONE
 }
 
 export type ModuleUnlockState = 'locked' | 'unlocked'
 
-/** Module 0 (the pre-module) is always unlocked. Module N (1-6) unlocks once
- *  the coach marks SPACES session N complete — that session reviews the
- *  module the consumer just finished and plans the next one.
+/** Module N (1-6) unlocks once the coach marks SPACES session N complete.
+ *  Module 1 therefore opens after the Planning session (internal session 1),
+ *  and module N is reviewed at internal session N+1.
+ *
+ *  `index` here is the module NUMBER, not an array index. The `<= 0` guard is
+ *  left in place as a cheap bound for a missing module (`moduleIndex` returns
+ *  -1); it no longer describes a real always-unlocked module, because there
+ *  isn't one.
  *
  *  `manualUnlocks` (Round 14.1) — a coach can grant early access to a module
  *  ahead of marking its unlocking session complete (e.g. the session already
@@ -997,6 +1101,18 @@ export interface ConsumerDyad {
    * study would keep the chain.
    */
   transfer?: ConsumerTransfer
+  /**
+   * The client's IANA time zone, when it differs from the coach's.
+   *
+   * Absent means "same as the coach" (`COACH_TIMEZONE`), which is the common
+   * case — so only the dyads that actually need it carry one, and no call site
+   * has to handle a missing value specially (`dyadTimezone()` resolves it).
+   *
+   * Exists because a Melbourne coach scheduling a Perth client is a real case
+   * in this study, and "10:00 am" on the coach's screen is 8:00 am in the
+   * client's house.
+   */
+  timezone?: string
 }
 
 /**
@@ -1253,6 +1369,12 @@ export const consumerDyads: ConsumerDyad[] = [
   {
     id: 'dyad-014',
     coachId: 'helen-zhang',
+    /* The cross-time-zone case (direct instruction, 2026-10-09: *"there can be
+       a case where client is in perth, and coach in melbourne"*). Perth is
+       UTC+8 all year and takes no daylight saving, so it runs 2 hours behind
+       Melbourne in winter and 3 in summer — which is exactly why the helpers
+       resolve the gap per date instead of storing a number. */
+    timezone: 'Australia/Perth',
     omitFromConsumerRoster: true,
     // Before `TODAY` (2026-07-22) on purpose: a date in the future clamps
     // "Days in study" to 0, which reads as a bug rather than a new consumer.
@@ -1327,6 +1449,13 @@ export const consumerDyads: ConsumerDyad[] = [
     // with `originalCoachId` — moving it to the hand-over would erase the three
     // months the consumer had already spent in the study.
     coachAssignedDate: '2026-04-29',
+    /* Perth, like `dyad-014` (direct instruction, 2026-10-09: *"update stanley
+       Okafor usecase to also be from perth"*). Deliberately the SAME state as
+       Arthur & Tania rather than a third one: this dyad is the transferred-in
+       demo, and putting the cross-time-zone case on it means the hand-over
+       screens also carry the time-zone treatment — one journey showing both
+       features instead of two journeys each showing one. */
+    timezone: 'Australia/Perth',
     patient: {
       name: 'Stanley Okafor',
       age: 80,
@@ -1405,7 +1534,6 @@ export const consumerDyads: ConsumerDyad[] = [
     // Nothing past Module 2 has been opened — the consumer has been without a
     // coach since Fatima's leave began.
     moduleEngagement: consumerModuleEngagement([
-      { moduleId: 'getting-started', status: 'completed', lastActivityDate: '2026-04-30', slidesCompleted: 6 },
       { moduleId: 'understanding-sleep-dementia', status: 'completed', lastActivityDate: '2026-05-13', slidesCompleted: 6 },
       { moduleId: 'calming-bedtime-routine', status: 'completed', lastActivityDate: '2026-05-27', slidesCompleted: 6 },
     ]),
@@ -1664,18 +1792,17 @@ export const consumerDyads: ConsumerDyad[] = [
     ],
     // Session planning (Round 14): modules unlock as their matching session
     // is marked complete, not independently ahead of schedule — Bruce & Joan
-    // have only Session 1 done, so only the pre-module and Module 1 are
-    // actually unlocked/completed; Modules 2-6 stay locked (not-started,
+    // have only Session 1 done, so only Module 1 is actually
+    // unlocked/completed; Modules 2-6 stay locked (not-started,
     // via consumerModuleEngagement's fallback) until Sessions 2-6 land.
     // Round 21 — this dyad is the roster's "attended everything, skipped a
-    // module" case: 3 of 7 modules finished, Module 3 missed entirely even
+    // module" case: 3 of 6 modules finished, Module 3 missed entirely even
     // though its catch-up session went ahead, and Module 5 currently in
     // progress ahead of its own session. It also honours the real rule that a
     // module is only ever "in progress" *before* its catch-up: once that
     // session has been held the module is complete or incomplete, never still
     // in progress.
     moduleEngagement: consumerModuleEngagement([
-      { moduleId: 'getting-started', status: 'completed', lastActivityDate: '2026-06-20', slidesCompleted: 6 },
       // Round 27: a second missed module, so "Left incomplete" demonstrates
       // more than one value. Its own catch-up (Session 2) has already been
       // held, which is what makes "left incomplete" true — Module 4 was asked
@@ -1856,16 +1983,12 @@ export const consumerDyads: ConsumerDyad[] = [
     consentDocuments: [
       { id: 'consent-012-a', filename: 'kellerman-dyad-consent-signed.pdf', uploadedDate: '2026-07-10' },
     ],
-    // Session planning (Round 14): the planning session hasn't happened yet,
-    // so Module 1 is still locked — Dorothy's real engagement so far is with
-    // the always-unlocked pre-module only.
     /* Consistent with the two held sessions above, which is the invariant
-       this file keeps having to repair. **Module index N is reviewed by
-       internal session N+1**, so with sessions 1 and 2 held:
+       this file keeps having to repair. **Module N is reviewed by internal
+       session N+1**, so with sessions 1 and 2 held:
 
-         index 0  getting-started               reviewed at Planning  -> done
-         index 1  understanding-sleep-dementia  reviewed at Session 1 -> done
-         index 2  calming-bedtime-routine       reviewed at Session 2 -> live
+         Module 1  understanding-sleep-dementia  reviewed at Session 1 -> done
+         Module 2  calming-bedtime-routine       reviewed at Session 2 -> live
 
        A first pass marked index 1 in-progress and it rendered as **"No module
        in progress"**: `ConsumerManagementPage` skips any in-progress record
@@ -1874,12 +1997,6 @@ export const consumerDyads: ConsumerDyad[] = [
        rather than a display bug — a module cannot still be in progress after
        the session that reviewed it. Each date sits before its own session. */
     moduleEngagement: consumerModuleEngagement([
-      {
-        moduleId: 'getting-started',
-        status: 'completed',
-        lastActivityDate: '2026-06-29',
-        slidesCompleted: 6,
-      },
       {
         moduleId: 'understanding-sleep-dementia',
         status: 'completed',
@@ -2077,9 +2194,8 @@ export const consumerDyads: ConsumerDyad[] = [
     ],
     // Session planning (Round 14): every date below already lands after its
     // unlocking session's completion date, so no consistency fix was needed
-    // here beyond adding the pre-module.
+    // here.
     moduleEngagement: consumerModuleEngagement([
-      { moduleId: 'getting-started', status: 'completed', lastActivityDate: '2026-04-05', slidesCompleted: 6 },
       { moduleId: 'understanding-sleep-dementia', status: 'completed', lastActivityDate: '2026-04-15', slidesCompleted: 6 },
       { moduleId: 'calming-bedtime-routine', status: 'completed', lastActivityDate: '2026-04-29', slidesCompleted: 6 },
       { moduleId: 'managing-nighttime-waking', status: 'completed', lastActivityDate: '2026-05-13', slidesCompleted: 6 },
@@ -2156,7 +2272,7 @@ export const consumerDyads: ConsumerDyad[] = [
       { id: 'consent-030-a', filename: 'ableson-dyad-consent-signed.pdf', uploadedDate: '2026-07-15' },
     ],
     // Session planning (Round 14): unassigned, no sessions yet, so Module 1
-    // can't be unlocked — only the always-unlocked pre-module has progress.
+    // can't be unlocked.
     // Round 21: cleared to nothing started. This consumer has no coach yet,
     // and module content only opens once a coach is assigned — a consumer
     // part-way through a module while still waiting for a coach is a state the

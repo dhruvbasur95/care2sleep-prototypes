@@ -8,6 +8,8 @@ import {
   SPACES_CATCHUP_COUNT,
   SPACES_SESSIONS,
   displaySessionNumber,
+  dyadInOtherZone,
+  dyadTimezone,
   type ConsumerDyad,
   type SessionPlanRow,
 } from '@/data/spaces'
@@ -382,6 +384,7 @@ export function EditSessionPlanModal({
                     patchRow={patchRow}
                     rowIssues={rowIssues}
                     minDate={PLAN_ANCHOR}
+                    clientTimezone={dyadInOtherZone(dyad) ? dyadTimezone(dyad) : undefined}
                     /* The one thing this screen has that the wizard does not:
                        rows for sessions that have already happened. They show
                        the date they were actually held and carry no Modify

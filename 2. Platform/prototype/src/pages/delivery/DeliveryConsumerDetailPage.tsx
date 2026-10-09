@@ -66,7 +66,9 @@ import {
   displaySessionNumber,
   isPlanSet,
   nextPlannedSession,
-  CONSUMER_MODULES,
+  COACH_TIMEZONE,
+  moduleByNumber,
+  zoneAbbreviation,
   PLANNING_SESSION,
   sessionRowLabel,
   SPACES_CATCHUP_COUNT,
@@ -1528,6 +1530,25 @@ function UpcomingSessionCard({
                       : 'Not set'}
                   </dd>
                 </div>
+                {/* Time zone, after Session time (direct instruction,
+                    2026-10-09). Every time on this page is the COACH's —
+                    `COACH_TIMEZONE`, Melbourne — so the card now says so
+                    instead of leaving "10:00 AM" to be read as whatever zone
+                    the reader is in. That matters here because a client can be
+                    in another state: Arthur & Tania are in Perth, two hours
+                    behind for most of the year and three once Melbourne goes
+                    onto daylight saving.
+
+                    Resolved per session DATE, never written as a literal —
+                    the same session plan spans the October changeover, so a
+                    hardcoded "AEST" would be wrong for every session after it
+                    while sitting directly beside the time it describes. */}
+                <div className="flex flex-col gap-2">
+                  <dt className="text-caption-medium text-ink-muted">Time zone</dt>
+                  <dd className="text-body-md text-ink">
+                    {next.date ? zoneAbbreviation(next.date, COACH_TIMEZONE) : 'Not set'}
+                  </dd>
+                </div>
               </dl>
             </div>
 
@@ -2030,8 +2051,9 @@ const CHECKLIST_PANEL_H = 'h-[440px] overflow-y-auto'
  */
 function moduleForSession(session: number | undefined) {
   if (session === undefined) return undefined
+  // `index` is the module NUMBER: internal session N reviews module N-1.
   const index = session - 1
-  const module = CONSUMER_MODULES[index]
+  const module = moduleByNumber(index)
   return module ? { index, module } : undefined
 }
 

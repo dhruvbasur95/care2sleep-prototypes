@@ -42,11 +42,13 @@ import { downloadCsv } from '@/lib/csv'
 import { SlideCard } from '@/pages/research/CoachProfilePage'
 import {
   CONSUMER_MODULES,
+  CONSUMER_MODULE_COUNT,
   SLEEP_DIARY_QUESTIONS,
   SPACES_CATCHUP_COUNT,
   catchupSessionsCompleted,
   computeSleepDiary,
   displaySessionNumber,
+  moduleByNumber,
   moduleIndex,
   moduleUnlockState,
   sessionRowLabel,
@@ -455,7 +457,7 @@ function consumerKeyUpdates({
     .sort((a, b) => (a.lastActivityDate ?? '').localeCompare(b.lastActivityDate ?? ''))
     .at(-1)
   if (lastDone) {
-    const title = CONSUMER_MODULES[moduleIndex(lastDone.moduleId)]?.title ?? lastDone.moduleId
+    const title = moduleByNumber(moduleIndex(lastDone.moduleId))?.title ?? lastDone.moduleId
     rows.push({
       id: 'last-completed-module',
       label: 'Last completed module',
@@ -501,10 +503,10 @@ export function OverviewTab({ dyad }: { dyad: ConsumerDyad }) {
   const plan = sessionPlans[dyad.id]
 
   const modulesDone = dyad.moduleEngagement.filter((r) => r.status === 'completed').length
-  const totalModules = CONSUMER_MODULES.length
+  const totalModules = CONSUMER_MODULE_COUNT
   const inProgress = dyad.moduleEngagement.find((r) => r.status === 'in-progress')
   const inProgressTitle = inProgress
-    ? (CONSUMER_MODULES[moduleIndex(inProgress.moduleId)]?.title ?? inProgress.moduleId)
+    ? (moduleByNumber(moduleIndex(inProgress.moduleId))?.title ?? inProgress.moduleId)
     : undefined
   const lastActivity = dyad.moduleEngagement
     .map((r) => r.lastActivityDate)
@@ -1843,7 +1845,9 @@ function learningCycles(
   completed: SessionCompletionRecord[],
   unlocks: number[],
 ): LearningCycle[] {
-  return CONSUMER_MODULES.slice(1).map((mod, i) => {
+  /* No `.slice(1)`: the pre-module it skipped is gone. `modIdx = i + 1` was
+     already the module NUMBER, so everything below is untouched. */
+  return CONSUMER_MODULES.map((mod, i) => {
     const modIdx = i + 1
     const internal = modIdx + 1
     const row = plan?.sessions.find((s) => s.session === internal)
@@ -2014,8 +2018,11 @@ interface LogEvent {
 /** `Module 3 — Managing nighttime waking`, or just the title for the
  *  always-available pre-module, which has no number. Keeps every log detail in
  *  the same shape as the timeline's own "Module 3" rows. */
+/** `idx` is a module NUMBER (1-6). The `=== 0` branch this carried was for the
+ *  pre-module, which no longer exists; `< 1` now only catches an unknown id,
+ *  where the bare title is still the right fallback. */
 function logModuleLabel(idx: number, title: string): string {
-  return idx === 0 ? title : `Module ${idx} — ${title}`
+  return idx < 1 ? title : `Module ${idx} — ${title}`
 }
 
 function studyLogEvents(
@@ -2035,7 +2042,7 @@ function studyLogEvents(
      only has to say *which thing*. */
   dyad.moduleEngagement.forEach((rec) => {
     const idx = moduleIndex(rec.moduleId)
-    const label = logModuleLabel(idx, CONSUMER_MODULES[idx]?.title ?? rec.moduleId)
+    const label = logModuleLabel(idx, moduleByNumber(idx)?.title ?? rec.moduleId)
     if (!rec.lastActivityDate) return
     if (rec.status === 'completed') {
       out.push({
@@ -2205,7 +2212,7 @@ export function ModuleCompletionOverviewCard({ dyad }: { dyad: ConsumerDyad }) {
   const unlocks = manualModuleUnlocks[dyad.id] ?? []
   const cycles = learningCycles(dyad, plan, completed, unlocks)
 
-  const totalModules = CONSUMER_MODULES.length
+  const totalModules = CONSUMER_MODULE_COUNT
   const complete = Math.min(
     dyad.moduleEngagement.filter((r) => r.status === 'completed').length,
     totalModules,
@@ -2213,21 +2220,12 @@ export function ModuleCompletionOverviewCard({ dyad }: { dyad: ConsumerDyad }) {
   const counts = { complete }
   const completionRate = Math.round((counts.complete / totalModules) * 100)
 
-  /* All seven modules in study order. Index 0 is the always-available
-     pre-module — it has NO catch-up session of its own, so its state comes
-     straight from the engagement record rather than from a cycle, and it is
-     labelled by name because it has no number. */
-  const moduleBreakdown = CONSUMER_MODULES.map((mod, idx) => {
-    if (idx === 0) {
-      const rec = dyad.moduleEngagement.find((r) => r.moduleId === mod.id)
-      const status: LearningCycle['moduleStatus'] =
-        rec?.status === 'completed'
-          ? 'complete'
-          : rec?.status === 'in-progress'
-            ? 'in-progress'
-            : 'not-started'
-      return { id: mod.id, label: 'Getting started', status }
-    }
+  /* All six modules in study order. The index-0 special case this carried —
+     a pre-module with no catch-up session of its own, read straight off the
+     engagement record and labelled by name because it had no number — is gone
+     with the pre-module. Every module now has a number and a session. */
+  const moduleBreakdown = CONSUMER_MODULES.map((mod, i) => {
+    const idx = i + 1
     const cycle = cycles.find((c) => c.moduleIndex === idx)
     return {
       // Number only, no title: real module titles are long enough to truncate
