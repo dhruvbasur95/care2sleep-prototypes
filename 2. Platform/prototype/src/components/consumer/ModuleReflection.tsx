@@ -139,7 +139,7 @@ const NAV =
  * the way through the module rather than two new hues.
  *
  * ⚠️ **The border stays `consumer-primary` in both states, including when the
- * carer's box is filled yellow.** `yellow-300` against the white row measures
+ * carer's box is filled yellow.** `yellow-400` against the white row measures
  * about 1.7:1, so a yellow-bordered box would have no boundary a reader could
  * see — WCAG 1.4.11 wants 3:1 for a control's own edge. Keeping the purple
  * outline gives every box the same visible shape and lets the *fill* carry
@@ -150,7 +150,7 @@ const NAV =
  */
 const TICK_ON: Record<ReflectionWho, string> = {
   ple: 'border-consumer-primary bg-consumer-primary text-white',
-  carer: 'border-consumer-primary bg-yellow-300 text-ink',
+  carer: 'border-consumer-primary bg-yellow-400 text-ink',
 }
 
 const TICK =

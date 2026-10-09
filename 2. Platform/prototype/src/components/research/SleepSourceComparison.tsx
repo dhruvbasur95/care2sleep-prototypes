@@ -63,7 +63,7 @@ interface Segment {
  */
 const SEGMENTS: Segment[] = [
   { key: 'sleep', label: 'Actual sleep', fill: 'var(--primary)' },
-  { key: 'latency', label: 'Sleep latency', fill: 'var(--color-yellow-300)' },
+  { key: 'latency', label: 'Sleep latency', fill: 'var(--color-yellow-400)' },
   { key: 'waso', label: 'WASO', fill: 'var(--color-success)' },
   { key: 'ema', label: 'Early morning awakening', fill: 'var(--color-destructive)' },
 ]
@@ -197,7 +197,7 @@ export function SleepSourceComparison() {
           <dl className="flex shrink-0 flex-col gap-3 lg:w-[220px]">
             {SEGMENTS.map((seg) => (
               <div key={seg.key} className="flex items-center gap-3">
-                {/* A hairline edge on every swatch. `yellow-300` measures
+                {/* A hairline edge on every swatch. `yellow-400` measures
                     **1.5:1** against white — far under WCAG 1.4.11's 3:1 — so
                     the pale dot had no discernible boundary at all. The ring
                     gives it one without recolouring a token that is correct

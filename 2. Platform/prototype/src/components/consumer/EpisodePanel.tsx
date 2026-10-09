@@ -97,7 +97,7 @@ function AlbumArt({ widthPct, scale }: { widthPct: number; scale: number }) {
 function withMark(text: string) {
   return text.split(/(==[^=]+==)/g).map((part, i) =>
     part.startsWith('==') && part.endsWith('==') ? (
-      /* `yellow-400` `#ffb600`, not the frame's `#ffb846`. The ramp's nearest
+      /* `yellow-500` `#ffb600`, not the frame's `#ffb846`. The ramp's nearest
          step is one channel off in blue and reads identically as a highlighter,
          and the standing rule prefers a real token over a fourth one-off yellow
          that exists nowhere else in four portals. `ink` on it rasterises at
@@ -112,7 +112,7 @@ function withMark(text: string) {
            portal's scale is capped at 600 (nothing heavier, standing rule), and
            the speaker roles beside it are already 600, so a 700 playhead would
            be the only thing on the surface breaking that ceiling. */
-        className="box-decoration-clone rounded-xs bg-yellow-400 px-0.5 font-semibold text-ink"
+        className="box-decoration-clone rounded-xs bg-yellow-500 px-0.5 font-semibold text-ink"
       >
         {part.slice(2, -2)}
       </mark>

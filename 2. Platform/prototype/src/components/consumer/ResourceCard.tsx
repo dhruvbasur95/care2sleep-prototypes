@@ -107,7 +107,7 @@ function ResourceArtwork() {
           transform: 'translate(-50%, -50%) rotate(4.45deg)',
         }}
       >
-        {/* Frame `941:5857` — the offset blob behind, `yellow-400`. Its own
+        {/* Frame `941:5857` — the offset blob behind, `yellow-500`. Its own
             shape and its own 3.35deg, and nothing is registered against it. */}
         <span
           className="absolute flex items-center justify-center"

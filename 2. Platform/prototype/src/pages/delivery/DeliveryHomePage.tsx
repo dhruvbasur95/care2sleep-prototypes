@@ -279,7 +279,12 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
                     )}
                   >
                     <td className="px-6 py-3">
-                      <div className="flex min-h-11 flex-col justify-center gap-0.5 text-caption">
+                      {/* `items-start` — the `Transferred` chip below is a
+                          flex child of this column, and without it a pill
+                          stretches to the column's full width and reads as a
+                          bar. Same fix the researcher's own caseload table
+                          carries for the same chip. */}
+                      <div className="flex min-h-11 flex-col items-start justify-center gap-0.5 text-caption">
                         {dyad.patient && (
                           <span className="text-ink">
                             <span className="text-ink-faint">PLE:</span>{' '}
@@ -308,6 +313,19 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
                             </Link>
                           )}
                         </span>
+                        {/* Under the names, after the carer — the same slot,
+                            the same yellow and the same shared `Chip` the
+                            researcher's caseload table gives a transferred-in
+                            consumer, so the flag is one vocabulary across both
+                            portals rather than two inventions of it.
+                            `mt-1` because the names are a 2px-gap stack and a
+                            27px pill butting straight onto them reads as a
+                            third name. */}
+                        {dyad.transfer && (
+                          <span className="mt-1">
+                            <Chip tone="yellow" label="Transferred" />
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -615,7 +633,7 @@ const DEFAULT_BLOB_PHOTO = '/illustrations/onboarding/photo.jpg'
  * drawings. Same for the check/badge/sparkle stickers — identical paths *and*
  * fills, differing only in export size. So this commits one copy of each and
  * scales it. Only the back sheets are genuinely per-variant, because the fill
- * is baked into the file: `purple-500` behind the purple banner, `yellow-400`
+ * is baked into the file: `purple-500` behind the purple banner, `yellow-500`
  * behind the yellow one.
  *
  * Layout is Figma's own grid-with-margins flattened to absolute positioning,
@@ -1182,7 +1200,7 @@ function StageExpectBanner({ index }: { index: number }) {
       // nothing else moves. The Begin banner is the stated exception and keeps
       // its CTA inline beneath the copy.
       // `border border-transparent` is a **layout** value, not a colour: the
-      // reflection banner below carries a real 1px `yellow-300` stroke, so its
+      // reflection banner below carries a real 1px `yellow-400` stroke, so its
       // content box starts 1px further in than this one's did and the two copy
       // columns could never quite line up. The ground paints under a transparent
       // border (`background-clip: border-box`), so nothing changes on screen.
@@ -1236,7 +1254,7 @@ function StageExpectBanner({ index }: { index: number }) {
  * reaches the end of the pathway (frame `647:13009` puts it in this same Home
  * hero slot, with the rest of the page unchanged).
  *
- * `yellow-300` ground rather than the reflection banner's `yellow-200`: this is
+ * `yellow-400` ground rather than the reflection banner's `yellow-200`: this is
  * the loudest moment in the portal and it should be the warmest surface in it.
  * The blob is the largest of the four on this page and is the only one carrying
  * the rosette.
@@ -1248,7 +1266,7 @@ function StageExpectBanner({ index }: { index: number }) {
 function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate: () => void }) {
   return (
     <section
-      className="relative flex flex-col items-center gap-8 overflow-hidden rounded-lg border border-parchment bg-yellow-300 py-12 pl-6 pr-12 text-ink shadow-card xl:flex-row xl:items-center"
+      className="relative flex flex-col items-center gap-8 overflow-hidden rounded-lg border border-parchment bg-yellow-400 py-12 pl-6 pr-12 text-ink shadow-card xl:flex-row xl:items-center"
       data-node-id="647:13277"
     >
       <Confetti play />
@@ -1333,9 +1351,10 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
  *    dead button and never omitted.
  * 3. Only C, O and H reach this component. See `STAGES_WITH_REFLECTION`.
  *
- * Same yellow ground as before, and the same `yellow-300` correction applies —
- * the frame's stroke style is *named* `yellow/400` but its hex `#FFCC4D` is this
- * app's `yellow-300`.
+ * Same yellow ground as before. The off-by-one correction this comment used to
+ * carry is **gone**: the app's ramp was renumbered onto Figma's own steps on
+ * 2026-10-09, so the frame's `yellow/400` #FFCC4D and this app's `yellow-400`
+ * are now the same name for the same colour. See `index.css`'s ramp note.
  */
 function StageReflectionBanner({
   index,
@@ -1373,7 +1392,7 @@ function StageReflectionBanner({
     <section
       // `xl:gap-10`: the same widened copy-to-CTA space the expect banner above
       // takes, so the two read as one column (direct instruction).
-      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-yellow-300 bg-yellow-200 py-4 pl-4 pr-6 text-purple-950 shadow-card xl:flex-row xl:items-center xl:justify-between xl:gap-10"
+      className="flex flex-col items-center gap-6 overflow-hidden rounded-lg border border-yellow-400 bg-yellow-200 py-4 pl-4 pr-6 text-purple-950 shadow-card xl:flex-row xl:items-center xl:justify-between xl:gap-10"
       data-node-id="638:11876"
     >
       <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-6 xl:flex-row xl:items-center">
@@ -2879,6 +2898,37 @@ function coachPriorities(
       priority: 'High',
       title: 'New client assigned',
       note: `${dyadFirstNames(d)}. Plan their sessions.`,
+      to: `/delivery/consumers/${d.id}`,
+    })
+  }
+
+  /* 1b. Clients **transferred in**, which rule 1 cannot see.
+         `coachAssignedDate` is deliberately not moved by a hand-over — it is
+         the date the *original* coach got them, and the researcher's timeline
+         pairs it with `originalCoachId` — so a consumer who landed on this
+         caseload yesterday still carries an assignment date months old and
+         never enters the window above. Without this the dashboard shows the
+         client, counts them in "Session plans not created", and then offers
+         nothing to act on.
+
+         Keyed on `transfer.date` against the same 14-day window, and only
+         while `replanDate` is unset: once the incoming coach has run their own
+         planning session the hand-over is done and the row would be telling
+         them to do what they just did. */
+  for (const d of dyads) {
+    if (!d.transfer || d.transfer.replanDate) continue
+    if (d.transfer.date < addDays(TODAY, -NEW_ASSIGNMENT_DAYS)) continue
+    items.push({
+      id: `transfer-${d.id}`,
+      // Dummy severity, same rule as 1: the client is waiting on the coach.
+      priority: 'High',
+      title: 'Client transferred to you',
+      /* Names the split rather than just the task. A coach picking this up
+         needs to know they are joining an arc in progress, and the figure is
+         the frozen `sessionsWithPreviousCoach` every other transfer surface
+         quotes — never a live count, which would climb as they hold sessions
+         of their own. */
+      note: `${dyadFirstNames(d)}. ${d.transfer.sessionsWithPreviousCoach} of ${SPACES_CATCHUP_COUNT} sessions already held. Plan the rest.`,
       to: `/delivery/consumers/${d.id}`,
     })
   }

@@ -335,12 +335,12 @@ export function ContactDetailsCard({
           {/* Role badge. Not a `<Chip>`: these are identity labels, not status,
               and the frame gives them the brand's own two hues rather than any
               of the six status tones. Contrast computed from the painted fills
-              — white on `purple-500` 4.85:1, `ink` on `yellow-400` 9.90:1,
+              — white on `purple-500` 4.85:1, `ink` on `yellow-500` 9.90:1,
               both clear AA. */}
           <span
             className={cn(
               'inline-flex h-6 shrink-0 items-center rounded-full px-2 text-caption-medium',
-              role === 'PLE' ? 'bg-purple-500 text-white' : 'bg-yellow-400 text-ink',
+              role === 'PLE' ? 'bg-purple-500 text-white' : 'bg-yellow-500 text-ink',
             )}
           >
             {role}
@@ -1936,11 +1936,11 @@ const CYCLE_TONE: Record<ToneKey | 'current', { card: string; marker: string; ri
      study's own arc: everything else is a step the consumer takes, and this
      is an administrative event that happened *to* them. Grey filed it beside
      the sessions it sits between, which is exactly where it should not read.
-     `yellow-50` / `yellow-300` is the `Chip tone="yellow"` pairing, so the
+     `yellow-50` / `yellow-400` is the `Chip tone="yellow"` pairing, so the
      card, the flag pill above it, the page banner and the caseload chip are
-     one colour story. `yellow-400` (#ffb600) for the marker — the ramp's
+     one colour story. `yellow-500` (#ffb600) for the marker — the ramp's
      darkest step, and the only one that reads as a filled dot on the spine. */
-  transfer: { card: 'border-yellow-300 bg-yellow-50', marker: 'bg-yellow-400', ring: 'border-yellow-400' },
+  transfer: { card: 'border-yellow-400 bg-yellow-50', marker: 'bg-yellow-500', ring: 'border-yellow-500' },
   /* NEEDS ATTENTION — a module left incomplete after its session was held, or
      a session that was moved. **Red** (direct instruction), card, marker and
      stroke together.
@@ -5049,7 +5049,7 @@ export function ConsumerDetailPage() {
                   {active && (
                     <motion.span
                       layoutId="consumer-detail-tab-underline"
-                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-300"
+                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-400"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}

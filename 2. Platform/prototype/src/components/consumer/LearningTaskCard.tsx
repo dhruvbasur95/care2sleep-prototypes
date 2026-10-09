@@ -87,7 +87,7 @@ import { releasedLessons } from './lessons'
  * The frame's yellow progress fill — `linear-gradient(90.93deg, #FFCC4D 69.75%,
  * #DEA108 122.42%)`. Written as a literal rather than a token because it is a
  * two-stop gradient at a specific angle, which the palette has no equivalent
- * for; the two stops are the yellow ramp's own `yellow-300` and a darker step.
+ * for; the two stops are the yellow ramp's own `yellow-400` and a darker step.
  */
 const PROGRESS_FILL =
   'linear-gradient(90.93deg, rgb(255,204,77) 69.75%, rgb(222,161,8) 122.42%)'

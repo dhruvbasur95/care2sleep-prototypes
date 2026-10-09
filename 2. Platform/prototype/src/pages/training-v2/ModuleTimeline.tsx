@@ -110,15 +110,15 @@ const SEQUENCE_LETTERS = ['A', 'B', 'C']
  * it, and tinted per tier — purple for Foundational, yellow for Sleep.
  *
  * The frame draws both letters in white. That is fine on `primary`
- * (10.62:1) and a real failure on `yellow-400`, where white measures
+ * (10.62:1) and a real failure on `yellow-500`, where white measures
  * **1.76:1**. Yellow cannot carry white text at any size. `ink` on
- * `yellow-400` measures 9.90:1 and is already this app's established pairing
+ * `yellow-500` measures 9.90:1 and is already this app's established pairing
  * for that swatch (Round 24's Carer badge), so the yellow tier takes dark
  * text while the purple tier keeps the frame's white.
  */
 const TIER_MARKER: Record<string, string> = {
   foundational: 'bg-primary text-white',
-  sleep: 'bg-yellow-400 text-ink',
+  sleep: 'bg-yellow-500 text-ink',
 }
 
 function SequenceMarker({ number, tierKey }: { number: number; tierKey: string }) {

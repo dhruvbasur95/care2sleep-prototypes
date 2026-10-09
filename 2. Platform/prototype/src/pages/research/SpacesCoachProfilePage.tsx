@@ -1706,6 +1706,80 @@ const STEPS = [
   },
 ]
 
+/**
+ * The banner's two colour schemes, written as one object so they cannot
+ * partially diverge.
+ *
+ * A transferred-in client gets the **yellow** scheme — `yellow-200` `#ffe299`
+ * (direct instruction, 2026-10-09: *"card colour lets also change from p500 to
+ * y400"*, then *"use y200 for background, 400 is too dark"*). Yellow is this
+ * feature's flag colour everywhere else — the caseload chip, the researcher's
+ * own top banner and `TransferredAwayNotice` — so a coach meeting the
+ * hand-over for the first time meets the colour they will keep seeing against
+ * this client. `yellow-400` was the first pass and read as too heavy a surface
+ * to carry a whole banner; `yellow-200` is the same signal at the weight a
+ * full-width panel wants.
+ *
+ * Note it is the **same tint the solid scheme uses for its step markers**.
+ * That is a coincidence of a 5-step ramp, not a relationship — the two never
+ * meet, because the yellow card's own markers are `primary`.
+ *
+ * ⚠️ **It is not a one-line fill swap**, which is the whole reason this is an
+ * object. Both alternative grounds are LIGHT, so every piece of copy, the step
+ * markers, the dotted rule, the contact-card stroke and both button tones
+ * invert together — white clears AA on neither. A scheme with one entry left
+ * behind is a contrast failure, and the failure is invisible in a screenshot
+ * taken on the other scheme. Changing the ground again means changing `card`
+ * and re-measuring; nothing else below should need to move.
+ *
+ * The inversion is deliberate and symmetrical: the solid card carries light
+ * markers with ink numerals, and the light card carries `primary` markers with
+ * white ones. Same two colours, same roles swapped.
+ */
+const BANNER_SCHEME = {
+  /** The default: a brand-purple card for a newly assigned client. */
+  assigned: {
+    card: 'bg-primary',
+    /** `text-white` on `primary` measures 15.6:1. */
+    copy: 'text-white',
+    /** The sub copy's quieter step. Not `ink-muted`, which is calibrated for
+     *  white and `purple-50` and is unreadable on either card. */
+    copyMuted: 'text-white/90',
+    marker: 'bg-yellow-200 text-ink',
+    /** Painted, NOT `border-dotted`: CSS derives a dotted border's dot spacing
+     *  from its width, so stroke and gap cannot be set independently. */
+    rule: 'bg-[repeating-linear-gradient(to_bottom,#ffffff66_0_3px,transparent_3px_11px)]',
+    contactStroke: 'border-yellow-200',
+    /** `inverse` is the tone built for a coloured band — white fill, brand label. */
+    buttonTone: 'inverse' as const,
+  },
+  /** A client handed over from another coach. */
+  transferred: {
+    /** `yellow-200` `#ffe299` — Figma's `yellow/200`. */
+    card: 'bg-yellow-200',
+    /** `text-ink` on `yellow-200` measures 13.76:1. */
+    copy: 'text-ink',
+    /** No `/90` sibling here. Translucent ink on a light tint greys toward the
+     *  card rather than receding cleanly the way white does on a solid, and the
+     *  measured gain over plain ink is not worth a second value.
+     *  `TransferredAwayNotice` settled the same question the same way. */
+    copyMuted: 'text-ink',
+    /** The inversion. `primary` on `yellow-200` is **9.30:1** as a boundary;
+     *  white on `primary` is 15.6:1 for the numeral. Carrying the solid
+     *  scheme's own `yellow-200` markers across would paint them the card's
+     *  exact colour — they would vanish completely, not merely dim. */
+    marker: 'bg-primary text-white',
+    rule: 'bg-[repeating-linear-gradient(to_bottom,#1a1a1a66_0_3px,transparent_3px_11px)]',
+    /** Follows the markers, as the purple scheme's stroke follows its own. */
+    contactStroke: 'border-primary',
+    /** `brand`, not `inverse`: a white-filled `inverse` primary barely separates
+     *  from a light ground and reads as a hole in it, and `inverse`'s secondary
+     *  is white-on-transparent, which is the AA failure above. `brand` gives a
+     *  `primary` fill and a white-with-`primary`-stroke pair instead. */
+    buttonTone: 'brand' as const,
+  },
+}
+
 export function SessionPlanEmptyBanner({
   dyad,
   ctaRef,
@@ -1716,6 +1790,14 @@ export function SessionPlanEmptyBanner({
   onCreate: () => void
 }) {
   const [whyOpen, setWhyOpen] = useState(false)
+  /* Derived from the dyad, NOT taken as a prop.
+     Both call sites — the coach's own Coaching workspace and `DyadSection`'s
+     coach branch — render this for whatever client is open, so a prop would be
+     a fact each caller had to remember to pass, and the one that forgot would
+     show a transferred client the newly-assigned banner. The record already
+     knows. */
+  const transferred = !!dyad.transfer
+  const scheme = transferred ? BANNER_SCHEME.transferred : BANNER_SCHEME.assigned
   /* `items-center` on the row, with `max-lg:items-start` for the stacked
      state: the calendar sits at the vertical centre of the banner on desktop.
      It was moved to `items-start` earlier the same day and moved back by
@@ -1747,7 +1829,12 @@ export function SessionPlanEmptyBanner({
        `items-start`, not `items-center`: the column is taller than it was, and
        a 185px calendar at its vertical midpoint sat ~200px clear of the title
        it belongs with. */
-    <Card className="flex-row items-start gap-12 overflow-hidden border-parchment bg-primary py-12 pr-12 pl-6 max-lg:flex-col max-lg:gap-8 max-lg:p-8">
+    <Card
+      className={cn(
+        'flex-row items-start gap-12 overflow-hidden border-parchment py-12 pr-12 pl-6 max-lg:flex-col max-lg:gap-8 max-lg:p-8',
+        scheme.card,
+      )}
+    >
       {/* The wrapper is load-bearing, not tidiness. `Card` carries
           `has-[>img:first-child]:pt-0` and `*:[img:first-child]:rounded-t-xl`
           — media-card rules for artwork meant to bleed to the top edge. A bare
@@ -1767,23 +1854,114 @@ export function SessionPlanEmptyBanner({
           the copy sizes the row instead of wrapping inside it. This project has
           shipped a real horizontal page scroll that way three times. */}
       <div className="flex min-w-0 flex-1 flex-col gap-6 px-4 max-lg:px-0">
-        <div className="flex flex-col gap-2 text-white">
+        <div className={cn('flex flex-col items-start gap-2', scheme.copy)}>
+          {/* The label above the title (direct instruction). A white pill with
+              ink text rather than `Chip tone="yellow"`: that chip is
+              `yellow-50` on a `yellow-300` stroke, which measures **1.19:1**
+              against this card and disappears into it. White is the same move
+              `TransferredAwayNotice` makes for its glyph circle on the same
+              yellow, and for the same reason.
+
+              `items-start` on the column above — a pill in a `flex-col`
+              stretches to the full width without it, which turns it into a
+              bar. The same one-line fix the caseload tables needed.
+
+              ⚠️ The `primary` stroke is load-bearing, not decoration. A bare
+              white pill on this card measures **1.5:1** as a boundary — the
+              text inside it is 17.4:1 and legible, so it is not a 1.4.11
+              failure, but it reads as a washed-out patch rather than a label.
+              The stroke takes the boundary to **7.85:1** and ties the pill to
+              the markers, the contact card and the secondary CTA, which all
+              now carry `primary` on this scheme. It also keeps `Chip`'s own
+              geometry — 27px, `px-4`, `text-fine`, a 1px border — so this is
+              that chip in a tone the shared component does not have, not a
+              fourth chip shape.
+
+              The glyph is this feature's own `ArrowLeftRight`, the one the
+              researcher's banner and notice card both carry, so the three
+              surfaces are one mark. */}
+          {transferred && (
+            <span className="mb-1 inline-flex h-[27px] shrink-0 items-center gap-1.5 rounded-full border border-primary bg-white px-4 text-fine text-ink">
+              <ArrowLeftRight aria-hidden="true" className="size-3.5" strokeWidth={2.25} />
+              Transferred client
+            </span>
+          )}
           {/* No full stop — direct instruction. "your new client" singular: a
               dyad is ONE client everywhere else in this portal, and the sub
               copy below names both people anyway. "a session plan", not "your"
-              — the plan is the client's, made together. */}
+              — the plan is the client's, made together.
+
+              ⚠️ **IMPERATIVE, never "Creating…"** (direct instruction,
+              2026-10-09, after `/design:ux-copy`). Both titles read "Creating
+              a session plan…" until then, and a present progressive asserts
+              the action is under way — on a banner that exists only while it
+              has NOT started, with a "Create session plan" button underneath
+              still waiting to be pressed.
+
+              It is not only a tense slip. `PlanSessionsModal` renders
+              **"Creating your session plan…"** as its LOADING state — gated on
+              `busy`, ellipsis, inside an `aria-live` region — and those are the
+              app's only other progressives. So the two surfaces were saying
+              nearly the same words for opposite states, and a screen-reader
+              user got no signal between them. The heading verb now matches the
+              button verb, which is also the plainest form for this audience.
+
+              The two titles stay one word's POSITION apart — "new" sits on the
+              client when they are newly assigned, and on the plan when they
+              are transferred, because that is where the truth is each time: a
+              transferred client is three months into the study and not new at
+              all, but a hand-over inherits no plan, so the plan is. Keeping
+              one shared shape is what makes them read as one surface in two
+              states rather than two announcements.
+
+              ⚠️ And they must move TOGETHER. Fixing one alone leaves a
+              progressive and an imperative on the same component. */}
           <h3 className="font-display text-display-md text-balance">
-            Creating a session plan with your new client
+            {transferred
+              ? 'Create a new session plan with your client'
+              : 'Create a session plan with your new client'}
           </h3>
           {/* The sub copy carries the assignment and the shape of what follows
               and stops there; the two steps below say what to do. */}
-          <p className="text-body leading-[1.4] text-white/90">
-            You have been assigned{' '}
-            <strong className="font-bold text-white">
-              {dyad.patient ? `${dyad.patient.name} and ${dyad.carer.name}` : dyad.carer.name}
-            </strong>
-            . There are two steps before your first session.
-          </p>
+          {/* `text-pretty` on BOTH, not `text-balance` — the precedent set by
+              direct instruction on 2026-09-17 ("no orphans, I can see orphan in
+              module summary"). These run to six lines at 375, and
+              `text-wrap: balance` is capped at four in every engine that ships
+              it, so it would have done nothing. `pretty` leaves the earlier
+              lines alone and only pulls a word down to stop the last line
+              being a single word. Measured: the transferred sub copy left
+              "together." alone on line 6 at 375 before this. */}
+          {transferred ? (
+            <p className={cn('text-body text-pretty leading-[1.4]', scheme.copyMuted)}>
+              {/* ⚠️ **Does not name the previous coach** (direct instruction,
+                  2026-10-09: *"just dont mention old coach name"*). The
+                  researcher's own banner does name them, because a researcher
+                  is auditing a hand-over between two people they manage; a
+                  coach is being handed a client, and whose caseload they came
+                  off is not what the coach has to act on. */}
+              <strong className="font-bold text-ink">
+                {dyad.patient ? `${dyad.patient.name} and ${dyad.carer.name}` : dyad.carer.name}
+              </strong>{' '}
+              {dyad.patient ? 'have' : 'has'} been transferred to you. There are two steps before
+              your first session together.
+              {/* ⚠️ **No session split here** (direct instruction, 2026-10-09:
+                  *"do not give any summary here about their sessions, that goes
+                  inside"*). It read "N of 6 sessions were already held and are
+                  not repeated" until the planning wizard gained its own
+                  transferred-client summary step, which states that and three
+                  other facts in a table. Saying it in both places made the
+                  banner a worse version of the step it leads into. The banner
+                  announces the hand-over; the numbers live one click in. */}
+            </p>
+          ) : (
+            <p className={cn('text-body text-pretty leading-[1.4]', scheme.copyMuted)}>
+              You have been assigned{' '}
+              <strong className="font-bold text-white">
+                {dyad.patient ? `${dyad.patient.name} and ${dyad.carer.name}` : dyad.carer.name}
+              </strong>
+              . There are two steps before your first session.
+            </p>
+          )}
         </div>
 
         {/* The vertical timeline. The dotted rule is a painted
@@ -1797,20 +1975,25 @@ export function SessionPlanEmptyBanner({
           {STEPS.map((step, i) => (
             <li key={step.key} className="flex gap-4">
               <div className="flex flex-col items-center">
-                {/* 40px, `yellow-200`, `ink` numeral. Never white on these
-                    tints — they are light enough that white fails AA on all of
-                    them, which is why the record-page hero's active tab
-                    underline uses the same pairing. */}
+                {/* 40px. `yellow-200` with an `ink` numeral on the purple
+                    card, `primary` with a white one on the yellow — see
+                    `BANNER_SCHEME`. Never white on a yellow tint: the ramp is
+                    light enough that white fails AA on every step of it, which
+                    is why the record-page hero's active tab underline uses the
+                    same ink pairing. */}
                 <span
                   aria-hidden="true"
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-200 text-body-md text-ink"
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-full text-body-md',
+                    scheme.marker,
+                  )}
                 >
                   {i + 1}
                 </span>
                 {i < STEPS.length - 1 && (
                   <span
                     aria-hidden="true"
-                    className="w-[1.5px] flex-1 bg-[repeating-linear-gradient(to_bottom,#ffffff66_0_3px,transparent_3px_11px)]"
+                    className={cn('w-[1.5px] flex-1', scheme.rule)}
                   />
                 )}
               </div>
@@ -1827,8 +2010,10 @@ export function SessionPlanEmptyBanner({
                   i < STEPS.length - 1 && 'pb-16',
                 )}
               >
-                <p className="text-body-md text-white">{step.title}</p>
-                <p className="text-body leading-[1.4] text-white/90">{step.instruction}</p>
+                <p className={cn('text-body-md', scheme.copy)}>{step.title}</p>
+                <p className={cn('text-body leading-[1.4]', scheme.copyMuted)}>
+                  {step.instruction}
+                </p>
                 <div className="mt-2">
                   {step.key === 'contact' ? (
                     /* A white card with a `yellow-200` stroke, tying it to the
@@ -1838,7 +2023,12 @@ export function SessionPlanEmptyBanner({
                        unbreakable token. Equal field width falls out of the
                        grid rather than a number — the `1fr` track sizes to the
                        longer value and both rows share it. */
-                    <div className="w-fit max-w-full rounded-sm border border-yellow-200 bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.10),0_8px_24px_rgba(0,0,0,0.18)]">
+                    <div
+                      className={cn(
+                        'w-fit max-w-full rounded-sm border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.10),0_8px_24px_rgba(0,0,0,0.18)]',
+                        scheme.contactStroke,
+                      )}
+                    >
                       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 leading-[1.4]">
                         <dt className="flex items-center text-body text-ink-muted">Email:</dt>
                         <dd className="min-w-0 rounded-xs bg-purple-50 px-3 py-2 text-body-md break-words text-ink">
@@ -1863,7 +2053,7 @@ export function SessionPlanEmptyBanner({
                         ref={ctaRef}
                         type="button"
                         onClick={onCreate}
-                        tone="inverse"
+                        tone={scheme.buttonTone}
                         className="min-w-[232px]"
                       >
                         Create session plan
@@ -1876,7 +2066,7 @@ export function SessionPlanEmptyBanner({
                         type="button"
                         onClick={() => setWhyOpen(true)}
                         variant="secondary"
-                        tone="inverse"
+                        tone={scheme.buttonTone}
                         className="min-w-[232px]"
                       >
                         Why is this necessary?
@@ -3455,7 +3645,7 @@ function TransferredAwayNotice({
  * the caseload row with — the banner and the chip are the same signal seen
  * at two zoom levels.
  *
- * `text-ink` on `yellow-200`, never white: the ramp tops out at `yellow-400`
+ * `text-ink` on `yellow-200`, never white: the ramp tops out at `yellow-500`
  * and every step of it is a light tone, so white fails AA on all of them.
  */
 function TransferTopBanner({
@@ -5567,7 +5757,7 @@ export function SpacesCoachProfilePage() {
                   {active && (
                     <motion.span
                       layoutId="spaces-coach-profile-tab-underline"
-                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-300"
+                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-400"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}

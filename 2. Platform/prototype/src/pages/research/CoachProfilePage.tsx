@@ -3737,8 +3737,8 @@ function StagePipeline({ coach }: { coach: Coach }) {
  * doesn't have:
  *
  *   #FFE299 (yellow-200) -> #B1D2B9   success @ 35%
- *   #FFCC4D (yellow-300) -> #6DAA7D   success @ 65%
- *   #FFB700 (~yellow-400) -> #1F7D37  success @ 100%
+ *   #FFCC4D (yellow-400) -> #6DAA7D   success @ 65%
+ *   #FFB700 (~yellow-500) -> #1F7D37  success @ 100%
  *
  * If `--color-success` ever moves, regenerate the file from `certificate.svg`
  * with the same three mixes rather than hand-editing these hexes.
@@ -4231,11 +4231,11 @@ export function CoachProfilePage() {
                   {active && (
                     <motion.span
                       layoutId="coach-profile-tab-underline"
-                      /* `yellow-300` (`Yellow/300` #ffcc4d) — the frame's active
+                      /* `yellow-400` (`yellow/400` #ffcc4d) — the frame's active
                          underline. The yellow is the only warm accent on the
                          band, so it is what marks the selected tab; `primary`
                          would be invisible against the `primary` hero band. */
-                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-300"
+                      className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-yellow-400"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}

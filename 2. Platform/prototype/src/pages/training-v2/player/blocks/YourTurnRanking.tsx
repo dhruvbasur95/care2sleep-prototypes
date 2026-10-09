@@ -475,7 +475,7 @@ function EmptySlot({
     <>
       {/* The mid-fi's own 40px ghost numeral, inside the field rather than on a
           badge beside it. */}
-      <span aria-hidden="true" className="text-display-lg text-yellow-400">
+      <span aria-hidden="true" className="text-display-lg text-yellow-500">
         {rank + 1}
       </span>
       <span className="text-body text-ink-muted">Drop a step here</span>
@@ -494,8 +494,8 @@ function EmptySlot({
       ? // Hovering an empty field mid-carry: the fill deepens and the dashes
         // become a solid edge, so the target reads as a target rather than as
         // one of four identical boxes.
-        'border-solid border-yellow-400 bg-yellow-300'
-      : 'border-yellow-400 bg-yellow-200',
+        'border-solid border-yellow-500 bg-yellow-400'
+      : 'border-yellow-500 bg-yellow-200',
   )
 
   if (!armed || !onChoose) {
@@ -511,7 +511,7 @@ function EmptySlot({
       onClick={onChoose}
       className={cn(
         shell,
-        'cursor-pointer outline-none hover:border-solid hover:border-yellow-400 hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-ring',
+        'cursor-pointer outline-none hover:border-solid hover:border-yellow-500 hover:bg-yellow-400 focus-visible:ring-2 focus-visible:ring-ring',
       )}
     >
       {body}

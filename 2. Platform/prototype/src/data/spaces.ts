@@ -254,6 +254,16 @@ export const DAY_OF_WEEK_OPTIONS_ALL = [
   { label: 'Sunday', short: 'Sun', value: 0 },
 ]
 
+/** A module unlock day's name. Every surface naming one reads this — none of
+ *  them writes the words, exactly as `transferReasonLabel()` works, so the
+ *  planning wizard's own picker and the transferred-client summary beside it
+ *  cannot drift apart. Returns `undefined` for an unset day so a caller can
+ *  render its own "not recorded" wording rather than a stray dash. */
+export function moduleUnlockDayLabel(value: number | null | undefined): string | undefined {
+  if (value === null || value === undefined) return undefined
+  return DAY_OF_WEEK_OPTIONS_ALL.find((o) => o.value === value)?.label
+}
+
 export function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`)
   d.setDate(d.getDate() + days)
@@ -748,6 +758,57 @@ export const CONSUMER_MODULES: ConsumerModule[] = [
   { id: 'using-sleep-data', title: 'Using your sleep diary and Fitbit data', slideCount: 6, cover: 'using-sleep-data-cover.webp' },
 ]
 
+/**
+ * The consumer's **six** curriculum modules — `CONSUMER_MODULES` without its
+ * index-0 pre-module.
+ *
+ * ⚠️ **The curriculum is 6, not 7** (direct instruction, 2026-10-09: *"for
+ * clients also there will be 6 modules not 7"*, *"for every session there is a
+ * module"*). "Getting started with Care2Sleep" is onboarding material that is
+ * available from enrolment and has no catch-up session of its own, so it is
+ * not one of the six.
+ *
+ * The consumer portal already worked this way — Round 43 took the pre-module
+ * out of its lesson list on instruction, and its own count was already derived
+ * from the session count. What was wrong was every **coach- and
+ * researcher-facing** count, which read `CONSUMER_MODULES.length` and so
+ * reported "of 7" at four separate surfaces while the client's own portal
+ * showed six. The old comment in `lessons.ts` even recorded the split
+ * ("the coach-facing surfaces still count it") as though it were intended.
+ */
+export const CONSUMER_NAMED_MODULES: ConsumerModule[] = CONSUMER_MODULES.slice(1)
+
+/**
+ * How many modules a consumer works through: **6**.
+ *
+ * Derived from `SPACES_CATCHUP_COUNT`, not written, because the rule is
+ * one module per catch-up session (direct instruction: *"for every session
+ * there is a module"*). Tying the two together means the pairing cannot drift
+ * — a seventh session would demand a seventh module rather than silently
+ * leaving a count behind, which is exactly how "of 7" survived next to
+ * "2 of 6 sessions" on the same card.
+ *
+ * Every surface stating how many modules there are reads this. Do not write
+ * the number, and do not reach for `CONSUMER_MODULES.length` — that is 7 and
+ * counts the pre-module.
+ */
+export const CONSUMER_MODULE_COUNT = SPACES_CATCHUP_COUNT
+
+/**
+ * Completed modules, **excluding the pre-module**, for any `moduleEngagement`.
+ *
+ * The denominator was not the only half that was wrong: four surfaces counted
+ * completed records with a bare `filter(status === 'completed')`, which
+ * includes "Getting started" and so reported 3 where the client had finished
+ * two curriculum modules. Fixing `of 7` to `of 6` alone would have produced
+ * "3 of 6" — a number that is not merely mislabelled but arithmetically
+ * impossible against a 2-of-6 session count on the same card.
+ */
+export function namedModulesCompleted(records: ConsumerModuleRecord[]): number {
+  const named = new Set(CONSUMER_NAMED_MODULES.map((m) => m.id))
+  return records.filter((r) => r.status === 'completed' && named.has(r.moduleId)).length
+}
+
 /** A module's position in the unlock sequence (0 = pre-module, 1-6 = the
  *  named modules, in `CONSUMER_MODULES` order). -1 if not found. */
 export function moduleIndex(moduleId: string): number {
@@ -975,6 +1036,26 @@ export interface ConsumerTransfer {
   note?: string
   /** Catch-up sessions held under the previous coach, frozen (see above). */
   sessionsWithPreviousCoach: number
+  /**
+   * The module unlock weekday the **previous** coach and this consumer had
+   * agreed, as a `DAY_OF_WEEK_OPTIONS_ALL` value (0-6, `Date#getDay()`).
+   *
+   * Stored as a number so no surface writes a weekday name — read it through
+   * `moduleUnlockDayLabel()`, the same rule `transferReasonLabel()` follows.
+   *
+   * Why it has to be frozen here rather than read off the old plan: a
+   * hand-over does not carry the previous coach's `SessionPlan` forward, and
+   * the incoming coach builds a fresh one, so by the time anyone wants to know
+   * what the client was used to, the only record of it would be gone. It is
+   * the one preference from the old arrangement the new coach genuinely needs
+   * — the client and carer have organised their week around it for months, and
+   * the planning wizard asks the new coach to choose this exact value with
+   * nothing to anchor it.
+   *
+   * Optional: a consumer transferred before any plan existed has no agreed day
+   * to carry, and that is a real state rather than missing data.
+   */
+  previousModuleUnlockDay?: number
   /**
    * The date the **new** coach built their own session plan for the sessions
    * that remain.
@@ -1206,6 +1287,134 @@ export const consumerDyads: ConsumerDyad[] = [
     // consumer's arc yet, so the table's Session Plan reads "Not yet" and both
     // Upcoming Session and Session Date read an em dash. That is the honest
     // state, and it is the second distinct row shape this tab now shows.
+  },
+  // ---------------------------------------------------------------------------
+  // Round 61 — the **transferred-in client**, added on direct instruction so
+  // Helen's coach dashboard demonstrates the hand-over state by default,
+  // alongside the three cases it already carries (just-assigned, mid-arc,
+  // finished).
+  //
+  // Deliberately a **new dyad rather than a reuse of `dyad-011`**, which is the
+  // researcher dashboard's own transfer demo: *"we do not literally move a use
+  // case, we will by default show a default transferee use case there… keep
+  // this transferee use case specific to coach dash, no need to interlink."*
+  // Moving Bruce & Joan would have taken the researcher's live transfer target
+  // away from them, and reversing one transfer to stage another is exactly the
+  // double-write the `originalCoachId` field exists to survive.
+  //
+  // Sorts directly **below Arthur & Tania** without a special case: the coach's
+  // clients table orders on completed-record count ascending, and this dyad's
+  // three records (planning + 2 catch-ups) sit between Arthur's 0 and the
+  // Whitfields' 4.
+  //
+  // **No `sessionPlan`, on purpose.** A hand-over does not inherit one — the
+  // incoming coach still runs a planning session, because the plan is an
+  // agreement between those two people rather than a schedule attached to the
+  // record (see `ConsumerTransfer.replanDate`). That absence is what puts the
+  // Coaching workspace on its `SessionPlanEmptyBanner` branch, which is the
+  // surface this use case is actually about.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'dyad-015',
+    coachId: 'helen-zhang',
+    // Off the Consumer Management roster for the same reason `dyad-014` is:
+    // that roster is curated to one consumer per state it needs to teach, and
+    // a fifth row there only inflates its KPIs. The dyad is fully real in the
+    // caseload, the session counts and the coach's own screens.
+    omitFromConsumerRoster: true,
+    // The date **Fatima** was assigned, not the transfer date. `transferDyad()`
+    // deliberately leaves this alone, and the researcher's timeline pairs it
+    // with `originalCoachId` — moving it to the hand-over would erase the three
+    // months the consumer had already spent in the study.
+    coachAssignedDate: '2026-04-29',
+    patient: {
+      name: 'Stanley Okafor',
+      age: 80,
+      background:
+        'Living with vascular dementia; at home with his wife. Sundowns from about 6pm and wakes once or twice most nights, usually settling with a light on in the hallway.',
+      email: 'stanley.okafor@example.com',
+      phone: '0417 309 554',
+    },
+    carer: {
+      name: 'Grace Okafor',
+      age: 76,
+      relationship: 'Spouse',
+      background:
+        'Stanley’s primary carer. Sleeps in the same room and wakes with him; has been in the study since April and is partway through the modules.',
+      email: 'grace.okafor@example.com',
+      phone: '0417 309 558',
+    },
+    sleepGoals:
+      'Shorten Stanley’s evening restlessness and get Grace back to one unbroken block of sleep.',
+    caregivingContext:
+      'Grace cares for Stanley alone; a neighbour sits with him two afternoons a week. No overnight support.',
+    // Planning session plus the first two catch-ups, all held under Fatima
+    // Haidari before the hand-over. `catchupSessionsCompleted()` reads this as
+    // **2 of 6**, which is the figure `transfer.sessionsWithPreviousCoach`
+    // freezes and every transfer surface quotes.
+    sessionsCompleted: [
+      { session: 1, completedDate: '2026-05-04', completedTime: '10:00' },
+      { session: 2, completedDate: '2026-05-18', completedTime: '10:00' },
+      { session: 3, completedDate: '2026-06-01', completedTime: '10:00' },
+    ],
+    /**
+     * The hand-over itself.
+     *
+     * `fromCoachId` and `originalCoachId` are the same person here because
+     * this is a first transfer — they diverge only on a second one, which is
+     * the case that field was added for.
+     *
+     * **No `replanDate`.** Helen has not run her planning session yet, which
+     * is what makes "Sessions re-planned" the live next step rather than
+     * history, and what keeps this dyad on the empty-plan banner.
+     */
+    transfer: {
+      fromCoachId: 'fatima-haidari',
+      originalCoachId: 'fatima-haidari',
+      date: '2026-07-16',
+      reason: 'coach-leave',
+      note: 'Fatima begins extended leave on 20 July. Grace asked to keep their fortnightly rhythm rather than pause until Fatima is back.',
+      sessionsWithPreviousCoach: 2,
+      /* Wednesday. Coherent with the sessions above rather than picked at
+         random: all three were held on a Monday, so a Wednesday unlock gave
+         the household five days to get through the module before the
+         catch-up. A number, never the word — see the field's own note. */
+      previousModuleUnlockDay: 3,
+    },
+    annotationSummaries: [],
+    patientLog: healthLog(52, 300, 4, [
+      'Restless from 6pm, settled about 11pm with the hall light on.',
+      'Up twice, back to bed without much prompting.',
+      'Long evening, wandered to the kitchen twice.',
+      'Settled earlier after a walk before dinner.',
+      'One waking, resettled on his own.',
+    ]),
+    carerLog: healthLog(49, 285, 3, [
+      'Woke with Stanley both times, took a while to drop off again.',
+      'Better night.',
+      'Barely slept, up with him twice.',
+      'Slept through until about 5am.',
+      'Good night, longest stretch this month.',
+    ]),
+    consentDocuments: [
+      { id: 'consent-015-a', filename: 'okafor-dyad-consent-signed.pdf', uploadedDate: '2026-04-24' },
+    ],
+    // Modules 1 and 2 complete, matching the two catch-ups held: a catch-up
+    // session goes through the module that precedes it, so a completed session
+    // with an unfinished module would contradict the sessions table beside it.
+    // Nothing past Module 2 has been opened — the consumer has been without a
+    // coach since Fatima's leave began.
+    moduleEngagement: consumerModuleEngagement([
+      { moduleId: 'getting-started', status: 'completed', lastActivityDate: '2026-04-30', slidesCompleted: 6 },
+      { moduleId: 'understanding-sleep-dementia', status: 'completed', lastActivityDate: '2026-05-13', slidesCompleted: 6 },
+      { moduleId: 'calming-bedtime-routine', status: 'completed', lastActivityDate: '2026-05-27', slidesCompleted: 6 },
+    ]),
+    // Empty rather than three recordings made under Fatima: `sessionRecordings`
+    // is attributed to a dyad's **current** `coachId`, so seeding them here
+    // would file Fatima's sessions under Helen on the researcher's own
+    // recordings tab. A coach sees no recordings either way (see CLAUDE.md's
+    // data-access table), so nothing is lost on the surface this is built for.
+    sessionRecordings: [],
   },
   {
     id: 'dyad-011',

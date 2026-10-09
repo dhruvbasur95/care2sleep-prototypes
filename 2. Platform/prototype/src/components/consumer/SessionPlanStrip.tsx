@@ -125,9 +125,10 @@ const BADGE_TONE: Record<CellStatus, string> = {
   completed: 'bg-consumer-lesson-complete text-consumer-primary',
   // Frame `930:5229` — yellow/100 behind purple text, sitting on the purple cell.
   next: 'bg-yellow-100 text-consumer-primary',
-  // Frame `930:5240` — yellow/300 (#ffcc4d; the frame calls this swatch
-  // "yellow/400", a naming mismatch already recorded in Round 31).
-  rescheduled: 'bg-yellow-300 text-ink',
+  // Frame `930:5240` — `yellow/400` #ffcc4d. The naming mismatch Round 31
+  // recorded here is resolved: the app's ramp was renumbered onto Figma's own
+  // steps on 2026-10-09, so the frame and the token now agree.
+  rescheduled: 'bg-yellow-400 text-ink',
   scheduled: 'bg-parchment text-ink-muted',
 }
 
@@ -196,7 +197,7 @@ function SessionCell({ row, status }: { row: SessionPlanRow; status: CellStatus 
           ? // Frame `930:5228`: taller, filled, and lifted off the row.
             'min-h-[248px] min-[640px]:min-h-[372px] min-[1281px]:min-h-[248px] border-[2.5px] border-consumer-primary bg-consumer-primary shadow-[2px_5px_10px_rgba(85,85,85,0.25)] min-[1281px]:min-w-[178px]'
           : 'min-h-[228px] bg-white min-[640px]:min-h-[342px] min-[1281px]:min-h-[228px]',
-        status === 'rescheduled' && 'border-[1.5px] border-yellow-400',
+        status === 'rescheduled' && 'border-[1.5px] border-yellow-500',
         status !== 'rescheduled' && !isNext && 'border border-ink-faint',
       )}
     >
@@ -213,7 +214,7 @@ function SessionCell({ row, status }: { row: SessionPlanRow; status: CellStatus 
         <dt
           className={cn(
             'text-consumer-body-strong',
-            isNext ? 'text-yellow-300' : 'text-ink-faint',
+            isNext ? 'text-yellow-400' : 'text-ink-faint',
           )}
         >
           Session
@@ -221,7 +222,7 @@ function SessionCell({ row, status }: { row: SessionPlanRow; status: CellStatus 
         <dd
           className={cn(
             isNext
-              ? 'text-consumer-display text-yellow-300'
+              ? 'text-consumer-display text-yellow-400'
               : 'text-consumer-card-title text-ink',
           )}
         >

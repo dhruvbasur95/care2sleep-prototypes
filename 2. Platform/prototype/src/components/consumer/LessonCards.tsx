@@ -389,7 +389,7 @@ export function FeaturedLessonCard({ view, to }: { view: LessonView; to?: string
 /**
  * The frame's yellow progress fill — `linear-gradient(91.77deg, #FFCC4D 69.75%,
  * #DEA108 122.42%)`. A literal because the palette has no two-stop gradient
- * equivalent; the stops are the yellow ramp's `yellow-300` and a darker step.
+ * equivalent; the stops are the yellow ramp's `yellow-400` and a darker step.
  * Kept identical to `LearningTaskCard`'s so Home and My Lessons paint the same
  * bar.
  */

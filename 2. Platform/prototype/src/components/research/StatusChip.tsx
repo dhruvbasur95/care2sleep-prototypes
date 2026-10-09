@@ -76,11 +76,11 @@ function toneClass(tone: Tone): string {
        rather than the borrowed `amber-*` scale `warning` still sits on. It is
        added here rather than hand-rolled at its call site so it inherits the
        one geometry all seven tones share.
-       Text is `ink`, not a dark yellow: the ramp tops out at `yellow-400`
+       Text is `ink`, not a dark yellow: the ramp tops out at `yellow-500`
        (#ffb600), which is a mid-tone against `yellow-50` and nowhere near AA.
        `ink` on `yellow-50` measures 16.0:1. */
     case 'yellow':
-      return 'border-yellow-300 bg-yellow-50 text-ink'
+      return 'border-yellow-400 bg-yellow-50 text-ink'
   }
 }
 

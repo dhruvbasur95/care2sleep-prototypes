@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useMemo} from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
+  ArrowLeftRight,
   BookOpen,
   CalendarDays,
   ChevronDown,
@@ -22,6 +23,7 @@ import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import {
+  CONSUMER_MODULES,
   DAY_OF_WEEK_OPTIONS,
   DAY_OF_WEEK_OPTIONS_ALL,
   SPACES_CATCHUP_COUNT,
@@ -29,7 +31,9 @@ import {
   WEEKLY_CADENCE_DAYS,
   addDays,
   displaySessionNumber,
+  catchupSessionsCompleted,
   generatePlanRows,
+  moduleUnlockDayLabel,
   nextWeekday,
   type ConsumerDyad,
   type SessionPlanRow,
@@ -163,26 +167,176 @@ const PLAN_ANCHOR = TODAY
  * opacity recipes doing the same job before this was unified.
  */
 
-type StepKey = 'catchup-meeting' | 'module-unlock-day' | 'zoom-link' | 'review'
+type StepKey = 'client-status' | 'catchup-meeting' | 'module-unlock-day' | 'zoom-link' | 'review'
 
-const STEPS: { key: StepKey; navLabel: string; heading: string; subtitle: string }[] = [
+type WizardStep = { key: StepKey; navLabel: string; heading: string; subtitle: string }
+
+/**
+ * The transferred-client summary — a **read-only** first step, shown only when
+ * `dyad.transfer` is set (direct instruction, 2026-10-09: *"since this is a
+ * transferee case, we will also need to inform them the current status of
+ * transferred clients, that will be step 1"*).
+ *
+ * Kept OUT of `STEPS` and prepended at runtime, so a client who was never
+ * transferred sees the four-step wizard byte-for-byte as before.
+ *
+ * It is the only step that asks nothing, which is the point: every other step
+ * is a decision, and a coach cannot sensibly decide a catch-up day or an
+ * unlock day for someone whose history they have not been shown. The wizard
+ * previously opened by asking a brand-new question about a client three months
+ * into the study.
+ */
+const CLIENT_STATUS_STEP: WizardStep = {
+  key: 'client-status',
+  navLabel: 'Check client status',
+  heading: 'Review where your client is up to',
+  subtitle:
+    'This client joined you partway through the study. Here is what they have already done, so the plan you build next picks up from the right place rather than starting again.',
+}
+
+/**
+ * The transferred-client summary table — the whole body of the `client-status`
+ * step.
+ *
+ * A real `<table>` with a `<caption>`, not a `<dl>` or a stack of rows: it is
+ * four label/value pairs of the same kind, which is what a two-column table
+ * is for, and the caption gives a screen-reader user the title sighted users
+ * read above it. The caption is `text-left` because the browser centres it by
+ * default, which would have put the title out of line with every other heading
+ * in this wizard.
+ *
+ * **Shadowed** (direct instruction: *"a table format with shadow along with
+ * title above"*), which makes it the one lifted surface on this step. That is
+ * the correct reading of `SUMMARY_CARD`'s own "no shadow" rule rather than a
+ * breach of it: that rule exists because a *dashed read-back card closing a
+ * question step* should not compete with the question cards above it. This
+ * step has no question cards — the table is the content, not a summary of it.
+ */
+function ClientStatusTable({
+  dyad,
+  sessionsHeld,
+}: {
+  dyad: ConsumerDyad
+  /** Frozen at the hand-over, passed in rather than counted here — see below. */
+  sessionsHeld: number
+}) {
+  const transfer = dyad.transfer
+  /* Same expression `ConsumerDetailPage` and `SpacesCoachProfilePage` already
+     use for this figure, against the same denominator, so the three surfaces
+     cannot report different module counts for one client. */
+  const modulesDone = dyad.moduleEngagement.filter((m) => m.status === 'completed').length
+  const previousDay = moduleUnlockDayLabel(transfer?.previousModuleUnlockDay)
+
+  const rows: { label: string; value: string; hint?: string }[] = [
+    {
+      label: 'Transferred to you',
+      value: transfer ? formatDate(transfer.date) : 'Not recorded',
+    },
+    /* Values carry their own noun — "2 of 6 sessions completed", not a bare
+       "2 of 6" (direct instruction, 2026-10-09). A figure on its own needs the
+       label column read with it to mean anything, and the two columns are far
+       apart at this width. */
+    {
+      label: 'Sessions completed',
+      value: `${sessionsHeld} of ${SPACES_CATCHUP_COUNT} sessions completed`,
+    },
+    {
+      /* ⚠️ Denominator is `CONSUMER_MODULES.length` = **7**, not 6. The
+         instruction said "3 of 6 modules completed"; 6 is left as the open
+         question rather than typed in, because every other module count in the
+         app (`ConsumerManagementPage`, `ConsumerDetailPage`,
+         `SpacesCoachProfilePage`) is out of 7 — the 6 named modules plus the
+         always-unlocked "Getting started" pre-module — and hardcoding 6 here
+         would put this table in contradiction with all three while reporting a
+         completed count (3) that includes the pre-module it had stopped
+         counting. If the intent is to count only the six NAMED modules, the
+         numerator has to drop to 2 as well, which is a different fix. */
+      label: 'Modules completed',
+      value: `${modulesDone} of ${CONSUMER_MODULES.length} modules completed`,
+    },
+    {
+      /* "Preferred" (direct instruction, 2026-10-09). It distinguishes this
+         row from the wizard's own step 3, which is ALSO called "module unlock
+         day" and is the day the coach is about to choose — without it the
+         table looks like it is already stating the answer to a question two
+         screens later. This one is what the client and their last coach had
+         settled on. */
+      label: 'Preferred module unlock day',
+      /* "Not recorded" rather than an em dash — this audience reads a dash as
+         a missing value they should go hunting for (the same call the contact
+         card on the launching banner makes). */
+      value: previousDay ?? 'Not recorded',
+    },
+  ]
+
+  return (
+    <div className="overflow-hidden rounded-sm border border-parchment bg-card shadow-card">
+      <table className="w-full border-collapse text-left">
+        <caption className="border-b border-hairline bg-card-header px-5 py-4 text-left text-caption-medium text-ink">
+          Client status
+        </caption>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.label} className={cn(i > 0 && 'border-t border-hairline')}>
+              {/* `scope="row"` makes each label the header for its own row, so
+                  a screen reader announces "Sessions completed, 2 of 6" rather
+                  than reading two unlabelled cells. */}
+              {/* The rule between the two columns. Reported missing: the table
+                  had row borders only, so at this width the labels and values
+                  read as two drifting lists rather than as pairs. On the `th`
+                  rather than the `td` so it cannot double up with anything the
+                  value cell might gain later. */}
+              <th
+                scope="row"
+                className="w-[46%] border-r border-hairline px-5 py-4 align-top text-caption font-normal text-ink-muted"
+              >
+                {r.label}
+              </th>
+              <td className="px-5 py-4 align-top">
+                <p className="text-body-md text-ink">{r.value}</p>
+                {r.hint && <p className="mt-1 text-caption text-ink-muted">{r.hint}</p>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const STEPS: WizardStep[] = [
   {
     key: 'catchup-meeting',
-    navLabel: 'Catch-up meeting',
-    heading: 'First, agree on your weekly catch-up',
+    navLabel: 'Set catch-up meeting',
+    /* ⚠️ **No sequence adverb.** This read "First, agree on your weekly
+       catch-up" until 2026-10-09, when the transferred-client step made it
+       step 2 for some clients and the word became a lie on exactly those
+       screens (direct instruction: *"fix step title also"*).
+
+       Removed rather than made conditional. `WizardStepHeading` already
+       renders "Step N of M" directly above, so the adverb was restating the
+       one fact on screen that cannot go stale — and the Zoom step had already
+       been stripped of its own adverb on 2026-10-01 for related reasons. All
+       four headings are now adverb-free, so no heading in this wizard has to
+       know its own position. */
+    heading: 'Agree on your weekly catch-up',
     subtitle:
       'A weekly Zoom session where you and your client go through the module they have just finished. Weekly is the study plan. You choose the day, the first session date, and the time.',
   },
   {
     key: 'module-unlock-day',
-    navLabel: 'Module unlock day',
-    heading: 'Now, choose the module unlock day',
+    navLabel: 'Decide module unlock day',
+    /* "Now," dropped for the same reason as step 1's "First," — see above. */
+    heading: 'Choose the module unlock day',
     subtitle:
       'Each week’s module unlocks in your client’s portal on this day, any day of the week. They need to finish it before the catch-up, so more days in between gives them more time.',
   },
   {
     key: 'zoom-link',
-    navLabel: 'Zoom link',
+    /* Kept in step with `INTRO_STEPS`' own entry, which was renamed from
+       "Zoom link" to name the task rather than the object. The two are the
+       same words on purpose — the strip previews these labels. */
+    navLabel: 'Create Zoom link',
     /* 2026-10-01, direct instruction. There is no Zoom integration and there
        is not going to be one, so the coach creates the recurring meeting in
        Zoom themselves and pastes the link back here. This step is the hand-off
@@ -237,15 +391,25 @@ const STEPS: { key: StepKey; navLabel: string; heading: string; subtitle: string
   },
   {
     key: 'review',
-    navLabel: 'Review plan',
+    navLabel: 'Review your plan',
     heading: 'Review the plan, then confirm',
     subtitle:
       'Check each week below and modify anything that needs it. Nothing is saved until you confirm.',
   },
 ]
 
-const STEP_COUNT = STEPS.length
-const REVIEW_STEP = STEP_COUNT - 1
+/** The steps this wizard runs for a given dyad. A transferred client gets the
+ *  read-only summary in front; everyone else gets `STEPS` unchanged.
+ *
+ *  ⚠️ Everything downstream resolves a step by its **key**, never by a number.
+ *  Before this existed, `goNext`, all four render branches and the footer's
+ *  disabled/label logic each hardcoded `step === 0|1|2`, so inserting a step
+ *  anywhere would have silently re-pointed eight separate conditions at the
+ *  wrong screen. The indices still drive the rail and the Back button, where a
+ *  number is genuinely what is meant. */
+function stepsFor(transferred: boolean): WizardStep[] {
+  return transferred ? [CLIENT_STATUS_STEP, ...STEPS] : STEPS
+}
 
 /** The welcome screen's right-column timeline preview (Round 15) — one row
  *  per real step, icon + name + one-line description, echoing `STEPS`'
@@ -257,35 +421,148 @@ const REVIEW_STEP = STEP_COUNT - 1
  *  read as internal field names, not something a coach immediately
  *  understands) to name what the coach is actually deciding — a day, and a
  *  day+time — rather than the abstract concept behind it. */
-const INTRO_STEPS: {
+/**
+ * `tone` drives the badge colour, and **every step now has its own** (direct
+ * instruction, 2026-10-09: *"use different colour for different steps"*).
+ * Before this, 1 and 2 were both amber and 4 and 5 both purple, so the strip
+ * colour-coded pairs rather than steps.
+ *
+ * Two of the five are **not free choices**: `amber` and `green` are
+ * `--color-plan-catchup` / `--color-plan-module`, the topic tints that paint
+ * the question cards inside those steps, so the badge has to match what the
+ * step itself looks like when you get there. That left three slots for the
+ * other three.
+ *
+ * ⚠️ **Five DIFFERENT hues — no two weights of one colour, and no grey**
+ * (direct instruction, 2026-10-09: *"no hues of same color, no greys"*). A
+ * first pass used `purple-200` and `purple-50` for steps 1 and 4 and a pearl
+ * grey for step 5; both were rejected, correctly — a strip that colour-codes
+ * steps has to give each step a colour, and two weights of lavender is one
+ * colour used twice.
+ *
+ * The brand ramp cannot supply five. It has purple, yellow and green plus a
+ * destructive red that means "error" and cannot be spent on a wizard step. Two
+ * of the three usable ones are already committed: `amber` and `green` are
+ * `--color-plan-catchup` / `--color-plan-module`, the topic tints painting the
+ * question cards inside those very steps, so changing them would decouple the
+ * badge from the screen it previews.
+ *
+ * So steps 1 and 5 take two hues from the **SIPTEA palette**
+ * (`--color-siptea-*`), the only other set of real, Figma-backed hues in this
+ * app: deep teal and berry rose. ⚠️ Those six hexes carry a meaning elsewhere
+ * — one fixed hue per SIPTEA component, used on the Chapter intro block's
+ * initial discs in the module player — so this is a **borrow, and it is the
+ * open question in this strip**. The two surfaces are far apart (a planning
+ * wizard in the coach portal vs. a training module's content blocks) and
+ * neither renders the other's discs, but if the SIPTEA set ever reaches a
+ * coach-portal surface, these two should become their own tokens rather than
+ * sharing. Flagged rather than silently adopted.
+ *
+ * Each badge's tint and icon are `color-mix`ed from the SAME token rather than
+ * hand-picked as two hexes — the one-source rule this project has paid for
+ * three times. Change the token and both move together.
+ */
+type IntroStep = {
   icon: typeof CalendarDays
   name: string
+  /**
+   * Force the title to break after this many words (direct instruction,
+   * 2026-10-09: *"create zoom -> hard enter link in second line"*, *"Review
+   * your <plan in second line>"*).
+   *
+   * Why a hard break and not `text-balance`: these two titles FIT on one line
+   * at 132px where the other three wrap to two, so their descriptions started
+   * 19px higher than the rest and the row read as ragged — measured, not
+   * eyeballed. `balance` cannot help, because it only redistributes text that
+   * already wraps; it will not break a line that fits.
+   *
+   * Stored as a word index rather than a `<br>` inside the string so `name`
+   * stays one plain string — it is also the React key and has to stay
+   * identical to the step's `navLabel`.
+   *
+   * ⚠️ This deliberately leaves one word alone on the last line ("link",
+   * "plan"), which the no-orphans rule would normally forbid. The rule is
+   * about stranding a word at the end of running prose; these are two-word
+   * labels in a 132px column where the alternative is a ragged row. Asked for
+   * explicitly — do not "fix" it back.
+   */
+  nameBreakAfter?: number
   description: string
-  tone: 'green' | 'amber' | 'purple'
-}[] = [
+  tone: 'green' | 'amber' | 'purple' | 'teal' | 'rose'
+}
+
+/** The transferred-client step's own preview row, prepended to `INTRO_STEPS`
+ *  when it applies. Its `navLabel` and this `name` are the same words as
+ *  `CLIENT_STATUS_STEP`'s, exactly as the other four echo theirs. */
+const INTRO_CLIENT_STATUS: IntroStep = {
+  icon: ArrowLeftRight,
+  name: 'Check client status',
+  /* Direct instruction, 2026-10-09: *"do not say what they have completed, say
+     Where they are in study"*. "What they have completed" named only the two
+     progress rows and missed the other half of the table — the transfer date
+     and the unlock day they carried over are not things they completed. */
+  description: 'Where they are in the study.',
+  tone: 'teal',
+}
+
+const INTRO_STEPS: IntroStep[] = [
+  /* ⚠️ Descriptions are deliberately SHORT and parallel (direct instruction:
+     *"the steps feels to cluttered, reduce some words?"*). At five columns
+     each is 132px wide, where the old sentences ran to three and four lines
+     and the strip became a wall of text. Each is now one verb-led phrase of
+     four to five words, so every column settles at two lines.
+
+     They are also all the same SHAPE — verb, object — which is most of why
+     the row scans as one list rather than five paragraphs. Keep that if you
+     edit one.
+
+     ⚠️ **The NAMES are verb-led too**, all five, supplied directly on
+     2026-10-09: Check client status · Set catch-up meeting · Decide module
+     unlock day · Create Zoom link · Review your plan.
+
+     One word differs from what was dictated: step 2 was given as "**Decide**
+     catch-up meeting" and is "Set". A meeting is not decided — "decide" needs
+     a decidable object ("decide the winner") or a clause ("decide when to
+     meet"), and a meeting is set, arranged or scheduled. Step 3 keeps "Decide"
+     because a *day* genuinely is decidable. Changing it does cost the
+     Decide/Decide pairing across steps 2 and 3; the alternative that keeps it
+     is "Decide catch-up day and time", five words where the rest are three. They were noun phrases
+     ("Zoom link", "Review plan") that named the artefact rather than the task,
+     so the strip read as a list of things while the descriptions beneath it
+     read as a list of actions. Both halves now name the action. Each name is
+     duplicated as that step's `navLabel` — keep the two in step. */
   {
     icon: CalendarDays,
-    name: 'Catch-up meeting',
-    description: 'Choose your weekly catch-up date and time.',
+    name: 'Set catch-up meeting',
+    description: 'Pick a day and time to meet each week.',
     tone: 'amber',
   },
   {
     icon: BookOpen,
-    name: 'Module unlock day',
-    description: 'Choose the day each module opens for your client.',
+    name: 'Decide module unlock day',
+    description: 'Pick the day modules unlock.',
     tone: 'green',
   },
   {
     icon: Video,
-    name: 'Zoom link',
-    description: 'Create the recurring meeting in Zoom and paste its link.',
+    /* "Zoom link" alone named a thing, not a task, on a row where every other
+       entry named something the coach does (direct instruction, 2026-10-09:
+       *"step 4 zoom link is vague, say Create Zoom link"*). Its own step
+       heading already says "Create and add your Zoom meeting link". */
+    name: 'Create Zoom link',
+    nameBreakAfter: 2,
+    description: 'Add your Zoom meeting link.',
     tone: 'purple',
   },
   {
     icon: ListChecks,
-    name: 'Review plan',
-    description: 'Check the weekly dates, then confirm the plan.',
-    tone: 'purple',
+    name: 'Review your plan',
+    nameBreakAfter: 2,
+    /* Direct instruction's own wording, with the comma after "Check" dropped:
+       "Check, and confirm your session plan" splits a pair of verbs sharing
+       one object, which is the one place a comma cannot go. */
+    description: 'Check and confirm your session plan.',
+    tone: 'rose',
   },
 ]
 
@@ -578,7 +855,46 @@ export function PlanSessionsModal({
     ? `You, ${dyad.patient.name} and ${dyad.carer.name}`
     : `You and ${dyad.carer.name}`
 
+  /* Derived from the dyad, like the banner that launches this wizard — not a
+     prop. Both callers render this modal for whatever client is open. */
+  const transferred = !!dyad.transfer
+  /* The FROZEN count, not a live one. `transfer.sessionsWithPreviousCoach` is
+     written at the hand-over precisely so this figure stops moving — a live
+     read climbs as the new coach holds sessions of their own, and would keep
+     re-describing a split that happened once. Falls back to the live count for
+     a dyad with no transfer record, where this step never renders anyway. */
+  const sessionsHeld =
+    dyad.transfer?.sessionsWithPreviousCoach ?? catchupSessionsCompleted(completed)
+  const steps = useMemo(() => stepsFor(transferred), [transferred])
+  const introSteps = useMemo(
+    () => (transferred ? [INTRO_CLIENT_STATUS, ...INTRO_STEPS] : INTRO_STEPS),
+    [transferred],
+  )
+  /**
+   * The welcome strip's column geometry.
+   *
+   * ⚠️ **Measured, not guessed.** The strip's container is **744px** wide
+   * (read off the live modal, not inferred from the frame). Four columns at
+   * 160 with 32px gaps come to 736 and fit with 8px to spare — which is why a
+   * fifth column at those numbers would be 928px and overflow by 184,
+   * reproducing exactly the clipping this strip was already rebuilt once to
+   * fix. Five at 132 with 20px gaps come to **740**.
+   *
+   * Only the 5-column case moves; the 4-column one keeps its measured values
+   * untouched, so a client who was never transferred sees the strip it has
+   * always had.
+   */
+  const introCol = introSteps.length > 4 ? { w: 132, gap: 20 } : { w: 160, gap: 32 }
+  /** The day the previous coach and this client had agreed, resolved through
+   *  `moduleUnlockDayLabel()` so the words are never written at a call site.
+   *  `undefined` when there is no transfer, or a transfer with no agreed day. */
+  const previousUnlockDay = moduleUnlockDayLabel(dyad.transfer?.previousModuleUnlockDay)
+  const stepCount = steps.length
+  const reviewStep = stepCount - 1
+
   const [step, setStep] = useState(0)
+  /** This screen's identity. Every branch below reads this, never the index. */
+  const stepKey = steps[Math.min(step, reviewStep)].key
   // `null` until the coach actively picks a day — Round 14.6: no day comes
   // pre-selected, so "Next"/"Build my plan" only enable once a real choice
   // has been made (previously defaulted to Monday/Friday, letting a coach
@@ -904,23 +1220,31 @@ export function PlanSessionsModal({
         ),
       )
       setPlannerGeneration((g) => g + 1)
-      setStep(REVIEW_STEP)
+      setStep(reviewStep)
       setGenerating(false)
     }, LOADING_MS)
   }
 
   const goNext = () => {
-    if (step === 0) {
+    /* Advance by one from wherever we are, rather than to a literal index —
+       the same `setStep(s => s + 1)` is correct in both the 4- and 5-step
+       shapes, where `setStep(1)` was only ever correct in one of them. */
+    if (stepKey === 'client-status') {
+      // Nothing to validate: this step asks nothing.
+      setStep((s) => s + 1)
+      return
+    }
+    if (stepKey === 'catchup-meeting') {
       if (catchupWeekday === null || timeInvalid) return
-      setStep(1)
+      setStep((s) => s + 1)
       return
     }
-    if (step === 1) {
+    if (stepKey === 'module-unlock-day') {
       if (moduleWeekday === null) return
-      setStep(2)
+      setStep((s) => s + 1)
       return
     }
-    if (step === 2) {
+    if (stepKey === 'zoom-link') {
       if (zoomLinkInvalid) {
         setZoomLinkTouched(true)
         return
@@ -1128,26 +1452,53 @@ export function PlanSessionsModal({
                         >
                           Welcome! Let's plan your client's sessions
                         </h2>
+                        {/* The sub copy walks the strip below it, so it has to
+                            gain the transferred step with it — leaving the
+                            four-step sentence under a five-step strip would
+                            have the screen contradict itself in its own two
+                            most-read lines.
+
+                            ⚠️ **BOTH variants echo the step names verbatim**
+                            (direct instruction, 2026-10-09: *"update relevant
+                            steps + sub copy to new client session plan
+                            creation screen also"*) — "decide your catch-up
+                            meeting", "create the Zoom link", "review your
+                            plan". The new-client screen shares `INTRO_STEPS`,
+                            so the renames reached its strip automatically
+                            while this sentence kept the old vocabulary
+                            underneath it, describing the same five actions in
+                            different words. If a step is renamed again, these
+                            two strings are the other half of the edit. */}
                         <p className="max-w-[640px] text-body text-ink-muted">
-                          Set this up together with your client. You will choose a weekly
-                          catch-up and when each module opens, create the Zoom meeting, then
-                          review the plan.
+                          {transferred
+                            ? 'Set this up together with your client. You will see where they are in the study, set your catch-up meeting, decide the module unlock day, create the Zoom link, then review your plan.'
+                            : 'Set this up together with your client. You will set your catch-up meeting, decide the module unlock day, create the Zoom link, then review your plan.'}
                         </p>
                       </div>
                       <div className="relative isolate">
                         {/* The frame's connector, running between the first and
-                            last circle centres: columns are 180px with a 72px
-                            gap, so half a column (90px) inset lands it exactly
-                            on the centres, and `top-7` is half the 56px circle.
-                            It sits behind the circles via `-z-10` (direct
-                            instruction) and is 2px, not a hairline, which was
-                            reported as too thin to read at this size. */}
+                            last circle centres: half a column inset lands it
+                            exactly on them, and `top-[27px]` is half the 56px
+                            circle. It sits behind the circles via `z-0`
+                            (direct instruction) and is 2px, not a hairline,
+                            which was reported as too thin to read at this size.
+
+                            ⚠️ The inset is DERIVED from the column width, never
+                            typed. They were two hand-written numbers (160 and
+                            80) until the fifth column arrived, and a strip that
+                            stores its own geometry twice is the mask-and-outline
+                            trap this project has shipped three times. One
+                            constant, two readers. */}
                         <span
                           aria-hidden="true"
-                          className="absolute top-[27px] right-[80px] left-[80px] z-0 h-0.5 bg-hairline"
+                          className="absolute top-[27px] z-0 h-0.5 bg-hairline"
+                          style={{ left: introCol.w / 2, right: introCol.w / 2 }}
                         />
-                      <ol className="flex w-full items-start justify-center gap-8">
-                        {INTRO_STEPS.map((s, i) => {
+                      <ol
+                        className="flex w-full items-start justify-center"
+                        style={{ gap: introCol.gap }}
+                      >
+                        {introSteps.map((s, i) => {
                           const Icon = s.icon
                           // Opaque fills, not `/25`-`/30` washes: the connector runs
                           // behind these circles and was showing straight through a
@@ -1159,9 +1510,17 @@ export function PlanSessionsModal({
                               ? 'bg-[#e2f5ec] text-green-700'
                               : s.tone === 'amber'
                                 ? 'bg-yellow-100 text-amber-700'
-                                : 'bg-purple-50 text-primary'
+                                : s.tone === 'teal'
+                                  ? 'bg-[color-mix(in_oklch,var(--color-siptea-i),white_86%)] text-[color-mix(in_oklch,var(--color-siptea-i),black_28%)]'
+                                  : s.tone === 'rose'
+                                    ? 'bg-[color-mix(in_oklch,var(--color-siptea-t),white_86%)] text-[color-mix(in_oklch,var(--color-siptea-t),black_28%)]'
+                                    : 'bg-purple-50 text-primary'
                           return (
-                            <li key={s.name} className="flex w-[160px] flex-col items-center gap-4">
+                            <li
+                              key={s.name}
+                              className="flex flex-col items-center gap-4"
+                              style={{ width: introCol.w }}
+                            >
                               <span
                                 aria-hidden="true"
                                 className={cn(
@@ -1173,9 +1532,41 @@ export function PlanSessionsModal({
                               </span>
                               <div className="flex w-full flex-col items-center gap-4">
                                 <p className="text-caption-medium text-ink-faint">Step {i + 1}</p>
+                                {/* `text-balance` on BOTH (direct instruction:
+                                    *"make sure all titles for steps are text
+                                    wrapped"*). At 132px "Catch-up meeting" and
+                                    "Module unlock day" each break after one
+                                    word and leave the second alone on line 2 —
+                                    the orphan rule CLAUDE.md makes
+                                    non-negotiable. `balance` evens the two
+                                    lines instead of breaking early. Both are
+                                    well under the four-line cap every engine
+                                    puts on `text-wrap: balance`, so it really
+                                    applies here (unlike the long paragraphs in
+                                    this round that needed `pretty`). */}
                                 <div className="flex w-full flex-col gap-2">
-                                  <p className="text-body-md text-ink">{s.name}</p>
-                                  <p className="text-caption text-ink-muted">{s.description}</p>
+                                  <p
+                                    className={cn(
+                                      'text-body-md text-ink',
+                                      // `balance` only where the break is not
+                                      // already decided — on a hard-broken
+                                      // title it has nothing left to balance.
+                                      s.nameBreakAfter === undefined && 'text-balance',
+                                    )}
+                                  >
+                                    {s.nameBreakAfter === undefined ? (
+                                      s.name
+                                    ) : (
+                                      <>
+                                        {s.name.split(' ').slice(0, s.nameBreakAfter).join(' ')}
+                                        <br />
+                                        {s.name.split(' ').slice(s.nameBreakAfter).join(' ')}
+                                      </>
+                                    )}
+                                  </p>
+                                  <p className="text-balance text-caption text-ink-muted">
+                                    {s.description}
+                                  </p>
                                 </div>
                               </div>
                             </li>
@@ -1195,17 +1586,54 @@ export function PlanSessionsModal({
                    error Vite's oxc parser rejects even when `tsc` does not
                    (CLAUDE.md, Round 23). */
                 <div className="mt-2 flex min-h-0 flex-1 flex-col">
-                  <div className="flex min-h-0 flex-col overflow-y-auto pr-1">
+                  {/* ⚠️ `px-4 -mx-4`, not `pr-1`. This element is
+                      `overflow-y-auto`, and an overflow ancestor clips its
+                      DESCENDANTS' shadows — a node's own clip never clips its
+                      own shadow, so the culprit is always further up than the
+                      element that looks wrong (CLAUDE.md records the same trap
+                      from the Figma side). The client-status table sat flush
+                      against this box's left edge with 4px to its right, so
+                      its `shadow-card` (2px 4px 16px) was sliced off on both
+                      sides — reported, then measured: table 344→1164 inside a
+                      scroller 344→1168.
+
+                      The padding opens 16px of room on each side and the equal
+                      negative margin takes it straight back out, so every
+                      step's content stays at exactly the same x it was before
+                      and only the clip boundary moves. The widened box is
+                      328→1184, still inside the modal's own 312→1200, so
+                      nothing new overflows. `pr-1` was a scrollbar gutter;
+                      `px-4` is a bigger one.
+
+                      ⚠️ **Size the padding off the shadow, not by eye.** A
+                      first attempt used `px-4` (16px) and the right edge was
+                      still visibly sliced — `shadow-card` is
+                      `2px 4px 16px`, so its painted extent is
+                      offset + blur: **18px right**, 14px left, **20px below**,
+                      12px above. 16px clears the left and fails the right by
+                      2px, which is exactly what a shadow looks like when it is
+                      cut: fine on one side, flat on the other. `px-6` (24px)
+                      clears both, and `pb-5` (20px) gives the bottom edge its
+                      room for the case where a table is the last thing in a
+                      scrolled step. Widened box is 320→1192, still inside the
+                      modal's own `overflow-hidden` at 312→1200. */}
+                  <div className="-mx-6 flex min-h-0 flex-col overflow-y-auto px-6 pb-5">
                         <WizardStepHeading
                           step={step}
-                          stepCount={STEP_COUNT}
-                          heading={STEPS[step].heading}
-                          subtitle={STEPS[step].subtitle}
+                          stepCount={stepCount}
+                          heading={steps[step].heading}
+                          subtitle={steps[step].subtitle}
                           headingRef={stepHeadingRef}
                           headingClassName="text-sub-greeting-semibold"
                         />
 
-                        {step === 0 && (
+                        {stepKey === 'client-status' && (
+                          <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
+                            <ClientStatusTable dyad={dyad} sessionsHeld={sessionsHeld} />
+                          </div>
+                        )}
+
+                        {stepKey === 'catchup-meeting' && (
                           <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
                             <div className={cn(stepCard(catchupWeekday === null), 'flex flex-col gap-4')}>
                               <p className={STEP_QUESTION}>1. Which day will you meet?</p>
@@ -1326,7 +1754,7 @@ export function PlanSessionsModal({
                                 answer in one sentence, so it holds the confirmation copy
                                 that used to trail the time card. */}
                             <div className={cn(SUMMARY_CARD, 'mt-4')}>
-                              <p className={STEP_QUESTION}>Step 1 summary</p>
+                              <p className={STEP_QUESTION}>Step {step + 1} summary</p>
                               {catchupWeekday !== null && !timeInvalid && firstSessionDate ? (
                                 <p className="text-body text-ink-muted">
                                   {meetingParty} will meet every{' '}
@@ -1349,13 +1777,20 @@ export function PlanSessionsModal({
                           </div>
                         )}
 
-                        {step === 1 && (
+                        {stepKey === 'module-unlock-day' && (
                           <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
                             {/* Step 1's answers, carried forward (direct instruction).
                                 The unlock day is chosen *against* the catch-up, so the
                                 coach should not have to go Back to remember what it is.
                                 Deliberately a quiet reference strip, not another card:
                                 it is settled information, not a question. */}
+                            {/* The catch-up answered on the previous step,
+                                carried forward (direct instruction). The unlock
+                                day is chosen *against* the catch-up, so the
+                                coach should not have to go Back to remember
+                                what it is. Deliberately a quiet reference
+                                strip, not another card: it is settled
+                                information, not a question. */}
                             {catchupWeekday !== null && firstSessionDate && (
                               <div className="rounded-sm bg-parchment px-4 py-3">
                                 <p className="text-caption text-ink-muted">
@@ -1369,24 +1804,78 @@ export function PlanSessionsModal({
                                 </p>
                               </div>
                             )}
-                            <div className={cn(stepCard(moduleWeekday === null), 'flex flex-col gap-4')}>
-                              <p className={STEP_QUESTION}>1. Which day should each module unlock?</p>
-                              <WeekdayPicker
-                                value={moduleWeekday}
-                                onChange={(v) => {
-                                  setModuleWeekday(v)
-                                  setModuleDayClearedNotice(false)
-                                }}
-                                captions={moduleDayCaptions}
-                                idPrefix="plan-module-day"
-                                groupLabel="Which day should each module unlock?"
-                                tone="purple"
-                                options={moduleDayOptions}
-                              />
+
+                            {/* The question and the previous coach's agreed day
+                                are ONE group, 16px apart, inside a step whose
+                                other children sit 24px apart (direct
+                                instruction). The tighter gap is what binds the
+                                note to the picker it belongs to rather than
+                                letting it float as a third peer.
+
+                                ⚠️ Placement moved twice in one session and this
+                                is the settled one: it began *below* the summary
+                                card (after the decision, where reference is
+                                worthless), went *above* the picker, and now
+                                sits directly **below** the picker — close
+                                enough to read while choosing, without standing
+                                between the question and its own heading.
+
+                                `yellow-100` (direct instruction) — the yellow
+                                this feature uses as its transfer flag
+                                everywhere else: the caseload chip and the
+                                banner that launched this wizard. It is
+                                pointedly NOT `purple-50`, which is the question
+                                card's own tint and made carried-in reference
+                                look like part of the question.
+
+                                Copy states the fact and stops. An earlier
+                                version added "Keeping the same day is usually
+                                easier for your client, but choose whatever
+                                suits them now" — cut on instruction. It
+                                advised where the row only needs to inform, and
+                                nothing here pre-selects the picker, so the
+                                coach's freedom to choose never needed stating.
+
+                                Shown only when the record carries a day — a
+                                consumer transferred before any plan existed has
+                                none, and a banner whose whole content is an
+                                absence is worse than no banner. */}
+                            <div className="flex flex-col gap-4">
+                              <div className={cn(stepCard(moduleWeekday === null), 'flex flex-col gap-4')}>
+                                <p className={STEP_QUESTION}>1. Which day should each module unlock?</p>
+                                <WeekdayPicker
+                                  value={moduleWeekday}
+                                  onChange={(v) => {
+                                    setModuleWeekday(v)
+                                    setModuleDayClearedNotice(false)
+                                  }}
+                                  captions={moduleDayCaptions}
+                                  idPrefix="plan-module-day"
+                                  groupLabel="Which day should each module unlock?"
+                                  tone="purple"
+                                  options={moduleDayOptions}
+                                />
+                              </div>
+                              {previousUnlockDay && (
+                                <div className="flex items-start gap-3 rounded-sm bg-yellow-100 px-4 py-3">
+                                  <ArrowLeftRight
+                                    aria-hidden="true"
+                                    className="mt-0.5 size-4 shrink-0 text-ink"
+                                    strokeWidth={2.25}
+                                  />
+                                  <p className="text-caption text-ink">
+                                    This client previously preferred their modules to unlock on a{' '}
+                                    <span className="font-semibold text-primary">
+                                      {previousUnlockDay}
+                                    </span>
+                                    .
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
                             <div className={cn(SUMMARY_CARD, 'mt-4')}>
-                              <p className={STEP_QUESTION}>Step 2 summary</p>
+                              <p className={STEP_QUESTION}>Step {step + 1} summary</p>
                               <p className="text-body text-ink-muted">
                                 {moduleWeekday === null ? (
                                   <>
@@ -1423,10 +1912,11 @@ export function PlanSessionsModal({
                                 )}
                               </p>
                             </div>
+
                           </div>
                         )}
 
-                        {step === 2 && (
+                        {stepKey === 'zoom-link' && (
                           <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
                             {/* THE focus of this step (direct instruction). A
                                 `purple-50` container holding the one thing the
@@ -1572,7 +2062,7 @@ export function PlanSessionsModal({
                           </div>
                         )}
 
-                        {step === REVIEW_STEP && (
+                        {stepKey === 'review' && (
                           /* Tighter than the question steps' `PLAN_STEP_GAP`
                              (direct instruction). There, the next thing is a
                              card the coach has to act in; here it is the plan
@@ -1644,34 +2134,48 @@ export function PlanSessionsModal({
                       </Button>
                     ) : (
                       <>
+                        {/* `min-w-[128px]` on all three footer controls
+                            (direct instruction, 2026-10-09: *"increase width
+                            for next and back"*). They were hugging their
+                            labels, so "Back" and "Next" came out at roughly
+                            70px — narrow for a primary action, and the pair
+                            read as two different sizes sitting together. A
+                            shared minimum makes them one pill width; the long
+                            labels ("Build my plan", "Create my session plan")
+                            are already wider and are unaffected. */}
                         {step > 0 && (
                           <Button
                             type="button"
                             onClick={() => setStep((s) => Math.max(0, s - 1))}
                             variant="secondary"
+                            className="min-w-[128px]"
                           >
                             Back
                           </Button>
                         )}
-                        {step < REVIEW_STEP ? (
+                        {step < reviewStep ? (
                           <Button
                             type="button"
                             onClick={goNext}
                             disabled={
-                              step === 0
-                                ? catchupWeekday === null || timeInvalid
-                                : step === 1
-                                  ? moduleWeekday === null
-                                  : zoomLinkInvalid
+                              stepKey === 'client-status'
+                                ? false
+                                : stepKey === 'catchup-meeting'
+                                  ? catchupWeekday === null || timeInvalid
+                                  : stepKey === 'module-unlock-day'
+                                    ? moduleWeekday === null
+                                    : zoomLinkInvalid
                             }
+                            className="min-w-[128px]"
                           >
-                            {step === 2 ? 'Build my plan' : 'Next'}
+                            {stepKey === 'zoom-link' ? 'Build my plan' : 'Next'}
                           </Button>
                         ) : (
                           <Button
                             type="button"
                             onClick={handleSubmit}
                             disabled={rowsIncomplete}
+                            className="min-w-[128px]"
                           >
                             Create my session plan
                           </Button>

@@ -238,7 +238,7 @@ function InteractivePlaceholder({
 
   return (
     <Card className="border-dashed bg-yellow-50/60 p-8 text-center shadow-none">
-      <Sparkles aria-hidden="true" className="mx-auto size-6 text-yellow-400" strokeWidth={1.75} />
+      <Sparkles aria-hidden="true" className="mx-auto size-6 text-yellow-500" strokeWidth={1.75} />
       <Heading
         data-slide-heading={isFirst || undefined}
         tabIndex={isFirst ? -1 : undefined}

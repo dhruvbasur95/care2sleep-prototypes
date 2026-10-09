@@ -88,7 +88,7 @@ export interface ResearchPriorityItem {
    that Round 40 added the `yellow` tone to replace it. It also had a practical
    consequence: none of those three amber values has a published Figma paint
    style, so the chip could not be mirrored in Figma without inventing styles.
-   `yellow` is `border-yellow-300 bg-yellow-50 text-ink`, all three published.
+   `yellow` is `border-yellow-400 bg-yellow-50 text-ink`, all three published.
    High stays `destructive`; see the Figma note in design-tokens.md. */
 const priorityTone = { High: 'destructive', Medium: 'yellow' } as const
 

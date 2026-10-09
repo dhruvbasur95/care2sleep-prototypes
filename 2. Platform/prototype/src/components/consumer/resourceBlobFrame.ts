@@ -40,7 +40,7 @@ export const RESOURCE_BLOB_STROKE_W = 9.35467
 export const RESOURCE_BLOB_STROKE = '#FFE299'
 
 /**
- * The offset blob sitting behind the photo, filled `yellow-400` (#FFB600).
+ * The offset blob sitting behind the photo, filled `yellow-500` (#FFB600).
  *
  * A genuinely different shape from the outline, not the same path nudged — so
  * it keeps its own `d`. It is decoration behind the frame rather than something

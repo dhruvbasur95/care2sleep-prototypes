@@ -83,7 +83,7 @@
        where the app had diverged from the Figma style:
          purple-50   #f4efff -> #f3efff   (was `--color-purple-l6`)
          yellow-100  #fff1cc -> #fff0cc   (was `--color-yellow-l1`)
-         yellow-400  #ffb700 -> #ffb600   (was `--color-yellow-d2`)
+         yellow-500  #ffb700 -> #ffb600   (was `--color-yellow-d2`)
 
        **`--color-purple-l1` (#5300fa) was deleted.** It had no Figma style
        backing it and zero call sites in the app — an orphan that would have
@@ -123,11 +123,27 @@
        10.62:1, `parchment` 9.75:1.) */
     --color-on-purple-muted: #c4b5fc;
 
+    /* ⚠️ The yellow ramp SKIPS 300 — `yellow-200` is followed by `yellow-400`.
+       That is not a gap left by accident; it is Figma's own ramp, and as of
+       2026-10-09 (direct instruction: *"follow figma 400, and 500"*) the app
+       carries Figma's step numbers rather than its own.
+
+       What changed: the two top steps were renumbered **in place**, hexes
+       untouched — `yellow-300` #ffcc4d became `yellow-400`, and `yellow-400`
+       #ffb600 became `yellow-500`. 54 call sites and comments across 19 files
+       moved with them.
+
+       Why it was worth a 54-site rename: the two files disagreed by one step
+       on the only two yellows anyone reaches for, so every instruction naming
+       a yellow had to be translated before it could be acted on, and `y400`
+       meant two different colours depending on which document you were in.
+       Read `getLocalPaintStylesAsync()` if you need to re-verify — the file is
+       `xhAPgU8I5GzG9UDPHqJrnj`, and it has no yellow/300 either. */
     --color-yellow-50: #fff8e5;
     --color-yellow-100: #fff0cc;
     --color-yellow-200: #ffe299;
-    --color-yellow-300: #ffcc4d;
-    --color-yellow-400: #ffb600;
+    --color-yellow-400: #ffcc4d;
+    --color-yellow-500: #ffb600;
 
     /* SIPTEA component colours — the six-row "SIPTEA color table" frame
        (`2614:1044`) on the Figma block library page, added 2026-09-16.
@@ -334,7 +350,7 @@
        meanings already claimed elsewhere (`success` = "completed" app-wide;
        amber = the Research Dashboard's "Pending" invite chip). Deliberately
        paired with dark `ink` text, not white — both are bright enough that
-       white text fails contrast (green-400 clears only ~3:1, yellow-400
+       white text fails contrast (green-400 clears only ~3:1, yellow-500
        ~2:1), while `ink` clears 9.6:1+ on either. `plan-module` = every
        "Module availability" field; `plan-catchup` = every "Session
        Catch-up" field — colored by step topic, never by who answered. */

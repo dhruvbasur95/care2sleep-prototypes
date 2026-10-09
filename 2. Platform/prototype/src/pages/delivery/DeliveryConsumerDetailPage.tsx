@@ -1294,7 +1294,7 @@ function SessionDebriefBanner({
 }) {
   return (
     <div
-      /* `yellow-200` on a `yellow-400` stroke, 16px radius, the app's own card
+      /* `yellow-200` on a `yellow-500` stroke, 16px radius, the app's own card
          shadow — the frame's values, all existing tokens. `pl-4 pr-6` is the
          frame's asymmetry: the artwork bleeds closer to the left edge than the
          CTA does to the right. */
@@ -1304,7 +1304,7 @@ function SessionDebriefBanner({
          object (image first, then copy, then one action) and were the only two
          places in the portal where that object behaved differently below
          desktop. */
-      className="flex flex-col items-center gap-6 rounded-lg border border-yellow-400 bg-yellow-200 px-4 py-4 shadow-card xl:flex-row xl:flex-wrap xl:items-center xl:justify-between xl:pr-6"
+      className="flex flex-col items-center gap-6 rounded-lg border border-yellow-500 bg-yellow-200 px-4 py-4 shadow-card xl:flex-row xl:flex-wrap xl:items-center xl:justify-between xl:pr-6"
     >
       <div className="flex min-w-0 flex-1 flex-col items-center gap-6 [--blob-scale:0.3] sm:[--blob-scale:0.36] xl:flex-row xl:[--blob-scale:0.41]">
         {/* One rotated wrapper for photo + doodles, so they tilt together.

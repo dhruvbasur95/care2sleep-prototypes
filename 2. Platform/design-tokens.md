@@ -9368,3 +9368,236 @@ not re-render at all** (every route must be reached with a full reload), and a m
 stays mounted after it is dismissed. Both are harness artifacts, not app behaviour —
 the same finding Round 16 recorded. Overriding `window.requestAnimationFrame` does not
 help; framer-motion captures it at module init.
+
+---
+
+## §100 — The yellow ramp renumbered onto Figma's steps (2026-10-09)
+
+**Direct instruction:** *"fix yellow first, follow figma 400, and 500, update your
+books first."*
+
+### §100.1 What changed
+
+The app's two top yellow steps were renumbered **in place. No hex moved.**
+
+| Was | Is now | Hex | Figma style |
+|---|---|---|---|
+| `yellow-300` | **`yellow-400`** | `#ffcc4d` | `yellow/400` |
+| `yellow-400` | **`yellow-500`** | `#ffb600` | `yellow/500` |
+
+The ramp is therefore **`yellow-50 · 100 · 200 · 400 · 500`** — it **skips 300**,
+because Figma's does. A `yellow-300` met in an archived doc, an old frame note or
+`6. Archive/` means today's **`yellow-400` `#ffcc4d`**.
+
+> ⚠️ **`bg-yellow-300` does NOT fail. It falls through to Tailwind's stock yellow.**
+> Measured in the running app after a full reload: `bg-yellow-300` computes to
+> `oklch(0.905 0.182 98.111)`, which rasterises to **`#ffdf20`** — a real, visibly
+> different, off-brand yellow, not a no-op. Tailwind v4 ships its own
+> `--color-yellow-*` scale, and removing a step from `@theme` only uncovers it.
+> So a stray `yellow-300` is a **silent wrong colour** with a green typecheck, a
+> green lint and no console warning — the one failure mode this rename introduces.
+> Grep for it rather than trusting that it would have broken.
+>
+> Read it through a 1×1 canvas, not by parsing the computed string: the stock scale
+> is authored in `oklch()`, so an RGB parse of it returns nonsense (the standing
+> rule in CLAUDE.md's non-negotiables).
+
+54 occurrences across 19 files, comments included: 27 `yellow-400 → yellow-500`, then
+27 `yellow-300 → yellow-400`. **Order matters** — doing it the other way round
+collapses both steps onto one value, silently, with a green typecheck, because every
+name involved is a valid Tailwind token either way.
+
+Verified live before touching anything, per the strict colour rule, rather than
+quoted from a comment: `getLocalPaintStylesAsync()` on `xhAPgU8I5GzG9UDPHqJrnj`
+returns 22 paint styles, `yellow/50 #fff8e5 · 100 #fff0cc · 200 #ffe299 ·
+400 #ffcc4d · 500 #ffb600`. There is no `yellow/300` in the file.
+
+### §100.2 Why a 54-site rename was worth doing
+
+The gap had been *recorded* since 2026-10-05 and treated as acceptable because the
+colours agreed and only the labels differed. They did — and that was the problem.
+Every instruction naming a yellow had to be translated before it could be acted on,
+and **"y400" named two different colours depending on which document you were in**:
+`#ffcc4d` in Figma, `#ffb600` in the app. This round opened with exactly that
+ambiguity on exactly that step, which is what prompted the instruction.
+
+Three comments in the app existed *only* to carry the translation
+(`SessionPlanStrip`'s `rescheduled` chip, `StageReflectionBanner`'s yellow ground,
+and a `Yellow/300` reference in `CoachProfilePage` naming a Figma style that never
+existed). All three are now statements that the two agree.
+
+### §100.3 The contrast table, unchanged but renamed
+
+No pairing's measurement moved — only what it is called.
+
+| Surface | Ink `#1a1a1a` | White |
+|---|---|---|
+| `yellow-400` `#ffcc4d` | **11.6:1** | 1.50:1 — fails |
+| `yellow-500` `#ffb600` | **9.90:1** | 1.76:1 — fails |
+| `yellow-200` `#ffe299` | 13.3:1 | 1.33:1 — fails |
+
+**White never clears AA anywhere on the yellow ramp.** That was already this
+project's rule and is the reason `Chip tone="yellow"` and the `yellow-200` step
+markers both use `ink`. It now matters more often, because a banner moving from
+`bg-primary` to a yellow has to flip every piece of white copy on it to ink — see
+§101.
+
+---
+
+## §101 — The transferred-client use case on the coach dashboard (2026-10-09)
+
+**Direct instruction:** *"we need to add a new use case of transferred client, i.e.
+whenever we load coach dashboard show this use case with other 3 pre-existing use
+cases for helen"* · *"for coaching workspace they will see Creating a session plan
+with your new client banner. however this banner will house a different title along
+with a transferred client label above title. card colour lets also change from p500
+to y400. the sub copy below the title will need to be tweaked to say this client has
+been transferred. step 1 and 2 remain same"* · *"also under Clients assigned to you,
+the transferred client will also house label below"* · *"just dont mention old coach
+name"*.
+
+### §101.1 The data — `dyad-015`, Stanley & Grace Okafor
+
+A **new dyad, not a reuse of `dyad-011`**. Direct instruction: *"we do not literally
+move a use case, we will by default show a default transferee use case there… keep
+this transferee use case specific to coach dash, no need to interlink."* Bruce & Joan
+are the *researcher* dashboard's live transfer target; moving them would have taken
+that demo away, and reversing one transfer to stage another is the double-write
+`originalCoachId` exists to survive.
+
+| Field | Value | Why |
+|---|---|---|
+| `coachId` | `helen-zhang` | She holds them now |
+| `coachAssignedDate` | `2026-04-29` | **Fatima's** assignment date, not the transfer. `transferDyad()` deliberately never moves this, and the researcher timeline pairs it with `originalCoachId` |
+| `sessionsCompleted` | sessions 1, 2, 3 | Planning + 2 catch-ups, all held under Fatima. `catchupSessionsCompleted()` reads **2 of 6** |
+| `transfer.sessionsWithPreviousCoach` | `2` | The frozen figure every surface quotes |
+| `transfer.replanDate` | **absent** | Helen has not run her own planning session. This is what keeps the dyad on the empty-plan banner |
+| `sessionPlan` | **absent** | A hand-over does not inherit a plan |
+| `omitFromConsumerRoster` | `true` | Same reason `dyad-014` sets it — that roster is curated to one consumer per state |
+
+**It sorts below Arthur & Tania with no special case.** The clients table orders on
+completed-record count ascending; three records sit between Arthur's 0 and the
+Whitfields' 4. Placement was the instruction; a seeded count is what delivers it.
+
+**Module engagement had to follow the session count.** A catch-up goes through the
+module that precedes it, so 2 catch-ups means modules 1 and 2 complete. Seeding the
+sessions and leaving the modules empty would have put a contradiction on screen —
+the internal-consistency non-negotiable, and the exact failure Round 21 found.
+
+**`sessionRecordings` is deliberately empty** rather than three recordings made under
+Fatima: that list is attributed to a dyad's *current* `coachId`, so seeding it would
+file Fatima's sessions under Helen on the researcher's recordings tab. A coach sees
+no recordings either way.
+
+**The researcher side picked this up for free, and correctly** — no code written
+there. `wasTransferredTo()` puts the yellow `Transferred` chip on Helen's caseload
+row, and `wasTransferredAwayFrom()` puts the full from-coach treatment on Fatima's
+Assigned Consumers tab (top banner, notice card, transfer-details table naming
+Helen, 16 Jul 2026, "Coach on extended leave"). Verified live on both pages. That is
+the payoff of modelling it as one honest record rather than a coach-only flag.
+
+### §101.2 `BANNER_SCHEME` — two colour schemes, one object
+
+`SessionPlanEmptyBanner` now resolves a scheme from `!!dyad.transfer`. **Derived, not
+a prop**: both call sites render it for whatever client is open, so a prop is a fact
+each caller must remember and the one that forgets shows a transferred client the
+wrong banner.
+
+⚠️ **Moving the card from `bg-primary` to a yellow is not a one-line fill swap.**
+White clears AA **nowhere** on the yellow ramp. Nine things move together, which is
+why they are one object rather than ternaries sprinkled through the JSX — a scheme
+with one entry left behind is a contrast failure that is invisible in a screenshot
+taken on the other scheme.
+
+| Slot | `assigned` (purple) | `transferred` (yellow) |
+|---|---|---|
+| card | `bg-primary` `#3a00ad` | `bg-yellow-400` `#ffcc4d` |
+| copy | `text-white` 15.6:1 | `text-ink` **11.6:1** |
+| copyMuted | `text-white/90` | `text-ink` — see below |
+| marker | `bg-yellow-200` + `ink` numeral | `bg-primary` + `white` numeral |
+| rule | `#ffffff66` dots | `#1a1a1a66` dots |
+| contact stroke | `border-yellow-200` | `border-primary` |
+| button tone | `inverse` | `brand` |
+
+**The inversion is deliberate and symmetrical:** purple card, yellow markers, ink
+numerals; yellow card, purple markers, white numerals. Same two colours, roles
+swapped.
+
+**No `/90` sibling on the yellow scheme.** A translucent ink on a mid-tone yellow
+greys *toward* the card rather than receding the way white does on purple.
+`TransferredAwayNotice` settled the same question the same way.
+
+**`brand`, not `inverse`, for the buttons.** `inverse`'s primary is a white fill —
+1.50:1 against this card, reading as a hole in it — and its secondary is
+white-on-transparent, which is the AA failure above.
+
+### §101.3 Measured on the live page, not calculated
+
+Rasterised through a 1×1 canvas (Tailwind v4 emits `oklab()`/`oklch()`, so parsing
+the computed string as RGB returns nonsense):
+
+| Pair | Ratio |
+|---|---|
+| card fill | `#ffcc4d` — confirms Figma `yellow/400` |
+| title / sub copy / both step blocks on card | **11.6:1** ×6 |
+| marker fill vs card · numeral on marker | **7.85:1** · **11.78:1** |
+| primary CTA fill vs card · label | **7.85:1** · **11.78:1** |
+| secondary CTA stroke vs card · label | **7.85:1** · **11.78:1** |
+| contact-card stroke vs card | **7.85:1** |
+| chip stroke vs card · text on chip | **7.85:1** · **17.4:1** |
+| control heights | 40px both CTAs, 27px chip, 40px markers |
+
+`layoutAudit()` **empty** on `/delivery` and `/delivery/consumers/dyad-015` at 1512.
+
+**Regression check on the purple scheme** (`dyad-014`, Arthur): card `#3a00ad`, title
+white, markers `#ffe299` with `#1a1a1a` numerals, CTA white, **no chip**, original sub
+copy. Unchanged.
+
+### §101.4 The chip's stroke is load-bearing
+
+The "Transferred client" pill above the title is **not** `Chip tone="yellow"` — that
+tone is `yellow-50` on a `yellow-300` stroke, which measures **1.19:1** against this
+card and vanishes into it. It is a white pill, the move `TransferredAwayNotice`
+already makes for its glyph circle on the same yellow.
+
+A *bare* white pill measured **1.5:1** as a boundary. The text inside is 17.4:1 and
+legible, so it is not a 1.4.11 failure — but it read as a washed-out patch rather
+than a label. The `border-primary` added after measuring takes it to **7.85:1** and
+ties it to the markers, contact card and secondary CTA. It keeps `Chip`'s own
+geometry (27px, `px-4`, `text-fine`, 1px border), so it is that chip in a tone the
+shared component lacks, not a fourth chip shape.
+
+### §101.5 The priorities list needed its own rule
+
+`PrioritiesSection`'s "New client assigned" reads `coachAssignedDate` against a
+14-day window — which a transferred client **can never enter**, because that date is
+the original coach's and is months old by definition. Without a second rule the
+dashboard showed the client, counted them in "Session plans not created: 2", and
+then offered nothing to act on: a KPI with one alert behind it.
+
+New rule **1b, "Client transferred to you"**, keyed on `transfer.date` against the
+same window and gated on `!replanDate` — once the incoming coach has planned, the row
+would be telling them to do what they just did. Its note quotes the frozen
+`sessionsWithPreviousCoach`, never a live count, which would climb as the new coach
+holds sessions and keep re-describing the split.
+
+### §101.6 Copy
+
+| Slot | Words |
+|---|---|
+| chip | `Transferred client` |
+| title | `Creating a session plan with your transferred client` |
+| sub | `<names> have been transferred to you. N of 6 sessions were already held and are not repeated. There are two steps before your first session together.` |
+
+The title keeps the assigned banner's whole shape and changes **one word**, so the
+two read as one surface in two states rather than two announcements. Steps 1 and 2
+are untouched (instruction).
+
+⚠️ **The previous coach is not named** (direct instruction: *"just dont mention old
+coach name"*). The researcher's own banner *does* name them — a researcher is
+auditing a hand-over between two people they manage, where a coach is being handed a
+client and whose caseload they came off is not what they have to act on. Two
+audiences, one record, two readings — the same split `wasTransferredAwayFrom()` vs
+`wasTransferredTo()` already encodes. The verb agrees off `dyad.patient` (`have`
+for a dyad, `has` for a carer-only household), derived rather than written, exactly
+as the researcher banner does it.
