@@ -1885,7 +1885,12 @@ export function SessionPlanEmptyBanner({
               surfaces are one mark. */}
           {transferred && (
             <span className="mb-1 inline-flex h-[27px] shrink-0 items-center gap-1.5 rounded-full border border-primary bg-white px-4 text-fine text-ink">
-              <ArrowLeftRight aria-hidden="true" className="size-3.5" strokeWidth={2.25} />
+              {/* 16px (`size-4`), the icon system's smallest step — NOT the
+                  `size-3.5` this shipped with. Icons in this app are 16/24/40
+                  on one stroke system (commit fe1abae); 14 was the exact kind
+                  of off-ramp that commit existed to close, and it reached a
+                  Figma frame before it was spotted. */}
+              <ArrowLeftRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
               Transferred client
             </span>
           )}
