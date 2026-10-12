@@ -9849,3 +9849,158 @@ end of the flow — there is nothing left to lose and nothing to come back to.
 
 Figma mirror: `4186:9145`, placed after the Phone summary frame. Dialog panels in
 this file are centred in the **artboard**, not the viewport (§14).
+
+---
+
+## §104 — The login screen, and four things that look right and are not (2026-10-12, Round 65)
+
+Figma frame `4184:43030` ("Login screen"), built as `pages/LoginPage.tsx`. It
+replaces `PortalSwitcherPage` at `/` and at the `*` fallback.
+
+It is **step 1 of four** — select user type → enter email → enter verification
+code → dashboard. Only step 1 has a frame, so only step 1 exists. `Continue`
+routes straight into the chosen portal (direct instruction: *"I will tell you,
+this is next step for now wire directly"*); the two missing screens slot in
+front of that one `navigate()`.
+
+### §104.1 The frame, transcribed — every number read back off the live page
+
+| Thing | Frame | Measured |
+|---|---|---|
+| Page canvas | `linear-gradient(to left, #fffcfa 25.621%, #fff8e5 55.723%)` | exact |
+| Header | 72px white, `shadow-card`, 80px sides, wordmark 137.1 × 34 only | exact |
+| Columns | left `flex-1` (724 @1512) + right fixed 788 | exact |
+| Heading | `display-lg` 40/500, box 48.5 tall, at y=212 | exact |
+| Heading → sub | 8 | 8 |
+| Sub | `sub-greeting` 18/500/1.4 | 25.2 tall |
+| Sub → tiles | 48 | 48 |
+| Tiles | 3 × 193.33 square, radius 16, gap 24 | exact |
+| Tile → label | 16 | 15.99 |
+| Tiles → CTA | 48 | 47.99 |
+| CTA | 628 × 48, radius 28 | exact |
+
+The header's drop shadow reports as `2px 4px 8px` in Figma's export and *is*
+`--shadow-card`: the exporter halves a Figma blur radius for CSS `drop-shadow()`,
+so 16 becomes 8. Do not add a second token for it.
+
+The grey CTA is not a colour decision. It is
+`btn({ surface: 'consumer', state: 'deactive' })`, whose `DEACTIVE.primary`
+resolves to `bg-ink-faint` `#6d6d6d` — the frame's own hex, to the digit. 48px
+and radius 28 come from `surface: 'consumer'` with no `size` passed.
+
+### §104.2 The three tile states
+
+The frame draws the consumer tile **hovered**, which is the only reason the
+hover paint is known. Chosen is the user's own call (*"in selected state show
+outline stroke p500"*).
+
+| State | Tile | Label | Measured contrast |
+|---|---|---|---|
+| rest | `purple-50` `#f3efff` | `ink` `#1a1a1a` | 16.73:1 on canvas |
+| hover | `purple-200` `#e4d6ff` + `shadow-card-raised` | `primary` `#3a00ad` | — |
+| chosen | hover paint + 2px `primary` outline | `primary` | 8.61:1 on tile |
+
+CTA once enabled: `#3a00ad`, white label, **11.78:1**.
+
+**An `outline`, not a `border`.** A border eats 2px off a square whose size is
+the entire point, so the tiles would twitch as the choice moved between them.
+
+`--shadow-card-raised` is new: `8px 16px 32px rgba(230,194,127,0.4)`, which is
+`--shadow-card` with **every** term doubled — offset, blur and alpha. That is
+the relationship the frame draws (same warm gold light, the tile simply lifted
+further off the canvas), not a coincidence to paper over.
+
+It is a real `<fieldset>` + `<legend>` + native radio group, not three buttons
+wearing `aria-pressed`. Arrow-key traversal, grouping and announcement come for
+free, and this page's audience note (plain language, big targets, nothing found
+by gesture) is the worst place to hand-write them. Verified with real key
+presses in Chrome 153, not `.focus()`.
+
+### §104.3 ⚠️ Four failures that typecheck, lint, and render
+
+Every one of these shipped in a first cut and none produced an error anywhere.
+
+**1. A breakpoint hoisted to a constant emits NO CSS.** The classes were built
+as `` `${BREAKPOINT}:px-20` `` from `const BREAKPOINT = 'min-[1200px]'`. The
+right class lands in the DOM; Tailwind v4 scans source **text** for literal
+class names and `min-[1200px]:px-20` never appears in it, so not one rule was
+generated. Measured: the page rendered in its own sub-1200 layout at a 1512px
+viewport. Same family as the arbitrary-property traps already recorded. **Write
+every breakpoint longhand.**
+
+**2. `object-cover` scales by WIDTH the moment the window leaves the frame.**
+The right column is a fixed 788, so widening the window widens only the artwork
+panel. At 1550 × 783 a 762 × 711 panel took a 1.05× scale and lost **234px off
+the top** — both sparkles and the top of the blob. Reported as "too much scaled
+in", and invisible at exactly 1512 × 982, where cover and the correct answer
+agree to within 10px.
+
+The fix went through a wrong middle worth recording: `h-full w-auto` (tied to
+the column's height) never crops, and at 1512 × 710 left the art 521px wide in a
+684px panel — ~200px of bare canvas before the copy, reported as "a lot of dead
+space between the two". The answer is `cover` anchored **`left top`**: the whole
+subject sits in the upper two thirds and the bottom third is cloud the frame
+already runs off its own bottom edge, so cropping there continues a bleed the
+design has.
+
+**3. Bottom padding + `justify-center` makes a column taller than its box.**
+Asked to move the content up "so add some padding below", the obvious reading is
+correct — bottom padding cannot lift anything unless something centres it — and
+it is what made the page scroll. At 1440 × 700: padding 77 + 225.75 plus 485.33
+of content made the column **788px** inside a 628px box, the document grew to
+860, and the page scrolled. Reported as "no scroll to this page". The layout is
+top-anchored; move `pt`, which is bounded. **Do not reintroduce
+`justify-center` to nudge a block vertically.**
+
+Also: under `justify-center`, `d(top)/d(pt)` is a **half**, not one. Taking 32
+off the top alone moves the heading 16px.
+
+**4. `text-balance` fought the frame.** It broke a tile label to "I am / a
+researcher/admin" — two words alone above a 36px first line. Natural wrapping at
+193px reproduced Figma's own breaks on all three. The no-orphans rule is about
+the *rendered* result; here the result was already right.
+
+### §104.4 The artwork is one vector, and the export comes back clipped
+
+`4201:43548` (the whole `Group 8639`) exported as a single SVG, with two things
+stripped that Figma bakes into **every** export and that belong to the page
+rather than the drawing: a `#F5F5F5` backing plate, and a duplicate of the page
+gradient. Nothing hand-drawn, nothing redrawn, no path edited.
+
+⚠️ **It arrives clipped to the 724px column** — the standing trap, and here it
+is what the design wants, since the frame clips that column too. The
+consequence to know: the right-hand crop is baked at 724, so `cover` scales the
+block rather than revealing more of it. Correct for a decorative panel; wrong
+for anything load-bearing.
+
+Per-child exports fare worse. The blob came back 651 × 876 against a 747.5 ×
+948.7 box and the cloud 724 × 516 against 756 × 516 — both cropped at the
+column's edges, and the blob's figure is its *render* bounds, not its box. The
+whole-group export is the only one whose clip lands where the design's does.
+
+### §104.5 Two numbers that are shares, not constants
+
+Both resolve to the frame's own value at the frame's own size and only move
+where the frame is silent.
+
+- **`pt` = 11vh** — the frame's 140 is 14.26vh (140/982); reduced by 32 on
+  instruction from an annotated screenshot, so 108/982 = 11vh. Clamped 40–108.
+- **`mr` = 2.65vw** — direct instruction (*"the second container is too much on
+  right"*). A **margin**, not padding: the column is a fixed 788 holding a 628
+  content block, so padding would have shrunk the heading, tiles and CTA
+  together. The margin moves the column inward and the artwork panel gives up
+  the space. Total gap to the viewport edge is 120 (40 + the frame's 80).
+
+### §104.6 What is deliberately not here
+
+- **The tiles are empty**, pending artwork. Asked and confirmed. The square is
+  already the right size and already clips, so nothing moves when art lands.
+- **The frame's stray "Scroll cue"** sat at y=1875 outside the 982px frame, a
+  leftover from a duplicate. The user removed it from Figma in the same session.
+- **Below 1200 is derived**, because the frame is 1512 only. The artwork hides,
+  the column goes full width, and the tiles stack at 560px capped to 240px
+  squares. `layoutAudit()` empty at 1512, 768 and 375.
+- **The page does not scroll at any desktop size** — nothing can exceed
+  72 + 108 + 485.33 + 48 = 713px. At 375 it does scroll, deliberately: the
+  stacked layout genuinely exceeds a phone screen, and clipping it would be a
+  WCAG 1.4.10 reflow defect.
