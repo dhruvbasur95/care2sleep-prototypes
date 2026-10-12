@@ -2193,11 +2193,6 @@ const LOG_COLUMNS: {
 
 const LOG_PAGE = 10
 
-/** Study-log pager control — the app's primary-outline pill, going `disabled`
- *  at the ends of the range rather than unmounting. */
-const PAGER_BTN =
-  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint disabled:hover:bg-transparent disabled:active:scale-100'
-
 /**
  * "Module completion overview" — the overall completion rate plus every module
  * with its own state. Extracted from the consumer record page's former Study
@@ -3053,12 +3048,18 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {/* Round 25, direct instruction ("export button not accessible"):
-                promoted from the quiet `bg-pearl` utility chrome to the app's
-                primary-outline pill, the same treatment the pager below uses.
-                `ink-muted` on `pearl` measured 4.83:1 — passing, but it read
-                as disabled next to a real control, which is the accessibility
-                problem that matters here. */}
-            <button
+                promoted from the quiet `bg-pearl` utility chrome to a visible
+                outline control. `ink-muted` on `pearl` measured 4.83:1 —
+                passing, but it read as disabled next to a real control, which
+                is the accessibility problem that matters here.
+
+                These two were the last hand-written button class strings in
+                the app (the local `PAGER_BTN`, 36px); they are now plain
+                `secondary · brand` from the shared system at 40px. They no
+                longer match `TablePager` below, which keeps a deliberate 36px
+                `size-9` override per CLAUDE.md — that is the one surviving
+                36px step, not a target to align back to. */}
+            <Button
               type="button"
               onClick={() =>
                 downloadCsv(
@@ -3069,23 +3070,26 @@ export function StudyLogSection({ dyad }: { dyad: ConsumerDyad }) {
                   ],
                 )
               }
-              className={PAGER_BTN}
+              variant="secondary"
+              className="shrink-0"
             >
               <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
               Export
-            </button>
+            </Button>
             {/* Column settings. Opens a panel of draggable chips — one per
                 column — so a researcher can hide what they don't read and
                 reorder what they do. */}
-            <button
+            <Button
               type="button"
               onClick={() => setColsOpen((v) => !v)}
               aria-expanded={colsOpen}
               aria-label="Table columns"
-              className={cn(PAGER_BTN, 'w-9 justify-center px-0')}
+              variant="secondary"
+              size="icon"
+              className="shrink-0"
             >
               <SlidersHorizontal aria-hidden="true" className="size-4" strokeWidth={2.25} />
-            </button>
+            </Button>
           </div>
         </div>
 

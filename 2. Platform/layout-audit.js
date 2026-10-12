@@ -74,15 +74,24 @@ function layoutAudit(rootSelector) {
    *    effect. Only flags a >8px shortfall on a wrapper that has no other
    *    laid-out children, i.e. where the control was clearly meant to fill.
    *
-   *    KNOWN FALSE POSITIVE (Consumer Management profile, Round 25 Figma
-   *    pass) — a `<label>` wrapping a checkbox plus its own text ("Email"/
-   *    "SMS") reports here: the text is a bare text node, not an Element, so
-   *    `wrap.children` sees only the checkbox and the "no other laid-out
-   *    children" heuristic wrongly concludes the checkbox was meant to fill
-   *    the whole label row. A 28px checkbox beside its own label text is the
-   *    correct, Figma-specified shape, not a missed width. Left reporting
-   *    rather than special-casing "wrapper is a `<label>`", which would also
-   *    hide a real case of the same bug on a checkbox/radio row.
+   *    CALIBRATED 2026-10-12 (was: KNOWN FALSE POSITIVE, Consumer Management
+   *    profile, Round 25 Figma pass) — a `<label>` wrapping a checkbox plus
+   *    its own text ("Email"/"SMS") used to report here: the text is a bare
+   *    text node, not an Element, so `wrap.children` saw only the checkbox and
+   *    the "no other laid-out children" heuristic wrongly concluded the
+   *    checkbox was meant to fill the whole label row. Measured on
+   *    `/research/consumers/dyad-011`: `input.peer.size-7` inside a
+   *    `<span class="relative …">` inside a `<label>` whose other child node
+   *    is the `#text` "Email" — reported as "1034px narrower than its 1062px
+   *    wrapper" twice, on both notification-preference rows.
+   *
+   *    The fix is NOT "wrapper is a `<label>`" — that special case would also
+   *    hide a real missed width on a checkbox/radio row. It is to count
+   *    **non-whitespace text nodes** as siblings alongside Elements, which is
+   *    what the "clearly meant to fill" heuristic always meant: a control with
+   *    its own visible label text beside it was never meant to fill. The two
+   *    false positives below are untouched by this — neither has a text-node
+   *    sibling — so the check keeps its teeth.
    *
    *    KNOWN FALSE POSITIVE (withdraw-a-coach flow, Round 46) — a `<select>`
    *    inside a padded table cell reports here. `wrap` is deliberately the
@@ -108,7 +117,11 @@ function layoutAudit(rootSelector) {
     if (!visible(c)) return
     const wrap = c.parentElement?.parentElement
     if (!wrap) return
-    const siblings = [...wrap.children].filter((n) => visible(n) && !n.contains(c))
+    const siblings = [...wrap.childNodes].filter((n) =>
+      n.nodeType === 3
+        ? (n.textContent ?? '').trim().length > 0
+        : n.nodeType === 1 && visible(n) && !n.contains(c),
+    )
     if (siblings.length > 0) return
     const gap = wrap.clientWidth - c.getBoundingClientRect().width
     if (gap > 8) add('control-not-filling-wrapper', c, `control is ${Math.round(gap)}px narrower than its ${wrap.clientWidth}px wrapper`)
@@ -168,19 +181,62 @@ function layoutAudit(rootSelector) {
  *    finding before it was measured, which is exactly the mistake this file's
  *    own header warns about. Discount a disc-plus-label cell by shape.
  *
- *    SIXTH CALIBRATION (2026-10-06, Figma mirror run) - Consumer Management
- *    (`/research/consumers`) reports four `<th>`s at once: "Session Plan",
- *    "Modules Completed" and "Module Activity" on 2 lines, and "Coaching
- *    sessions completed" on 3. These ones genuinely DO wrap - the Range really
- *    returns 2 and 3 tops. But the defect this check exists to catch is a table
- *    wider than its container silently hiding trailing columns, and that is
- *    measurably absent here: the table is 1110px inside a 1110px wrapper inside
- *    a 1112px card, `scrollWidth === clientWidth`, no horizontal page scroll,
- *    and all 9 columns are visible. The header row is simply 83px tall to fit
- *    9 multi-word labels across 1112px, which is a density decision, not a
- *    squeeze. Verdict: accepted, and mirrored into Figma as drawn. If this
- *    table ever gains a tenth column, re-measure rather than assuming the
- *    same - the margin is now zero. */
+ *    SIXTH CALIBRATION (2026-10-06, Figma mirror run; CLOSED 2026-10-12) -
+ *    Consumer Management (`/research/consumers`) reported four `<th>`s at once:
+ *    "Session Plan", "Modules Completed" and "Module Activity" on 2 lines, and
+ *    "Coaching sessions completed" on 3. These genuinely DO wrap - the Range
+ *    really returns 2 and 3 tops - and nothing is hidden: the table is 1110px
+ *    inside a 1110px scroller, `scrollWidth === clientWidth`, no horizontal
+ *    page scroll, all 9 columns visible. It was left reporting for six days as
+ *    an accepted false positive, which meant the page could never return empty
+ *    and the pass condition meant nothing there.
+ *
+ *    The flaw was treating ANY wrap as proof of a squeeze. A header wraps for
+ *    two different reasons and only one is a defect: the column is too narrow
+ *    for the label's widest WORD (a real squeeze - the word itself has nowhere
+ *    to go), or the column fits every word and the PHRASE is simply long enough
+ *    to need two lines (a density decision the author made).
+ *
+ *    So a `<th>` is now discounted only when its widest word fits its own
+ *    content box. Measured on this table at 1512px, widest word vs content
+ *    width: "Session Plan" 53 in 81 - "Modules Completed" 73 in 96 - "Module
+ *    Activity" 51 in 99 - "Coaching sessions completed" 71 in 121. Every one
+ *    has room to spare, so all four wrap between words. A genuinely squeezed
+ *    header still fires: the same table's 16px action column measures a 44px
+ *    widest word, and the probe in the note below confirms it reports.
+ *
+ *    Deliberately `<th>` ONLY. The same reasoning would apply to `<td>`, but
+ *    the evidence gathered was for header labels, and the three `<td>` false
+ *    positives below are different shapes (disc-plus-label, calendar grid, chip
+ *    row) that this guard would not have caught anyway. Widening it needs its
+ *    own measurement, not an assumption.
+ *
+ *    PROOF THE NARROWING KEPT ITS TEETH (re-run this after touching it).
+ *    NOTE `table-layout:fixed` - it is load-bearing. The first attempt at this
+ *    probe used an auto-layout table, which treats `width:40px` on a `<th>` as
+ *    a hint, widened the column to fit, never wrapped, and so returned empty -
+ *    which reads exactly like a blinded check. Verify the probe WRAPS before
+ *    trusting that it fired:
+ *      document.body.insertAdjacentHTML('beforeend',
+ *        '<div id=__p><table style="table-layout:fixed;width:40px"><thead><tr>' +
+ *        '<th style="width:40px;padding:0;font:500 14px Inter,sans-serif">' +
+ *        'Assigned Coach</th></tr></thead></table></div>');
+ *      layoutAudit('#__p');   // must report table-cell-text-wrapping
+ *      document.getElementById('__p').remove();
+ *    Measured when written: 40px content box, 62px widest word, 2 lines, fires.
+ */
+  /** Rendered width of a string in an element's own painted font. Canvas, not a
+   *  probe node: a probe inherits the cell's `width`/`white-space` and would be
+   *  measuring the wrap we are trying to explain. */
+  const textWidth = (() => {
+    const ctx = document.createElement('canvas').getContext('2d')
+    return (text, el) => {
+      const cs = getComputedStyle(el)
+      ctx.font = cs.font || `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+      return ctx.measureText(text).width
+    }
+  })()
+
   root.querySelectorAll('td, th').forEach((cell) => {
     if (!visible(cell)) return
     const target = cell.querySelector('a, span, p') ?? cell
@@ -189,7 +245,21 @@ function layoutAudit(rootSelector) {
     const range = document.createRange()
     range.selectNodeContents(target)
     const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)))
-    if (tops.size >= 2) add('table-cell-text-wrapping', cell, `short text wrapped onto ${tops.size} lines — column is being squeezed`)
+    if (tops.size < 2) return
+
+    // SIXTH CALIBRATION: a header whose widest word fits its own content box
+    // wrapped between words — the phrase is long, the column is not squeezed.
+    // The 0.5px slack absorbs sub-pixel layout rounding, which otherwise makes
+    // a word that exactly fills its box ("Type", 33 in 33) read as overflowing.
+    if (cell.tagName === 'TH') {
+      const cs = getComputedStyle(cell)
+      const contentW =
+        cell.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      const widestWord = Math.max(...words.map((w) => textWidth(w, cell)))
+      if (widestWord <= contentW + 0.5) return
+    }
+
+    add('table-cell-text-wrapping', cell, `short text wrapped onto ${tops.size} lines — column is being squeezed`)
   })
 
   /* 5. Controls under this app's enforced 36px height floor (Rounds 3.1/10/18).
