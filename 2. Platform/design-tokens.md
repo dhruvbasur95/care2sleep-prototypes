@@ -9601,3 +9601,88 @@ audiences, one record, two readings — the same split `wasTransferredAwayFrom()
 `wasTransferredTo()` already encodes. The verb agrees off `dyad.patient` (`have`
 for a dyad, `has` for a carer-only household), derived rather than written, exactly
 as the researcher banner does it.
+
+---
+
+## §102 — The Need help control, and the container query under it (2026-10-12)
+
+### One control, five call sites, 55 Figma instances
+
+`components/shared/NeedHelpButton.tsx` is the single definition. It existed four
+times over before this round and had drifted on height, radius, glyph and label
+casing. Spec, measured from the running app at 1512:
+
+| | value |
+|---|---|
+| box | **153 x 48**, radius **28** (`rounded-3xl` is 28px in Tailwind v4, not v3's 24) |
+| padding / gap | 20 / 20, gap 8 |
+| fill / stroke | `#ffffff` / `destructive` `#d70015` 1px |
+| label | `body-md` 16/600 `#d70015` |
+| glyph | `MessageCircleQuestionMark`, **24px** (`size-6`), stroke 1.75 |
+
+**Contrast, rasterised from painted pixels:** label and stroke on the white fill
+**5.38:1**; **4.92:1** once the `destructive/5` hover tint lands. Both clear AA.
+⚠️ The **4.80:1** figure that all three previous copies of this button quoted is
+**not reproducible** — do not propagate it. The hover tint composites to
+`rgb(253,242,243)`, a 2/13/12 per-channel shift: a real pink, unlike the
+invisible ~9-flat shift `primary/5` gives.
+
+`to` is the only per-portal difference: with it the control is a `<Link>`,
+without it the documented unwired treatment (focusable, `aria-disabled`,
+`sr-only` "(coming soon)"). Only the Consumer Portal has a help page today.
+
+**Nothing leaks either way.** `destructive` and `text-body-md` are app-wide
+tokens the Consumer Portal happens to share, not consumer-scale steps. The 48px
+height is a deliberate exception to the 40px app button height — it is the same
+physical control in all three portals, and splitting it by surface is what let
+the four copies drift.
+
+**Figma:** master `Button / Need help` `3377:8456`. 55 instances across all four
+pages. Two library defects were fixed to make it work (see §102.1).
+
+### §102.1 — Two `Button` component-set defects
+
+1. **78 of 90 variants had a dead icon slot.** The `Icon` child carried no
+   `componentPropertyReferences`, so `Show icon` could not turn it on and the
+   child was dropped from instances entirely. Only the 12 original Brand/Inverse
+   Static variants worked; every variant cloned later lost the binding. Re-bound
+   all 78 — additive, `Show icon` defaults false, no visual change.
+2. **The icon slot was hard-sized 16px on every variant**, including Size=48
+   where the app uses `size-6` (24). **An instance cannot override its slot
+   size** — `resize()` silently does nothing. Fixed at the master: 96 slots.
+
+### §102.2 — The certification actions use a CONTAINER query, and must
+
+`CoachProfilePage`'s post-record actions are Download full width, then Send email
+/ Share link 50-50, stacking narrow. The breakpoint is `@container`, not `sm:`,
+and that is **not a style preference**. Measured, the card's inner width is **not
+monotonic in viewport width**:
+
+| viewport | card inner |
+|---|---|
+| 1440 | 383 |
+| **1024** | **232** ← narrowest; the `1.75fr_1fr` split is still side by side and squeezed |
+| 768 | 494 ← that grid has collapsed to one column |
+| 375 | 213 |
+
+A `sm:`/`lg:` breakpoint therefore gets 1024 exactly backwards: two buttons side
+by side in 232px while stacking them in 494px. The threshold is **300px**,
+because the widest label (`Send email`, 133px with its icon) needs 2x133 + 12 =
+278 plus headroom.
+
+⚠️ **Gate `col-span-2` to the two-column state.** In a `grid-cols-1` track a
+2-column span creates an *implicit* second column and silently breaks the stack.
+
+### §102.3 — Certification outcome: the chip is a two-state signal
+
+`remediation-required` moved `neutral` -> `destructive` (2026-10-12). Recording
+that outcome used to **cool** the chip from the red "Not yet assessed" it
+replaced, reading as though something had been resolved. Nothing has: the trainee
+is not certified and still owes work. Both unresolved outcomes are now red and
+only `pass` is green — done / not done, rather than three colours to rank. The
+chip pair measures **4.68:1** (text `#d70015` on the rasterised `rgb(252,235,236)`
+tint).
+
+The **Assessor note** panel and the `note` field on `CertificationRecord` are
+**deleted**. It only held placeholder text the prototype wrote for itself, and
+named a role this study no longer has. Do not reinstate it.
