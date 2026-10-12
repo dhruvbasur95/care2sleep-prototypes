@@ -462,8 +462,6 @@ export interface CertificationRecord {
   certificateGenerated: boolean
   /** ISO date the certificate was generated */
   certificateDate?: string
-  /** Short note shown alongside a remediation outcome */
-  note?: string
 }
 
 /** Round 6.2.1 — shared shape for the new Account tabs (researcher/coach/consumer). */

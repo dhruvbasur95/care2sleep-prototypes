@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import { NeedHelpButton } from '@/components/shared/NeedHelpButton'
 import { motion } from 'framer-motion'
 import { Menu } from '@base-ui/react/menu'
 import {
@@ -3855,27 +3856,29 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
 
         {cert.outcome === 'not-yet-assessed' && (
           <p className="mt-4 text-caption leading-[1.6] text-ink-muted">
+            {/* 2026-10-12, direct instruction: "SIPTEA competency checklist"
+                -> "program competency checklist". */}
             All stages are ticked, but no Placement 2 outcome has been recorded
-            yet. Record the outcome once the expert assessor's SIPTEA
+            yet. Record the outcome once the expert assessor's program
             competency checklist comes back.
           </p>
         )}
+        {/* 2026-10-12, direct instruction: the `Assessor note` panel is gone.
+            It only ever held placeholder text the prototype wrote for itself,
+            and the role it named is not a role in this study — the research
+            team performs the assessment. The `note` field went with it, so
+            nothing writes a note nobody reads. */}
         {cert.outcome === 'remediation-required' && (
-          <>
-            {cert.note && (
-              <div className="mt-4 rounded-sm border border-hairline bg-pearl p-4">
-                <p className="text-fine font-semibold text-ink-muted">Assessor note</p>
-                <p className="mt-1 text-caption leading-[1.6] text-ink-muted">
-                  {cert.note}
-                </p>
-              </div>
-            )}
-            <p className="mt-4 text-caption leading-[1.6] text-ink-muted">
-              Once {firstName} completes remediation and is reassessed, record
-              the updated outcome below — this can be recorded again if
-              remediation is needed more than once.
-            </p>
-          </>
+          <p className="mt-4 text-caption leading-[1.6] text-ink-muted">
+            {/* 2026-10-12, direct instruction: no personal names. The trainee's
+                name is already the page title and the hero band directly above
+                this card, so repeating it here bought nothing and made one
+                sentence of standing guidance read as a note about one person.
+                "the trainee" is the researcher-facing term per CLAUDE.md. */}
+            Once the trainee completes remediation, record the updated outcome
+            below. This can be recorded again if remediation is needed more than
+            once.
+          </p>
         )}
         {/* Recording is open whenever the coach isn't yet certified — covers
             the first assessment (not-yet-assessed) and any later
@@ -3929,30 +3932,63 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
               {firstName} passed the Placement 2 assessment and is certified as a
               Care2Sleep sleep coach.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button
-                type="button"
-                onClick={() => setActionMsg('Certificate downloaded (prototype).')}
-              >
-                <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                Download
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setActionMsg('Shareable certificate link copied.')}
-                variant="secondary"
-              >
-                <Link2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                Share link
-              </Button>
-              <button
-                type="button"
-                onClick={() => setActionMsg(`Certificate emailed to ${coach.email}.`)}
-                className={cn(OUTLINE_FILLED_BUTTON, 'gap-2')}
-              >
-                <Mail aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                Send email
-              </button>
+            {/* 2026-10-12, direct instruction: Download takes the full first
+                row, then Send email and Share link share a 50/50 second row,
+                and all three stack on a narrow screen.
+
+                ⚠️ **This is a CONTAINER query, not a viewport one, and that is
+                not a preference.** Measured, this card's inner width is NOT
+                monotonic in viewport width — it is 383px at 1440, drops to its
+                narrowest **232px at 1024** (the `1.75fr_1fr` split is still
+                side by side and squeezed), then jumps back to 494px at 768 once
+                that grid collapses to one column, and 213px at 375. A `sm:` or
+                `lg:` breakpoint therefore gets 1024 exactly backwards: it would
+                put two buttons side by side in 232px while stacking them in
+                494px. The card's own width is the only thing that decides
+                whether two buttons fit, so the card's own width is what we ask.
+
+                300px is the threshold because the widest label, `Send email`,
+                measures 133px with its icon: two of those plus the 12px gap is
+                278px, and the rest is headroom for a longer string. Below it,
+                one column.
+
+                `col-span-2` is gated to the 2-column state deliberately — in a
+                `grid-cols-1` track a 2-column span creates an *implicit* second
+                column and silently breaks the stack. */}
+            <div className="mt-6 @container">
+              <div className="grid min-w-0 grid-cols-1 gap-3 @min-[300px]:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={() => setActionMsg('Certificate downloaded (prototype).')}
+                  className="w-full @min-[300px]:col-span-2"
+                >
+                  <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                  Download
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setActionMsg(`Certificate emailed to ${coach.email}.`)}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  <Mail aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                  Send email
+                </Button>
+                {/* Was a hand-rolled `<button className={OUTLINE_FILLED_BUTTON}>`
+                    while its two siblings were `<Button>`. Same emitted classes
+                    — `OUTLINE_FILLED_BUTTON` *is* `btn({ variant: 'secondary' })`
+                    — so this is inert, and it stops one of three buttons in a
+                    single group being a different component. */}
+                <Button
+                  type="button"
+                  onClick={() => setActionMsg('Shareable certificate link copied.')}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  <Link2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                  Share link
+                </Button>
+              </div>
             </div>
             {actionMsg && (
               <p
@@ -3972,13 +4008,13 @@ function CertificationOutcome({ coach }: { coach: Coach }) {
         open={pendingOutcome !== null}
         title={
           pendingOutcome === 'pass'
-            ? `Record a Pass for ${coach.fullName}?`
-            : `Record remediation required for ${coach.fullName}?`
+            ? `Record pass for ${firstName}`
+            : `Record remediation required for ${firstName}`
         }
         body={
           pendingOutcome === 'pass'
-            ? `${firstName} will be certified as a Care2Sleep sleep coach. This should only be recorded once the expert assessor's SIPTEA competency checklist confirms it.`
-            : `${firstName}'s certification is put on hold pending remediation. You can add the assessor's detailed note afterwards.`
+            ? `${firstName} will be certified as a Care2Sleep sleep coach. This should only be recorded once the trainee has completed all of the program's requirements.`
+            : `${firstName}'s certification is put on hold pending remediation. You can record a new outcome once they have completed it.`
         }
         confirmLabel={pendingOutcome === 'pass' ? 'Record Pass' : 'Record remediation required'}
         /* Green when confirming a Pass, so the dialog agrees with the green
@@ -4022,17 +4058,15 @@ function StageManagement({ coach }: { coach: Coach }) {
           </h2>
           <p className="text-body text-ink">{TAB_INTRO['Stage Management'].subtitle}</p>
         </div>
-        {/* No destination designed for this yet — focusable `aria-disabled`
-            with an `sr-only` cue, the same treatment `ResearchHomePage`'s own
-            "Need help" quick link already uses. */}
-        <button
-          type="button"
-          aria-disabled="true"
-          className="-my-3 shrink-0 rounded-sm py-3 text-caption-medium text-primary underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Need Help?
-          <span className="sr-only"> (coming soon)</span>
-        </button>
+        {/* 2026-10-12, direct instruction: the frame's underlined "Need Help?"
+            text link is replaced by the portal-wide `NeedHelpButton` — one help
+            control in every portal. Two things go with it: the frame's title
+            casing and question mark lose to this project's sentence-case rule
+            (it is "Need help" everywhere else), and the `-my-3` cancel goes too,
+            because a 48px pill next to a `title` + `body` block no longer needs
+            its own padding pulled back to sit on the heading's baseline.
+            Still unwired — there is no researcher help destination, so no `to`. */}
+        <NeedHelpButton />
       </div>
       {/* Back to two columns on direct instruction, with the two cards
           height-matched. `items-stretch` is the grid default; what actually

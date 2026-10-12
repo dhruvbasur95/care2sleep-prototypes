@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   HeartHandshake,
-  MessageCircleQuestionMark,
   MessagesSquare,
   Search,
   Users,
@@ -27,7 +26,7 @@ import {
   type ResearchPriorityItem,
 } from '@/components/research/ResearchPrioritiesSection'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { InertButton } from '@/components/shared/MeetingsSection'
+import { NeedHelpButton } from '@/components/shared/NeedHelpButton'
 import { StatCard } from '@/components/shared/StatCard'
 import { useCoachStage } from '@/data/coachStage'
 import { PATHWAY_STAGE_COPY } from '@/data/coachPathway'
@@ -377,37 +376,6 @@ function ConsumersTable({ dyads }: { dyads: ConsumerDyad[] }) {
    "Quick overview" was its last caller, and that row now needs a fixed 36px
    height to line up with the priorities header beside it — which this
    component, with its optional sub-copy slot, was the wrong shape for. */
-
-/**
- * "Need help" (Round 40, direct instruction) — both coach stages, top-right of
- * the greeting row.
- *
- * 2026-10-01, direct instruction: restyled to match the **Consumer Portal's**
- * own Need help control (`ConsumerHomePage`) — the `destructive` red outline
- * pill, `MessageCircleQuestionMark` rather than `CircleHelp`, 48px, 24px radius,
- * `body-md`. Outline rather than filled for the same reason it is there: a solid
- * red block at this size reads as an error state, where the control is an offer
- * of help. `destructive` measures 4.80:1 on white, so the label clears AA.
- *
- * Nothing leaks either way — `destructive` and `text-body-md` are app-wide
- * tokens the Consumer Portal happens to share, not consumer-scale steps.
- *
- * Still **unlinked here** (direct instruction): there is no coach-facing help
- * destination, so it keeps this app's documented unwired treatment — focusable
- * and announced, never a silently dead button. Give it a route and this becomes
- * a `<Link>`. `InertButton` is imported from `MeetingsSection`, where it lives.
- */
-function NeedHelpButton() {
-  return (
-    <InertButton
-      label="Need help"
-      appearance="active"
-      className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-body-md text-destructive outline-none transition-all hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.97]"
-    >
-      <MessageCircleQuestionMark aria-hidden="true" className="size-6" strokeWidth={1.75} />
-    </InertButton>
-  )
-}
 
 const HOME_ART = '/illustrations/home'
 

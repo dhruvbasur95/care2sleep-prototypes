@@ -5,7 +5,6 @@ import {
   Calendar,
   CalendarPlus,
   CircleCheckBig,
-  CircleHelp,
   ClipboardCheck,
   Handshake,
   RefreshCw,
@@ -23,6 +22,7 @@ import {
 } from '@/components/research/ResearchPrioritiesSection'
 import { StatCard } from '@/components/shared/StatCard'
 import { MeetingsSection, type ScheduleRow } from '@/components/shared/MeetingsSection'
+import { NeedHelpButton } from '@/components/shared/NeedHelpButton'
 import { useResearch } from '@/data/research-context'
 import { upcomingGroupSessions, type Coach } from '@/data/research'
 import { isPlanSet } from '@/data/spaces'
@@ -78,9 +78,9 @@ import { btn } from '@/components/shared/buttonSystem'
  *   carries a duration, so the time column shows the real start time with a
  *   `Melbourne time` sub-line (the study is Monash-based) rather than
  *   fabricating an end time.
- * - `Start` is a real link to the session's own Zoom URL. `Edit`, `Delete`,
- *   `Schedule session` and `Need help` have no write path or destination — none
- *   is designed for this surface yet — so they render as focusable
+ * - `Start` is a real link to the session's own Zoom URL. `Edit`, `Delete` and
+ *   `Schedule session` have no write path or destination — none is designed for
+ *   this surface yet — so they render as focusable
  *   `aria-disabled` buttons with an `sr-only` cue, this app's established
  *   treatment for a designed-but-unwired control (Round 6.1's "Schedule a
  *   session", Round 10's "View recording").
@@ -179,8 +179,8 @@ function addDays(iso: string, n: number): string {
 }
 
 
-/** The frame's `Edit` / `Delete` / `Schedule session` / `Need help` /
- *  `Schedule meeting` controls: drawn, but with no write path or destination
+/** The frame's `Edit` / `Delete` / `Schedule session` / `Schedule meeting`
+ *  controls: drawn, but with no write path or destination
  *  behind them yet. Focusable and announced rather than silently dead.
  *
  *  Round 28 — `appearance`:
@@ -188,7 +188,9 @@ function addDays(iso: string, n: number): string {
  *    pass their own `opacity-*`. Used by the row `Edit`/`Delete` pair.
  *  - `active` renders **identically to a live control**, hover and press
  *    included, on direct instruction ("make it non functional but in active
- *    state"). Used by the two scheduling CTAs and `Need help`.
+ *    state"). Used by the two scheduling CTAs. (`Need help` uses the same
+ *    treatment, but through the shared `NeedHelpButton`, which reaches the
+ *    copy of `InertButton` exported from `MeetingsSection`.)
  *
  *    `cursor-pointer` is part of that and is not incidental: a `<button>`
  *    computes to `cursor: default` by default, so the inert "Schedule meeting"
@@ -287,25 +289,6 @@ function QuickLinksBar() {
         </div>
       </div>
     </div>
-  )
-}
-
-/** The frame's `add-new-button` (`329:3751`), moved out of the Quick Links bar
- *  and into the welcome band on direct instruction.
- *
- *  The frame draws a 2px-stroked 48px-radius pill in Purple/700 — which is
- *  this app's own **primary-outline** canonical button almost exactly, so it
- *  renders as that rather than as the frame's own chrome (1px border, the
- *  app's 36px height floor against the frame's 41px). */
-function NeedHelpButton() {
-  return (
-    <InertButton
-      label="Need help"
-      appearance="active"
-      className={cn(btn({ variant: 'secondary' }), 'shrink-0')}
-    >
-      <CircleHelp aria-hidden="true" className="size-4" strokeWidth={2.25}  />
-    </InertButton>
   )
 }
 
@@ -599,6 +582,12 @@ export function ResearchHomePage() {
           // Top-aligned, not bottom: in the frame the button (`329:3751`) and
           // the title block (`329:3750`) both sit at y=64, so it lines up with
           // the title, not with the foot of a two-line sub copy 40px below.
+          //
+          // 2026-10-12, direct instruction — the frame's purple outline pill is
+          // replaced by the portal-wide `NeedHelpButton`: the Consumer Portal's
+          // red `destructive` outline, `MessageCircleQuestionMark` rather than
+          // `CircleHelp`, 48px rather than 40. One control in all three portals;
+          // the frame's own chrome loses.
           actionAlign="start"
           action={<NeedHelpButton />}
         />

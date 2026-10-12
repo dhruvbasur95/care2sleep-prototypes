@@ -121,11 +121,19 @@ export function CoachStatusChip({ status }: { status: CoachStatus }) {
    is the one thing on that card worth chasing. `destructive` is already this
    app's tone for that ("Not assigned" on Consumer Management uses it for the
    same "nothing has happened and it should have" meaning), and its chip pair is
-   contrast-measured at 4.66:1. */
+   contrast-measured at 4.66:1.
+
+   2026-10-12, direct instruction: `remediation-required` is **red too** — it
+   was `neutral` grey, so recording that outcome visibly *cooled* the chip from
+   the red "Not yet assessed" it replaced, reading as though something had been
+   resolved. Nothing has: the trainee is not certified and still owes work. The
+   two unresolved outcomes now share one tone and only `pass` goes green, which
+   makes the chip a two-state signal (done / not done) rather than three
+   colours the reader has to rank. Same measured 4.66:1 pair. */
 const certTone: Record<CertificationOutcome, Tone> = {
   'not-yet-assessed': 'destructive',
   pass: 'success',
-  'remediation-required': 'neutral',
+  'remediation-required': 'destructive',
 }
 
 export function CertificationChip({ outcome }: { outcome: CertificationOutcome }) {

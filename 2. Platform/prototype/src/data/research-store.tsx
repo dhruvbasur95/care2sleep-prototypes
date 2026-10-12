@@ -436,10 +436,6 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
           ...c.certification,
           outcome,
           assessedDate: TODAY,
-          note:
-            outcome === 'remediation-required'
-              ? 'Recorded by the research coordinator (prototype demo action). Add the assessor’s detailed note here once available.'
-              : undefined,
         },
       }))
     },

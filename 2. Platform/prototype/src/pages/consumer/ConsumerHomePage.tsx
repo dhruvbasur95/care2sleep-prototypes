@@ -1,5 +1,5 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { MessageCircleQuestionMark, NotebookPen, Video } from 'lucide-react'
+import { NotebookPen, Video } from 'lucide-react'
 import { useState } from 'react'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { CoachCard } from '@/components/consumer/CoachCard'
@@ -8,6 +8,7 @@ import { SessionFeedbackModal } from '@/components/consumer/SessionFeedbackModal
 import { CARD_HAIRLINE, CARD_PAD, CardIcon } from '@/components/consumer/ConsumerCard'
 import { SessionPlanStrip } from '@/components/consumer/SessionPlanStrip'
 import { ConsumerShell } from '@/components/consumer/ConsumerShell'
+import { NeedHelpButton } from '@/components/shared/NeedHelpButton'
 import { LearningTaskCard } from '@/components/consumer/LearningTaskCard'
 import {
   CONSUMER_CREST_TRACKING,
@@ -193,28 +194,18 @@ function WelcomeHeader({ dyad }: { dyad: ConsumerDyad }) {
       /* Direct instruction: "introduce a Need Help button on right, that opens
          help page. Simple outline style in red semantic."
 
-         `destructive` is this app's red semantic token (#d70015, measured
-         4.80:1 on white, so the label clears AA). Outline rather than filled:
-         a solid red block at this size reads as an error state, where the
-         control is an offer of help.
+         This page is where that control was designed, and as of 2026-10-12 it
+         is the one every portal uses — so the pill itself now lives in
+         `components/shared/NeedHelpButton.tsx` and this is a call site, not a
+         definition. The rationale (red `destructive` outline rather than a
+         filled block, 48px, `MessageCircleQuestionMark`, the AA measurement)
+         moved there with it.
 
-         Geometry is the portal's own outline pill — 48px, 28px radius, 16px
-         label — the same one `Read profile` and the header's account trigger
-         use, so this is the established control in a different colour rather
-         than a fourth button shape.
-
-         Label and destination both match the header's existing "Need help" menu
-         item (`/consumer/:dyadId/help`), which is the same page: two entry
-         points, one name. */
-      action={
-        <Link
-          to={`/consumer/${dyad.id}/help`}
-          className="text-body-md flex h-12 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-destructive outline-none transition-colors hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-        >
-          <MessageCircleQuestionMark aria-hidden="true" className="size-6" strokeWidth={1.75} />
-          Need help
-        </Link>
-      }
+         `to` is the only thing this portal passes that the other two cannot:
+         it has a real help page. Label and destination both match the header's
+         existing "Need help" menu item (`/consumer/:dyadId/help`), which is the
+         same page — two entry points, one name. */
+      action={<NeedHelpButton to={`/consumer/${dyad.id}/help`} />}
     />
   )
 }
