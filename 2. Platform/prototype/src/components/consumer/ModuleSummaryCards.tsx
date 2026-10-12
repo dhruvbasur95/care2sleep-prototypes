@@ -814,21 +814,28 @@ export function ModuleSummaryCards({ episode }: { episode: ModuleEpisode }) {
       It is exactly 2 x 2 rather than a general two-column rule because this
       module has four summary cards, one per chapter.
 
-      `max-w-[560px] mx-auto` while there is one column, released at 1024 with
-      the cap — two columns inside a 560px box would be narrower than the single
-      column they replaced.
+      ⚠️ **The `max-w-[560px] mx-auto` cap is GONE** (direct instruction,
+      Round 64: "tab to flip width not matching yellow banner width"). The grid
+      now fills the content column at every width, so a stacked card is exactly
+      as wide as the sleep-guide card above it.
 
-      Below the cap a single card filled the whole content column — 1151px wide
-      at 1199, 976 at 1024. A reflection card that wide is not a card, and it
-      dragged everything with it: the header ran to one long line, the artwork
-      scaled up with the container, and the pale panel looked like a letterbox
-      inside a slab. 560 is close to the width the three-column layout gives a
-      card once you account for its own padding, so a card reads at roughly the
-      same size whichever band you are in — which is the point of the cap.
+      What the cap was for, recorded because the reasoning was real and the
+      instruction overrides it rather than disproving it: below 1024 a single
+      card used to fill the whole content column — 1151px at 1199, 976 at 1024 —
+      and a card that wide stopped reading as a card, with its header on one long
+      line and its artwork scaling up with the container. 560 was close to the
+      width the three-column band gives a card, so a card read at about the same
+      size in every band.
+
+      Two of those three numbers no longer apply: 1024-1199 is now the 2 x 2
+      band, so the only single-column width above 560 is the slice from 768 to
+      1023, where a card is 670-975px. That is the trade accepted here — a card
+      flush with the block above it beats a card that is the same size as its
+      own desktop self, on a screen where nothing else is 560 wide.
     */
     <ul
       ref={listRef}
-      className="mx-auto grid w-full max-w-[560px] grid-cols-1 gap-6 min-[1024px]:max-w-none min-[1024px]:auto-rows-fr min-[1024px]:grid-cols-2 min-[1200px]:grid-cols-3"
+      className="grid w-full grid-cols-1 gap-6 min-[1024px]:auto-rows-fr min-[1024px]:grid-cols-2 min-[1200px]:grid-cols-3"
     >
       {episode.summaryCards.map((card) => (
         <SummaryCard key={card.chapterId} card={card} title={titleFor(card.chapterId)} />

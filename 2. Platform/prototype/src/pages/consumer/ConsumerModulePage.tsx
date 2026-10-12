@@ -28,8 +28,10 @@ import {
   type ReflectionMember,
   type ReflectionWho,
 } from '@/components/consumer/ModuleReflection'
-import { RESOURCE_CARD_ID, ResourceCard } from '@/components/consumer/ResourceCard'
+import { ResourceCard } from '@/components/consumer/ResourceCard'
 import { ModuleSummaryCards } from '@/components/consumer/ModuleSummaryCards'
+import { ScrollCue } from '@/components/shared/ScrollCue'
+import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import {
@@ -249,8 +251,6 @@ function ModuleBar({
       // its own height leaves it parked *behind* that header but still inside
       // the viewport, so its drop shadow bleeds out from under the white bar.
       // The extra 96 carries it fully off screen.
-      // Read by `scrollToResourceCard` so an in-page jump can clear whatever
-      // this bar's real height is, rather than carrying a copy of it.
       data-module-bar=""
       className={cn(
         'sticky top-[var(--consumer-chrome-h)] z-20 border-t border-hairline bg-yellow-200 py-4',
@@ -780,40 +780,6 @@ function VideoStage({
  * own, one screen further on. Two stages sharing one glyph and one word would
  * have been the only cue telling them apart.
  */
-/**
- * Scroll the take-home guide into view from the summary copy above it (direct
- * instruction: "can here also we can give reference to download cards, section,
- * it scrolls and takes me there").
- *
- * Three things this deliberately does not do:
- *
- *   - **Not an `<a href="#...">`.** This app is on a HashRouter, so a fragment
- *     link rewrites `location.hash` and the router tries to match it as a route.
- *     A button carries the same action without touching navigation.
- *   - **Not `scrollIntoView`.** It scrolls every scrollable ancestor, and this
- *     project has fixed three separate bugs caused by exactly that (Rounds 18,
- *     19 and 7.1.2). An explicit `window.scrollTo` cannot pick the wrong one.
- *   - **Not a fixed offset for the sticky bar.** The bar's height is measured
- *     from the DOM, so this stays right if its padding or copy ever changes.
- *
- * Focus moves to the card as well as the scroll, which is what makes this a
- * real skip-link rather than a mouse-only convenience — otherwise a keyboard
- * user's next Tab continues from the link they just pressed, halfway up a page
- * that has moved under them.
- */
-function scrollToResourceCard() {
-  const card = document.getElementById(RESOURCE_CARD_ID)
-  if (!card) return
-  const bar = document.querySelector('[data-module-bar]')
-  const clearance = (bar ? bar.getBoundingClientRect().height : 0) + 88
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  window.scrollTo({
-    top: Math.max(0, card.getBoundingClientRect().top + window.scrollY - clearance),
-    behavior: reduce ? 'auto' : 'smooth',
-  })
-  card.focus({ preventScroll: true })
-}
-
 /** Small counts as words, so a sentence reads as a sentence. Only the range a
  *  module's chapter list can actually reach; anything else falls back to the
  *  numeral rather than inventing a word. */
@@ -832,110 +798,97 @@ function SummaryStage({
 }) {
   return (
     <div className={cn('flex flex-col gap-10 py-14', SHELL)}>
-      <div className="flex flex-col gap-4">
-        <span
-          aria-hidden="true"
-          className="flex size-[75px] shrink-0 items-center justify-center text-consumer-primary"
-        >
-          <BookOpen className="size-10" strokeWidth={1.2} />
-        </span>
-        <div className="flex flex-col gap-2">
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-consumer-card-title text-balance text-black outline-none"
+      {/* Frame `940:5497` — the take-home guide.
+One download for the whole
+          module, which is why the per-card one was removed in the same pass.
+
+          **Above the summary cards, not below** (direct instruction, Round 64:
+          "move this to above summary cards"). It was below from Round 48, and
+          that is why the paragraph above used to end with a skip-link down to
+          it — a control that only existed because the one thing a reader could
+          take away sat past four 500px cards. Moving the card removed the
+          reason for the link, so both went in the same pass. */}
+      <ResourceCard
+        heading={
+        <div className="flex flex-col gap-4">
+          <span
+            aria-hidden="true"
+            className="flex size-[75px] shrink-0 items-center justify-center text-consumer-primary"
           >
-            Module summary
-          </h1>
-          {/* The first sentence is the doc's MODULE CORE MESSAGE, quoted
-              verbatim and read from the episode so it cannot drift from the one
-              the cards were written against. The rest is the copy supplied in
-              Round 47, with two of this portal's own conventions applied:
-              "summaries" -> "summarise" (the verb, not the noun) and "listened"
-              -> "listened to". */}
-          {/* The module's core message used to open this paragraph; Round 47
-              moved it to the completion screen on instruction, so this screen
-              needed a line of its own. Four words, after a longer first attempt
-              was cut back on instruction: it only has to say what the screen is
-              before the sentence that says what the cards are. */}
-          {/*
-            Written for this portal's audience — direct instruction: "it needs to
-            be more clear, simple, and easy to understand, remember this is for
-            old people, with poor digital literacy, accessibility issues", then,
-            after a first pass cut it to one line, "the copy is too short, make
-            it more relevant, whats this page about, what Have I learnet so far,
-            what Can I do in this page".
-
-            So it answers those three, in that order, one per sentence:
-
-              1. **What have I learned so far** — the chapters are behind them,
-                 and what those chapters were actually about. The "one ordinary
-                 day" framing is the module's own, from its intro and its Close
-                 ("almost nothing about tonight was decided tonight").
-              2. **What is this page** — a card for each part.
-              3. **What can I do here** — turn a card over, and download the
-                 guide at the bottom.
-
-            The two earlier versions are recorded because each was wrong in a way
-            worth not repeating:
-
-              "A quick recap of this module. Below are cards that summarise
-               everything you watched or listened to. Tap on each to read more,
-               and download."
-                 - "recap"/"summarise" are the wrong register, it described the
-                   page layout before saying anything about the content, and
-                   "and download" went stale the moment the per-card download
-                   moved to the resource card.
-
-              "Here is what this module covered. Tap a card to read more about
-               it."
-                 - Plain, but it says nothing about what was covered and never
-                   mentions the guide, so a reader who scrolled no further would
-                   not know it was there.
-
-            One idea per sentence, and short ones. The chapter count is
-            **interpolated from the module**, never written: this project has had
-            a hardcoded count go wrong three separate times.
-          */}
-          <p className="text-consumer-eyebrow text-ink-muted">
-            You have now been through all {countWord(lesson.episode.summaryCards.length)} parts of
-            this module. Together they follow one ordinary day, from getting up in the morning to going
-            to bed at night. There is a card below for each part.{' '}
-            <span className="min-[1200px]:hidden">Tap</span>
-            <span className="hidden min-[1200px]:inline">Click</span> a card to turn it over and
-            read the main points again. At the bottom of the page you can{' '}
-            <button
-              type="button"
-              onClick={scrollToResourceCard}
-              // `py-2 -my-2` is the app's 36px control floor, bought back out of
-              // the line box rather than added to it: at its natural 25px
-              // `layout-audit.js` flagged this, and rightly — it is a real
-              // target, and this portal's audience note is explicitly "big
-              // targets". The negative margin cancels the padding's effect on
-              // line rhythm, so the paragraph still sets as one block. Same
-              // trick as the Round 32 tour's Skip control.
-              //
-              // ⚠️ 8px, not 6: the surrounding step is `consumer-eyebrow`, which
-              // is a clamp, so the line box is 25px at desktop but only 22px on
-              // a phone. 6px cleared the floor at 1056 and left it at **34px** at
-              // 375 — measured at both, after the first pass was only checked on
-              // the wide one.
-              className="-my-2 inline-block rounded-sm py-2 font-semibold text-consumer-primary underline underline-offset-4 outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+            <BookOpen className="size-10" strokeWidth={1.2} />
+          </span>
+          <div className="flex flex-col gap-2">
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-consumer-card-title text-balance text-black outline-none"
             >
-              download a guide to keep
-            </button>
-            .
-          </p>
+              Module summary
+            </h1>
+            {/* The first sentence is the doc's MODULE CORE MESSAGE, quoted
+                verbatim and read from the episode so it cannot drift from the one
+                the cards were written against. The rest is the copy supplied in
+                Round 47, with two of this portal's own conventions applied:
+                "summaries" -> "summarise" (the verb, not the noun) and "listened"
+                -> "listened to". */}
+            {/* The module's core message used to open this paragraph; Round 47
+                moved it to the completion screen on instruction, so this screen
+                needed a line of its own. Four words, after a longer first attempt
+                was cut back on instruction: it only has to say what the screen is
+                before the sentence that says what the cards are. */}
+            {/*
+              Written for this portal's audience — direct instruction: "it needs to
+              be more clear, simple, and easy to understand, remember this is for
+              old people, with poor digital literacy, accessibility issues", then,
+              after a first pass cut it to one line, "the copy is too short, make
+              it more relevant, whats this page about, what Have I learnet so far,
+              what Can I do in this page".
+
+              So it answers those three, in that order, one per sentence:
+
+                1. **What have I learned so far** — the chapters are behind them,
+                   and what those chapters were actually about. The "one ordinary
+                   day" framing is the module's own, from its intro and its Close
+                   ("almost nothing about tonight was decided tonight").
+                2. **What is this page** — a card for each part.
+                3. **What can I do here** — turn a card over, and download the
+                   guide at the bottom.
+
+              The two earlier versions are recorded because each was wrong in a way
+              worth not repeating:
+
+                "A quick recap of this module. Below are cards that summarise
+                 everything you watched or listened to. Tap on each to read more,
+                 and download."
+                   - "recap"/"summarise" are the wrong register, it described the
+                     page layout before saying anything about the content, and
+                     "and download" went stale the moment the per-card download
+                     moved to the resource card.
+
+                "Here is what this module covered. Tap a card to read more about
+                 it."
+                   - Plain, but it says nothing about what was covered and never
+                     mentions the guide, so a reader who scrolled no further would
+                     not know it was there.
+
+              One idea per sentence, and short ones. The chapter count is
+              **interpolated from the module**, never written: this project has had
+              a hardcoded count go wrong three separate times.
+            */}
+            <p className="text-consumer-eyebrow text-ink-muted">
+              You have now been through all {countWord(lesson.episode.summaryCards.length)} parts of
+              this module. Together they follow one ordinary day, from getting up in the morning to going
+              to bed at night. There is a card below for each part.{' '}
+              <span className="min-[1200px]:hidden">Tap</span>
+              <span className="hidden min-[1200px]:inline">Click</span> a card to turn it over and
+              read the main points again.
+            </p>
+          </div>
         </div>
-      </div>
+        }
+      />
 
       <ModuleSummaryCards episode={lesson.episode} />
-
-      {/* Frame `940:5497` — the take-home guide, below the cards (direct
-          instruction: "we add a resource card below the summary cards"). One
-          download for the whole module, which is why the per-card one above
-          was removed in the same pass. */}
-      <ResourceCard />
     </div>
   )
 }
@@ -1235,6 +1188,28 @@ export function ConsumerModulePage() {
   const chrome = useScrollChrome(!!reduceMotion, stage)
 
   /**
+   * **Go home asks first** (direct instruction, Round 64: "clicking go home
+   * directly takes me back, like we have done for coach modules, add a
+   * confirmation cue here also, they can always resume back from where they
+   * left").
+   *
+   * Same control, same copy shape and the same shared `ConfirmDialog` the coach
+   * module player uses (`ModulePlayerPage`, "Leave this module?"), rather than
+   * a second dialog built here — two portals asking one question two ways is
+   * the drift this project keeps undoing. It takes `variant="consumer"` so the
+   * panel is on this portal's own brand and type scale.
+   *
+   * The copy is the consumer portal's register, not the coach's: short
+   * sentences, no "progress is saved" abstraction. What a reader needs to know
+   * is that leaving costs them nothing.
+   *
+   * ⚠️ **Only from the module bar, and only before the end.** The completion
+   * screen's own "Go home" is the end of the flow — there is nothing left to
+   * lose and nothing to come back to — so it still leaves immediately.
+   */
+  const [confirmExit, setConfirmExit] = useState(false)
+
+  /**
    * The reflection activity's own state, held here rather than inside the
    * stage: `AnimatePresence` unmounts a stage on every swap, so a reader who
    * stepped back to the Summary to re-read a card and then forward again would
@@ -1457,7 +1432,7 @@ export function ConsumerModulePage() {
         <ModuleBar
           lesson={lesson}
           stage={stage}
-          onHome={toOrigin}
+          onHome={() => setConfirmExit(true)}
           shown={chrome.bar}
         />
       )}
@@ -1527,6 +1502,64 @@ export function ConsumerModulePage() {
         )}
       </AnimatePresence>
       </div>
+
+      {/* **The scroll cue, back on the two long stages** (direct instruction,
+          Round 64: "scroll to view more button also missing from module
+          summary, and A few questions for both of you screens").
+
+          It is rendered here rather than switched back on at the shell, because
+          the shell's own cue is what was turned off and why: `ScrollCue` pins
+          itself `fixed right-6 bottom-6`, which is exactly where this page's
+          sticky footer puts Go back, and on a phone the two were measured
+          overlapping. So the cue is lifted clear of the footer instead —
+          **81px of footer plus the cue's own 24px inset**, matching the
+          footer's measured height rather than a guess.
+
+          Only Summary and Reflection. Welcome and Done are viewport-height
+          screens with nothing below the fold, and the video stage carries its
+          own chapter rail; a cue on any of them would point at nothing, which
+          is the defect recorded against the module player in `ScrollCue`'s own
+          `TRAILING_GAP_PX` note. The component hides itself when there is less
+          than 48px left to scroll, so a short Summary on a tall monitor still
+          shows nothing. */}
+      <ConfirmDialog
+        variant="consumer"
+        open={confirmExit}
+        title="Leave this module?"
+        body="You can come back whenever you like, and you will start again from this same page. Nothing you have done is lost."
+        confirmLabel="Go home"
+        cancelLabel="Stay here"
+        onConfirm={() => {
+          setConfirmExit(false)
+          toOrigin()
+        }}
+        onClose={() => setConfirmExit(false)}
+      />
+
+      {(stage === 'summary' || stage === 'reflection') && (
+        <ScrollCue
+          /* **Rides the footer, rather than clearing where the footer would
+             be.** A fixed `bottom-[105px]` was the first attempt and was
+             reported immediately — "button hovering randomly, this needs to be
+             synced with footer position that shows when I scroll down". With
+             the footer slid away there is nothing under the cue, so it reads as
+             floating in the middle of the page.
+
+             So it sits at the same `bottom-6` as every other caller and is
+             lifted by exactly the footer's own height while the footer is in,
+             driven by the SAME `chrome.footer` flag and carrying the SAME
+             `CHROME_TRANSITION` declaration — not a copy of its timing. Two
+             elements animating one property with one transition string cannot
+             drift apart.
+
+             Tailwind v4's `-translate-y-*` emits the standalone `translate`
+             property, which is what `CHROME_TRANSITION` transitions and what
+             the footer itself moves on; `framer-motion`'s own entrance writes
+             `transform`, so the two compose instead of fighting. */
+          className={cn('bottom-6', chrome.footer && '-translate-y-[var(--consumer-flow-footer-h)]')}
+          style={{ transition: CHROME_TRANSITION }}
+        />
+      )}
 
       {stage !== 'done' && (
       <ConsumerFlowFooter

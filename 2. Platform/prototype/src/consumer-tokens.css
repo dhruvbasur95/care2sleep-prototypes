@@ -132,6 +132,18 @@
        vertical breathing room. */
     --consumer-header-h: 72px;
 
+    /* The flow footer's own height — the white Go back / Go next bar on the
+       module and sleep-diary flows (`ConsumerFlowFooter`). 1px top border +
+       16px `py-4` + a 48px pill + 16px = 81.
+
+       It exists because a SECOND element now has to move in step with that
+       bar: the module summary and reflection screens' "Scroll to see more"
+       cue, which is lifted by exactly this while the footer is in and dropped
+       back to its own inset when the footer slides away. Hardcoding 81 in the
+       cue is how the two would silently drift the first time the footer's
+       padding or its button height changed. */
+    --consumer-flow-footer-h: 81px;
+
     /* The purple wave header behind the mascot (frame `761:3137`). The shape
        itself is a committed Figma export — `/illustrations/consumer-welcome/
        wave.svg` — so these three are NOT applied anywhere in CSS; they are
@@ -632,6 +644,108 @@
 @media (prefers-reduced-motion: reduce) {
     .consumer-pillow-beat,
     .consumer-pillow-feature {
+        animation: none !important;
+    }
+}
+
+/* ── Module summary banner: the pillow is alive ──────────────────────────────
+   Direct instruction, 2026-10-12: "add some motion (life to this pillow), i
+   want some very subtle movement to the eyebrows, and mouth, while just the
+   pillow part (not lower brown shadow) breaths".
+
+   Three beats, and the exclusion in that sentence is the whole design: the
+   brown ground ellipse sits OUTSIDE the breathing group in
+   `SummaryBannerArt.tsx`, because a shadow that swells with the body stops
+   reading as a shadow and the drawing just looks like it is zooming.
+
+   Amplitudes are deliberately below the threshold where you can watch them
+   happen — a 1.5% swell on a 460px pillow is ~7px at its widest point, which
+   you notice only by looking away and back. The §79-era note about Doodles
+   applies in reverse here: rotations under ~8deg are invisible on SMALL shapes,
+   but this shape is most of the card, so the same percentage reads as plenty.
+
+   Three different durations, co-prime enough that the three never line up
+   (5.4 / 4.3 / 6.7). Same reasoning as the five feedback pillows above, where
+   one shared duration made a row of them pulse in lockstep.
+
+   ⚠️ `transform-box: fill-box` is load-bearing on every one of these. An SVG
+   transform with no fill-box resolves `transform-origin` against the SVG
+   VIEWPORT, so `50% 100%` lands below the drawing and the breath becomes a
+   swing. Measured, not assumed. */
+@keyframes consumer-banner-breath {
+    0%, 100% { transform: scale(1, 1); }
+    50%      { transform: scale(1.012, 1.018); }
+}
+
+/* The brows lift and settle. `translateY` in per cent resolves against the
+   brows' own box (~27 units tall), so -7% is about 1.9 units — two pixels at
+   the size the card renders it. */
+@keyframes consumer-banner-brows {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-7%); }
+}
+
+/* The mouth curls rather than moves: a touch wider and a touch deeper, which
+   on a smile path reads as the smile growing. Pure translate looked like the
+   mouth sliding off the face. */
+@keyframes consumer-banner-mouth {
+    0%, 100% { transform: scale(1, 1) translateY(0); }
+    50%      { transform: scale(1.03, 1.12) translateY(-3%); }
+}
+
+/* The face turns toward the copy column on its left and holds the look before
+   coming back. The hold (45-70%) is the whole point: a glance that returns the
+   instant it arrives reads as a twitch, not as attention. The rotation is what
+   makes it a head turn rather than the features sliding sideways — 1.2deg,
+   which on a 172-unit-wide face is about 1.8 units at the outer brow. */
+@keyframes consumer-banner-face {
+    0%, 100%  { transform: translateX(0) rotate(0deg); }
+    45%, 70%  { transform: translateX(-3%) rotate(-1.2deg); }
+}
+
+.consumer-banner-breath,
+.consumer-banner-brows,
+.consumer-banner-mouth,
+.consumer-banner-face {
+    transform-box: fill-box;
+    animation-iteration-count: infinite;
+    animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1);
+    will-change: transform;
+}
+
+/* Anchored at its own bottom centre, so the pillow swells upward off the ground
+   shadow instead of sinking into it. */
+.consumer-banner-breath {
+    transform-origin: 50% 100%;
+    animation-name: consumer-banner-breath;
+    animation-duration: 5.4s;
+}
+
+.consumer-banner-brows {
+    transform-origin: 50% 100%;
+    animation-name: consumer-banner-brows;
+    animation-duration: 4.3s;
+}
+
+.consumer-banner-mouth {
+    transform-origin: 50% 50%;
+    animation-name: consumer-banner-mouth;
+    animation-duration: 6.7s;
+}
+
+/* Pivots about the middle of the face, the way a head does. 7.9s keeps it out
+   of step with the other three. */
+.consumer-banner-face {
+    transform-origin: 50% 50%;
+    animation-name: consumer-banner-face;
+    animation-duration: 7.9s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .consumer-banner-breath,
+    .consumer-banner-brows,
+    .consumer-banner-mouth,
+    .consumer-banner-face {
         animation: none !important;
     }
 }

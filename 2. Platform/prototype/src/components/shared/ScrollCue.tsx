@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useEffect, useState, type CSSProperties, type RefObject } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -69,6 +69,7 @@ export function ScrollCue({
   size = 'default',
   label = 'Scroll to see more',
   className,
+  style,
 }: {
   /** The element that actually scrolls. Omit to measure the window. */
   containerRef?: RefObject<HTMLElement | null>
@@ -103,6 +104,10 @@ export function ScrollCue({
    */
   label?: string
   className?: string
+  /** Additive passthrough. Added Round 64 for the consumer module page, whose
+   *  cue has to slide in step with a direction-aware sticky footer and so needs
+   *  that footer's own `transition` declaration rather than a copy of it. */
+  style?: CSSProperties
 }) {
   const reduceMotion = useReducedMotion()
   const [hasMore, setHasMore] = useState(false)
@@ -247,6 +252,7 @@ export function ScrollCue({
               : 'text-primary focus-visible:ring-ring',
             className,
           )}
+          style={style}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 8 }}

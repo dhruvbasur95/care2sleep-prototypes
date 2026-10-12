@@ -9686,3 +9686,166 @@ tint).
 The **Assessor note** panel and the `note` field on `CertificationRecord` are
 **deleted**. It only held placeholder text the prototype wrote for itself, and
 named a role this study no longer has. Do not reinstate it.
+
+---
+
+## §103 — The module summary card, its pillow, and the one clipping boundary (2026-10-12)
+
+Round 64. The Consumer Portal's module summary screen
+(`/consumer/:dyadId/module/:moduleId`, stage 3). Every number here is measured
+live or read off the Figma node, not transcribed from a frame screenshot.
+
+### 103.1 One block, not two
+
+The screen used to be a heading block (book icon + `<h1>` + paragraph), then four
+flip cards, then a yellow "Your sleep guide" card with its **own** title and
+intro. Two headings, two intros, overlapping — on a portal whose audience note is
+"old people, with poor digital literacy".
+
+It is now **one block above the cards**. `ResourceCard` takes a `heading` slot
+and the page passes the icon, `<h1>` and paragraph into it. The card's own
+`<h3>` is deleted; its one-liner survives as the lead-in to the three bullets.
+
+**The deletions that fell out of the move, and why they are not regressions:**
+
+| deleted | why |
+|---|---|
+| "At the bottom of the page you can download a guide to keep." | the card is now ABOVE the cards — there is no bottom of the page to point at |
+| `scrollToResourceCard` | it existed only to skip past four 500px cards |
+| `RESOURCE_CARD_ID`, the card's `id` + `tabIndex={-1}` | the focus target that skip-link landed on; a focusable non-control is just an extra Tab stop |
+| `resourceBlobFrame.ts`, `guide-photo.jpg`, 4 sticker SVGs | the photo artwork the new vector replaced |
+
+### 103.2 Geometry (desktop, >= 900px)
+
+Figma `2461:3925`, and the live values measured at 1512 in brackets where the
+1px CSS border makes them differ (the §14 "CSS border vs Figma stroke"
+deviation).
+
+| | |
+|---|---|
+| card | 1160 x 576 [573.77], radius 16, `yellow-100` `#fff0cc`, `parchment` stroke, `shadow-card` |
+| card padding | **`0 / 0 / 0 / 40`** — asymmetric |
+| copy column padding | **`40 / 0 / 40 / 0`** — its own |
+| gap | 48 |
+| copy column | 717.13 [715.13] |
+| banner column | 354.87, full card height |
+| artwork | 339 x 498 at left **16.48**, top **40** |
+
+**The padding moved off the card and onto the column** because the banner bleeds
+to the card's top, right and bottom edges, and a card with 40px of padding has
+no way to let a child reach them.
+
+Below 900px the card is a plain `p-6` (24) all round — which is what the Tablet
+and Phone frames draw — and the banner is `display: none`.
+
+### 103.3 The artwork is one export, wider than its column
+
+Figma `4139:42732` ("Frame 2"), exported whole and inlined as
+`components/consumer/SummaryBannerArt.tsx`.
+
+It is **deliberately wider than the column it sits in** and bleeds off the
+right-hand edge. Figma's rendered bounds are 338.39 x 497.1 and its clip lands at
+354.87 — 0.61px past the 339-wide export's own right edge — so the file holds
+everything that is ever visible.
+
+⚠️ **A Figma `exportAsync` on a node inside a clipping frame comes back
+CLIPPED.** The group is 467.7 wide; the export arrived `viewBox="0 0 339 498"`,
+exactly `frame.width - group.offsetX`. Setting `clipsContent = false` first did
+**not** change it. The path data beyond the viewBox is still in the file — only
+the viewBox crops it. Compare `absoluteRenderBounds` against
+`absoluteBoundingBox` to know which you have.
+
+### 103.4 The motion, and the one thing that must not move
+
+Direct instruction: *"add some motion (life to this pillow), i want some very
+subtle movement to the eyebrows, and mouth, while just the pillow part (not
+lower brown shadow) breaths"*, then *"the face also need to animate as the text
+is on left to the avatar, the face need to direct towards the text"*.
+
+Keyframes live in `consumer-tokens.css` beside the feedback pillows' beats, not
+in the component.
+
+| layer | beat | duration |
+|---|---|---|
+| ground ellipse `#B5935F` | **none** — it sits OUTSIDE the breathing group | — |
+| pillow body + stroke | `scale(1.012, 1.018)` | 5.4s |
+| face (turns left toward the copy, holds 45-70%) | `translateX(-3%) rotate(-1.2deg)` | 7.9s |
+| brows | `translateY(-7%)` | 4.3s |
+| mouth | `scale(1.03, 1.12) translateY(-3%)` | 6.7s |
+
+**The exclusion is the whole design.** A shadow that swells with the body stops
+reading as a shadow and the drawing just looks like it is zooming.
+
+Four different durations so the beats never line up — the same reason the five
+feedback pillows each carry their own (§ "Feedback pillow idle beats").
+
+⚠️ **`transform-box: fill-box` is load-bearing on every one.** Without it an SVG
+transform resolves `transform-origin` against the **viewport**, so `50% 100%`
+lands below the drawing and the breath becomes a swing.
+
+⚠️ **CSS keyframes, not `framer-motion`** — that file already records framer
+writing `transform: none` and leaving it, having never parsed a percentage
+keyframe array on these shapes.
+
+Verified moving: five distinct computed transforms per layer over four seconds.
+Per this project's own note, "nothing is animating" usually means it is
+animating too little — so measure the computed transform, do not eyeball it.
+
+### 103.5 ⚠️ The module summary card is the ONLY clipping boundary
+
+This took three passes and landed where it started, deliberately. The sequence,
+because the reasoning matters more than the answer:
+
+1. Card and banner column both `overflow-hidden`. The pillow is drawn flush to
+   the card's right edge, so every frame of the breath was sliced at that line.
+   *"unclip parent container, to avoid animation clipping"*.
+2. Everything unclipped. The pillow **and its ground shadow** then hung outside
+   the card over the page canvas. *"clip the parent container"*, *"i.e. module
+   summary card"*.
+3. **Card clips. Banner column does not. SVG viewport does not.**
+   *"do not clip the immediate container of the avatar, only clip the parent
+   module summary card"* — *"clipping avatar crops it when its animating"*.
+
+**The rule, generalised:** clip at the OUTER container the design bleeds to,
+never at the animated element's immediate parent. A clip on the immediate parent
+lands a few px *inside* the intended edge and leaves a moving seam short of it.
+
+### 103.6 The scroll cue rides the footer
+
+`ScrollCue` had been off for the whole module page since Round 47: it pins
+`fixed right-6 bottom-6`, which is exactly where the sticky footer puts Go back,
+and the two were measured overlapping on a phone.
+
+It is back on Summary and Reflection, lifted clear by **exactly the footer's own
+height** — `--consumer-flow-footer-h`, a new token, **81px** (1px border + 16
+`py-4` + a 48px pill + 16), defined in `consumer-tokens.css` rather than written
+into the cue.
+
+⚠️ **A fixed offset is not "synced".** The first pass lifted it a constant 105px
+and it read as floating in mid-air whenever the footer slid away — reported as
+*"button hovering randomly"*. It now moves off the **same `chrome.footer` flag**
+and carries the **same `CHROME_TRANSITION` string** the footer does, not a copy
+of its timing. Measured: 105px from the bottom with the footer in, 24px with it
+out. `ScrollCue` gained an additive `style` passthrough for this.
+
+### 103.7 Go home confirms
+
+Direct instruction: *"clicking go home directly takes me back, like we have done
+for coach modules, add a confirmation cue here also, they can always resume back
+from where they left"*.
+
+The module bar's Go home opens the **shared** `ConfirmDialog` with
+`variant="consumer"` — the same component `ModulePlayerPage` uses for "Leave
+this module?" — rather than a second dialog built in the consumer portal.
+
+Measured at 1512: panel 640 x 216.59 centred, white, radius 16, pad 32/32/16/32;
+title 22/500 `#1a1a1a`; body 16/400, 576 wide; buttons 48 tall, radius 28, 12px
+apart, right-aligned — "Stay here" `secondary·brand`, "Go home" `primary·brand`.
+Scrim `#000000` at 25%. All on the consumer scale: nothing under 16px, nothing
+heavier than 600.
+
+⚠️ **The completion screen's own Go home still leaves immediately.** It is the
+end of the flow — there is nothing left to lose and nothing to come back to.
+
+Figma mirror: `4186:9145`, placed after the Phone summary frame. Dialog panels in
+this file are centred in the **artboard**, not the viewport (§14).

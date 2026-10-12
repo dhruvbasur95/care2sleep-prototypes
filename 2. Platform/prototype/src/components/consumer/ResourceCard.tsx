@@ -1,251 +1,153 @@
+import type { ReactNode } from 'react'
 import { Download } from 'lucide-react'
-
-/** Kept beside the page that jumps to it — see `scrollToResourceCard`. */
-export const RESOURCE_CARD_ID = 'module-resource-card'
-import {
-  RESOURCE_BLOB_BACKDROP_FILL,
-  RESOURCE_BLOB_BACKDROP_PATH,
-  RESOURCE_BLOB_H,
-  RESOURCE_BLOB_PATH,
-  RESOURCE_BLOB_STROKE,
-  RESOURCE_BLOB_STROKE_W,
-  RESOURCE_BLOB_W,
-} from '@/components/consumer/resourceBlobFrame'
+import { BANNER_H, BANNER_W, SummaryBannerArt } from '@/components/consumer/SummaryBannerArt'
 
 /**
- * The take-home resource card, below a module's summary cards.
- * Frame `940:5497` ("Resource download card"), Round 48.
+ * The module summary screen's banner illustration — Figma `4139:42732`
+ * ("Frame 2"), exported whole on 2026-10-12 and committed as
+ * `/illustrations/consumer-resource/summary-banner.svg`.
  *
- * ── THE COPY IS THE MODULE'S, NOT THE FRAME'S ─────────────────────────────
+ * ── It replaced a photo, and the photo machinery went with it ─────────────
  *
- * Direct instruction: "This is for reference only, copy is something you need
- * to work on." The frame's own bullets — breathing exercises, a calming sleep
- * environment, a daily routine checklist — describe a different module. None of
- * the three appears anywhere in this one, whose actual content is a regular
- * wake time, resting without spending your sleep hunger, and waiting until you
- * are sleepy rather than merely tired. Shipping the frame's list would have
- * promised a guide to something the person had not just watched.
+ * Until this round the card carried a photograph in a torn-paper blob, built
+ * here out of `resourceBlobFrame.ts`, a JPEG and four sticker SVGs. The design
+ * moved to a flat vector, so all of that was deleted rather than left behind:
+ * nothing else imported it (checked repo-wide with `--no-ignore-files`, since
+ * `grep -r` here is ugrep and skips gitignored files).
  *
- * So the three bullets are the module's own three chapters, written in the
- * words the module used, and the heading pair says what the thing is and what
- * is in it. Source: `BuildingBlocksOfGoodSleep_activities_v2.md` (chapter
- * summary cards) and `..._step4_script.docx.md` (the Close, "the whole day in
- * four lines").
+ * ── It is ONE export, not a reassembly ───────────────────────────────────
  *
- * Written for this portal's stated audience — people living with dementia and
- * their carers — so: short sentences, one idea each, no metaphor that has to be
- * unpacked ("sleep hunger" is the module's own term and is deliberately not
- * introduced cold here), and the download says plainly what it will do before
- * it is pressed rather than after.
+ * The whole illustration — the tan ground ellipse, the `#FFE299` blob with its
+ * `#FFCC4D` stroke and two inner shadows, and the six `#3A00AD` shapes — comes
+ * out of Figma as a single file. This project has shipped a photograph outside
+ * its own frame three times by transcribing two halves of one drawing
+ * separately (see `blobFrame.ts` and §78.1); a single export cannot drift.
+ *
+ * ── The numbers, and where they come from ────────────────────────────────
+ *
+ * Figma's own, read off the node, not eyeballed:
+ *
+ * | | |
+ * |---|---|
+ * | banner column | 354.87 wide, full card height, **clipped** |
+ * | artwork | 339 x 498, placed at left **16.48**, top **40** |
+ *
+ * The artwork is deliberately **wider than its column** — it bleeds off the
+ * right-hand edge, which is why the column clips and why the card's own right
+ * padding is 0. Figma's rendered bounds are 338.39 x 497.1 and its clip lands
+ * at 354.87, i.e. 0.61px before the export's own right edge, so the 339-wide
+ * file holds everything that is ever visible and nothing is lost to the crop.
+ *
+ * It began as an `<img>` pointing at a committed `.svg`. It is now an inline
+ * `<svg>` (`SummaryBannerArt`) because the pillow had to come alive and an
+ * `<img>` has no addressable parts — see that file for what breathes and what
+ * deliberately does not. The public `.svg` was deleted in the same pass rather
+ * than left beside it.
  */
+const BANNER = {
+  COLUMN_W: 354.87,
+  LEFT: 16.48,
+  TOP: 40,
+} as const
 
-/* ── Artwork geometry ─────────────────────────────────────────────────────
- *
- * Every number is the frame's own, expressed as a share of the artwork box so
- * the whole illustration scales with the card instead of overflowing a narrow
- * one. Frame `941:5856` rotates the assembled artwork 4.45deg, and its 391.17 x
- * 304.759 container is the *rotated bounding box* of a 370.81 x 276.83 inner
- * box — which checks out: 370.81·cos4.45 + 276.83·sin4.45 = 391.2, and
- * 370.81·sin4.45 + 276.83·cos4.45 = 304.8. So the inner box is what the pieces
- * are positioned in, and the outer one only reserves room for the rotation.
- */
-const ART_W = 370.81
-const ART_H = 276.83
-const pctX = (v: number) => `${((v / ART_W) * 100).toFixed(3)}%`
-const pctY = (v: number) => `${((v / ART_H) * 100).toFixed(3)}%`
-
-/** A sticker's wrapper is its *rotated* bounding box, so the vector inside is
- *  centred at its own size and then turned — the frame's own construction. */
-function Sticker({
-  src,
-  left,
-  top,
-  boxW,
-  boxH,
-  vectorW,
-  rotate,
-}: {
-  src: string
-  left: number
-  top: number
-  boxW: number
-  boxH: number
-  vectorW: number
-  rotate: number
-}) {
+function ResourceBanner() {
   return (
-    <span
-      aria-hidden="true"
-      className="absolute flex items-center justify-center"
-      style={{ left: pctX(left), top: pctY(top), width: pctX(boxW), height: pctY(boxH) }}
-    >
-      <img
-        src={src}
-        alt=""
-        className="block max-w-none"
-        style={{ width: `${((vectorW / boxW) * 100).toFixed(2)}%`, transform: `rotate(${rotate}deg)` }}
-      />
-    </span>
-  )
-}
+    /* **Desktop only** (direct instruction, Round 64: "in tablet and mobile, we
+       do not show this vector" — and the Figma tablet and phone frames have no
+       banner node at all). Hidden on the SAME 900px breakpoint the card's row
+       layout uses, so the banner can never be visible while the card is
+       stacked. It is decorative, so a narrow reader loses nothing.
 
-function ResourceArtwork() {
-  return (
+       `self-stretch` rather than a height: the copy column sets the card's
+       height and the banner fills it, which is Figma's `layoutSizingVertical:
+       FILL` on the same frame. */
     <div
       aria-hidden="true"
-      className="relative w-full shrink-0 min-[900px]:w-[391px]"
-      style={{ aspectRatio: '391.17 / 304.759' }}
+      /* ⚠️ **Deliberately NOT clipped** (direct instruction, Round 64: "do not
+         clip the immediate container of the avatar, only clip the parent module
+         summary card"). This column is 354.87 wide and the pillow is drawn
+         flush to its right edge, so a clip here would slice the breath a few px
+         INSIDE the card and leave a visible seam short of the edge. The card
+         does the clipping, at the edge, where the bleed is meant to land. */
+      className="relative hidden shrink-0 self-stretch min-[900px]:block"
+      style={{ width: BANNER.COLUMN_W }}
     >
-      {/* The inner box, rotated as one piece — see the geometry note above. */}
-      <div
-        className="absolute"
-        style={{
-          left: '50%',
-          top: '50%',
-          width: `${((ART_W / 391.17) * 100).toFixed(3)}%`,
-          height: `${((ART_H / 304.759) * 100).toFixed(3)}%`,
-          transform: 'translate(-50%, -50%) rotate(4.45deg)',
-        }}
-      >
-        {/* Frame `941:5857` — the offset blob behind, `yellow-500`. Its own
-            shape and its own 3.35deg, and nothing is registered against it. */}
-        <span
-          className="absolute flex items-center justify-center"
-          style={{ left: pctX(3.23), top: 0, width: pctX(338.259), height: pctY(274.896) }}
-        >
-          <svg
-            viewBox={`0 0 ${RESOURCE_BLOB_W} ${RESOURCE_BLOB_H}`}
-            className="block h-auto w-[95.74%]"
-            style={{ transform: 'rotate(3.35deg)' }}
-            fill="none"
-          >
-            <path d={RESOURCE_BLOB_BACKDROP_PATH} fill={RESOURCE_BLOB_BACKDROP_FILL} />
-          </svg>
-        </span>
-
-        {/*
-          ⚠️ **The photo and its frame are ONE path, rendered twice.**
-
-          Figma exports the mask at 320.278 x 245.993 and the outline at
-          323.845 x 256.432 — different shapes, positioned relative to each
-          other by two hand-transcribed offsets (the frame puts the photo card
-          at ml 4.55 and the outline at ml 15.48). Transcribing both is how this
-          project has shipped a photograph sitting outside its own frame three
-          separate times. Here the outline path is the `clipPath` *and* the
-          stroke, in one SVG, so they cannot drift at any size.
-
-          `preserveAspectRatio="xMidYMid slice"` is the SVG equivalent of
-          `object-cover`: the source is a 800 x 1200 portrait and this box is
-          landscape, so it crops rather than squashing.
-        */}
-        <svg
-          viewBox={`0 0 ${RESOURCE_BLOB_W} ${RESOURCE_BLOB_H}`}
-          className="absolute"
-          style={{
-            left: pctX(15.48),
-            top: pctY(14.45),
-            width: pctX(323.845),
-            height: pctY(256.432),
-          }}
-          fill="none"
-        >
-          <defs>
-            <clipPath id="resource-blob-clip">
-              <path d={RESOURCE_BLOB_PATH} />
-            </clipPath>
-          </defs>
-          <image
-            href="/illustrations/consumer-resource/guide-photo.jpg"
-            x="0"
-            y="0"
-            width={RESOURCE_BLOB_W}
-            height={RESOURCE_BLOB_H}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath="url(#resource-blob-clip)"
-          />
-          <path
-            d={RESOURCE_BLOB_PATH}
-            fill="none"
-            stroke={RESOURCE_BLOB_STROKE}
-            strokeWidth={RESOURCE_BLOB_STROKE_W}
-          />
-        </svg>
-
-        {/* Frames `941:5863`, `941:5868`, `941:5876`, `941:5879` — the frame's
-            own exported vectors, committed rather than redrawn. */}
-        <Sticker
-          src="/illustrations/consumer-resource/sticker-s3.svg"
-          left={47.65}
-          top={3.75}
-          boxW={74.708}
-          boxH={56.527}
-          vectorW={70.882}
-          rotate={4.55}
-        />
-        <Sticker
-          src="/illustrations/consumer-resource/sticker-s1.svg"
-          left={281.17}
-          top={48.73}
-          boxW={89.64}
-          boxH={81.895}
-          vectorW={79.165}
-          rotate={-9.55}
-        />
-        <Sticker
-          src="/illustrations/consumer-resource/sticker-s2.svg"
-          left={0}
-          top={205.48}
-          boxW={78.179}
-          boxH={71.346}
-          vectorW={69.7}
-          rotate={-8.67}
-        />
-        <Sticker
-          src="/illustrations/consumer-resource/sparkle.svg"
-          left={273.77}
-          top={240.94}
-          boxW={31.675}
-          boxH={31.675}
-          vectorW={29.434}
-          rotate={4.55}
-        />
-      </div>
+      <SummaryBannerArt
+        className="absolute max-w-none"
+        style={{ left: BANNER.LEFT, top: BANNER.TOP, width: BANNER_W, height: BANNER_H }}
+      />
     </div>
   )
 }
 
 /** The module's own three strategies, in the module's own words. */
-const GUIDE_POINTS = [
+const RESOURCE_POINTS = [
   'Getting up at about the same time each day',
   'Resting in the afternoon without losing sleep for the night',
   'Telling sleepy apart from tired, so you go to bed at the right time',
 ]
 
-export function ResourceCard() {
+/**
+ * `heading` is the SCREEN's own heading block — icon, `<h1>` and the paragraph
+ * introducing the module. It is passed in rather than written here because the
+ * card does not own it: it owns the guide.
+ *
+ * Round 64 clubbed the two (direct instruction: "can we club: Module summary …
+ * and copy in guide i.e. Your sleep guide"). Before it, the screen opened with
+ * a book icon, "Module summary" and a paragraph, and then the card immediately
+ * below opened with "Your sleep guide" and a one-line sub copy — two headings
+ * and two intros, stacked, saying overlapping things to a reader this portal's
+ * own audience note describes as having poor digital literacy.
+ *
+ * So the card absorbed the screen's heading block and gave up its own `<h3>`;
+ * "Module summary" is the only title now, and the guide's own line survives as
+ * the lead-in to its bullets, where it reads as a caption for the list rather
+ * than a second heading. The book icon was not deleted with it — it moved
+ * inside, above the title (direct instruction: "or actually icon can move above
+ * the title in card title").
+ *
+ * No `id`/`tabIndex` on the section any more, either. Both existed only so the
+ * summary copy could jump DOWN to this card when it sat below four 500px cards;
+ * the card is now the first thing on the screen, so there is nothing to skip to
+ * and a focusable non-control would just be an extra Tab stop.
+ */
+export function ResourceCard({ heading }: { heading: ReactNode }) {
   return (
-    /* `id` + `tabIndex={-1}` so the summary copy above can jump here and land
-       focus on the card, not just scroll the page under the reader. See
-       `scrollToResourceCard`. */
-    <section
-      id={RESOURCE_CARD_ID}
-      tabIndex={-1}
-      className="flex flex-col items-center gap-8 rounded-lg border border-parchment bg-yellow-100 p-6 shadow-card outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 min-[900px]:flex-row min-[900px]:gap-12 min-[900px]:p-10"
-      aria-labelledby="resource-card-title"
-    >
-      <ResourceArtwork />
+    /* **Text first in the DOM, artwork second** (direct instruction, Round 64:
+       "move to right"). Not `order-*`: on the stacked phone layout a visual
+       order that disagrees with the DOM order is a real reading-order defect,
+       and reordering the source gives the same desktop result with none of
+       that — artwork right at >= 900px, artwork below the copy under it, which
+       is also the right stacking now that the card opens with the screen's own
+       heading. */
+    /* ── Padding is asymmetric from 900px up ──────────────────────────────
+       Figma `2461:3925`: the card is padded `0 / 0 / 0 / 40` and the COPY
+       COLUMN carries its own `40 / 0 / 40 / 0`. Stacked (below 900) the card
+       keeps a plain 24 all round, which is what the tablet and phone frames
+       draw.
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h3 id="resource-card-title" className="text-consumer-card-title text-balance text-ink-muted">
-            Your sleep guide
-          </h3>
-          <p className="text-consumer-eyebrow text-balance text-ink-muted">
-            The three things from this module, on one page you can keep.
-          </p>
-        </div>
+       The reason the padding moved off the card and onto the column: the
+       banner bleeds to the card's top, right and bottom edges, and a card with
+       40px of padding has no way to let a child reach them.
+
+       ⚠️ **`overflow-hidden` stays.** It was taken off for one pass so the
+       breathing pillow would not be sliced at the card's right edge, and put
+       straight back on sight (direct instruction, Round 64: "unclip parent
+       container, to avoid animation clipping", then "clip the parent
+       container"). Unclipped, the pillow and its ground shadow hang outside the
+       card over the page canvas, which reads worse than the clean bleed does —
+       and the bleed is what Figma draws, where `Frame 2` clips too. The breath
+       is 1.2%, so what it loses at that line is under 2px. */
+    <section className="flex flex-col items-center gap-8 overflow-hidden rounded-lg border border-parchment bg-yellow-100 p-6 shadow-card min-[900px]:flex-row min-[900px]:gap-12 min-[900px]:p-0 min-[900px]:pl-10">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-6 min-[900px]:py-10">
+        {heading}
+
+        <p className="text-consumer-eyebrow text-balance text-ink-muted">
+          The three things from this module, on one page you can keep.
+        </p>
 
         <ul className="flex flex-col gap-2">
-          {GUIDE_POINTS.map((point) => (
+          {RESOURCE_POINTS.map((point) => (
             <li key={point} className="flex gap-3">
               {/* A dot, not a glyph — the same CSS bullet the summary cards use,
                   so the two lists read as one system. */}
@@ -258,29 +160,69 @@ export function ResourceCard() {
           ))}
         </ul>
 
-        {/* Says what pressing it will do, before it is pressed. For a reader who
-            is unsure what a download is, "opens" and "print" are the concrete
-            parts, not the file size or the format on its own. */}
-        <p className="text-consumer-body-strong text-balance text-ink-muted">
-          It is a PDF. Read it at your own pace, or print it to keep.
+        {/* Round 64, direct instruction, replacing "It is a PDF. Read it at your
+            own pace, or print it to keep." The supplied line was "You can also
+            read them on your own pace, click the button below the download
+            resources", with "make sure grammer, tone is fixed" — so three fixes
+            and nothing else:
+
+              1. "on your own pace" -> "at your own pace" (the idiom).
+              2. The comma splice is split into two sentences. One idea per
+                 sentence is this portal's own convention and its audience note
+                 ("old people, with poor digital literacy") is the reason.
+              3. "the download resources" -> "to download the resource". The
+                 verb was missing, and the control it points at must be named
+                 with the words it actually carries — pointing at a button by a
+                 word it does not show is exactly what this audience cannot
+                 recover from.
+
+            **"resource", not "guide"** (direct instruction, Round 64: "its not
+            a guide, but resource, fix copy + CTA"). Swept in one pass: this
+            sentence, the CTA label and `RESOURCE_POINTS`. "Guide" no longer
+            appears anywhere a reader can see on this screen — only in the photo
+            asset's filename, which is code.
+
+            Tap/Click switches on the same 1200px breakpoint the paragraph above
+            uses, so the two instructions on this screen cannot disagree about
+            what a reader is holding. */}
+        {/* **No `text-balance` here** (direct instruction, Round 64: "club the
+            two sentences, do not text wrap"). Balancing split it at the sentence
+            boundary and set it as two even lines, which read as two separate
+            instructions stacked. Plain wrapping keeps it as one running line
+            wherever it fits. This is a deliberate local exception to the
+            no-orphans rule in `CLAUDE.md`, which calls for `text-balance` on
+            short paragraphs — here the balance IS the defect. */}
+        <p className="text-consumer-body-strong text-ink-muted">
+          You can also read them at your own pace.{' '}
+          <span className="min-[1200px]:hidden">Tap</span>
+          <span className="hidden min-[1200px]:inline">Click</span> the button below to download
+          the resource.
         </p>
 
         {/* The flip cards' own download control, moved here whole — direct
             instruction: "Re-use the download button card as used in flip to see
             cards, only update the copy". Still the project's standing treatment
             for a control a frame draws but nothing has wired: real, focusable,
-            and honest about it rather than silently dead. `max-w-96` is the
-            frame's own 384px. */}
+            and honest about it rather than silently dead.
+
+            The frame's own 384px (`max-w-96`) applies **only from 900px**, the
+            same breakpoint the card's row layout and its artwork use (direct
+            instruction, Round 64: "in tablet and mobile the button should be
+            100% width"). Once the card stacks there is no second column for a
+            384px pill to balance against, and this portal's audience note asks
+            for big targets. */}
         <button
           type="button"
           aria-disabled="true"
-          className="flex h-12 w-full max-w-96 items-center justify-center gap-2 rounded-[28px] bg-consumer-primary px-5 text-body-md text-white outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-[28px] bg-consumer-primary px-5 text-body-md text-white outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 min-[900px]:max-w-96"
         >
           <Download aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
-          Download the guide
+          Download the resource
           <span className="sr-only"> (coming soon)</span>
         </button>
       </div>
+
+      <ResourceBanner />
     </section>
   )
 }
