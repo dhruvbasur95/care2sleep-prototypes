@@ -784,6 +784,21 @@
        all four portals picks up the warm shadow, which is the intent. */
     --shadow-card: 2px 4px 16px 0 rgba(230, 194, 127, 0.2);
 
+    /* Round 65 — the login screen's user-type tile when it is hovered or
+       chosen (frame `4184:43030`, where the consumer tile is drawn hovered).
+
+       `--shadow-card` with every term doubled: offset 2/4 -> 8/16, blur 16 ->
+       32, alpha 0.2 -> 0.4. That is not a coincidence to paper over, it is the
+       relationship the frame draws — the same warm gold light source, the tile
+       simply lifted further off the canvas than a resting card is. Recorded as
+       its own token rather than an arbitrary class string so the pair stays
+       legible: a card sits on the page, this one rises off it.
+
+       Warm gold rather than neutral grey for the reason `--shadow-card` is:
+       the canvas under it is `#fffcfa` warming to `yellow-50`, and a grey
+       shadow on that reads as dirt. */
+    --shadow-card-raised: 8px 16px 32px 0 rgba(230, 194, 127, 0.4);
+
     /* Deep floating shadow (design-tokens.md §5, "Imagery shadow" — this is
        that exact value, which the doc has carried since v4 but which had
        never actually been added here as a token). Round 17 extends its use

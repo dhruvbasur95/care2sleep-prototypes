@@ -34,7 +34,6 @@ import { signOutOfTraining } from '@/data/auth'
  *   signed-in coach's name via `accountLabel` (Helen Zhang this round — no
  *   delivery-portal profile page yet, "Edit profile" stays disabled, same
  *   treatment as Research's account menu)
- * - `switcher` — the baseline portal-switcher screen: wordmark only
  *
  * `fullBleed` drops the centered max-width so the header's side padding
  * lines up with edge-to-edge page layouts (e.g. the in-module page, whose
@@ -45,8 +44,7 @@ import { signOutOfTraining } from '@/data/auth'
  * inert "Account (coming soon)" span. Replaced with a real `Menu` dropdown
  * (same base-ui primitive + visual grammar as the "more actions" menu on
  * Coach Profile) with "Edit profile" and "Sign out" (navigates to the
- * portal switcher, the closest stand-in for a logged-out state in a
- * prototype with no real auth). Training then had the *opposite* problem —
+ * login screen, which since Round 65 is what `/` actually is). Training then had the *opposite* problem —
  * it hadn't been brought in line with this new structure, and duplicated
  * "Account" (inert span) + a separate "Profile" link side by side. Both
  * portals now render one shared block (`Switch portal` + bell + one `Menu`
@@ -60,7 +58,7 @@ export function AppHeader({
   fullBleed = false,
   accountLabel,
 }: {
-  portal?: 'training-v2' | 'research' | 'consumer' | 'delivery' | 'switcher'
+  portal?: 'training-v2' | 'research' | 'consumer' | 'delivery'
   fullBleed?: boolean
   /** Consumer/Delivery portals only — the signed-in dyad's/coach's display name (no static import to fall back to, unlike training/research). */
   accountLabel?: string

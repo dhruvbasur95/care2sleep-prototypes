@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig } from 'framer-motion'
 import { ResearchProvider } from '@/data/research-store'
-import { PortalSwitcherPage } from '@/pages/PortalSwitcherPage'
+import { LoginPage } from '@/pages/LoginPage'
 import { ModuleOverviewPage } from '@/pages/training-v2/ModuleOverviewPage'
 import { ModulePlayerPage } from '@/pages/training-v2/player/ModulePlayerPage'
 import { ResearchHomePage } from '@/pages/research/ResearchHomePage'
@@ -28,10 +28,14 @@ import { ConsumerModulePage } from '@/pages/consumer/ConsumerModulePage'
 import { ConsumerHelpPage } from '@/pages/consumer/ConsumerHelpPage'
 
 /**
- * One app, every portal (decision 2026-07-22): the portal switcher is the
+ * One app, every portal (decision 2026-07-22): the **login screen** is the
  * root route, with the Research Dashboard under /research and the Coach
  * Delivery Portal (which now also carries the coach's learning journey,
  * via its own Learning tab) under /delivery.
+ *
+ * Round 65 replaced the portal switcher that used to sit at `/` with
+ * `LoginPage` — step 1 of a sign-in (pick a user type -> email -> code), with
+ * only step 1 built. It is also the `*` fallback, as the switcher was.
  */
 export default function App() {
   const location = useLocation()
@@ -40,7 +44,7 @@ export default function App() {
       <ResearchProvider>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PortalSwitcherPage />} />
+            <Route path="/" element={<LoginPage />} />
 
             {/* The standalone Coach Training Portal home/timeline page
                 (`/training-v2`, "Option B") is retired — no longer a
@@ -144,7 +148,7 @@ export default function App() {
                 header's account menu rather than a sidebar entry */}
             <Route path="/consumer/:dyadId/account" element={<ConsumerAccountPage />} />
 
-            <Route path="*" element={<PortalSwitcherPage />} />
+            <Route path="*" element={<LoginPage />} />
           </Routes>
         </AnimatePresence>
 
