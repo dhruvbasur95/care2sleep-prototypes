@@ -422,7 +422,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
-   * Records the Placement 2 (SIPTEA competency checklist) outcome once the
+   * Records the Placement 2 (program competency checklist) outcome once the
    * research coordinator has received it from the expert assessor — the
    * assessor has no direct portal access (per user-roles.md), so the
    * coordinator logs the result here. Round 2.2.9: previously there was no

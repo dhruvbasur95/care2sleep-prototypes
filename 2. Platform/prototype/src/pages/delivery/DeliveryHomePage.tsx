@@ -1093,7 +1093,7 @@ const STAGE_BANNER_COPY: Record<number, string> = {
  * Stages C and O carry no state of their own: baseline and midline are
  * reflections the research team reads, not a pass/fail, so "pending assessment"
  * would be the wrong words on either. Placement 2 is the assessed one — the
- * expert assessor scores the SIPTEA competency checklist and the endline
+ * expert assessor scores the program competency checklist and the endline
  * reflection is shared with them for that decision — which is why the gate
  * lives here and nowhere else.
  */
@@ -1391,7 +1391,7 @@ function StageReflectionBanner({
               of sentence this project has had to retract before.
 
               The submitted line names the assessor rather than "the team":
-              Placement 2 is assessed by an expert assessor against the SIPTEA
+              Placement 2 is assessed by an expert assessor against the program
               competency checklist, and the endline reflection is shared with
               them for exactly that decision. */}
           <p className="text-body leading-[1.4] opacity-90">
@@ -2349,7 +2349,10 @@ const SECOND_PLACEMENT_RESOURCES: StageListItem[] = [
   // "Peer" here would have been the only place that word survived.
   { name: 'Community feedback report', action: 'Download' },
   { name: 'Assessment brief' },
-  { name: 'SIPTEA competency checklist' },
+  // 2026-10-12: "SIPTEA competency checklist" -> "Program competency checklist",
+  // the same rename the researcher's certification card took. SIPTEA stays the
+  // name of the in-session framework; it is not what this checklist is called.
+  { name: 'Program competency checklist' },
 ]
 
 function SecondPlacementCard() {
