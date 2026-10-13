@@ -8324,6 +8324,9 @@ hot updates.
 
 A `#333` band over a 50%-opacity `#F1F1F1` rule, carrying the Monash lockup and
 an Acknowledgement of Country. New `components/consumer/ConsumerFooter.tsx`.
+⚠️ **Moved to `components/shared/SiteFooter.tsx` in Round 66** on its second
+caller (the login screen). The markup is unchanged; only the path and the
+exported name. See §105.5.
 
 **Three surfaces only** — Home, My Modules, Need Help (direct instruction).
 `ConsumerShell` takes `showFooter` and **defaults it `false`**: opt-in, because
@@ -10004,3 +10007,147 @@ where the frame is silent.
   72 + 108 + 485.33 + 48 = 713px. At 375 it does scroll, deliberately: the
   stacked layout genuinely exceeds a phone screen, and clipping it would be a
   WCAG 1.4.10 reflow defect.
+
+---
+
+## §105 — The login screen responsive: tablet, mobile, and the artwork rule that took four attempts (2026-10-13, Round 66)
+
+Builds on §104, which specs the desktop screen. Frames: `4216:16782` (tablet
+820), `4216:17665` (mobile 375), `4201:43545` (the updated cloud).
+
+### §105.1 The three layouts
+
+| | < 640 | 640–1199 | ≥ 1200 |
+|---|---|---|---|
+| Artwork | band 375×184 | band 820×280 | side panel |
+| Header wordmark | centred | centred | left at the gutter |
+| Greeting | centred, 28/500 | centred, 40/500 | left, 40/500 |
+| Sub-line | 16/400, `ink-muted` | 18/500 | 18/500 |
+| Tile | horizontal card, icon cell 44.5%, glyph 64 | 144px tile, label below, glyph 96 | square tile, glyph 96 |
+| Content width | viewport − 80 | capped **660** | 628 |
+| Gutter | 40 | 80 | 80 |
+| Page background | flat `--background` | flat | warm L→R gradient |
+
+Measured against the frames: mobile band 375×184, tile cell 131 (frame 130.5),
+CTA 295 (frame 295); tablet band 820×280, tile 204×144 (frame 204×144), CTA 660
+(frame 660).
+
+### §105.2 One markup tree, three shapes — and why the CSS is not Tailwind
+
+The tile is a single `<label>` → `<input class="peer sr-only">` →
+`.login-tile-card` → `.login-tile-icon` + `.login-tile-label`. The card is a
+**sibling** of the radio, so every state is a plain `input:checked ~` selector
+rather than `:has()`.
+
+Below 640 the *card* owns the border and radius; from 640 the *icon cell* owns
+them and the card is a plain block. That swap is the whole mechanism.
+
+⚠️ **The alternative — two presentations toggled by `hidden` — means two radio
+inputs with the same `name`, which silently breaks the group.** One tree is not
+a tidiness preference.
+
+The rules live in `index.css` under "Login user-type tiles". Three layouts
+crossed with three states is nine breakpoint-plus-state combinations in a
+variant order Tailwind does not document, and this page has already shipped two
+stacked variants that emitted no CSS at all (§104.3, and the `BREAKPOINT`
+constant). Plain media queries can be read top to bottom.
+
+### §105.3 The artwork band is ONE export per breakpoint
+
+`public/illustrations/login/hero-band-{tablet,mobile}.svg`, rendered as a
+`background-image` with `cover` anchored `center bottom`.
+
+The first cut composed it from a CSS gradient plus separate pillow, wave and
+sparkle exports. It was wrong on screen, for three reasons worth keeping:
+
+1. **Part exports come back clipped.** The pillow group is 308×265 and exported
+   as 309×241 — the standing trap, since the group sits inside a frame with
+   `clipsContent`. Which edge was lost is not recoverable from the file.
+2. **The frames share no placement rule.** The pillow's top is at **3.8%** of
+   band height on tablet and **40.9%** on mobile; its width is 1.10× band
+   height against 0.82×. Two sets of hand-transcribed offsets is the
+   mask-and-outline drift this project has paid for three times (§78.1).
+3. **Z-order matters.** The wave crosses in front of the pillow's lower edge
+   while the face stays above the crest.
+
+**Stripped from each band export:** the `#F5F5F5` plate and the page rect; on
+mobile also the frame's own `#FFFDFA` canvas fill and its visible black border.
+**The band gradient STAYS** — unlike the desktop panel, where it was a copy of
+the *page* gradient bleeding in; here it is the artwork's own fill.
+
+⚠️ **Strip by matching `<rect …>` shapes, never hex strings.** A `#FFFDFA`
+*gradient stop* survives in both and is artwork; a blanket colour check flagged
+it as a plate.
+
+⚠️ `preserveAspectRatio` is **not valid on `<img>`** — React typechecks it as
+an error, which is the only reason it was caught rather than shipped as a
+silently ignored prop.
+
+### §105.4 The desktop artwork panel — the rule, after four attempts
+
+```css
+width: min(
+    calc((100% - 788px) * 0.98),
+    max(1086px, calc((100vh - 72px) * 0.80624))
+);
+```
+
+Read outside-in: never wider than the space beside the copy column; otherwise
+as wide as filling the row height requires; never below the ceiling of 1086
+(1.5× the drawing's natural 724).
+
+- **The `max()` guarantees the right-hand side never crops.** `object-cover`
+  cuts on whichever axis has the smaller ratio, so the drawing is cut on the
+  right only when `width/724 < height/898` — precisely the case this term rules
+  out. Below the ceiling the crop is at the **bottom**, through the cloud,
+  where the drawing is composed to bleed.
+- **The panel always reaches the copy column.** A fixed cap (905, then 724)
+  measured correct and *looked* broken: on a 1700px window the artwork ended at
+  its own clipped edge with **174px of bare canvas** before the copy.
+- **`0.98` and the 24px nudge are instructions**, judged on a 14in laptop.
+  The 0.98 is on the space term alone so large screens, already signed off,
+  are untouched.
+- **The copy column's nudge is `position: relative; right: 24px`, not a
+  margin.** At 1512 the leftover beside the artwork is 802px against a 788px
+  column — 14px of slack — so a 64px margin would overflow the wrapper by 50px
+  and scroll the page sideways. A relative offset cannot.
+
+⚠️ **No `aspect-ratio` and no `max-height` on this rule.** Both were tried to
+stop the right-hand crop and worked, at the cost of leaving the panel shorter
+than the row — which put canvas *above* the artwork.
+
+⚠️ **`max-height: 100%` is useless here.** A percentage max-height needs a
+containing block with a *definite* height and the parent has `min-h-screen`,
+which is a minimum. The declaration was dropped and the page scrolled:
+`scrollHeight` 871 against a 766 viewport.
+
+Measured: 1512×710 → 710×638 · 1512×982 → 710×910 · 1700×710 → 894×638 ·
+1920×1080 → 1086×1008 · 2560×1440 → 1103×1368, zero crop.
+
+### §105.5 The footer, and the min-height that keeps it from squeezing
+
+The Monash band appears at **every** width (direct instruction), and
+`ConsumerFooter` moved to `components/shared/SiteFooter.tsx` on its second
+caller.
+
+`main` carries `min-[1200px]:min-h-[calc(100vh-72px)]` — **desktop only**:
+
+- **Without it**, a ~320px footer on a `min-h-screen` column leaves `flex-1`
+  318px of a 710px viewport against ~490 of content, and the login is squeezed.
+- **Applied below 1200** it pushes the footer off a 1100px tablet entirely —
+  `main` alone fills the viewport.
+
+The desktop login now scrolls, which it deliberately never did. That was stated
+and accepted before it was built.
+
+### §105.6 The cloud ramp
+
+`#C2A3FF → #F3EFFF 68.6%` became **`#C2A3FF → #DAC9FF 23.7% → #FEF8E5 62.2%`**
+— cool to warm. Confirmed by rasterising the panel and sampling down the cloud:
+`#e2d4ff` at 62% of height, **`#fef8e5`** at 92%, exactly the end stop.
+
+⚠️ **Figma carries this on the desktop panel (`4201:43545`) only.** The two
+band assets were given the ramp **by hand**, keeping each one's own gradient
+*geometry* (`x1/y1/x2/y2`) and replacing only the three stops.
+**Re-exporting either band before its Figma frame is updated will silently
+revert the cloud.**
