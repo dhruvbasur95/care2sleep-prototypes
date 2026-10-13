@@ -3,6 +3,7 @@ import type { MotionValue } from 'framer-motion'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Z_CYCLE_S,
   Z_LAYERS,
@@ -1095,12 +1096,17 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
                                to back, so a reader meets both footers within a
                                minute of each other.
 
-                               ⚠️ `consumer-body-strong`, not the app's `body-md`.
-                               Both are 16/600, so nothing moved on screen — but
-                               this portal is on its own scale and an app token on a
-                               consumer surface is leakage, not a decision, even
-                               when the two happen to agree today. */
-                            className="text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] border border-consumer-primary bg-white px-4 whitespace-nowrap text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 sm:w-40"
+                               Both pills come from the app's one button system
+                               (2026-10-13) rather than a hand-written string, so
+                               the pair cannot drift from each other or from the
+                               rest of the portal. The `consumer-body-strong` rule
+                               this note used to carry now lives in
+                               `buttonSystem.ts`'s `SURFACE.consumer`, which is the
+                               only place it can be got wrong. */
+                            className={cn(
+                              buttonVariants({ surface: 'consumer', variant: 'secondary' }),
+                              'w-full sm:w-40',
+                            )}
                           >
                             <ChevronLeft className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                             Go back
@@ -1112,7 +1118,7 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
                             i === WELCOME_STEPS.length - 1 ? leave() : setStep(i + 1)
                           }
                           disabled={exiting}
-                          className="bg-consumer-primary text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] px-4 text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 sm:w-60"
+                          className={cn(buttonVariants({ surface: 'consumer' }), 'w-full sm:w-60')}
                         >
                           <span className="min-w-0 flex-1 text-center">{s.cta}</span>
                           <ChevronRight className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />

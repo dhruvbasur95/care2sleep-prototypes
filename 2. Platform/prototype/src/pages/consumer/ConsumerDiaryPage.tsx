@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 import { useResearch } from '@/data/research-context'
 import { TODAY, formatDateLong } from '@/data/format'
 import {
@@ -76,13 +77,16 @@ const QUESTIONS = SLEEP_DIARY_QUESTIONS.filter(
   (q): q is SleepDiaryQuestion & { field: keyof SleepDiaryAnswers } => !q.computed && !!q.field,
 )
 
-/** This portal's own pill CTA (Home's `CTA` constant, duplicated classes —
- *  same geometry: 48px pill, `text-body-md`). */
-const CTA =
-  'flex h-12 items-center justify-center rounded-3xl px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2'
-
-const CTA_PRIMARY = `${CTA} bg-consumer-primary text-white`
-const CTA_OUTLINE = `${CTA} border-2 border-consumer-primary bg-white text-consumer-primary`
+/* Both come from the app's one button system (2026-10-13). They were
+ * `transition-opacity hover:opacity-90`, a fade that left the fill alone and
+ * let the surface behind show through — so the same control hovered to a
+ * different hex on every background, and LIGHTER, which walked the label's
+ * contrast down instead of up. See `buttonSystem.ts`. */
+const CTA_PRIMARY = buttonVariants({ surface: 'consumer' })
+/* ⚠️ The outline was `border-2` here and 1px everywhere else in the portal.
+ * The system's `secondary` is 1px, so this stroke halves — a deliberate
+ * normalisation, not an oversight. */
+const CTA_OUTLINE = buttonVariants({ surface: 'consumer', variant: 'secondary' })
 
 /** "22 July 2026" — the welcome line's date, from the app's frozen demo
  *  `TODAY` (the date the store writes the answers under), not the real

@@ -24,6 +24,7 @@ import {
   nextPlannedSession,
 } from '@/data/spaces'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 import { useResearch } from '@/data/research-context'
 import { TODAY, formatTime } from '@/data/format'
 
@@ -109,8 +110,27 @@ const CARD = 'overflow-hidden rounded-lg border border-parchment shadow-card'
  *  One constant, because three cards share it and they drifted apart once
  *  already when each carried its own copy. */
 
-const CTA =
-  'flex h-12 items-center justify-center gap-4 rounded-3xl px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2'
+/**
+ * The dashboard's primary CTA — the app's one button system, not a local copy.
+ *
+ * This was a hand-written class string until 2026-10-13, and the string carried
+ * `transition-opacity hover:opacity-90`. A fade is not a colour: the fill never
+ * changed, the whole control just dropped to 90% and let the card behind it
+ * through, so the SAME button hovered to a different hex on every surface —
+ * measured `#4B15B5` on the lavender diary card, `#4E19B5` on the white meeting
+ * card, against a resting `#3A00AD`. Both are LIGHTER than the resting state,
+ * which walks the white label's contrast DOWN (11.78:1 -> 10.10 / 9.84).
+ *
+ * `surface: 'consumer'` repaints the fill instead, to the named
+ * `--color-consumer-primary-hover` (#2F0091) — one hex on every surface, and
+ * contrast rising to 13.73:1 rather than falling.
+ *
+ * `gap-4` -> the system's `gap-2` and `rounded-3xl` -> `rounded-[28px]` both
+ * come with it and neither moves a pixel here: these two CTAs are label-only,
+ * and at 48px tall CSS clamps a 28px radius back to 24 anyway, so the pill is
+ * the same pill.
+ */
+const CTA = buttonVariants({ surface: 'consumer' })
 
 /* ------------------------------------------------------------------------ */
 /* Today's date                                                              */
@@ -332,7 +352,7 @@ function DiaryTaskCard({ dyadId }: { dyadId: string }) {
       {!done && (
         <Link
           to={`/consumer/${dyadId}/diary`}
-          className={`${CTA} mt-auto w-full bg-consumer-primary text-white`}
+          className={cn(CTA, 'mt-auto w-full')}
         >
           {/* "Fill in sleep diary", not the frame's "Fill In Diary" (direct
               instruction) — names the thing in full, and in this project's own
@@ -499,7 +519,7 @@ function NextSessionCard({
           // `w-full` at every width now — see the note on `LearningTaskCard`'s
           // own CTA. The two cards carried the same 256px desktop cap and had
           // to lose it together, or the row would still be uneven.
-          className={`${CTA} mt-auto w-full bg-consumer-primary text-white`}
+          className={cn(CTA, 'mt-auto w-full')}
         >
           Join video call
         </button>

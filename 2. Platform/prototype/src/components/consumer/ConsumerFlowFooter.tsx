@@ -2,6 +2,10 @@ import { type ComponentType, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { BlockedHint } from '@/components/consumer/BlockedHint'
 import { cn } from '@/lib/utils'
+import {
+  CONSUMER_PILL_OUTLINE,
+  CONSUMER_PILL_PRIMARY,
+} from '@/components/shared/buttonStyles'
 
 /**
  * The Consumer Portal's Go back / Go next flow footer, and the pill geometry
@@ -27,10 +31,7 @@ import { cn } from '@/lib/utils'
 /** The frames' pill geometry, shared by every button on these screens.
  *  48px, which is the frames' own and clears the app's 36px floor (a floor,
  *  not a cap). */
-const PILL =
-  'flex h-12 items-center justify-center gap-2 rounded-[28px] px-5 text-body-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2'
-export const PILL_PRIMARY = `${PILL} bg-consumer-primary text-white`
-export const PILL_OUTLINE = `${PILL} border border-consumer-primary bg-white text-consumer-primary`
+
 
 /**
  * The page's own horizontal inset. The frames use 80px at 1281 and this portal
@@ -163,7 +164,7 @@ export function ConsumerFlowFooter({
                  lines inside a 48px pill. Letting Go back size to its own
                  content (~120) fits both on one line with room to spare. */
               className={cn(
-                PILL_OUTLINE,
+                CONSUMER_PILL_OUTLINE,
                 'shrink-0 gap-4 whitespace-nowrap min-[768px]:w-38',
                 /* 60%, not the 40% the diary's own Back used before this footer
                    took the job: rasterised over the footer's white, 40% paints
@@ -171,7 +172,12 @@ export function ConsumerFlowFooter({
                    2.35:1, both well under the 3:1 a control outline needs. 60%
                    paints rgb(129,92,203) — 4.86:1 for the label. Same reasoning
                    as the forward pill's /65 below. */
-                backBlockedReason && 'opacity-60 hover:opacity-60',
+                /* `hover:bg-white` repeats the pill's own resting fill, which is
+                   how a blocked control stays visually inert now that the
+                   system's hover repaints the FILL rather than fading the
+                   element. The old `hover:opacity-60` cancelled a fade that no
+                   longer exists. */
+                backBlockedReason && 'opacity-60 hover:bg-white',
               )}
             >
               <BackIcon aria-hidden="true" className="size-4 shrink-0" />
@@ -190,14 +196,14 @@ export function ConsumerFlowFooter({
             aria-describedby={continueBlockedReason ? FORWARD_REASON_ID : undefined}
             onClick={continueBlockedReason ? undefined : onContinue}
             className={cn(
-              PILL_PRIMARY,
+              CONSUMER_PILL_PRIMARY,
               'w-full justify-between',
               /* /65, not /55. Rasterised over the footer's white: 55% paints
                  rgb(147,115,210) and puts the white label at 3.73:1, which fails
                  AA; 65% paints rgb(127,89,202) at 5.02:1. Round 33's own disabled
                  Next was kept legible for the same reason. No `cursor-not-allowed`
                  — the hint replaces it, which is the whole point of the hint. */
-              continueBlockedReason && 'bg-consumer-primary/65 hover:opacity-100',
+              continueBlockedReason && 'bg-consumer-primary/65 hover:bg-consumer-primary/65',
             )}
           >
             <span className="flex-1 whitespace-nowrap text-center">{label}</span>

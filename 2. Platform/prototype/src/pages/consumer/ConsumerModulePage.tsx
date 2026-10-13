@@ -16,10 +16,12 @@ import { EpisodePanel, type FollowMode } from '@/components/consumer/EpisodePane
 import {
   CHROME_TRANSITION,
   ConsumerFlowFooter,
-  PILL_OUTLINE,
-  PILL_PRIMARY,
   SHELL,
 } from '@/components/consumer/ConsumerFlowFooter'
+import {
+  CONSUMER_PILL_OUTLINE,
+  CONSUMER_PILL_PRIMARY,
+} from '@/components/shared/buttonStyles'
 import { ConsumerShell } from '@/components/consumer/ConsumerShell'
 import { ModuleHeroWave } from '@/components/consumer/ModuleHeroWave'
 import {
@@ -292,7 +294,7 @@ function ModuleBar({
         type="button"
         onClick={onHome}
         className={cn(
-          PILL_OUTLINE,
+          CONSUMER_PILL_OUTLINE,
           'shrink-0 whitespace-nowrap',
           'size-12 px-0 min-[640px]:size-auto min-[640px]:h-12 min-[640px]:min-w-32 min-[640px]:px-5',
         )}
@@ -1154,7 +1156,7 @@ function ModuleDoneStage({
         <button
           type="button"
           onClick={onHome}
-          className={cn(PILL_PRIMARY, 'w-full justify-center')}
+          className={cn(CONSUMER_PILL_PRIMARY, 'w-full justify-center')}
         >
           {EXIT_LABEL}
         </button>

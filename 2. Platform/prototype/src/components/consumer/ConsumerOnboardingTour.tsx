@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * The Consumer Portal's first-run onboarding tour — frames `991:9446` (the
@@ -473,7 +474,10 @@ export function ConsumerOnboardingTour({
                   <button
                     type="button"
                     onClick={() => setStep((s) => s - 1)}
-                    className="text-consumer-body-strong flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[28px] border border-consumer-primary bg-white px-4 whitespace-nowrap text-consumer-primary sm:w-[136px] outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+                    className={cn(
+                      buttonVariants({ surface: 'consumer', variant: 'secondary' }),
+                      'w-full sm:w-[136px]',
+                    )}
                   >
                     <ChevronLeft className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.25} />
                     Go back
@@ -482,7 +486,10 @@ export function ConsumerOnboardingTour({
                 <button
                   type="button"
                   onClick={() => (isLast ? onClose() : setStep((s) => s + 1))}
-                  className="text-consumer-body-strong flex h-12 w-full min-w-0 shrink-0 items-center justify-center gap-2 rounded-[28px] bg-consumer-primary px-5 whitespace-nowrap text-white sm:w-auto sm:flex-1 outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+                  className={cn(
+                    buttonVariants({ surface: 'consumer' }),
+                    'w-full min-w-0 sm:w-auto sm:flex-1',
+                  )}
                 >
                   <span className="min-w-0 flex-1 text-center">
                     {isLast ? 'Start my journey' : 'Next'}

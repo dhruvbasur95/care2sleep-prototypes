@@ -88,3 +88,22 @@ export const HELP_BUTTON = btn({
   tone: 'destructive',
   surface: 'consumer',
 })
+
+/**
+ * The **Consumer Portal's** two flow pills — the module flow footer, and the
+ * module page's own back/forward controls.
+ *
+ * They live here rather than in `ConsumerFlowFooter` for the reason this file
+ * exists: a constant exported from a component file breaks Fast Refresh, and
+ * `oxlint` says so (`react(only-export-components)`). They were local class
+ * strings carrying `transition-opacity hover:opacity-90` until 2026-10-13 — a
+ * fade, which is not a colour, and which made the same pill hover to a
+ * different hex on every surface behind it.
+ *
+ * Distinct from this file's own `PILL_PRIMARY`/`PILL_OUTLINE` above, which are
+ * the 40px `app`-surface pair. Same shape, different surface — hence the
+ * prefix rather than a second meaning for one name.
+ */
+export const CONSUMER_PILL_PRIMARY = btn({ surface: 'consumer' })
+export const CONSUMER_PILL_OUTLINE = btn({ surface: 'consumer', variant: 'secondary' })
+

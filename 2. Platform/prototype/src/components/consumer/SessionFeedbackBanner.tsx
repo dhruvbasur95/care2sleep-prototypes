@@ -1,5 +1,6 @@
 import { MessageCircleHeart } from 'lucide-react'
 import { CardIcon } from '@/components/consumer/ConsumerCard'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * The post-session feedback prompt, above the day's tasks on Consumer Home.
@@ -143,7 +144,7 @@ export function SessionFeedbackBanner({
             type="button"
             aria-disabled={onShare ? undefined : true}
             onClick={onShare}
-            className="text-body-md flex h-12 items-center justify-center rounded-[28px] bg-consumer-primary px-5 text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+            className={buttonVariants({ surface: 'consumer' })}
           >
             Share my thoughts
             {onShare ? null : <span className="sr-only"> (coming soon)</span>}
@@ -152,7 +153,7 @@ export function SessionFeedbackBanner({
           <button
             type="button"
             onClick={onSkip}
-            className="text-body-md flex h-12 items-center justify-center rounded-[28px] border-2 border-consumer-primary bg-transparent px-5 text-consumer-primary outline-none transition-colors hover:bg-white/60 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+            className={buttonVariants({ surface: 'consumer', variant: 'secondary' })}
           >
             Skip for now
           </button>

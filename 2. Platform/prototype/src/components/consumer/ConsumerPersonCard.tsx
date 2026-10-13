@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { buttonVariants } from '@/components/ui/button'
 import type { PersonProfile } from '@/data/spaces'
 
 /**
@@ -71,11 +72,13 @@ import type { PersonProfile } from '@/data/spaces'
 const FIELD =
   'h-12 w-full rounded-sm border border-pearl bg-pearl px-3 text-body text-ink outline-none transition-colors focus-visible:border-consumer-primary focus-visible:ring-2 focus-visible:ring-consumer-primary'
 
-/** The portal's three button shapes, at its own 48px height. */
-const PILL =
-  'inline-flex h-12 items-center justify-center rounded-3xl px-5 text-body-md outline-none transition-all focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 active:scale-[0.97]'
-const PILL_FILLED = `${PILL} bg-consumer-primary text-white hover:opacity-90`
-const PILL_OUTLINE = `${PILL} border border-consumer-primary bg-white text-consumer-primary hover:bg-purple-50`
+/* Both come from the app's one button system (2026-10-13). They were
+ * `transition-opacity hover:opacity-90`, a fade that left the fill alone and
+ * let the surface behind show through — so the same control hovered to a
+ * different hex on every background, and LIGHTER, which walked the label's
+ * contrast down instead of up. See `buttonSystem.ts`. */
+const PILL_FILLED = buttonVariants({ surface: 'consumer' })
+const PILL_OUTLINE = buttonVariants({ surface: 'consumer', variant: 'secondary' })
 
 /**
  * The frame's own value field: a filled `pearl` box with a matching 1px stroke

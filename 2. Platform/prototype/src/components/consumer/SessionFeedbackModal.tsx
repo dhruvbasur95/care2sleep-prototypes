@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 // The pillows themselves moved to a shared file when the trainee module
 // player's feedback slide became their second caller (2026-09-18). Aliased to
 // their old names so nothing else in this file had to change.
@@ -56,12 +57,21 @@ type Step = 'mood' | 'details' | 'thanks'
 
 /* ── Buttons, at the frames' own widths ─────────────────────────────────── */
 
-const PILL =
-  'text-body-md flex h-12 items-center justify-center gap-2 rounded-[28px] px-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2'
+/* Both come from the app's one button system (2026-10-13). They were
+ * `transition-opacity hover:opacity-90`, a fade that left the fill alone and
+ * let the surface behind show through — so the same control hovered to a
+ * different hex on every background, and LIGHTER, which walked the label's
+ * contrast down instead of up. See `buttonSystem.ts`. */
 /** 152px in all three frames. */
-const PILL_BACK = `${PILL} w-full max-w-[420px] shrink-0 border border-consumer-primary bg-white text-consumer-primary hover:bg-purple-50 sm:w-[152px] sm:max-w-none`
+const PILL_BACK = cn(
+  buttonVariants({ surface: 'consumer', variant: 'secondary' }),
+  'w-full max-w-[420px] sm:w-[152px] sm:max-w-none',
+)
 /** 384px in both step footers. */
-const PILL_FORWARD = `${PILL} w-full max-w-[420px] bg-consumer-primary text-white hover:opacity-90 sm:w-[384px] sm:max-w-none`
+const PILL_FORWARD = cn(
+  buttonVariants({ surface: 'consumer' }),
+  'w-full max-w-[420px] sm:w-[384px] sm:max-w-none',
+)
 
 export function SessionFeedbackModal({
   open,

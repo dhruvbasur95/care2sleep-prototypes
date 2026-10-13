@@ -10456,3 +10456,135 @@ dropdown end to end (`#/delivery`, `#/research`).
 `public/__audit.js`, the layout gate staged into `public/` to be fetched by the
 page. It is deleted after every run. The count discipline is exactly what
 surfaced it.
+
+---
+
+## §108 — The Consumer Portal joins the button system (2026-10-13, Round 68)
+
+Reported as *"the hover state all primary buttons for consumers onboarding +
+dashboard is different"*, then *"in consumers side its a lighter color"*.
+
+**§107.8 fixed the token. This section is about discovering that nothing in the
+Consumer Portal was reading it.**
+
+### §108.1 ⚠️ A whole portal can be off the design system with nothing failing
+
+`grep -rl "buttonSystem\|ui/button" components/consumer/ pages/consumer/`
+returned **nothing**. Every CTA in the portal was a hand-written class string.
+So Round 67's `hover:bg-consumer-primary-hover` was added to a paint that **no
+consumer page rendered** — the only `surface: 'consumer'` call sites in the app
+were `LoginPage`, `PasswordChangeCard`, `NotificationPreferencesCard` and the
+showcase.
+
+It had looked right, compiled, linted and passed `layoutAudit()` for dozens of
+rounds. **Grep for the import, not for the look.** It is a two-second check.
+
+### §108.2 ⚠️ A fade has no hover hex — it has one per backdrop
+
+The primaries carried `transition-opacity hover:opacity-90`. `opacity` applies
+to the whole element, so `background-color` never changes and the painted colour
+is a composite with whatever is behind the control. Measured by real mouse
+hover at 1280×900, viewport asserted in the same call:
+
+| Button | Sits on | Resting | Hovered, before | After |
+|---|---|---|---|---|
+| Get started (onboarding) | page canvas `#FFFCFA` | `#3A00AD` | `#4E19B5` | **`#2F0091`** |
+| Fill in sleep diary | lavender `#E4D6FF` | `#3A00AD` | `#4B15B5` | **`#2F0091`** |
+| Join video call | white `#FFFFFF` | `#3A00AD` | `#4E19B5` | **`#2F0091`** |
+| Resume module | purple `#3A00AD` | `#FFFFFF` | `#EBE6F7` | unchanged — §108.5 |
+
+All three purple CTAs hovered **LIGHTER** than their resting state, so the white
+label's contrast **fell**: 11.78:1 → 10.10 (lavender) / 9.84 (white). The named
+token repaints the fill instead, giving **one hex on every surface** and
+contrast **rising to 13.73:1**.
+
+**The tell:** `getComputedStyle` returns the RESTING `background-color` while
+`:hover` matches and `opacity` reads `0.9`.
+
+### §108.3 `surface: 'consumer'` emits `text-consumer-body-strong`, not `text-body-md`
+
+Both are 16px/600 and nothing moved on screen. But the Consumer Portal is on its
+own scale and an app token on a consumer surface is leakage, not a decision,
+even when the two agree today — the rule `ConsumerWelcome`'s footer already
+carried in a comment. It now lives in `SURFACE.consumer`, which is the only
+place it can be got wrong.
+
+### §108.4 ⚠️ `ring` with no offset is invisible when the ring colour IS the fill
+
+`SURFACE.consumer` set `focus-visible:ring-consumer-primary` and nothing set an
+offset, so `--tw-ring-offset-width` was `0`. Measured on the login CTA with a
+real Tab press:
+
+```
+box-shadow: rgb(58,0,173) 0px 0px 0px 2px     ← the ring
+background-color: rgb(58,0,173)                ← the fill
+```
+
+**1:1 against the component it is meant to mark.** Not faint — contiguous, so it
+reads as the button growing 2px rather than as a focus indicator. Every
+hand-written consumer button already carried `ring-offset-2`; the system was the
+one out. With the offset it is now `rgb(255,255,255) 0 0 0 2px,
+rgb(58,0,173) 0 0 0 4px` — a white gap, then the ring.
+
+### §108.5 What was deliberately NOT migrated, and why
+
+- **`LessonPlayCta`** (`LessonCards.tsx:131`, the "Resume module" CTA) — its
+  **tone flips at a breakpoint**: `bg-white` below `lg`, `lg:bg-ink` above.
+  The five-axis system cannot express a responsive tone, and forcing it means
+  per-breakpoint overrides fighting the system — and variant ordering is a
+  recorded trap in `CLAUDE.md`. **An open decision, not an oversight.**
+- **The two destructive fills** (`ConsumerAccountPage.tsx:152`,
+  `ConsumerMenuDrawer.tsx:348`) still use `hover:bg-destructive/90`, the same
+  fade-not-darken fault. Migrating also moves the first from 44px to 48px.
+- **Three icon-only round buttons.** The two `bg-ink` ones use
+  `hover:opacity-90`, which is what the system itself prescribes for the `ink`
+  tone — they agree with it by accident. `ConsumerDiaryPage.tsx:402`'s
+  `hover:opacity-85` is the genuine odd one out.
+
+### §108.6 Shared button constants live in `buttonStyles.ts`
+
+`PILL_PRIMARY`/`PILL_OUTLINE` were exported from `ConsumerFlowFooter`, a
+component file. Once their value became a `buttonVariants(...)` call rather than
+a template literal, `oxlint` flagged both as
+`react(only-export-components)` and the count went 26 → **28**. They are now
+`CONSUMER_PILL_PRIMARY`/`CONSUMER_PILL_OUTLINE` in
+`components/shared/buttonStyles.ts`, beside that file's own 40px `app`-surface
+pair, and the count is back to 26. **The prefix, rather than a second meaning
+for one name**, because both pairs are real.
+
+### §108.7 Three visible changes that came with the migration
+
+Stated rather than smuggled, because each is a design change and not a hover fix:
+
+1. The diary's outline CTAs went `border-2` → **1px**, matching the rest of the
+   portal.
+2. The feedback banner's "Skip for now" went `bg-transparent` → **white** and
+   `border-2` → 1px. The system's rule: a transparent pill on a tinted card
+   reads as a different control from the same button on white.
+3. The login CTA gained the focus halo of §108.4.
+
+### §108.8 Measurement notes that cost time
+
+- **After a refactor, a grep for the old class counts your own comments.** Eight
+  `hover:opacity-9x` hits remained in the portal; **four were the explanatory
+  comments just written** about removing it. The live count had gone 11 → 4.
+- **An HMR error mid-edit is not a real error.** The console reported
+  `buttonVariants is not defined` from the window between two scripted edits —
+  one wrote the call site, the next added the import. A fresh tab was clean.
+- **The preview pane resizes under you.** `innerWidth` went 1024 → **326** with
+  no reload, silently invalidating a width-sensitive read. Assert `innerWidth`
+  inside the same call that measures.
+- **The screenshot coordinate frame is NOT `innerWidth`.** A 1280 viewport
+  reported a **652**-wide frame; hovering at `css × 800/innerWidth` landed
+  nowhere and `matches(':hover')` returned false. Take the scale from the frame
+  dimensions the screenshot itself reports.
+- **Verify the new variants emit CSS.** Walked every stylesheet rule and
+  confirmed selectors exist for `hover:bg-consumer-primary-hover`,
+  `hover:bg-destructive-hover`, `hover:bg-purple-50`, `hover:bg-white` and the
+  flow footer's new blocked-state `hover:bg-consumer-primary/65`. That is the
+  §107.8 failure mode, so it is checked rather than assumed.
+
+**Gate:** `tsc -b` clean · `oxlint` 26 / 0 · `layoutAudit()` empty on Home,
+onboarding, diary, account and module page at 1280, and Home at 375, with
+`document.documentElement.scrollWidth === innerWidth` at each ·
+`public/__audit.js` deleted after the run.

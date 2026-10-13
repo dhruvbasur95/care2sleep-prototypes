@@ -90,7 +90,21 @@ const SURFACE: Record<ButtonSurface, string> = {
   // `rounded-[28px]`, NOT `rounded-3xl` (24). Measured from the running
   // Consumer Portal, where every CTA is 48px at a 28px radius — a true pill at
   // that height. Figma's consumer CTAs are r28 too; the system was the one out.
-  consumer: 'rounded-[28px] text-body-md focus-visible:ring-consumer-primary',
+  // ⚠️ `text-consumer-body-strong`, NOT the app's `text-body-md`. Both are
+  // 16/600 so nothing moves on screen, but this portal is on its own scale and
+  // an app token on a consumer surface is leakage, not a decision, even when
+  // the two happen to agree today — the rule `ConsumerWelcome`'s footer already
+  // carried, now held in one place instead of at every call site.
+  //
+  // ⚠️ `ring-offset-2` is load-bearing, not decoration. The ring colour IS
+  // `consumer-primary`, which is also the `primary · brand` FILL, so at offset 0
+  // the 2px band is contiguous with the button and reads as the shape growing
+  // rather than as a focus indicator. Measured 2026-10-13 on the login CTA:
+  // `box-shadow: rgb(58,0,173) 0 0 0 2px` against a `rgb(58,0,173)` fill — 1:1
+  // against the component it is meant to mark. Every hand-written consumer
+  // button already carried the offset; the system was the one out.
+  consumer:
+    'rounded-[28px] text-consumer-body-strong focus-visible:ring-consumer-primary focus-visible:ring-offset-2',
 }
 
 /**
