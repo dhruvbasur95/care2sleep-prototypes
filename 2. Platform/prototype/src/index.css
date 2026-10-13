@@ -203,6 +203,24 @@
        what every hover state and the `next` chip tone rely on, and still a
        real swatch rather than a computed shade. 15.8:1 on white. */
     --color-primary-hover: #200061;
+
+    /* ⚠️ **Hover paints for the solid tones must be NAMED tokens, not inline
+       `color-mix()` in an arbitrary value.** Measured 2026-10-13 on the login
+       CTA: `hover:bg-[color-mix(in_oklch,var(--color-consumer-primary),black_12%)]`
+       sat in the DOM, `:hover` matched, and the painted colour never moved —
+       a walk of every rule in every stylesheet found **zero** rules containing
+       both `hover` and `color-mix`. Tailwind emitted nothing for it. Same
+       family as the two traps already recorded in CLAUDE.md: an arbitrary
+       value with nested parens under a variant is not reliable here, while a
+       named utility (`bg-primary-hover`, which always worked) is.
+
+       The VALUE is the same `color-mix(… black 12%)` the button system
+       reasoned about — a solid tone's hover must darken, never fade, because
+       fading walked `success` under AA. Only where it is declared has moved:
+       here, once, instead of inside four class strings. */
+    --color-destructive-hover: color-mix(in oklch, var(--color-destructive), black 12%);
+    --color-success-hover: color-mix(in oklch, var(--color-success), black 12%);
+    --color-consumer-primary-hover: color-mix(in oklch, var(--color-consumer-primary), black 12%);
     /* NEUTRALS — Round 21.3, aligned to the Figma file's own published
        `neutral/*` paint styles (`getLocalPaintStylesAsync`, file
        `s6OLTSd4nc9V9W9lT1oBTO`). Six styles; the app's semantic names are
@@ -828,6 +846,7 @@
        chip is a small raised object, not a page-level surface. */
     --shadow-siptea-chip: 2px 10px 16px 0 rgba(102, 51, 153, 0.2);
 
+
     /* The same chip shadow in the brand yellow, for a chip on a **white**
        surface — the trainee reflection wizard's modal (direct instruction,
        2026-10-02: "use the shadow with yellow hex not purple").
@@ -949,127 +968,6 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Login user-type glyphs — hover/focus motion
-   ─────────────────────────────────────────────────────────────────────────
-
-   The contract with `components/login/UserTypeGlyph.tsx`: that file supplies
-   the `c2s-glyph-*` class on a group, this file supplies the motion. Read its
-   header first — those three glyphs are a deliberate exception to the app's
-   icon conventions and are not part of the icon package.
-
-   CSS keyframes rather than `framer-motion`, matching the consumer banner's
-   precedent: these are short, declarative beats on an SVG group with no state
-   behind them. And plain CSS rather than Tailwind, because the trigger is a
-   stacked variant on an arbitrary property (`group-hover:[animation:...]`),
-   which this project has twice measured compiling to NO CSS at all while
-   sitting in the DOM looking correct.
-
-   The trigger is the tile, not the glyph — `.login-type-tile` is on the
-   `<label>`, so the motion plays wherever in the tile the pointer lands, and
-   `:has(input:focus-visible)` gives a keyboard user the same thing without
-   firing on a mouse click.
-
-   ⚠️ `transform-box: fill-box` is load-bearing on every one of these. Without
-   it `transform-origin` resolves against the SVG VIEWPORT rather than the
-   shape, so `50% 100%` lands off the drawing and a beat becomes a swing.
-   Measured in `consumer-tokens.css` first; the same trap, the same fix.
-
-   Reduced motion is already handled app-wide at the bottom of this file. */
-
-.c2s-glyph-cradle,
-.c2s-glyph-lean,
-.c2s-glyph-pop,
-.c2s-glyph-guard,
-.c2s-glyph-tuck {
-    transform-box: fill-box;
-}
-
-/* Care partner — a slow rock, not a heartbeat. The first cut WAS a heartbeat,
-   a double thump at 0.85s, and it was rejected (direct instruction,
-   2026-10-12). Worth keeping the reason: a double thump is a clinical
-   signal, and it is quick and percussive, which is the opposite of what
-   this tile is for. A single slow swell with a small tilt reads as cradling
-   something instead. The tilt is what makes it a rock rather than a scale —
-   3deg on a glyph this size is about 5px at the outer edge, well above the
-   ~8deg-on-small-shapes invisibility threshold the Doodles note records,
-   because this shape is 96px rather than a 20px doodle. */
-.c2s-glyph-cradle { transform-origin: 50% 55%; }
-@keyframes c2s-glyph-cradle {
-    0%   { transform: scale(1) rotate(0deg); }
-    40%  { transform: scale(1.07) rotate(-3deg); }
-    72%  { transform: scale(1.02) rotate(1.2deg); }
-    100% { transform: scale(1) rotate(0deg); }
-}
-
-/* Coach — the bubble pops out of its own TAIL (hence the 18%/88% origin,
-   which is where the tail sits in the glyph's box, not its centre), and the
-   person leans 80ms later. The offset is the whole effect: simultaneous reads
-   as two things scaling, staggered reads as someone speaking. */
-.c2s-glyph-pop  { transform-origin: 18% 88%; }
-.c2s-glyph-lean { transform-origin: 50% 100%; }
-@keyframes c2s-glyph-pop {
-    0%   { transform: scale(0.3) translateY(2px); opacity: 0; }
-    40%  { transform: scale(1.18) translateY(-1.5px); opacity: 1; }
-    62%  { transform: scale(0.95) translateY(0.4px); }
-    80%  { transform: scale(1.03) translateY(0); }
-    100% { transform: scale(1) translateY(0); }
-}
-@keyframes c2s-glyph-lean {
-    0%   { transform: rotate(0deg); }
-    35%  { transform: rotate(4.5deg); }
-    70%  { transform: rotate(-1.5deg); }
-    100% { transform: rotate(0deg); }
-}
-
-/* Researcher — the shield flexes outward while the person tucks in behind it,
-   130ms later. Both moving the same way at the same time would just be a
-   scale on the whole glyph; opposed and offset, it reads as protection. */
-.c2s-glyph-guard { transform-origin: 50% 50%; }
-.c2s-glyph-tuck  { transform-origin: 50% 60%; }
-@keyframes c2s-glyph-guard {
-    0%   { transform: scale(1); }
-    26%  { transform: scale(1.11); }
-    52%  { transform: scale(0.975); }
-    76%  { transform: scale(1.025); }
-    100% { transform: scale(1); }
-}
-@keyframes c2s-glyph-tuck {
-    0%   { transform: scale(1) translateY(0); }
-    30%  { transform: scale(0.88) translateY(0.6px); }
-    65%  { transform: scale(1.04) translateY(-0.2px); }
-    100% { transform: scale(1) translateY(0); }
-}
-
-/* ⚠️ Durations are roughly DOUBLE the first cut, on direct instruction
-   (2026-10-12: *"other animations are too fast"*). The originals were
-   0.62-0.85s, which is the range a UI transition lives in — and that is
-   exactly why they read wrong: at that speed the eye registers "something
-   flicked", not "the bubble came out of the tail and then the person leaned".
-   These are small narrative beats, so they need the time to be read as a
-   sequence. The stagger delays were scaled with them; a delay that stays put
-   while its animation doubles collapses the offset the sequence depends on. */
-.login-type-tile:hover .c2s-glyph-cradle,
-.login-type-tile:has(input:focus-visible) .c2s-glyph-cradle {
-    animation: c2s-glyph-cradle 1.5s cubic-bezier(0.37, 0, 0.63, 1);
-}
-.login-type-tile:hover .c2s-glyph-pop,
-.login-type-tile:has(input:focus-visible) .c2s-glyph-pop {
-    animation: c2s-glyph-pop 1.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.login-type-tile:hover .c2s-glyph-lean,
-.login-type-tile:has(input:focus-visible) .c2s-glyph-lean {
-    animation: c2s-glyph-lean 1.25s ease-in-out 0.16s;
-}
-.login-type-tile:hover .c2s-glyph-guard,
-.login-type-tile:has(input:focus-visible) .c2s-glyph-guard {
-    animation: c2s-glyph-guard 1.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.login-type-tile:hover .c2s-glyph-tuck,
-.login-type-tile:has(input:focus-visible) .c2s-glyph-tuck {
-    animation: c2s-glyph-tuck 1.35s cubic-bezier(0.4, 0, 0.2, 1) 0.13s;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
    Login screen — the artwork panel's width
    ─────────────────────────────────────────────────────────────────────────
 
@@ -1153,12 +1051,17 @@
                             that is a matter of taste. It is what stops a
                             wide monitor doing what it did at 2.35x, where
                             three quarters of the drawing was cropped away.
-             height term    898 x 0.80624 = 724, so this is the width at
+             height term    910 x 0.795604 = 724, so this is the width at
                             which the artwork exactly fills the row's height.
+                            ⚠️ The ratio is the artwork's OWN aspect and has
+                            to be re-derived on every re-export: the panel
+                            went 724x898 -> 724x910 on 2026-10-13 when the
+                            blob moved down, and the old 0.80624 would have
+                            over-wide'd the panel by 1.3%.
 
            The `max()` is what guarantees the right-hand side NEVER crops.
            `object-cover` crops on whichever axis has the smaller ratio, so
-           the drawing is cut on the right only when width/724 < height/898 —
+           the drawing is cut on the right only when width/724 < height/910 —
            and that is precisely the case this term rules out. Below the
            ceiling the crop is always at the BOTTOM, through the cloud, which
            is where the drawing is composed to bleed; above it the width and
@@ -1195,10 +1098,12 @@
              1512x982   710 x 910   (space-bound; fills the row)
              1700x710   894 x 638   (space-bound; runs to the copy column)
              1920x1080 1086 x 1008  (ceiling-bound; 0.98 not in play)
-             2560x1440 1103 x 1368  (height term; zero crop, unchanged) */
+             2560x1440 1088 x 1368  (height term; zero crop. Was 1103 while
+                                     the artwork was 898 tall — the only row
+                                     the 2026-10-13 re-export moved) */
         width: min(
             calc((100% - 788px) * 0.98),
-            max(1086px, calc((100vh - 72px) * 0.80624))
+            max(1086px, calc((100vh - 72px) * 0.795604))
         );
     }
 
@@ -1265,172 +1170,93 @@
            below 1000px tall, so the frame's own proportions are untouched
            where the frame applies.
 
-           Element selectors rather than classes because these are the
-           column's only four children and the order is the content order:
-           heading, sub-line, the tile group, the CTA. */
+           Element selectors for the first two because they are the column's
+           own children in content order: heading, sub-line. The third was
+           `> fieldset` until the tiles became a dropdown and an email field
+           and the fieldset stopped existing — hence `.login-form-block`, a
+           class, for the same reason as the stack below it.
+
+           ⚠️ The fourth is `.login-cta-stack`, a CLASS, and it must stay one.
+           This rule used to read `> button`, from when the CTA was a single
+           button; when `Go back` arrived as a second sibling it inherited the
+           64px too and the pair sat 64 apart instead of 16 — measured at
+           2740x1300, reported as looking broken on a monitor. The two CTAs are
+           now one wrapped child, so this moves the PAIR and their own 16px gap
+           is untouchable from out here. A bare `> button` would resurrect the
+           bug the moment anything else in the column is a button. */
         .login-copy-col > p { margin-top: 12px; }
-        .login-copy-col > fieldset { margin-top: 64px; }
-        .login-copy-col > button { margin-top: 64px; }
+        .login-copy-col > .login-form-block { margin-top: 64px; }
+        .login-copy-col > .login-cta-stack { margin-top: 64px; }
     }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Login user-type tiles — the three layouts
+   Login — the email field and the prototype-only user-type dropdown
    ─────────────────────────────────────────────────────────────────────────
 
-   Figma `4216:16782` (tablet 820) and `4216:17665` (mobile 375), alongside the
-   desktop frame `4184:43030` already built.
+   One skin for both controls, because they are one stack and any difference
+   between them reads as a mistake. The geometry is the CTA's own, so the
+   field, the select and the two buttons are four 48px pills in a column:
 
-   ── Why this is CSS and not Tailwind ────────────────────────────────────
+     height  48px   — `surface: 'consumer'`, the same as both CTAs
+     radius  28px   — the CTA's, not the tiles' 16
+     fill    white  — `neutral/white`
+     stroke  1px #e0e0e0 `neutral/lighter-grey`, the system's OUTLINE colour,
+                     never a fill, and the same hairline the de-active
+                     `Go back home` carries directly beneath it
+     text    16px   — `--text-body`; nothing on this screen is under 16
 
-   The tile changes SHAPE twice, not just size, so every rule here needs a
-   breakpoint AND a state (`:checked`, `:hover`) on the same element. That is
-   precisely the stacked-variant case this page has been bitten by twice —
-   `motion-safe:hover:[--x:1.07]` and an interpolated `min-[1200px]:px-20`
-   both sat in the DOM looking correct and emitted no CSS at all. Three
-   layouts crossed with three states is nine combinations to get right in a
-   variant order Tailwind does not document; in plain CSS it is three media
-   queries that can be read top to bottom.
+   ⚠️ NOT `RECORD_INPUT` from `components/research/RecordFields.tsx`, which is
+   this app's other field. That one is 36px, `pearl` filled and 14px type —
+   right inside a researcher's dense record form, wrong here twice over: 36
+   breaks the 48px rhythm of the surface, and `pearl` (#f5f5f7) is a COOL grey
+   that reads as a foreign patch on the warm #fffcfa canvas.
 
-   ── The three shapes ────────────────────────────────────────────────────
+   Plain CSS rather than Tailwind for the same reason the tiles below are:
+   the focus state crosses a pseudo-class and this page has twice shipped a
+   stacked variant that emitted no CSS at all. */
+.login-field {
+    height: 48px;
+    border-radius: 28px;
+    background-color: #ffffff; /* no --color-white token; Tailwind own white */
+    /* `purple-200` is the OUTLINE and white is the fill — both controls, the
+       prototype-only dropdown included (direct instruction, 2026-10-13). An
+       earlier cut had the purple as the FILL; this is the correction. */
+    border: 1px solid var(--color-purple-200);
+    box-shadow: var(--shadow-card-raised);
+    padding-inline: 24px;
+    font-size: var(--text-body);
+    color: var(--color-ink);
+    outline: none;
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
 
-     < 640    a horizontal CARD: purple icon cell on the left, label beside
-              it, the card itself carrying the border and radius.
-     640-1199 a 144px-tall tile with the label BELOW it, three across.
-     >= 1200  the same, but the tile is square — the desktop frame.
+.login-field::placeholder {
+    color: var(--color-ink-faint);
+}
 
-   The markup is ONE tree for all three, which matters more than it looks:
-   the alternative is two presentations toggled by `hidden`, and that means
-   two radio inputs with the same name, which silently breaks the group.
+/* `:focus-visible` on the input, so a mouse click does not paint a ring, and
+   plain `:focus` is deliberately not used. The ring is the app's own
+   `--color-ring`, drawn OUTSIDE the 1px border with a shadow rather than an
+   outline so the pill's edge stays exactly 48px round. */
+/* ⚠️ The ring is listed WITH the resting shadow, not instead of it: a single
+   `box-shadow` declaration replaces the whole stack, so writing the ring alone
+   drops the lift the moment the control is focused. */
+.login-field:focus-visible {
+    border-color: var(--color-ring);
+    box-shadow:
+        0 0 0 2px var(--color-ring),
+        var(--shadow-card-raised);
+}
 
-   ── What the frames draw and what this does instead ─────────────────────
-
-   The frames fill the resting tile `purple-200`. It is `purple-50` here, at
-   every width, following the frames being updated to p50 for the default
-   state (2026-10-13) — so rest / hover / chosen is one system across all
-   three breakpoints rather than a fill that changes as you cross 1200. */
-
-.login-type-tile {
-    display: block;
-    width: 100%;
+/* The `<select>` keeps the same skin; `appearance-none` removes the native
+   caret and the call site draws a lucide chevron in the space `pr-14` leaves. */
+.login-field:is(select) {
     cursor: pointer;
 }
 
-.login-tile-icon {
-    display: grid;
-    place-items: center;
-    background-color: var(--color-purple-50);
-    color: var(--primary);
-    transition:
-        background-color 0.18s ease,
-        box-shadow 0.18s ease,
-        outline-color 0.18s ease;
-}
-
-.login-tile-label {
-    display: block;
-    color: var(--color-ink);
-    transition: color 0.18s ease;
-}
-
-.login-type-tile:hover .login-tile-label,
-.login-type-tile input:checked ~ .login-tile-card .login-tile-label {
-    color: var(--primary);
-}
-
-.login-type-tile:hover .login-tile-icon,
-.login-type-tile input:checked ~ .login-tile-card .login-tile-icon {
-    background-color: var(--color-purple-200);
-}
-
-/* ── Mobile: the card owns the chrome ─────────────────────────────────── */
-@media (max-width: 639px) {
-    .login-tile-card {
-        display: flex;
-        align-items: stretch;
-        overflow: hidden;
-        background-color: #ffffff;
-        border-radius: 16px;
-        outline: 1px solid var(--color-purple-300);
-        outline-offset: -1px;
-        transition:
-            outline-color 0.18s ease,
-            box-shadow 0.18s ease;
-    }
-
-    /* The frame's own split: a 130.5px icon cell against a 162.5px text cell
-       in a 295px card, i.e. 44.5%. A percentage rather than the frame's px,
-       because this card is full-width at every phone size and 130.5 of 320
-       is a different proportion from 130.5 of 430. */
-    .login-tile-icon {
-        width: 44.5%;
-        flex-shrink: 0;
-        min-height: 112px;
-    }
-
-    .login-tile-label {
-        flex: 1;
-        align-self: center;
-        padding: 16px;
-        text-align: left;
-    }
-
-    .login-type-tile input:checked ~ .login-tile-card {
-        outline: 2px solid var(--primary);
-        outline-offset: -2px;
-        box-shadow: var(--shadow-card-raised);
-    }
-
-    .login-type-tile input:focus-visible ~ .login-tile-card {
-        outline: 2px solid var(--ring);
-        outline-offset: 2px;
-    }
-}
-
-/* ── Tablet and desktop: the tile owns the chrome ─────────────────────── */
-@media (min-width: 640px) {
-    .login-tile-card {
-        display: block;
-    }
-
-    .login-tile-icon {
-        width: 100%;
-        /* 144px is the tablet frame's own tile height (`4216:17166`). The
-           desktop block below swaps it for a square. */
-        height: 144px;
-        border-radius: 16px;
-        outline: 1px solid var(--color-purple-300);
-        outline-offset: -1px;
-    }
-
-    .login-tile-label {
-        margin-top: 16px;
-        text-align: center;
-    }
-
-    .login-type-tile input:checked ~ .login-tile-card .login-tile-icon {
-        outline: 2px solid var(--primary);
-        outline-offset: 0;
-        box-shadow: var(--shadow-card-raised);
-    }
-
-    .login-type-tile:hover .login-tile-icon {
-        box-shadow: var(--shadow-card-raised);
-        outline-color: transparent;
-    }
-
-    .login-type-tile input:focus-visible ~ .login-tile-card .login-tile-icon {
-        outline: 2px solid var(--ring);
-        outline-offset: 2px;
-    }
-}
-
-@media (min-width: 1200px) {
-    .login-tile-icon {
-        height: auto;
-        aspect-ratio: 1;
-    }
-}
 
 /* ── The login greeting's mobile type ─────────────────────────────────────
    The mobile frame (`4216:18075`/`4216:18076`) sets the title at 28/500 and

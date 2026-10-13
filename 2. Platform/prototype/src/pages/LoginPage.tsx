@@ -1,91 +1,71 @@
 import { useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronRight } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { Care2SleepLogo } from '@/components/shared/Care2SleepLogo'
-import { UserTypeGlyph, type UserTypeGlyphName } from '@/components/login/UserTypeGlyph'
 import { LoginHeroBand } from '@/components/login/LoginHeroBand'
 import { SiteFooter } from '@/components/shared/SiteFooter'
 import { Button } from '@/components/ui/button'
 
 /**
- * The app's front door — Figma frame `4184:43030` ("Login screen"), replacing
- * `PortalSwitcherPage`.
+ * The app's front door. Figma: section `02 · Login — email` on the
+ * `1. Login screens` page — `4245:869` desktop, `4245:1021` tablet,
+ * `4245:1167` mobile.
  *
  * ── What this screen is, and what it is not ───────────────────────────────
  *
- * It is step 1 of a four-step sign-in: **select user type -> enter email ->
- * enter verification code -> dashboard**. Only step 1 has a frame, so only step
- * 1 is built. `Continue` therefore routes straight into the chosen portal
- * (direct instruction, 2026-10-12: *"I will tell you, this is next step for now
- * wire directly"*). The email and code screens slot in front of that
- * `navigate()` without touching anything else here.
+ * The flow is **email address -> Okta SSO -> dashboard**. The screen never asks
+ * who you are, because the identity provider already knows; Okta is outside
+ * this prototype's scope and is deliberately **not mocked**.
  *
- * What it replaces was never a login at all: a plain three-tile portal
- * switcher with no notion of who you are. Every "Switch portal" and "Sign out"
- * in the app already lands on `/`, so they now land here, which is the first
- * time those two controls have meant what they say.
+ * Which leaves one problem: with no Okta, nothing decides which dashboard to
+ * open. The `Select user type (for prototype only)` dropdown is that stand-in.
+ * It pre-fills the email and sets the destination, and it is **not in any
+ * frame** (direct instruction, 2026-10-13: *"in figma we do not show the select
+ * user type as this will not be part of developed version. we also do not
+ * consider this as a variance for future"*). It is scaffolding, not a variant.
+ *
+ * ⚠️ **The dropdown decides the destination, not the email.** Anyone can type
+ * anything into the field; there is no Okta here to read it. The CTA goes live
+ * only when a type is chosen AND the field is non-empty — a sign-in button that
+ * submits nothing would be lying about what it does.
+ *
+ * ── What was here before ─────────────────────────────────────────────────
+ *
+ * Until 2026-10-13 this screen asked the reader to pick one of three user-type
+ * tiles, each with its own animated lucide-derived glyph. That whole design —
+ * tiles, glyphs, their three states and their per-breakpoint stroke weights —
+ * was deleted when the flow changed, by instruction (*"if we do in future, we
+ * will rebuild using figma as reference"*). It is not gone: the frames survive
+ * in Figma section `01 · Login`, the spec is `design-tokens.md` §104-§106, and
+ * the code is in git history. **Do not reconstruct it from memory** — the frames
+ * are the reference.
  *
  * ── The frame, transcribed ───────────────────────────────────────────────
  *
  *   canvas       linear-gradient(to left, #fffcfa 25.621%, #fff8e5 55.723%)
- *                — `--background` warming into `yellow-50`
+ *                — `--background` warming into `yellow-50`. Desktop only;
+ *                below 1200 the canvas is flat.
  *   header       72px white bar, `shadow-card`, 80px side padding, wordmark
- *                137.1 x 34 and nothing else (the account cluster is hidden on
- *                the frame's own instance — nobody is signed in yet)
+ *                137.1 x 34 and nothing else (nobody is signed in yet)
  *   columns      left `flex-1` (724 at 1512) + right a fixed 788
  *   right pad    80 side / 140 top
  *   heading      display-lg (40/500) -> 8 -> sub-greeting (18/500/1.4)
- *   -> 48 ->     three `flex-1` tiles, `gap-24`, square, radius 16,
- *                label 16 below at sub-greeting, centred
- *   -> 48 ->     full-width 48px CTA, radius 28
+ *   -> 48 ->     the form block: label -> 8 -> 48px field, twice
+ *   -> 48 ->     the CTA stack: two full-width 48px pills, 16 apart
  *
- * Colours are the file's own styles: `Purple/50` `#f3efff` resting,
- * `Purple/200` `#e4d6ff` raised, `Purple/500` `#3a00ad` for the chosen label
- * and stroke, `neutral/black` `#1a1a1a` for the rest of the type.
+ * Field and CTA geometry, and why both controls share one skin, are in
+ * `index.css` under "Login — the email field…" and in `design-tokens.md`
+ * §107.3.
  *
- * ── Three places this deliberately departs from the frame ────────────────
+ * ── Where this departs from the frame ────────────────────────────────────
  *
- * 1. **Two copy fixes** (direct instruction): tiles 2 and 3 read "I'am" in the
- *    frame, and the heading reads "Care to Sleep" directly beneath a wordmark
- *    that reads "Care2Sleep". Both corrected here.
- * 2. **The tiles carry a glyph the frame does not draw.** They were empty on
- *    purpose up to 2026-10-12 — placeholders for artwork that had not been
- *    drawn — and now hold a 96px lucide-derived glyph each, with motion on
- *    hover and focus. `components/login/UserTypeGlyph.tsx` is the spec, and
- *    its header is where the "these are exceptions, not the icon package"
- *    instruction is recorded. The layout did not move to accommodate them:
- *    the square was already the right size and already centres.
- * 3. **Everything below 1200px is derived**, because the frame is 1512 only.
- *    See the `min-[1200px]` note below.
- *
- * ── The three tile states ────────────────────────────────────────────────
- *
- * The frame draws the consumer tile hovered, which is how the hover paint is
- * known at all. Chosen is the user's own call (2026-10-12: *"in selected state
- * show outline stroke p500"*):
- *
- * | state | tile | label |
- * |---|---|---|
- * | rest    | `purple-50` + a 1px INSET `purple-300` outline | `ink` |
- * | hover   | `purple-200` + `shadow-card-raised`, no outline | `primary` |
- * | chosen  | the hover paint + a 2px `primary` outline | `primary` |
- *
- * Every one of the three is an `outline`, never a `border`: a border would eat
- * its own width off a square whose size is the whole point, so the tiles would
- * twitch as the choice moved between them.
- *
- * The resting outline is a later addition (direct instruction, 2026-10-12:
- * *"while in static/default state, add outline of p300 1px inside"*) and the
- * word **inside** is the load-bearing part — it is `-outline-offset-1`, so the
- * hairline sits within the 193px square rather than around it. At offset 0 the
- * tile would measure 195px at rest and 193px on hover, and the row would
- * breathe every time the pointer crossed it.
- *
- * ⚠️ The chosen state therefore has to reset the offset explicitly
- * (`peer-checked:outline-offset-0`). Tailwind's offset utility is not part of
- * the width utility, so without that line the 2px `primary` outline would
- * inherit the resting -1px inset and sit a pixel inside the edge.
+ * 1. **The dropdown**, above — app only, by instruction.
+ * 2. **Copy fixes**, all previously instructed and now carried by the frames
+ *    too: "Care2Sleep" not "Care to Sleep", and "sign in" as two words
+ *    throughout, matching the CTA.
+ * 3. **Everything below 1200px is derived** from the tablet and mobile frames;
+ *    see the `min-[1200px]` note below.
  */
 
 /**
@@ -113,50 +93,37 @@ import { Button } from '@/components/ui/button'
  */
 
 /**
- * The three audiences, in the frame's own order, each with where `Continue`
- * takes it.
+ * The three audiences, each with the email the prototype fills in for them and
+ * the portal that email signs into.
  *
- * A list rather than three hand-written blocks: they are the same control three
- * times and the only thing that differs is two strings. `id` is also the radio
- * group's value, so the selected state is one string of component state.
+ * ⚠️ **This list is no longer drawn on the screen.** It was three tiles until
+ * 2026-10-13, when the flow became email -> Okta SSO -> dashboard: the real
+ * screen never asks who you are, because the identity provider already knows.
+ * The list survives as the prototype-only dropdown's options, since Okta is out
+ * of scope here and something has to decide which dashboard to open.
  *
- * The wording is this project's, not a description of a role — "I'm a care
- * partner, or supported by one" is how the consumer audience is addressed
- * everywhere in their own portal, and neither "consumer" nor "client" appears
- * on a screen that has not yet worked out which one the reader is.
+ * `label` is therefore a dropdown option, not a sentence the audience reads
+ * about itself — the first-person tile wording ("I'm a care partner, or
+ * supported by one") and its load-bearing non-breaking spaces went with the
+ * tiles. The old frames in Figma section `01 · Login` still carry all of it.
  *
- * ⚠️ The non-breaking spaces in "or\u00a0a\u00a0coach" and "or\u00a0an\u00a0admin"
- * are load-bearing, not typos, and the frame does not have them.
- *
- * At the tile's 193px every label wraps to two lines, and where it wraps is the
- * whole of the design. Left to itself the browser breaks tile 2 after "or a",
- * stranding "coach" alone — the orphan this project's copy rule forbids. Both
- * alternatives (the frame's own "I am a trainee or / a coach", and the
- * balanced "I am / a trainee or a coach") were built and shown; the instruction
- * was *"move or to next line before a coach"*, then *"this is fine, or a coach
- * in next line"*. Binding "or a coach" into one unbreakable run is what puts
- * the whole phrase on line 2 — a `<br>` would do it too, but only at exactly
- * this width, and these tiles are `flex-1`.
- *
- * Tile 3 then followed the same shape on instruction (*"do same for researcher
- * or an admin"*), which is also a copy change: the frame reads "I am a
- * researcher/admin" and this reads "I am a researcher / or an admin". Tile 1
- * wraps correctly unaided and carries no mark. See also the note on why
- * `text-balance` is deliberately absent here.
+ * `email` is deliberately role-based and obviously fake, on the `example.com`
+ * the seed data already uses. No person's name: a plausible one in a sign-in
+ * field reads as a real account.
  */
-const USER_TYPES: { id: string; label: string; to: string; glyph: UserTypeGlyphName }[] = [
+const USER_TYPES: { id: string; label: string; to: string; email: string }[] = [
   {
     id: 'consumer',
-    label: "I'm a care partner, or supported by one",
+    label: 'Care partner, or supported by one',
     to: '/consumer',
-    glyph: 'care-partner',
+    email: 'care.partner@example.com',
   },
-  { id: 'coach', label: 'I am a trainee or\u00a0a\u00a0coach', to: '/delivery', glyph: 'coach' },
+  { id: 'coach', label: 'Trainee or coach', to: '/delivery', email: 'coach@example.com' },
   {
     id: 'researcher',
-    label: 'I am a researcher or\u00a0an\u00a0admin',
+    label: 'Researcher or admin',
     to: '/research',
-    glyph: 'researcher',
+    email: 'researcher@example.com',
   },
 ]
 
@@ -192,10 +159,21 @@ function useIsDesktop() {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const [chosen, setChosen] = useState<string | null>(null)
+  /** The prototype-only dropdown's value; `''` is its "Choose one…" option. */
+  const [chosen, setChosen] = useState('')
+  const [email, setEmail] = useState('')
   const isDesktop = useIsDesktop()
 
   const destination = USER_TYPES.find((t) => t.id === chosen)?.to
+
+  /**
+   * ⚠️ **The DROPDOWN decides where this goes, not the email.** Anyone can type
+   * any address into the field — in the built version Okta reads it and routes
+   * accordingly, and there is no Okta here. So the destination comes from the
+   * stand-in that replaces it, and the email has to be non-empty only because a
+   * sign-in button that submits nothing is a lie about what it does.
+   */
+  const ready = Boolean(destination) && email.trim() !== ''
 
   return (
     <div
@@ -318,7 +296,7 @@ export function LoginPage() {
              *
              * The right column is a FIXED 788 + margin, so widening the window
              * widens only this panel, and the panel's aspect drifts further
-             * from the artwork's portrait 724 x 898 the wider or shorter the
+             * from the artwork's portrait 724 x 910 the wider or shorter the
              * window gets. Something has to give: either the drawing is scaled
              * to fill and cropped, or it is fitted and leaves canvas around it.
              *
@@ -423,135 +401,173 @@ export function LoginPage() {
               min-[1200px]:pb-12 min-[1200px]:pt-[clamp(40px,11vh,108px)]
             "
           >
-            {/* `text-balance` on both, per the no-orphans rule — at 628px the
-                sub-line would otherwise drop "instructions" onto a line alone. */}
+            {/* `text-balance` on both, per the no-orphans rule.
+
+                The sub-line was "To login, please select your user type, then
+                follow the instructions" until 2026-10-13. Two things were wrong
+                with it: **"login" is the noun — the verb is "log in"** — and
+                "follow the instructions" is filler that names no action. The
+                replacement opens on "To log in" by direct instruction, and at
+                35 characters it is the one candidate that holds a SINGLE line
+                at every width, 295 included. See `ux-copy.md`. */}
             <h1 className="login-greeting-title text-display-lg text-ink text-center text-balance min-[1200px]:text-left">Welcome to Care2Sleep</h1>
             <p className="login-greeting-sub text-sub-greeting text-ink mt-2 text-center text-balance min-[1200px]:text-left">
-              To login, please select your user type, then follow the instructions
+              To sign in, enter your email address
             </p>
 
-            {/* A real radio group, not three buttons wearing `aria-pressed`.
-                These are mutually exclusive and that is exactly what a radio
-                group announces, arrow-keys between, and submits — all of which
-                would have to be hand-written otherwise, and this project's
-                audience note (plain language, big targets, nothing discovered by
-                gesture) is the worst possible place to hand-write it. */}
-            <fieldset className="mt-12 min-w-0 border-0 p-0">
-              <legend className="sr-only">Select your user type</legend>
+            {/* ⚠️ **The user-type dropdown is PROTOTYPE-ONLY and is not in any
+                frame** (direct instruction, 2026-10-13: *"in figma we do not
+                show the select user type as this will not be part of developed
+                version. we also do not consider this as a variance for
+                future"*).
 
-              {/* A `max-w-[628px]` used to sit here as a BUG FIX: the tiles
-                  were `aspect-square` at a third of their container, so below
-                  1200 — where this column is `w-full` — they inflated to a
-                  third of the WINDOW and grew as tall, measured at 309px on a
-                  1024x768 screen against a designed 193px. The extra height
-                  pushed the page past the viewport and it scrolled.
+                The real flow is: type an email, Okta SSO takes over, and Okta
+                sends you to the right place. Okta is outside this prototype, so
+                something has to stand in for "the identity provider knows who
+                you are" — this dropdown is that stand-in. Choosing a type
+                pre-fills the email below and sets where `Continue to sign in`
+                lands, which is exactly the decision Okta would be making.
 
-                  It is gone because the cause is: from 640 up the tile now has
-                  the tablet frame's fixed 144px height rather than an aspect
-                  ratio, so its height no longer tracks the window's width at
-                  all. Keeping the cap would have cost alignment — the tablet
-                  frame draws this row and the CTA both at the content width
-                  (660 of its 820), and a 628 cap left the tiles visibly
-                  narrower than the button under them. */}
-                <div className="grid min-w-0 grid-cols-1 gap-6 min-[640px]:grid-cols-3">
-                {USER_TYPES.map((type) => (
-                  <label
-                    key={type.id}
-                    /* `login-type-tile` is the hook BOTH the glyph keyframes and
-                       the three tile layouts hang off — see "Login user-type
-                       glyphs" and "Login user-type tiles" in `index.css`. It is
-                       on the LABEL, not the square, so the motion plays wherever
-                       in the tile the pointer lands, including over the caption.
+                It is a real `<select>`, not a hand-rolled listbox: this project
+                has twice shipped a `role="radiogroup"` without its keyboard
+                contract, and a native control cannot make that mistake.
 
-                       The `max-w-[240px] mx-auto` that used to be here is gone:
-                       it existed to stop a single-column tile filling a phone,
-                       and below 640 the tile is now a full-width horizontal card
-                       by design, which is the frame's own answer to the same
-                       problem. */
-                    className="group login-type-tile"
-                  >
-                    <input
-                      type="radio"
-                      name="user-type"
-                      value={type.id}
-                      checked={chosen === type.id}
-                      onChange={() => setChosen(type.id)}
-                      className="peer sr-only"
-                    />
-                    {/* `grid place-items-center` replaces the old `block`: the
-                        square used to be empty, and now centres a 96px glyph in
-                        it. Nothing else about the tile moved — it is still the
-                        frame's own `aspect-square` at the full column width, so
-                        the three states and the measured geometry are unchanged.
-
-                        `text-primary` at rest, and it stays `primary` through
-                        hover and chosen, so the colour transition belongs to the
-                        caption alone. The glyph's job on hover is to move, not
-                        to change colour. Measured on both fills: 10.43:1 on
-                        `purple-50`, 8.61:1 on `purple-200`, against the 3:1 a
-                        graphical element needs. */}
-                    {/* `login-tile-card` wraps BOTH the icon cell and the
-                        label, which is what lets one markup tree be three
-                        shapes. Below 640 this span is the card and carries the
-                        border; from 640 up it is a plain block and the icon
-                        cell carries it instead. All of that is in `index.css`
-                        — the states and the breakpoints cross, and this page
-                        has twice shipped a stacked Tailwind variant that
-                        emitted no CSS.
-
-                        It is also a sibling of the radio, not a descendant, so
-                        every checked and focus rule is a plain `input:checked ~`
-                        selector rather than `:has()`. */}
-                    <span className="login-tile-card">
-                      <span aria-hidden="true" className="login-tile-icon">
-                        {/* 64 on a phone (`4216:18252`), 96 from tablet up
-                            (`4216:17168`). */}
-                        <UserTypeGlyph
-                          name={type.glyph}
-                          className="size-16 min-[640px]:size-24"
-                        />
-                      </span>
-                    {/* No `text-balance` here, and that is measured rather than
-                        an omission. The frame breaks these labels as
-                        "…partner, or / supported by one" and "I am a trainee or /
-                        a coach"; natural wrapping at 193px reproduces all three
-                        of those breaks exactly, while balancing moves label 3 to
-                        "I am / a researcher/admin" — two words alone on a line
-                        with a 36px first line. The no-orphans rule is about the
-                        rendered result, and here the result is already right. */}
-                      <span className="text-sub-greeting login-tile-label">
-                        {type.label}
-                      </span>
-                    </span>
-                  </label>
-                ))}
+                `login-form-block` is the hook for the column's tall-window
+                rhythm in `index.css`. It REPLACES a `> fieldset` selector —
+                keep it a class, since the element it names keeps changing. */}
+            <div className="login-form-block mt-12 min-w-0">
+              {/* "(for prototype only)" is part of the label and carries the
+                  label's own weight (direct instruction, 2026-10-13: *"use same
+                  font weight"*) — not a lighter aside, and not a separate hint
+                  paragraph, which is what this was first built as. It reads as
+                  one line because it IS one line: the control is prototype-only
+                  in its entirety, so qualifying it in a second voice underneath
+                  said the same thing twice. */}
+              <label htmlFor="login-user-type" className="text-body-md text-ink block">
+                Select user type (for prototype only)
+              </label>
+              <div className="relative mt-2">
+                <select
+                  id="login-user-type"
+                  value={chosen}
+                  onChange={(e) => {
+                    const next = USER_TYPES.find((t) => t.id === e.target.value)
+                    setChosen(e.target.value)
+                    setEmail(next ? next.email : '')
+                  }}
+                  className="login-field w-full appearance-none pr-14"
+                >
+                  <option value="">Choose one…</option>
+                  {USER_TYPES.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                {/* lucide, per the icon rule, and `aria-hidden` because the
+                    `<select>` already announces itself as a combobox.
+                    `appearance-none` above is what removes the native caret. */}
+                <ChevronDown
+                  aria-hidden="true"
+                  strokeWidth={2}
+                  className="text-ink-faint pointer-events-none absolute top-1/2 right-6 size-5 -translate-y-1/2"
+                />
               </div>
-            </fieldset>
 
-            {/* 48px and radius 28 come from `surface: 'consumer'`, which is what
-                the frame draws — this is the front door for all three audiences
-                and the largest of the two heights is the right one for it. The
-                grey the frame shows is not a colour choice, it is `deactive`
-                resolving to `ink-faint` #6d6d6d, which is the exact hex in the
-                frame.
+              {/* A VISIBLE label, not a placeholder standing in for one: a
+                  placeholder disappears the moment someone types, and this
+                  project's audience note is explicit that nothing should be
+                  discovered or remembered. The placeholder is an example of the
+                  shape, which is all it is good for. */}
+              <label htmlFor="login-email" className="text-body-md text-ink mt-6 block">
+                Email address
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="login-field mt-2 w-full"
+              />
+            </div>
 
-                `aria-disabled` rather than `disabled`: the control stays
-                reachable by keyboard, so someone tabbing to it is told why it
-                will not move rather than finding it silently skipped. The guard
-                below is what actually stops it. */}
-            <Button
-              surface="consumer"
-              state={destination ? 'static' : 'deactive'}
-              aria-disabled={!destination}
-              onClick={() => {
-                if (destination) navigate(destination)
-              }}
-              className="mt-12 w-full"
-            >
-              Continue
-              {!destination && <span className="sr-only"> (select a user type first)</span>}
-              <ChevronRight aria-hidden="true" className="size-6" strokeWidth={2} />
-            </Button>
+            {/* ⚠️ **The two CTAs are ONE child of the column, deliberately.**
+                `index.css` opens the column's rhythm up on a tall window with
+                `.login-copy-col > button { margin-top: 64px }` — written when
+                the CTA *was* a single button. The moment a second button
+                became a sibling it inherited that 64px, so on a monitor the
+                pair sat 64px apart instead of 16 and read as two unrelated
+                controls (reported 2026-10-13: "it does not look broken in
+                monitor view"). Measured at 2740x1300: 64px, against 16 at
+                1512x982, where the rule does not apply.
+
+                Wrapping them makes the stack the column's fourth child, so the
+                opening-up rule moves the PAIR and the 16px between them is
+                fixed at every size — which is also what all three frames draw
+                (desktop `4216:18637`, and the stacks now on tablet and mobile).
+                A `gap`, not margins, so nothing can be inherited into it. */}
+            <div className="login-cta-stack mt-12 flex w-full flex-col gap-4">
+              {/* 48px and radius 28 come from `surface: 'consumer'`, which is
+                  what the frame draws — this is the front door for all three
+                  audiences and the largest of the two heights is the right one
+                  for it. The grey the frame shows is not a colour choice, it is
+                  `deactive` resolving to `ink-faint` #6d6d6d, which is the exact
+                  hex in the frame.
+
+                  `aria-disabled` rather than `disabled`: the control stays
+                  reachable by keyboard, so someone tabbing to it is told why it
+                  will not move rather than finding it silently skipped. The
+                  guard below is what actually stops it. */}
+              <Button
+                surface="consumer"
+                state={ready ? 'static' : 'deactive'}
+                aria-disabled={!ready}
+                onClick={() => {
+                  if (ready && destination) navigate(destination)
+                }}
+                className="w-full"
+              >
+                Continue to sign in
+                {!ready && (
+                  <span className="sr-only"> (select a user type and enter an email first)</span>
+                )}
+              </Button>
+
+              {/* `Go back` is drawn on all three frames and has nowhere to go
+                  yet: this is step 1 of four and the landing page it will return
+                  to is not built (direct instruction, 2026-10-13 — "keep it
+                  inactive"). So it renders under this project's unwired-control
+                  rule: full `secondary · brand` paint as the frame draws it,
+                  `aria-disabled` rather than `disabled` so it stays reachable by
+                  keyboard, and an `sr-only` cue saying why it will not move.
+                  Never the `disabled` attribute — an inert "(coming soon)"
+                  control is deliberately focusable, and a silently dead button
+                  is the one thing this rule exists to prevent.
+
+                  `state="deactive"` because it reads as unavailable and it IS —
+                  step 1 has nowhere to go back to until the landing page exists
+                  (direct instruction, 2026-10-13). **The frames agree**: all
+                  three were changed to match on the same day, and carry the
+                  same three values this paints — fill `#FFFFFF`, stroke
+                  `#E0E0E0` 1px, label `#6D6D6D`.
+
+                  `deactive` is paint only — the `aria-disabled` above is what
+                  carries it to assistive tech, and the pair must stay together
+                  or the grey is a lie. */}
+              <Button
+                variant="secondary"
+                surface="consumer"
+                state="deactive"
+                aria-disabled="true"
+                className="w-full"
+              >
+                Go back home
+                <span className="sr-only"> (coming soon)</span>
+              </Button>
+            </div>
           </div>
         </div>
       </motion.main>

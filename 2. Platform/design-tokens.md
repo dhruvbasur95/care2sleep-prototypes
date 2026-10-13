@@ -10146,8 +10146,313 @@ and accepted before it was built.
 — cool to warm. Confirmed by rasterising the panel and sampling down the cloud:
 `#e2d4ff` at 62% of height, **`#fef8e5`** at 92%, exactly the end stop.
 
-⚠️ **Figma carries this on the desktop panel (`4201:43545`) only.** The two
-band assets were given the ramp **by hand**, keeping each one's own gradient
-*geometry* (`x1/y1/x2/y2`) and replacing only the three stops.
-**Re-exporting either band before its Figma frame is updated will silently
-revert the cloud.**
+~~⚠️ **Figma carries this on the desktop panel (`4201:43545`) only.**~~
+**CLOSED 2026-10-13 (Round 67, §106.4):** the two band frames `4216:17300` and
+`4216:18159` now carry the ramp in Figma, so a re-export is safe. The method,
+if either band is ever re-stopped again: keep each band's own gradient
+*geometry* (`x1/y1/x2/y2`) and replace only the three stops — the geometry is
+per band and must never be copied from the panel.
+
+---
+
+## §106 — The login screen, round 67: Go back, a per-breakpoint glyph stroke, and the Figma side caught up (2026-10-13, Round 67)
+
+### §106.1 ⚠️ A second button inherited a rule written for one
+
+`index.css` opens the copy column's rhythm up on a tall window:
+
+```css
+@media (min-height: 1000px) {
+  .login-copy-col > p        { margin-top: 12px; }
+  .login-copy-col > fieldset { margin-top: 64px; }
+  .login-copy-col > button   { margin-top: 64px; }   /* ← the trap */
+}
+```
+
+That last selector was written when the CTA **was** a single button. Adding
+`Go back` as a sibling gave it the same 64px, so the pair sat **64px apart
+instead of 16** and read as two unrelated controls. Measured **2740x1300: 64px**
+— against **16px at 1512x982**, where the rule does not apply at all, which is
+why it survived a full desktop verification pass and was caught only on a
+monitor.
+
+The fix is the frames' own structure: **the two CTAs are ONE child of the
+column** (`.login-cta-stack`, `flex flex-col gap-4`), and the opening-up rule
+now targets that class. Two consequences worth keeping:
+
+- The 16px between them is a **`gap`, not a margin**, so nothing outside the
+  stack can be inherited into it.
+- The selector is a **class, not `> button`**. A bare element selector
+  resurrects the bug the moment anything else in the column is a button.
+
+Desktop Figma `4216:18637` was already a 16px-gap stack; the tablet and mobile
+frames now carry the same (`4234:862`, `4234:867`).
+
+### §106.2 `Go back` is inert, and inert is not `disabled`
+
+Direct instruction: *"add go back button to the app, keep it inactive"* — it
+will point at a landing page that does not exist yet. It is
+**`secondary · deactive`** (*"in app for now make go back button in de-active
+state"*), plus `aria-disabled="true"` and an `sr-only` "(coming soon)".
+**Never the `disabled` attribute**: these stay focusable on purpose, so someone
+tabbing to it is told why it will not move instead of finding it skipped. And
+`deactive` is **paint only** — without the `aria-disabled` beside it the grey
+is a lie.
+
+⚠️ **The first cut painted it `secondary · brand`**, reasoning that the frames
+drew it in purple and that grey says "unavailable" rather than "not wired yet".
+The instruction overrode that, **and the frames were then changed to match** —
+all three now carry the deactive values, so there is no divergence to track.
+
+Measured, app and frames agreeing: **48 tall**, radius **28**, fill
+`#FFFFFF`, border **1px `#E0E0E0`**, label `#6D6D6D`, `tabIndex 0`,
+`disabled false`, `cursor: not-allowed`, 16px below Continue. Label on fill is
+**5.17:1** — above AA, which a disabled control does not owe but costs nothing.
+`#E0E0E0` is an OUTLINE here, never a fill, per the standing rule.
+
+### §106.3 The glyph stroke is per breakpoint — and does NOT ride the size
+
+Read off the frames' own glyph vectors (`4211:51973`, `4216:17169`,
+`4216:18253`):
+
+| breakpoint | glyph box | painted | `stroke-width` on the 24 grid |
+|---|---|---|---|
+| `>= 1200` | 96 | **5px** | 1.25 |
+| `640–1199` | 96 | **4px** | 1 |
+| `< 640` | 64 | **3px** | 1.125 |
+
+⚠️ **Tablet and desktop draw the same 96px glyph at different weights.** Any
+rule that derives the stroke from the size is therefore wrong by a whole pixel
+— which is what the app shipped: 1.25 everywhere, so tablet painted 5 against
+the frame's 4.
+
+The three values live in `index.css` as `--c2s-glyph-stroke` under plain media
+queries, read by `UserTypeGlyph` as an **inline `style`** (`stroke-width:
+var(--c2s-glyph-stroke)`). Three reasons it is not an attribute and not
+Tailwind: an SVG presentation attribute cannot carry a media query; a stacked
+Tailwind arbitrary *property* has twice emitted no CSS on this page; and an
+inline style is the one form that survives being cloned (§104.4's `<use>`
+lesson).
+
+The two scaled groups in the composed coach glyph counter-scale with
+`calc(var(--c2s-glyph-stroke) / 0.72)` and `/ 0.46`. Verified in the browser at
+all three widths: **every group paints 5, 4 and 3** with the rest of its glyph.
+
+### §106.4 The Figma side, brought level with the app
+
+- **Login screens have their own page** — `1. Login screens` (`4226:7750`),
+  section `01 · Login` (`4226:7751`), the three frames at the file's 2412 pitch
+  and `y = 140`. Every other page renumbered: Researcher `2.` · Trainee `3.` ·
+  Coach `4.` · Consumer `5.` · Training module components `6.` **Node ids are
+  unchanged** — search by id, never by page number.
+- **The two band frames got the warm cloud ramp** §105.6 said was outstanding:
+  `4216:17300` and `4216:18159`, stops replaced, each band's own gradient
+  geometry untouched. The hand-edit warning in §105.6 is now closed.
+- **The copy was mirrored from the app** — 12 strings across the three frames:
+  `Care2Sleep`, `I am` (not `I'am`), `I am a researcher or an admin`, and the
+  app's non-breaking spaces so the frames break where the app breaks.
+- **The tiles now carry the app's three distinct glyphs.** All three frames had
+  repeated `heart-handshake`; tiles 2 and 3 are now the composed
+  `UserRound + MessageCircle` and `ShieldUser`, built from lucide's own path
+  data via `createNodeFromSvg` at **each frame's own box and painted stroke**
+  (96/5, 96/4, 64/3). They are local frames, **not masters** — these glyphs are
+  an exception to the icon package and the composed coach glyph must never
+  become one.
+- Desktop tiles 2 and 3 were drifting at **98px box / 5.44 stroke**; rebuilt at
+  96 / 5 to match tile 1.
+
+### §106.5 The artwork panel is 724 x **910** now, and the ratio is not a constant
+
+The user moved the blue blob down and re-adjusted the stars group in Figma.
+Re-exported `Frame 4` (`4197:43371`) and diffed against the old asset: the blob
+moved **down 16px** relative to the frame, `Sparkle 1` moved **+7.9 x / -13 y**,
+and the cloud and pillow mask did not move at all. The frame grew **898 → 910**.
+
+Two things the re-export needs every time:
+
+1. **Strip the plates.** This export came back with a `#F5F5F5` page plate, the
+   login frame's own 1512x1040 page-gradient rect, and — new, because the frames
+   now live in a Section — the **section's background fill and border paths**.
+   Match them by *shape*, never by hex: a `#FFFDFA` gradient stop is artwork.
+2. **Re-derive the aspect.** `.login-art-panel`'s height term is
+   `(100vh - 72px) * 724/height`, and `0.80624` (724/898) became
+   **`0.795604`** (724/910). Leaving the old number over-widens the panel by
+   1.3%.
+
+Re-measured, panel w x h: `1200x900 → 404x828` · `1512x710 → 710x676` ·
+`1512x982 → 710x910` · `1700x710 → 894x676` · `1920x1080 → 1086x1008` ·
+`2560x1440 → 1088x1368`. Only the last row moved (was 1103).
+
+**Gate:** `tsc -b` clean · `oxlint` 26 warnings / 0 errors (the baseline) ·
+`layoutAudit()` **empty at 375, 820, 1024, 1512x710, 1512x982 and 2560x1440**,
+with `scrollWidth === innerWidth` at every one.
+
+---
+
+## §107 — The login screen becomes email + SSO (2026-10-13, Round 67)
+
+The flow changed under the screen: **email address → Okta SSO → dashboard**. The
+screen never asks who you are, because the identity provider already knows.
+Okta is outside this prototype's scope and is **not mocked**.
+
+### §107.1 What is on the screen now
+
+| Slot | Before | Now |
+|---|---|---|
+| Sub-line | To log in, first select who you are | **To sign in, enter your email address** |
+| Body | three user-type tiles | **a visible label + email field** |
+| Primary CTA | Continue, with a chevron | **Continue to sign in**, chevron gone |
+| Secondary CTA | Go back | **Go back home** |
+| Artwork | unchanged | unchanged |
+
+### §107.2 ⚠️ The dropdown is prototype-only and is deliberately not in Figma
+
+Direct instruction: *"in figma we do not show the select user type as this will
+not be part of developed version. we also do not consider this as a variance for
+future"*. The app adds a `Select user type` dropdown **above** the email field;
+choosing a type pre-fills the email and decides which portal the CTA opens —
+i.e. it stands in for the routing decision Okta makes in the built version.
+
+- **The dropdown is the source of truth for the destination, not the email.**
+  Anyone can type anything in the field; there is no Okta here to read it. The
+  CTA is live only when a type is chosen **and** the field is non-empty.
+- A real `<select>`, not a hand-rolled listbox — this project has twice shipped
+  a `role="radiogroup"` without its keyboard contract.
+- Three obviously-fake role addresses on the seed data's own `example.com`:
+  `care.partner@`, `coach@`, `researcher@`. **No person's name** — a plausible
+  one in a sign-in field reads as a real account.
+
+### §107.3 The field skin — `.login-field`, one skin for both controls
+
+| | |
+|---|---|
+| height | **48px** — `surface: 'consumer'`, the same as both CTAs |
+| radius | **28px** — the CTA's pill, not the tiles' 16 |
+| fill | `#ffffff` |
+| stroke | **1px `#e0e0e0`** (`neutral/lighter-grey`) — an OUTLINE colour, never a fill |
+| padding | 24px inline |
+| text | 16px `--text-body`; placeholder `#6d6d6d` |
+| focus | `:focus-visible` only — border → `--color-ring` plus a 2px ring drawn as a **box-shadow**, so the 48px pill keeps its exact radius |
+
+Measured at 1512: select, email, Continue and Go back are all **628×48 at the
+same x**. At 2560 both fields are still 628 — the column is fixed.
+
+⚠️ **NOT `RECORD_INPUT`** from `components/research/RecordFields.tsx`. That one
+is 36px, `pearl`-filled and 14px — correct in a dense researcher record form,
+wrong here twice: 36 breaks the surface's 48px rhythm, and `pearl` `#f5f5f7` is
+a **cool** grey on the warm `#fffcfa` canvas.
+
+### §107.4 The field skin — white fill, `purple-200` OUTLINE, the tile's hover shadow
+
+Both controls, the prototype-only dropdown included (direct instruction,
+2026-10-13: *"only outline needs to be p200, inside fill is white"* and
+*"apply same style to select user type drop down also"*).
+
+| | |
+|---|---|
+| fill | `#ffffff` |
+| outline | **1px `purple-200` #e4d6ff** |
+| shadow | **`--shadow-card-raised`** `8px 16px 32px rgba(230,194,127,0.4)` — the same lift the user-type tiles used on hover and when chosen |
+| focus | ring **composed with** the resting shadow, never replacing it |
+
+⚠️ **A single `box-shadow` declaration replaces the whole stack.** Writing the
+focus ring alone drops the lift the moment the control is focused; both are
+listed in one declaration. Measured on the focused select:
+`rgb(83,0,250) 0 0 0 2px, rgba(230,194,127,0.4) 8px 16px 32px`.
+
+The first cut had the purple as the **fill** with a purple shadow, which also
+forced the placeholder from `ink-faint` to `ink-muted` (3.80:1 → 9.24:1 on
+`#e4d6ff`). With a white fill that is unnecessary and `ink-faint` #6d6d6d is
+back at 5.17:1. The `--shadow-login-field` token that cut introduced was
+deleted with it.
+
+Figma `4245:1019` / `4223:18936` / `4223:18941` carry the same three values.
+
+### §107.5 A transition will lie to a contrast reading
+
+The CTA measured `rgb(109,109,109)` — the de-active grey — **while its class
+list already said `bg-consumer-primary`**. `transition-all` was mid-flight and
+`getComputedStyle` returns the interpolated value. Re-read after it settles:
+`#3a00ad`, white on it, **11.78:1**. Never sample a colour in the same tick as
+the state change that causes it.
+
+### §107.6 Figma: the old frames stay, the new ones sit beside them
+
+Direct instruction. Section **`01 · Login`** keeps the three tile frames
+untouched; **`02 · Login — email`** (`4245:868`) holds three clones with the
+field in place of the tiles — `4245:869` desktop, `4245:1021` tablet,
+`4245:1167` mobile. Cloning carried the artwork, header and footer across
+unedited.
+
+⚠️ **`query()` does not descend into a freshly cloned INSTANCE.** The first
+build failed on `cont.getStyledTextSegments of undefined`: `f.query('TEXT')` on
+the clone returned the plain text nodes but none of the CTA labels, which live
+inside instances. `findAll(n => n.type === 'TEXT')` returns all of them. Figma
+rolled the whole failed script back, so nothing was half-created.
+
+### §107.7 The band cloud ramp moved again — and position moved with it
+
+The user re-cut the tablet and mobile cloud gradient: **`#C2A3FF@7.5% →
+#DAC9FF@30.9% → #FFFDFA@57.5%`**, with new geometry per band (tablet
+`x1 391.5 y1 165.5 → x2 389.5 y2 345`; mobile `178.338/121.615 →
+176.967/229.006`). Re-exported both bands whole, per §105.3.
+
+⚠️ **The mobile cloud had TWO stacked gradient fills** — the earlier one
+underneath, the new one painting over it. A measurement of "the band ramp"
+returned both, and the export carried both. The redundant lower fill was removed
+from `4216:18159`, and the section-02 clones were synced to the originals.
+
+**Export plates to strip, now four kinds:** the `#F5F5F5` page plate, a
+page-canvas rect taller than the band, the **section's background and border
+paths** (new, since the frames live in a Section), and — on the mobile band —
+a frame border baked in as `stroke="black"`. Match by **shape**, never by hex:
+`#FFFDFA` is a *gradient stop* in this artwork as well as a plate colour.
+
+### §107.8 ⚠️ The button system's hover paints were never emitted — app-wide
+
+Reported as *"continue to sign in does not have hover state, is the button not
+properly linked to correct button component"*. It was linked correctly; the CSS
+did not exist.
+
+`btn()` composes the hovered class **at runtime** — `` `hover:${c}` `` — and
+Tailwind v4 generates utilities by scanning source **text**. A class that only
+ever exists as a runtime concatenation is never scanned, so no rule is emitted
+and the class sits in the DOM painting nothing.
+
+**Measured, in this order:**
+
+1. Hovered the live CTA: `:hover` matched, painted colour unchanged at
+   `rgb(58,0,173)`.
+2. Walked every rule in every stylesheet: **zero** rules containing both
+   `hover` and `color-mix`.
+3. Added the bare class `bg-consumer-primary-hover` to a throwaway div: it
+   painted `rgb(47,0,145)` correctly — so the utility existed and the
+   **variant** was the missing half.
+4. After the fix, hovered again: `rgb(47,0,145)`, contrast 11.78 → **13.73:1**.
+
+**Two separate faults, both now fixed:**
+
+- The three solid-tone hovers were inline `bg-[color-mix(in_oklch,…)]`
+  arbitrary values. They are now **named tokens** — `--color-destructive-hover`,
+  `--color-success-hover`, `--color-consumer-primary-hover` — carrying the same
+  `color-mix(… black 12%)` the system reasoned about.
+- Every `hover:` form must exist as **literal source text**. `buttonSystem.ts`
+  now holds `HOVER_LITERALS`, plus a dev-time assertion that throws if a paint
+  is added without its literal.
+
+⚠️ **This had been silently half-broken for a long time, and the half that
+worked did so by accident.** `hover:bg-primary-hover` paints because a dozen
+hand-written class strings elsewhere in the app contain that exact literal, so
+the scanner picked it up. Same for `hover:underline`, `hover:bg-purple-50` and
+the `/10` tints. Only the paints with no literal twin anywhere were dead —
+which is why **every `surface: 'consumer'` primary button in the app** had no
+hover until today.
+
+**Gate:** `tsc -b` clean · `oxlint` 26 / 0 · `layoutAudit()` empty at 375, 820,
+1512×982 and 2560×1440, no horizontal scroll · both portals reached from the
+dropdown end to end (`#/delivery`, `#/research`).
+
+⚠️ The oxlint count went 26 → **27** mid-session and the 27th was
+`public/__audit.js`, the layout gate staged into `public/` to be fetched by the
+page. It is deleted after every run. The count discipline is exactly what
+surfaced it.

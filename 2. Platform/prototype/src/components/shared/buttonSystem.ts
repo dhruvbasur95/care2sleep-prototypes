@@ -136,6 +136,13 @@ const SHAPE: Record<ButtonVariant, string> = {
  * Measured from painted pixels on the spec page. `color-mix(... black 12%)` moves
  * the other way and keeps every solid tone above 4.5:1 in both states.
  *
+ * ⚠️ That mix lives in a NAMED token (`--color-destructive-hover`,
+ * `--color-success-hover`, `--color-consumer-primary-hover` in `index.css`),
+ * never inline as `bg-[color-mix(...)]`. Written inline under a `hover:`
+ * variant Tailwind emitted NO rule at all — measured on the login CTA, which
+ * sat hovered with its paint unchanged while the class was in the DOM. Every
+ * `surface: 'consumer'` primary button in the app was affected.
+ *
  * A missing combination falls back to the tone's `brand` entry rather than
  * rendering an unstyled button; the showcase lists which are real.
  */
@@ -145,8 +152,8 @@ const PAINT: Record<ButtonSurface, Record<ButtonVariant, Partial<Record<ButtonTo
   app: {
     primary: {
       brand: { rest: 'bg-primary text-white', hover: 'bg-primary-hover' },
-      destructive: { rest: 'bg-destructive text-white', hover: 'bg-[color-mix(in_oklch,var(--color-destructive),black_12%)]' },
-      success: { rest: 'bg-success text-white', hover: 'bg-[color-mix(in_oklch,var(--color-success),black_12%)]' },
+      destructive: { rest: 'bg-destructive text-white', hover: 'bg-destructive-hover' },
+      success: { rest: 'bg-success text-white', hover: 'bg-success-hover' },
       // A white pill on a brand band — Research Home's quick actions.
       inverse: { rest: 'bg-white text-primary-hover', hover: 'bg-purple-50' },
       // No `neutral` fill on purpose: a grey-or-white solid on a white card is
@@ -170,11 +177,11 @@ const PAINT: Record<ButtonSurface, Record<ButtonVariant, Partial<Record<ButtonTo
   },
   consumer: {
     primary: {
-      brand: { rest: 'bg-consumer-primary text-white', hover: 'bg-[color-mix(in_oklch,var(--color-consumer-primary),black_12%)]' },
+      brand: { rest: 'bg-consumer-primary text-white', hover: 'bg-consumer-primary-hover' },
       // The Consumer Portal's black CTA — "Play module" on a module card, where
       // the button sits on cover art and the brand purple would compete with it.
       ink: { rest: 'bg-ink text-white', hover: 'opacity-90' },
-      destructive: { rest: 'bg-destructive text-white', hover: 'bg-[color-mix(in_oklch,var(--color-destructive),black_12%)]' },
+      destructive: { rest: 'bg-destructive text-white', hover: 'bg-destructive-hover' },
       inverse: { rest: 'bg-white text-consumer-primary', hover: 'bg-purple-50' },
     },
     secondary: {
@@ -230,6 +237,69 @@ export type ButtonStyleProps = {
  * primitives, and a component would force a `render`/`asChild` escape hatch at
  * most of them.
  */
+/**
+ * ⚠️ **Every `hover:` form in `PAINT` has to appear here as LITERAL TEXT.**
+ *
+ * `btn()` builds the hovered class at runtime — `` `hover:${c}` `` — and
+ * Tailwind v4 generates utilities by scanning source **text** for class names.
+ * A class that only ever exists as a runtime concatenation is never scanned,
+ * so **no rule is emitted**, and the class sits in the DOM painting nothing.
+ *
+ * Measured 2026-10-13 on the login CTA: `:hover` matched, the class was on the
+ * element, and `getComputedStyle` returned the resting colour; a walk of every
+ * rule in every stylesheet found no matching selector. The same page's
+ * *unprefixed* `bg-consumer-primary-hover` painted correctly, which is what
+ * isolated the variant as the missing half.
+ *
+ * ⚠️ **This has been silently half-broken for a long time.** `hover:bg-primary-hover`
+ * has always worked — not because the system emits it, but because a dozen
+ * hand-written class strings elsewhere in the app contain that exact literal,
+ * so the scanner picked it up by accident. The same accident covers
+ * `hover:underline`, `hover:bg-purple-50` and the `/10` tints. Only the paints
+ * with no literal twin anywhere — the three `color-mix` ones, now these —
+ * were dead.
+ *
+ * The assertion below fails loudly in dev if a paint is added without its
+ * literal. It is the same shape as the `CONSUMER_MODULE_COUNT` check: a static
+ * table can be verified at module load, so it should be.
+ */
+const HOVER_LITERALS = [
+  'hover:bg-primary-hover',
+  'hover:bg-destructive-hover',
+  'hover:bg-success-hover',
+  'hover:bg-consumer-primary-hover',
+  'hover:bg-purple-50',
+  'hover:bg-white',
+  'hover:bg-primary/10',
+  'hover:bg-destructive/10',
+  'hover:bg-success/10',
+  'hover:bg-white/10',
+  'hover:underline',
+  'hover:opacity-90',
+] as const
+
+if (import.meta.env.DEV) {
+  const missing = new Set<string>()
+  for (const surface of Object.values(PAINT)) {
+    for (const variant of Object.values(surface)) {
+      for (const paint of Object.values(variant)) {
+        if (!paint) continue
+        for (const cls of paint.hover.split(' ')) {
+          const literal = `hover:${cls}`
+          if (!(HOVER_LITERALS as readonly string[]).includes(literal)) missing.add(literal)
+        }
+      }
+    }
+  }
+  if (missing.size) {
+    throw new Error(
+      `buttonSystem: these hover classes are built at runtime and are NOT in HOVER_LITERALS, ` +
+        `so Tailwind will emit no rule for them and the hover state will paint nothing: ` +
+        `${[...missing].join(', ')}. Add them to HOVER_LITERALS in buttonSystem.ts.`,
+    )
+  }
+}
+
 export function btn({
   variant = 'primary',
   tone = 'brand',
