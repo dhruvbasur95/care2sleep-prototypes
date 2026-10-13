@@ -6,7 +6,7 @@ import { ConsumerHeader } from '@/components/consumer/ConsumerHeader'
 import { ConsumerWelcome } from '@/components/consumer/ConsumerWelcome'
 import { ScrollCue } from '@/components/shared/ScrollCue'
 import { ConsumerOnboardingTour } from '@/components/consumer/ConsumerOnboardingTour'
-import { ConsumerFooter } from '@/components/consumer/ConsumerFooter'
+import { SiteFooter } from '@/components/shared/SiteFooter'
 import { cn } from '@/lib/utils'
 import { useTextScale } from '@/data/consumerTextScale'
 import {
@@ -122,7 +122,7 @@ let pageIntroPlayed = false
  * My Modules, Need Help and My Profile all already pass in their own
  * `contentClassName`.
  *
- * Exported so `ConsumerFooter` reads the same number rather than transcribing
+ * Exported so `SiteFooter` reads the same number rather than transcribing
  * it. The footer is a full-bleed dark band whose *contents* have to line up
  * with the page above it, and the shell's own default (`md:px-16`, 64) is 16px
  * narrower than what those four pages actually use — so a footer built on the
@@ -215,13 +215,13 @@ export function ConsumerShell({
    */
   showScrollCue?: boolean
   /**
-   * The dark site footer (`ConsumerFooter`).
+   * The dark site footer (`SiteFooter`).
    *
    * ⚠️ **Defaults `false` — opt in, never opt out.** Direct instruction: it
    * shows on Home, My Modules and Need Help only. Three of the portal's six
    * surfaces carry it, so a default of `true` would hand one to every flow
    * built later and each would have to remember to refuse it. See
-   * `ConsumerFooter` for why the diary and module flows in particular must not
+   * `SiteFooter` for why the diary and module flows in particular must not
    * have one.
    */
   showFooter?: boolean
@@ -468,7 +468,7 @@ export function ConsumerShell({
               exact moment someone asked for bigger text. The header is the only
               thing that holds still, because the control doing the scaling
               lives in it. */}
-          {showFooter && <ConsumerFooter />}
+          {showFooter && <SiteFooter />}
         </motion.main>
         {/* Self-hiding: it measures the document and renders nothing when there
             is nothing below. Mounted in the shell rather than per page so any

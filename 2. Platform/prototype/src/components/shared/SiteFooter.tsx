@@ -1,5 +1,22 @@
 /**
- * The Consumer Portal's site footer — frame `988:9113`.
+ * The site footer — frame `988:9113`, and the `Footer / Phone 375` instance the
+ * tablet and mobile login frames carry.
+ *
+ * ⚠️ **It lived at `components/consumer/ConsumerFooter.tsx` until 2026-10-13.**
+ * It moved on its second caller, which is this project's standing rule: a
+ * component only the Consumer Portal renders belongs in `components/consumer/`,
+ * and once another surface renders it, it moves rather than being imported
+ * across. The login screen is the app's shared front door, not a consumer page,
+ * so leaving it behind would have been the first step of exactly the fork the
+ * rule exists to prevent. Nothing about the markup changed in the move; only
+ * the path and the exported name.
+ *
+ * It still imports `CONSUMER_PAGE_GUTTER` rather than restating it. That
+ * constant is `px-6 min-[1200px]:px-20` — the same gutter the login header
+ * already uses — and one import is cheaper than two copies of a number that
+ * must agree.
+ *
+ * Everything below is the original note, which still applies.
  *
  * A dark band carrying the Monash University lockup and an Acknowledgement of
  * Country, over a hairline rule.
@@ -50,7 +67,7 @@ const ACKNOWLEDGEMENT =
   'We recognise their continuing connection to land, water and community. ' +
   'We pay respect to Elders past, present and emerging.'
 
-export function ConsumerFooter() {
+export function SiteFooter() {
   return (
     /*
      * `role="contentinfo"` comes free from `<footer>` only while it is not
