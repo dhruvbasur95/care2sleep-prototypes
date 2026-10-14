@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, House } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { GateReason } from './slideGate'
+import { buttonVariants } from '@/components/ui/button'
 
 /** What a slide reports up to `ModulePlayerPage` about its own Continue
  *  readiness — see `ModulePlayerFooter`'s doc comment below for the full
@@ -138,7 +139,7 @@ export function ModulePlayerFooter({
           onClick={onExit}
           // Hover fills with `primary` and takes the label *and* the icon white
           // (the glyph is `currentColor`, so it follows the text).
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-primary bg-card px-6 text-caption-medium text-primary outline-none transition-colors hover:bg-primary hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(buttonVariants({ variant: 'secondary' }), 'h-11 bg-card px-6 transition-colors hover:bg-primary hover:text-white')} /* button-height-pinned: round-69 */
         >
           <House aria-hidden="true" className="size-6" strokeWidth={1.75} />
           Go Back Home
@@ -161,7 +162,7 @@ export function ModulePlayerFooter({
           className={cn(
             'relative inline-flex h-11 w-[272px] items-center justify-center rounded-full border text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring',
             onPrevious
-              ? 'border-primary text-primary hover:bg-primary/5 active:scale-[0.98]'
+              ? 'border-primary text-primary hover:bg-primary/10 active:scale-[0.98]'
               // A disabled pill still has to be readable: `primary/40` on this
               // band measured 1.98:1 and `ink-faint` 4.25:1; `ink-muted` is
               // 10.38:1 on the same fill.

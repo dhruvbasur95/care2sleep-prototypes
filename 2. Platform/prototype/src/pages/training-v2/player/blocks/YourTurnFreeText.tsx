@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { YourTurnQuestion } from '@/data/moduleContent'
 import { AnswerOutcome } from './AnswerOutcome'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Free-text question — the **Your turn** pattern's second interaction type,
@@ -178,12 +179,13 @@ export function YourTurnFreeText({
                       }
                 }
                 className={cn(
-                  'inline-flex h-12 w-fit items-center justify-center rounded-[28px] px-5 py-[10px] text-body-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                  buttonVariants(),
+                  'h-12 w-fit rounded-[28px] px-5 py-[10px] text-body-md transition-colors',
                   answer.trim().length === 0
                     // The same disabled pill multiple choice uses, which is the
                     // player footer's own — contrast-checked rather than an
                     // `opacity-60` that measured 2.35:1 when Round 14.5 tried it.
-                    ? 'cursor-not-allowed bg-purple-200/40 text-ink-muted'
+                    ? 'cursor-not-allowed bg-purple-200/40 text-ink-muted hover:bg-purple-200/40'
                     : 'bg-ink-muted text-white hover:bg-ink',
                 )}
               >
@@ -238,9 +240,10 @@ function SetButton({
       aria-disabled={disabled}
       onClick={disabled ? undefined : onClick}
       className={cn(
-        'inline-flex h-12 w-[248px] max-w-full items-center justify-center gap-4 rounded-[28px] border text-body-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+        buttonVariants({ variant: 'secondary' }),
+        'h-12 w-[248px] max-w-full gap-4 rounded-[28px] px-0 text-body-md transition-colors',
         disabled
-          ? 'cursor-not-allowed border-transparent bg-purple-200/40 text-ink-muted'
+          ? 'cursor-not-allowed border-transparent bg-purple-200/40 text-ink-muted hover:bg-purple-200/40'
           : isNext
             ? 'border-primary bg-primary text-white hover:bg-primary-hover'
             : 'border-primary bg-white text-primary hover:bg-purple-50',

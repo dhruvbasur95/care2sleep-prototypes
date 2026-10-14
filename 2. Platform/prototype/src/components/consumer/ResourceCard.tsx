@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Download } from 'lucide-react'
 import { BANNER_H, BANNER_W, SummaryBannerArt } from '@/components/consumer/SummaryBannerArt'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * The module summary screen's banner illustration — Figma `4139:42732`
@@ -214,7 +216,7 @@ export function ResourceCard({ heading }: { heading: ReactNode }) {
         <button
           type="button"
           aria-disabled="true"
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-[28px] bg-consumer-primary px-5 text-body-md text-white outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 min-[900px]:max-w-96"
+          className={cn(buttonVariants({ surface: 'consumer' }), 'flex w-full min-[900px]:max-w-96 hover:bg-consumer-primary')} /* button-height-pinned: round-69 */
         >
           <Download aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
           Download the resource

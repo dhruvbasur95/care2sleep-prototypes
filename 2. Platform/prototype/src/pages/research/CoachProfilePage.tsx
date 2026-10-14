@@ -1548,7 +1548,7 @@ function Overview({
     )
 
   const sectionCta =
-    'inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-5 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
+    'inline-flex h-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary px-5 text-caption-medium text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
 
   const completedPhases = phaseCompletion[coach.id] ?? []
   const dates = phaseCompletionDates[coach.id] ?? {}

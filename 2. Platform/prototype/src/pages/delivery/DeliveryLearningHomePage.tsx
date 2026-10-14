@@ -10,6 +10,7 @@ import {
   moduleState,
 } from '@/pages/training-v2/pathway'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Coach Delivery Portal "My Learning" (Figma `588:5833`).
@@ -252,7 +253,7 @@ function ModuleCard({
               // *document* — measured at 2399px against a 1281px viewport, a
               // real horizontal page scroll. `aria-label` adds no box at all.
               aria-label={`${ctaLabel} — ${module.title}`}
-              className="flex h-9 w-full items-center justify-center rounded-full bg-primary text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(buttonVariants(), 'flex h-9 w-full px-0 transition-colors')} /* button-height-pinned: round-69 */
             >
               {ctaLabel}
             </Link>

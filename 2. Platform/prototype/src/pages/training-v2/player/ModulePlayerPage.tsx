@@ -19,6 +19,8 @@ import { useScrollGate, type SlideGateState } from './slideGate'
 import { BlockSlide } from './BlockSlide'
 import { ModuleFeedbackSlide } from './ModuleFeedbackSlide'
 import { ModuleCompleteScreen } from './ModuleCompleteScreen'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /** The row's own inset, frame `665:942`. The wash is measured from the rail's
  *  right edge, which is this plus the rail's width. */
@@ -247,7 +249,7 @@ export function ModulePlayerPage() {
           <button
             type="button"
             onClick={exitToTimeline}
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
+            className={cn(buttonVariants(), 'mt-6 h-11 px-6 active:scale-[0.98]')} /* button-height-pinned: round-69 */
           >
             Back to your modules
           </button>

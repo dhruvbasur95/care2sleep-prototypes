@@ -112,7 +112,7 @@ function questionFor(tp: ReflectionTimepoint, initial: SipteaInitial): string {
 const PILL_PRIMARY =
   'inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-ink-faint'
 const PILL_OUTLINE =
-  'inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring'
+  'inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring'
 /* The ghost Cancel's style now lives in `components/shared/buttonStyles.ts`.
    This file's local `PILL_GHOST` WAS the app-wide ghost button, it just did
    not know it: its pill shape won a side-by-side against the five wizards'
@@ -437,7 +437,7 @@ function ReviewTable({
                 <button
                   type="button"
                   onClick={() => onEdit(i)}
-                  className="-mx-2 mt-1 inline-flex h-9 items-center rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring"
+                  className="-mx-2 mt-1 inline-flex h-9 items-center rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Edit
                   <span className="sr-only"> {SIPTEA_NAMES[initial]}</span>

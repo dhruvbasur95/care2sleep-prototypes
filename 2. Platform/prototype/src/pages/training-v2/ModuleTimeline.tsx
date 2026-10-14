@@ -26,6 +26,7 @@ import {
   displayProgress,
   timelineCtaLabel,
 } from './pathway'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * `Badge`/`ModuleBadge` — REMOVED (were: a shared pill-badge chassis and its
@@ -1377,7 +1378,7 @@ function ModuleScrollRow({ children, itemCount }: { children: ReactNode; itemCou
             // usual `bg-X hover:bg-X-hover` named pair. `size-9` (36px) hit
             // target kept as-is — already this app's established control-
             // height convention.
-            className="absolute top-1/2 left-1 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black shadow-card outline-none hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-ring md:flex"
+            className={cn(buttonVariants({ variant: 'ghost', tone: 'inverse', size: 'icon' }), 'absolute top-1/2 left-1 z-10 hidden size-9 -translate-y-1/2 bg-black shadow-card hover:bg-black/80 hover:no-underline md:flex')}
           >
             <ChevronLeft aria-hidden="true" className="size-6 text-white" strokeWidth={1.75} />
           </button>
@@ -1389,7 +1390,7 @@ function ModuleScrollRow({ children, itemCount }: { children: ReactNode; itemCou
             onClick={() => scrollByPage(1)}
             onBlur={(e) => handleChevronBlur(e, leftChevronRef)}
             aria-label="Scroll to next page of modules"
-            className="absolute top-1/2 right-1 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black shadow-card outline-none hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-ring md:flex"
+            className={cn(buttonVariants({ variant: 'ghost', tone: 'inverse', size: 'icon' }), 'absolute top-1/2 right-1 z-10 hidden size-9 -translate-y-1/2 bg-black shadow-card hover:bg-black/80 hover:no-underline md:flex')}
           >
             <ChevronRight aria-hidden="true" className="size-6 text-white" strokeWidth={1.75} />
           </button>

@@ -13,6 +13,7 @@ import {
 import { formatTime } from '@/data/format'
 import { useResearch } from '@/data/research-context'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * The consumer's whole coaching arc, as one horizontal strip of session cells.
@@ -137,7 +138,10 @@ const BADGE_TONE: Record<CellStatus, string> = {
    floor. `disabled:` rather than hiding at the ends, so the pair does not
    reflow as it is used. */
 const CHEVRON =
-  'flex size-12 shrink-0 items-center justify-center rounded-full border border-consumer-primary bg-white text-consumer-primary outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40'
+  cn(
+    buttonVariants({ variant: 'secondary', size: 'icon', surface: 'consumer' }),
+    'flex size-12 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+  )
 
 const BADGE_LABEL: Record<CellStatus, string> = {
   completed: 'Completed',

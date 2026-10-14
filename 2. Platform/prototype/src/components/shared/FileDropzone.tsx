@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileText, Trash2, UploadCloud } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * The app's file-attachment control: one fixed box carrying three states —
@@ -258,7 +259,7 @@ export function FileDropzone({
               <button
                 type="button"
                 onClick={remove}
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-card text-destructive shadow-notice-card outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(buttonVariants({ variant: 'ghost', tone: 'destructive', size: 'icon' }), 'size-9 bg-card shadow-notice-card transition-colors hover:bg-destructive/10 hover:no-underline')}
               >
                 <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.25} />
                 <span className="sr-only">Remove {file.name}</span>

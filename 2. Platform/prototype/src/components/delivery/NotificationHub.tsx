@@ -24,6 +24,7 @@ import {
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, TODAY } from '@/data/format'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Coach Delivery Portal Home, left column — replaces the generic Gmail/
@@ -260,7 +261,7 @@ function NotificationItemCard({
       // 36px (`size-9`), e.g. `ConsumerDetailPage.tsx`/`ConsumerHealthPage.tsx`'s
       // own "Dismiss alert" button. Raised to match rather than introducing
       // a third, smaller one-off size.
-      className="absolute top-1.5 right-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-faint outline-none transition-colors hover:bg-pearl hover:text-ink focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.95]"
+      className={cn(buttonVariants({ variant: 'ghost', tone: 'neutral', size: 'icon' }), 'absolute top-1.5 right-1.5 flex size-9 text-ink-faint transition-colors hover:bg-pearl hover:text-ink hover:no-underline active:scale-[0.95]')}
     >
       {layout === 'research' ? (
         // The frame draws this as a 16px near-black circled X, not the bare
@@ -336,7 +337,7 @@ function NotificationItemCard({
           // 6px-radius outline button. Per direct feedback ("buttons don't
           // match our style") it renders with **this app's own canonical
           // outline button** instead — the `rounded-full border border-primary`
-          // / `text-primary` / `hover:bg-primary/5` treatment used at 24 other
+          // / `text-primary` / `hover:bg-primary/10` treatment used at 24 other
           // sites. Full width and bottom-pinned as the frame draws it; the
           // chrome is this project's.
           <Link
@@ -346,7 +347,7 @@ function NotificationItemCard({
             // minimum — flex-shrink was compressing it to **31px**, under this
             // app's enforced 36px floor. Caught by `design/layout-audit.js`,
             // not by looking at it.
-            className="flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            className="flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
           >
             {item.actionLabel}
             <span className="sr-only"> — {item.message}</span>

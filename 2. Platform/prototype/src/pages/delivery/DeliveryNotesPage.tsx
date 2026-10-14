@@ -10,6 +10,8 @@ import { formatDate } from '@/data/format'
 import { useCoachStage } from '@/data/coachStage'
 import { NotebookText, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * Coach Delivery Portal "My Notes" (Figma `638:12057`).
@@ -183,7 +185,7 @@ export function DeliveryNotesPage() {
               type="button"
               onClick={handleAdd}
               disabled={!canSave}
-              className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:w-[248px]"
+              className={cn(buttonVariants(), 'h-11 w-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:w-[248px]')} /* button-height-pinned: round-69 */
             >
               Add note
             </button>

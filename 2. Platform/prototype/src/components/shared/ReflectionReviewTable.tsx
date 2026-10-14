@@ -150,7 +150,7 @@ export function ReflectionReviewTable({
                   <button
                     type="button"
                     onClick={() => onEdit(i)}
-                    className="-mx-2 mt-1 inline-flex h-9 items-center rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring"
+                    className="-mx-2 mt-1 inline-flex h-9 items-center rounded-sm px-2 text-caption-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Edit
                     <span className="sr-only"> {row.name}</span>

@@ -39,7 +39,7 @@ import { InertButton } from '@/components/shared/MeetingsSection'
  * page and the only change is passing `to`.
  */
 const NEED_HELP_PILL =
-  'inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-body-md text-destructive outline-none transition-all hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.97]'
+  'inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-3xl border border-destructive bg-white px-5 text-body-md text-destructive outline-none transition-all hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.97]'
 
 export function NeedHelpButton({ to }: { to?: string }) {
   if (to)

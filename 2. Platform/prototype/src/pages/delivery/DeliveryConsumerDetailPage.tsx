@@ -80,6 +80,7 @@ import {
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatDateLong, formatSleepDuration, formatTime, TODAY } from '@/data/format'
+import { buttonVariants } from '@/components/ui/button'
 
 const COACH_ID = 'helen-zhang'
 
@@ -534,7 +535,7 @@ function AddSessionNoteCard({
           <button
             type="submit"
             disabled={!canSave}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:w-[248px]"
+            className={cn(buttonVariants(), 'h-11 w-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:w-[248px]')} /* button-height-pinned: round-69 */
           >
             Save note
           </button>
@@ -1378,7 +1379,7 @@ function SessionDebriefBanner({
       <button
         type="button"
         onClick={onAddReflection}
-        className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+        className={cn(buttonVariants(), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
       >
         {/* Two words, and the shorter label is also the truer one: this button
             opens the reflection wizard — it does not complete anything. The
@@ -1568,7 +1569,7 @@ function UpcomingSessionCard({
                 <button
                   type="button"
                   aria-disabled="true"
-                  className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-divider-soft px-[18px] text-caption-medium text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className={cn(buttonVariants({ state: 'deactive' }), 'h-9 bg-divider-soft text-ink-faint focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
                 >
                   <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
@@ -1585,7 +1586,7 @@ function UpcomingSessionCard({
                 <button
                   type="button"
                   onClick={onJoin}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                  className={cn(buttonVariants(), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
                 >
                   <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
@@ -1594,7 +1595,7 @@ function UpcomingSessionCard({
                 <button
                   type="button"
                   aria-disabled="true"
-                  className="inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-divider-soft px-[18px] text-caption-medium text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className={cn(buttonVariants({ state: 'deactive' }), 'h-9 bg-divider-soft text-ink-faint focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
                 >
                   <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                   Join Zoom session
@@ -1604,7 +1605,7 @@ function UpcomingSessionCard({
               <button
                 type="button"
                 onClick={onReschedule}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={cn(buttonVariants({ variant: 'secondary' }), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
               >
                 Reschedule
               </button>
@@ -1985,7 +1986,7 @@ function PreviousSessionNotesPanel({ dyad }: { dyad: ConsumerDyad }) {
               type="button"
               aria-disabled="true"
               onClick={(e) => e.preventDefault()}
-              className="inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-2 rounded-full border border-primary bg-card px-4 text-caption-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className={cn(buttonVariants({ variant: 'secondary' }), 'h-9 cursor-not-allowed bg-card px-4 hover:bg-card focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
             >
               Ask anything
               <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
@@ -2061,7 +2062,7 @@ function moduleForSession(session: number | undefined) {
  *  primary-outline pill, the same one `SleepDiaryFeed` and the Fitbit table
  *  already use, so a third Export does not introduce a third treatment. */
 const EXPORT_BUTTON =
-  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
+  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary px-4 text-caption-medium text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]'
 
 /**
  * An empty state **centred in the panel**, not parked at its top (direct
@@ -2934,7 +2935,7 @@ export function DeliveryConsumerDetailPage() {
                  outline pill — this is the page's one top-level action, and the
                  outline treatment left it reading as secondary against the
                  filled "Join Zoom session" in the card below it. */
-              className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+              className={cn(buttonVariants(), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
             >
               Edit session plan
             </button>

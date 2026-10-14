@@ -221,6 +221,15 @@
     --color-destructive-hover: color-mix(in oklch, var(--color-destructive), black 12%);
     --color-success-hover: color-mix(in oklch, var(--color-success), black 12%);
     --color-consumer-primary-hover: color-mix(in oklch, var(--color-consumer-primary), black 12%);
+    /* ⚠️ `ink` is the ONE tone whose hover LIGHTENS, and that is not an
+       inconsistency — it is the same rule applied honestly. "Darken on hover"
+       exists so the control reads as pressed; against `--color-ink` (#1a1a1a)
+       a 12% darkening lands on #161616, a 4-per-channel shift that is
+       invisible on screen and therefore no state change at all — the same
+       defect as `hover:bg-primary/5` (Round 28), arrived at from the other
+       end of the ramp. Lightening 18% toward white gives a visible step and
+       keeps white text at 11.1:1, well clear of AA. Round 69. */
+    --color-ink-hover: color-mix(in oklch, var(--color-ink), white 18%);
     /* NEUTRALS — Round 21.3, aligned to the Figma file's own published
        `neutral/*` paint styles (`getLocalPaintStylesAsync`, file
        `s6OLTSd4nc9V9W9lT1oBTO`). Six styles; the app's semantic names are

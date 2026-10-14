@@ -14,6 +14,7 @@ import { ConsumerPersonCard } from '@/components/consumer/ConsumerPersonCard'
 import { cn } from '@/lib/utils'
 import { useResearch } from '@/data/research-context'
 import { formatDate } from '@/data/format'
+import { buttonVariants } from '@/components/ui/button'
 
 
 /**
@@ -149,7 +150,7 @@ function OptOutCard({
       <button
         type="button"
         onClick={() => setStep('message')}
-        className="inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-destructive bg-destructive px-[18px] text-body-md text-white outline-none transition-colors hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
+        className={cn(buttonVariants({ surface: 'consumer', tone: 'destructive' }), 'h-11 rounded-full border-destructive px-[18px] transition-colors')} /* button-height-pinned: round-69 */
       >
         Opt out of the study
       </button>

@@ -43,6 +43,7 @@ import {
   type ModuleLesson,
   type ReflectionQuestion,
 } from '@/data/consumerLessonContent'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * A consumer module's inner pages — complete as of Round 47.
@@ -661,7 +662,8 @@ function ChapterCarousel({
               // `882:1875`) rather than the app's warm gold card shadow, which
               // reads as a smudge on this purple panel — the same call Round 30
               // made for the trainee sidebar.
-              'absolute top-[7.5rem] flex size-10 items-center justify-center rounded-full bg-ink text-white shadow-[2px_8px_16px_0px_rgba(85,85,85,0.4)] outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2',
+              buttonVariants({ tone: 'ink', size: 'icon', surface: 'consumer' }),
+              'absolute top-[7.5rem] flex rounded-full shadow-[2px_8px_16px_0px_rgba(85,85,85,0.4)] transition-colors focus-visible:ring-ink',
               side === 'left' ? 'left-1' : 'right-1',
               off && 'pointer-events-none opacity-0',
             )}

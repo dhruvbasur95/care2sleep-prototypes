@@ -10588,3 +10588,92 @@ Stated rather than smuggled, because each is a design change and not a hover fix
 onboarding, diary, account and module page at 1280, and Home at 375, with
 `document.documentElement.scrollWidth === innerWidth` at each ·
 `public/__audit.js` deleted after the run.
+
+---
+
+## §109 — The button gate, the parity method, and the one hover that lightens (2026-10-14/15, Round 69)
+
+### §109.1 — `--color-ink-hover`: the only tone whose hover gets lighter
+
+```css
+--color-ink-hover: color-mix(in oklch, var(--color-ink), white 18%);
+```
+
+Measured in the running app: `rgb(61,61,61)`, white text **10.86:1** against
+`#1a1a1a`'s 17.40:1 at rest. Both clear AA comfortably.
+
+**Why it lightens when every other tone darkens.** "Darken on hover" exists so
+the control reads as pressed. Against `--color-ink` `#1a1a1a`, a 12% darkening
+lands on `#161616` — a **4-per-channel shift**, which is no state change at all.
+That is the same defect as `hover:bg-primary/5` (§Round 28), arrived at from the
+other end of the ramp. The rule is "the hover must be visibly different", and
+the direction is whatever achieves it.
+
+Used by `buttonSystem.ts`'s consumer `ink` tone and by the two `bg-ink` discs
+(`ConsumerDiaryPage`, `ConsumerModulePage`). Its hover literal is in
+`HOVER_LITERALS`, so Tailwind emits the rule — verified live:
+`.hover\:bg-ink-hover:hover => color-mix(in oklch, var(--color-ink), white 18%)`.
+
+### §109.2 — The parity method: derive the override, never write it
+
+Migrating a hand-written button means composing
+`cn(buttonVariants({…}), '<overrides>')`. Writing that override by hand is
+guesswork. Instead:
+
+1. Resolve the **old** class string and `btn(args)` through `tailwind-merge`.
+2. The override is everything the old set has that the new one lost.
+3. Re-resolve and diff again. Only these four may be **gained**, because the
+   system always adds them: `border border-transparent`, `whitespace-nowrap`,
+   `disabled:pointer-events-none`, `aria-disabled:cursor-not-allowed`.
+
+Anything else gained is a regression. 58 controls were migrated this way with
+no visual finding in any audit.
+
+⚠️ **Pixel-identity is not achievable, and that is a property of the system,
+not a mistake.** `border border-transparent` adds **2px of width** to an
+auto-width control, and `whitespace-nowrap` stops a label wrapping. Heights,
+fills, radii, type and focus rings are preserved exactly. Accepted 2026-10-14.
+
+⚠️ **A branch control needs every arm checked, not the one that renders.** The
+YourTurn buttons paint three ways. The system's base carries
+`hover:bg-primary/10`, which leaks into the **disabled** arm and makes an inert
+control light up under the cursor — so each disabled arm cancels it
+(`hover:bg-purple-200/40`). Found by diffing the arms separately.
+
+### §109.3 — `scripts/button-guard.mjs`
+
+`npm run guard:buttons`. Counts interactive elements painting a pill radius and
+an explicit height that do not reach the system, plus recipes in constants.
+`--ci` is a **ratchet**: it fails only when the count rises above `BASELINE`.
+**82 → 24** this round. Lower `BASELINE` as batches land; never raise it.
+
+**Five defects were found in the guard itself, by probing it rather than reading
+it** — and two of those after it had already been called verified:
+
+| Defect | Effect |
+|---|---|
+| `\bh-9\b` matched inside `min-h-9` | Reported a drag chip with a height *floor* as a fixed-height button |
+| Line-proximity dedupe | Counted every multi-line control twice |
+| **`\brounded-\[28px\]\b` matched nothing** | `]` and the following space are both non-word characters, so there is no boundary. **Blind to the Consumer Portal's own radius** — 72 → 82 when fixed |
+| Span recorded only for *reported* elements | Pass 2 re-reported controls pass 1 had correctly skipped |
+| No look-back for an owning `cn()` | **Reported its own successful migrations** — an override string carries a radius, a height and a transition |
+
+**The rule this leaves:** a check is only worth its output once you have built
+the bug it exists for and watched it fire, and again after every narrowing.
+
+### §109.4 — Measuring a hover, correctly
+
+Two traps, both of which under-report, and both of which produced a wrong
+number in a demo built specifically to show the bug:
+
+- **`mouseenter` fires before the `:hover` style recalc lands.** An immediate
+  read returns the **resting** colour.
+- **`background-color` transitions over 150ms.** A read two frames in catches
+  it part-way. **Read at 250ms.**
+- **`opacity` does not change `background-color` at all.** The faded colour
+  exists only in painted pixels: composite the fill with the backdrop at the
+  element's own opacity. A live read of a faded button shows no problem.
+
+**Gate:** `tsc -b` clean · `oxlint` 26 / 0 · `layoutAudit()` empty on 9 routes
+at 1281 with `scrollWidth === innerWidth` · every edited file transforms in
+Vite · `guard --ci` passing · `public/__audit.js` deleted after the run.

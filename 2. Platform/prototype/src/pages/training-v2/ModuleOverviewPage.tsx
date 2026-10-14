@@ -13,6 +13,7 @@ import { SIPTEA_BG, SIPTEA_INITIALS, splitChapterSkills } from '@/data/siptea'
 import { getModuleStepIndex } from './moduleProgressStore'
 import { markOnboardingSeen } from '@/components/delivery/onboardingState'
 import { rangeProgress, sectionRanges } from './playerSteps'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Module overview page (Figma node 1:1433) — the hub a coach lands on
@@ -149,7 +150,7 @@ function NotAvailable({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
+          className={cn(buttonVariants(), 'mt-6 h-11 px-6 active:scale-[0.98]')} /* button-height-pinned: round-69 */
         >
           Back to your modules
         </button>

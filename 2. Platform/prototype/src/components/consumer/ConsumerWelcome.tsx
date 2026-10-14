@@ -649,7 +649,7 @@ export function ConsumerWelcome({ onContinue }: { onContinue: () => void }) {
       <button
         type="button"
         onClick={leave}
-        className="text-consumer-body-strong absolute top-5 right-6 z-10 flex h-11 items-center justify-center rounded-3xl border-2 border-consumer-primary bg-white px-5 text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 md:right-20"
+        className={cn(buttonVariants({ surface: 'consumer', variant: 'secondary' }), 'absolute top-5 right-6 z-10 flex h-11 rounded-3xl border-2 transition-colors md:right-20')} /* button-height-pinned: round-69 */
       >
         Skip
       </button>

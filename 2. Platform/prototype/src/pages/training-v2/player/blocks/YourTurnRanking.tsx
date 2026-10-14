@@ -5,6 +5,7 @@ import { GripHorizontal, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { YourTurnQuestion } from '@/data/moduleContent'
 import { AnswerOutcome } from './AnswerOutcome'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Ranking — the **Your turn** pattern's third interaction type.
@@ -353,10 +354,11 @@ export function YourTurnRanking({
                     }
               }
               className={cn(
-                'inline-flex h-12 w-fit items-center justify-center rounded-[28px] px-5 py-[10px] text-body-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                buttonVariants(),
+                  'h-12 w-fit rounded-[28px] px-5 py-[10px] text-body-md transition-colors',
                 allPlaced
                   ? 'bg-ink-muted text-white hover:bg-ink'
-                  : 'cursor-not-allowed bg-purple-200/40 text-ink-muted',
+                  : 'cursor-not-allowed bg-purple-200/40 text-ink-muted hover:bg-purple-200/40',
               )}
             >
               Submit answer
@@ -586,7 +588,7 @@ function FilledSlot({
           <button
             type="button"
             onClick={onRemove}
-            className="-m-2 flex size-9 shrink-0 items-center justify-center rounded-full text-white outline-none hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white"
+            className={cn(buttonVariants({ variant: 'ghost', tone: 'inverse', size: 'icon' }), '-m-2 flex size-9 hover:bg-white/20 hover:no-underline focus-visible:ring-white')}
           >
             <X aria-hidden="true" className="size-4" strokeWidth={2.25} />
             <span className="sr-only">Remove this step from position {rank + 1}</span>

@@ -8,6 +8,7 @@ import {
   useDeliveryTour,
 } from '@/data/deliveryTour'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Coach Delivery Portal first-run tour (Round 32) — five coachmarks over the
@@ -546,7 +547,7 @@ export function DeliveryTour({ stageCount }: { stageCount: string }) {
             <button
               type="button"
               onClick={() => goToTourStep(index - 1)}
-              className="h-9 w-28 rounded-full border border-white text-caption-medium text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+              className={cn(buttonVariants({ variant: 'secondary', tone: 'inverse' }), 'h-9 w-28 px-0 focus-visible:ring-white')} /* button-height-pinned: round-69 */
             >
               Previous
             </button>
@@ -554,7 +555,7 @@ export function DeliveryTour({ stageCount }: { stageCount: string }) {
           <button
             type="button"
             onClick={() => (isLast ? finish() : goToTourStep(index + 1))}
-            className="h-9 w-28 rounded-full bg-white text-caption-medium text-primary outline-none hover:bg-parchment focus-visible:ring-2 focus-visible:ring-white"
+            className={cn(buttonVariants({ tone: 'inverse' }), 'h-9 w-28 px-0 text-primary hover:bg-parchment focus-visible:ring-white')} /* button-height-pinned: round-69 */
           >
             {/* A step may name its own advance label — the trainee's first card
                 is an invitation and says "Start tour". Everything else is

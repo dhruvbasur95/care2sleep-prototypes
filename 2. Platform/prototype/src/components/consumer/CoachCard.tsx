@@ -102,7 +102,7 @@ function ReadProfileButton({ onClick, className }: { onClick: () => void; classN
     <button
       type="button"
       onClick={onClick}
-      className={`h-12 items-center justify-center rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary outline-none transition-colors hover:bg-consumer-primary/5 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 ${className ?? ''}`}
+      className={`h-12 items-center justify-center rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary outline-none transition-colors hover:bg-consumer-primary/10 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 ${className ?? ''}`}
     >
       Read profile
     </button>

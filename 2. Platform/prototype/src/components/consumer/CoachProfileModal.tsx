@@ -2,6 +2,8 @@ import { GraduationCap, Mail, MessageCircleQuestionMark, Phone, Stethoscope, X }
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import type { Coach } from '@/data/research'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * "Meet your coach" — the coach's full profile, Figma frame `979:8284`.
@@ -228,7 +230,7 @@ export function CoachProfileModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 flex size-11 items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white"
+          className={cn(buttonVariants({ variant: 'ghost', tone: 'inverse', size: 'icon', surface: 'consumer' }), 'absolute top-3 right-3 z-20 flex size-11 rounded-full text-white transition-colors hover:bg-white/20 hover:no-underline focus-visible:ring-white')}
         >
           <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
           <span className="sr-only">Close</span>
@@ -372,7 +374,7 @@ export function CoachProfileModal({
         <button
           type="button"
           onClick={onClose}
-          className="text-body-md flex h-12 w-full items-center justify-center gap-2 rounded-[28px] border border-consumer-primary bg-white px-5 text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 sm:w-[152px] sm:self-center"
+          className={cn(buttonVariants({ surface: 'consumer', variant: 'secondary' }), 'flex w-full transition-colors sm:w-[152px] sm:self-center')} /* button-height-pinned: round-69 */
         >
           Close
         </button>

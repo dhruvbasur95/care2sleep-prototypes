@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { CircleCheck, TriangleAlert } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * "Opt out of the study" — the trainee's own withdrawal request.
@@ -98,7 +100,7 @@ export function OptOutCard() {
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
-                className="inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-destructive px-[18px] text-caption-medium text-destructive outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(buttonVariants({ variant: 'secondary', tone: 'destructive' }), 'h-11 bg-transparent transition-colors')} /* button-height-pinned: round-69 */
               >
                 Opt out of the study
               </button>

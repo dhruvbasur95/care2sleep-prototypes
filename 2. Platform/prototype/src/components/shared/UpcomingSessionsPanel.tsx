@@ -1,6 +1,8 @@
 import { CalendarPlus, Video } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { formatTime, TODAY } from '@/data/format'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * Generic "upcoming Zoom sessions" panel — originally built into
@@ -132,7 +134,7 @@ export function UpcomingSessionsPanel({
                           href={row.zoomLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                          className={cn(buttonVariants(), 'relative h-9 gap-1.5 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
                         >
                           <Video aria-hidden="true" className="size-4" strokeWidth={2.25} />
                           Join Zoom
@@ -154,7 +156,7 @@ export function UpcomingSessionsPanel({
           className={
             ctaVariant === 'primary'
               ? 'relative mt-5 flex h-9 w-full shrink-0 items-center justify-center gap-2 rounded-sm bg-primary text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]'
-              : 'relative mt-5 flex h-9 w-full shrink-0 items-center justify-center gap-2 rounded-sm border border-primary text-caption-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]'
+              : 'relative mt-5 flex h-9 w-full shrink-0 items-center justify-center gap-2 rounded-sm border border-primary text-caption-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]'
           }
         >
           <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.25} />

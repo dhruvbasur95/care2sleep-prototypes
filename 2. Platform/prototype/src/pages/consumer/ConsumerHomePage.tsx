@@ -828,7 +828,7 @@ export function ConsumerHomePage() {
             </p>
             <Link
               to={`/consumer/${dyad.id}/help`}
-              className="text-body-md flex h-12 w-full items-center justify-center rounded-[28px] border border-destructive bg-transparent px-5 text-destructive outline-none transition-colors hover:bg-destructive/8 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 min-[1024px]:hidden"
+              className={cn(buttonVariants({ surface: 'consumer', variant: 'secondary', tone: 'destructive' }), 'flex w-full bg-transparent transition-colors hover:bg-destructive/8 focus-visible:ring-destructive min-[1024px]:hidden')} /* button-height-pinned: round-69 */
             >
               Get help
             </Link>

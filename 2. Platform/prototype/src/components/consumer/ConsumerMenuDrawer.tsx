@@ -17,6 +17,8 @@ import {
   useConsumerMenu,
 } from '@/data/consumerMenuReveal'
 import { signOutOfTraining } from '@/data/auth'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * The Consumer Portal's hamburger menu, as a **full-screen drawer**.
@@ -252,7 +254,7 @@ export function ConsumerMenuDrawer() {
               ref={focusClose}
               type="button"
               onClick={dismiss}
-              className="flex size-11 items-center justify-center rounded-full text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary"
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon', surface: 'consumer' }), 'flex size-11 rounded-full transition-colors hover:bg-purple-50 hover:no-underline')}
             >
               <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
               <span className="sr-only">Close menu</span>
@@ -345,7 +347,7 @@ export function ConsumerMenuDrawer() {
                 dismiss()
                 navigate('/')
               }}
-              className="text-body-md flex h-12 w-full shrink-0 items-center justify-center rounded-3xl border border-destructive bg-destructive px-6 text-white outline-none transition-colors hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 sm:w-[280px] sm:self-center"
+              className={cn(buttonVariants({ surface: 'consumer', tone: 'destructive' }), 'flex w-full rounded-3xl border-destructive px-6 transition-colors focus-visible:ring-destructive sm:w-[280px] sm:self-center')} /* button-height-pinned: round-69 */
             >
               Log out
             </button>

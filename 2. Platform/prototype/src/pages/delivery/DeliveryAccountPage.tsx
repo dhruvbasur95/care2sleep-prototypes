@@ -9,6 +9,7 @@ import { useResearch } from '@/data/research-context'
 import { formatDate } from '@/data/format'
 import { cn } from '@/lib/utils'
 import { Download } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
 
 const COACH_ID = 'helen-zhang'
 
@@ -53,7 +54,7 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
               // app's own primary-outline pill instead — white fill, `primary`
               // label — which is what every other action on a tinted trainee
               // band uses (the pathway card's "Learn more").
-              className="inline-flex h-9 shrink-0 items-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              className={cn(buttonVariants({ variant: 'secondary' }), 'h-9')} /* button-height-pinned: round-69 */
             >
               Edit details
             </button>
@@ -94,7 +95,7 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-all hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97]"
+                className={cn(buttonVariants(), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
               >
                 Save changes
               </button>
@@ -105,7 +106,7 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
                   setPhone(coach.phone)
                   setEditing(false)
                 }}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-all hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                className={cn(buttonVariants({ variant: 'secondary' }), 'h-9')} /* button-height-pinned: round-69 */
               >
                 Cancel
               </button>

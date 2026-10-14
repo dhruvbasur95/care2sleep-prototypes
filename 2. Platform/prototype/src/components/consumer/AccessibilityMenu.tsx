@@ -131,6 +131,7 @@ function Tile({
  *  importers did not have to change. */
 export { SUBMENU_CARD_MOTION } from '@/components/shared/submenuMotion'
 import { SUBMENU_CARD_MOTION } from '@/components/shared/submenuMotion'
+import { buttonVariants } from '@/components/ui/button'
 
 export function AccessibilityMenu({
   className,
@@ -295,7 +296,7 @@ export function AccessibilityMenu({
                 */}
                 <Popover.Close
                   aria-label="Close accessibility tools"
-                  className="-mt-2 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-consumer-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-consumer-primary"
+                  className={cn(buttonVariants({ variant: 'ghost', size: 'icon', surface: 'consumer' }), '-mt-2 -mr-2 flex size-11 rounded-full transition-colors hover:bg-purple-50 hover:no-underline')}
                 >
                   <X aria-hidden="true" className="size-6" strokeWidth={1.75} />
                 </Popover.Close>

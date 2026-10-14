@@ -65,6 +65,7 @@ import {
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatTime, TODAY } from '@/data/format'
+import { buttonVariants } from '@/components/ui/button'
 
 const COACH_ID = 'helen-zhang'
 const COACH_FIRST_NAME = 'Helen'
@@ -1268,7 +1269,7 @@ function CertificationBanner({ onDownloadCertificate }: { onDownloadCertificate:
               // is the only banner CTA that cannot take `BANNER_CTA_WIDTH` —
               // label plus the 24px award glyph needs ~226px and 200 would
               // truncate it — so it sits at its content width instead.
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(buttonVariants(), 'h-11 transition-colors')} /* button-height-pinned: round-69 */
             >
               {/* lucide, not the frame's exported glyph (CLAUDE.md). */}
               <Award aria-hidden="true" className="size-6" strokeWidth={1.75}  />
@@ -1500,7 +1501,7 @@ function PendingAssessmentStatus({ onApprove }: { onApprove: () => void }) {
     <button
       type="button"
       onClick={onApprove}
-      className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-full border border-destructive bg-white px-4 text-caption-medium whitespace-nowrap text-destructive outline-none transition-colors hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(buttonVariants({ variant: 'secondary', tone: 'destructive' }), 'h-9 cursor-pointer px-4 transition-colors')} /* button-height-pinned: round-69 */
     >
       Pending assessment
       {/* The visible text is a status, so the control has to say what pressing
@@ -1745,7 +1746,7 @@ function TrainingPathway({
           type="button"
           aria-disabled="true"
           onClick={(e) => e.preventDefault()}
-          className="inline-flex h-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-primary bg-transparent px-[18px] text-caption-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(buttonVariants({ variant: 'secondary' }), 'h-11 cursor-not-allowed bg-transparent transition-colors')} /* button-height-pinned: round-69 */
         >
           Learn more
           <span className="sr-only"> (coming soon)</span>
@@ -2077,7 +2078,7 @@ function LearningProgressCard() {
         <div className="mt-auto flex items-center justify-center px-6 py-4">
           <Link
             to="/delivery/learning"
-            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(buttonVariants(), 'h-11 w-full transition-colors')} /* button-height-pinned: round-69 */
           >
             Go to My Learning
           </Link>
@@ -2157,7 +2158,7 @@ function StageList({
               <span className="min-w-0 flex-1 text-body-md text-ink">{item.name}</span>
               {/* Fixed width, so every row's control is the same size and lands
                   on the same x (direct instruction).
-                  The hover **fills**: `hover:bg-primary/5` composites to a ~9
+                  The hover **fills**: `hover:bg-primary/10` composites to a ~9
                   per-channel shift on this ground, which is present in the DOM
                   and invisible on screen — the trap CLAUDE.md records from
                   Round 28. */}
@@ -2788,14 +2789,14 @@ function CoachWelcomeBanner({ onSkip, onTakeTour }: { onSkip: () => void; onTake
           <button
             type="button"
             onClick={onTakeTour}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full border border-primary bg-white px-[18px] text-caption-medium text-primary outline-none transition-colors hover:bg-purple-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[209px]"
+            className={cn(buttonVariants({ variant: 'secondary' }), 'h-11 w-full transition-colors hover:bg-purple-50 focus-visible:ring-offset-2 sm:w-[209px]')} /* button-height-pinned: round-69 */
           >
             Take tour
           </button>
           <button
             type="button"
             onClick={onSkip}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full border border-white px-[18px] text-caption-medium text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[209px]"
+            className={cn(buttonVariants({ variant: 'secondary', tone: 'inverse' }), 'h-11 w-full transition-colors focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[209px]')} /* button-height-pinned: round-69 */
           >
             Skip tour
           </button>

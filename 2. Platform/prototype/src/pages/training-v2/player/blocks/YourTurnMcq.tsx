@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Circle, CircleCheck, CircleX } from 'lucide-
 import { cn } from '@/lib/utils'
 import type { YourTurnQuestion } from '@/data/moduleContent'
 import { AnswerOutcome } from './AnswerOutcome'
+import { buttonVariants } from '@/components/ui/button'
 
 /**
  * Multiple-choice question — the **Your turn** pattern, and the third real
@@ -535,14 +536,15 @@ export function YourTurnMcq({
                       }
                 }
                 className={cn(
-                  'inline-flex h-12 w-fit items-center justify-center rounded-[28px] px-5 py-[10px] text-body-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                  buttonVariants(),
+                  'h-12 w-fit rounded-[28px] px-5 py-[10px] text-body-md transition-colors',
                   selected.length === 0
                     // The frame draws only the ready state. `purple-200/40` +
                     // `ink-muted` is this player's own disabled pill, already
                     // contrast-checked at 10.38:1 in the module footer — the
                     // `opacity-60` shortcut measured 2.35:1 when Round 14.5
                     // tried it.
-                    ? 'cursor-not-allowed bg-purple-200/40 text-ink-muted'
+                    ? 'cursor-not-allowed bg-purple-200/40 text-ink-muted hover:bg-purple-200/40'
                     : 'bg-ink-muted text-white hover:bg-ink',
                 )}
               >
@@ -660,10 +662,11 @@ function SetButton({
       aria-disabled={disabled}
       onClick={disabled ? undefined : onClick}
       className={cn(
-        'inline-flex h-12 items-center justify-center gap-4 rounded-[28px] border text-body-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+        buttonVariants({ variant: 'secondary' }),
+        'h-12 gap-4 rounded-[28px] px-0 text-body-md transition-colors',
         SET_BUTTON_WIDTH,
         disabled
-          ? 'cursor-not-allowed border-transparent bg-purple-200/40 text-ink-muted'
+          ? 'cursor-not-allowed border-transparent bg-purple-200/40 text-ink-muted hover:bg-purple-200/40'
           : isNext
             ? 'border-primary bg-primary text-white hover:bg-primary-hover'
             : 'border-primary bg-white text-primary hover:bg-purple-50',

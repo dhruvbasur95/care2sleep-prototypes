@@ -194,7 +194,7 @@ const PAINT: Record<ButtonSurface, Record<ButtonVariant, Partial<Record<ButtonTo
       brand: { rest: 'bg-consumer-primary text-white', hover: 'bg-consumer-primary-hover' },
       // The Consumer Portal's black CTA — "Play module" on a module card, where
       // the button sits on cover art and the brand purple would compete with it.
-      ink: { rest: 'bg-ink text-white', hover: 'opacity-90' },
+      ink: { rest: 'bg-ink text-white', hover: 'bg-ink-hover' },
       destructive: { rest: 'bg-destructive text-white', hover: 'bg-destructive-hover' },
       inverse: { rest: 'bg-white text-consumer-primary', hover: 'bg-purple-50' },
     },
@@ -289,7 +289,7 @@ const HOVER_LITERALS = [
   'hover:bg-success/10',
   'hover:bg-white/10',
   'hover:underline',
-  'hover:opacity-90',
+  'hover:bg-ink-hover',
 ] as const
 
 if (import.meta.env.DEV) {
