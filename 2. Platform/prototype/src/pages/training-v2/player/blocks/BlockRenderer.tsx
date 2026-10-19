@@ -889,8 +889,17 @@ export function BlockView({
       // same tag, two jobs, and only the standalone one is a transition.
       if (isOnly) {
         const TransitionGlyph = block.icon ? TRANSITION_ICONS[block.icon] : Footprints
+        // With bullets the whole slide is left-aligned — icon, line and list
+        // (direct instruction, 2026-10-19); a centred line over a left-aligned
+        // list reads as two layouts. Without bullets it stays centred.
+        const hasBullets = !!block.bullets && block.bullets.length > 0
         return (
-          <div className="flex flex-col items-center text-center">
+          <div
+            className={cn(
+              'flex flex-col',
+              hasBullets ? 'items-start text-left' : 'items-center text-center',
+            )}
+          >
             {/* The Consumer Portal's `CardIcon` treatment (direct instruction):
                 a bare glyph — no tinted circle, no plate — at `size-10` with
                 `strokeWidth={1.75}`, in the portal's own brand colour. The
@@ -924,6 +933,16 @@ export function BlockView({
             >
               {block.copy}
             </Heading>
+            {/* Optional bullets (feedback, 2026-10-19), in the sub-heading
+                font. No bullets → nothing renders and the slide is the
+                centred line alone. */}
+            {hasBullets && (
+              <ul className="mt-6 flex list-disc flex-col gap-2 pl-6 text-sub-greeting leading-[1.4] text-ink">
+                {(block.bullets ?? []).map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )
       }

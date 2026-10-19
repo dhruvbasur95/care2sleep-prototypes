@@ -309,7 +309,16 @@ export type Block =
   /** `<Text block _Sub title>` — one labelled line of copy. The source's own
    *  field name varies (Introduction / Transition / Sub-title copy) and is
    *  authoring metadata, not rendered. */
-  | { tag: 'sub-title'; copy: string; icon?: TransitionIcon }
+  | {
+      tag: 'sub-title'
+      copy: string
+      icon?: TransitionIcon
+      /** Optional, transition slides only (feedback, 2026-10-19: a transition
+       *  must not be a block of text). Rendered left-aligned in the sub-heading
+       *  font under the centred line. Absent → the slide is the line alone,
+       *  exactly as before. Ignored mid-slide. */
+      bullets?: string[]
+    }
   /** `<Text block _Body>` — one long-form paragraph. */
   | { tag: 'body'; copy: string }
   | {
@@ -881,7 +890,15 @@ const M6_CHAPTER_1: ChapterContent = {
       blocks: [
         {
           tag: 'sub-title',
-          copy: 'The Good Sleep Recipe provides a simple framework for understanding the core strategies in Care2Sleep. As we move into the practical skills, remember that the aim is not to apply every strategy at once, but to consider which ingredients are most relevant to the person’s circumstances and which changes are realistic and sustainable for them.',
+          // Split into a line + bullets (2026-10-19) to show the bulleted
+          // transition. The words are the source's own, regrouped; the other
+          // transitions keep their single line, so both states are live.
+          copy: 'The Good Sleep Recipe provides a simple framework for understanding the core strategies in Care2Sleep. As we move into the practical skills, remember:',
+          bullets: [
+            'The aim is not to apply every strategy at once.',
+            'Consider which ingredients are most relevant to the person’s circumstances.',
+            'Consider which changes are realistic and sustainable for them.',
+          ],
           icon: 'blocks',
         },
       ],
