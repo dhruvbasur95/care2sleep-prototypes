@@ -19,6 +19,8 @@ import {
   TIME_STEP_SECONDS,
 } from '@/components/research/SessionPlannerTable'
 import { WizardStepHeading } from '@/components/shared/WizardStepHeading'
+import { ZoomGuideSlide } from '@/components/research/ZoomGuideSlide'
+import { ZOOM_GUIDE } from '@/data/zoomGuide'
 import { MODAL_FOOTER_SURFACE } from '@/components/shared/modalFooter'
 import { GHOST_BUTTON_MUTED } from '@/components/shared/buttonStyles'
 import { cn } from '@/lib/utils'
@@ -568,11 +570,9 @@ const INTRO_STEPS: IntroStep[] = [
   },
 ]
 
-/** The Zoom walkthrough's slide count. Screenshots are not supplied yet, so
- *  every slide renders a placeholder — the gallery's shape, paging and copy
- *  are real so the flow can be reviewed, and dropping six images in later
- *  changes nothing structural. DUMMY until those arrive. */
-const ZOOM_GUIDE_STEPS = 6
+/** The Zoom walkthrough's slide count — read from the guide itself, so the
+ *  counter cannot disagree with the slides it pages through. */
+const ZOOM_GUIDE_STEPS = ZOOM_GUIDE.length
 
 /** Fake delay for both loading interstitials — long enough to read as real
  *  work happening, short enough not to feel like a stall. */
@@ -2083,13 +2083,10 @@ export function PlanSessionsModal({
                             </div>
 
                             {/* The walkthrough. One slide at a time (direct
-                                instruction) rather than six stacked images, so
-                                the coach is never scrolling to find where they
-                                are. Screenshots are not supplied yet — every
-                                slide is a placeholder, and the gallery's shape,
-                                paging and controls are real so the flow reads
-                                correctly now and the images drop in later with
-                                no layout change. DUMMY content. */}
+                                instruction) rather than a stacked page, so the
+                                coach is never scrolling to find where they
+                                are. Copy and screenshots are the Notion "Zoom
+                                Session Creation" guide — `data/zoomGuide.ts`. */}
                             <div className="flex flex-col gap-3">
                               {/* Controls sit ABOVE the image, not under it.
                                   Measured with them below: a 16:9 placeholder
@@ -2112,7 +2109,13 @@ export function PlanSessionsModal({
                                   scroller's `scrollHeight` against its
                                   `clientHeight` as well. */}
                               <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
-                                <p className={STEP_QUESTION}>How to set this up in Zoom</p>
+                                {/* The step heading's own type, not
+                                    STEP_QUESTION (direct instruction): this
+                                    line introduces the whole walkthrough, so
+                                    it reads at the heading's 18/600. */}
+                                <p className="font-display text-sub-greeting-semibold text-ink">
+                                  How to set up your Zoom meeting link
+                                </p>
                                 <div className="flex items-center gap-2">
                                   {/* Both stay mounted and go `disabled` at the
                                       ends rather than unmounting: a control
@@ -2135,7 +2138,9 @@ export function PlanSessionsModal({
                                     aria-live="polite"
                                     className="min-w-[88px] text-center text-caption text-ink-muted"
                                   >
-                                    Step {zoomGuideStep + 1} of {ZOOM_GUIDE_STEPS}
+                                    {/* "Step N" in ink at 600, "of M" stays muted (direct
+                                        instruction): where you are reads first. */}
+                                    <span className="font-semibold text-ink">Step {zoomGuideStep + 1}</span> of {ZOOM_GUIDE_STEPS}
                                   </p>
                                   <Button
                                     type="button"
@@ -2153,15 +2158,7 @@ export function PlanSessionsModal({
                                 </div>
                               </div>
 
-                              {/* 16:9, the shape a Zoom screenshot arrives in.
-                                  The real images drop in as `object-contain`,
-                                  so a wider or narrower capture letterboxes
-                                  rather than changing this box. */}
-                              <div className="flex aspect-video w-full items-center justify-center rounded-sm border border-parchment bg-pearl">
-                                <p className="text-caption text-ink-faint">
-                                  Screenshot {zoomGuideStep + 1} goes here
-                                </p>
-                              </div>
+                              <ZoomGuideSlide slide={ZOOM_GUIDE[zoomGuideStep]} />
                             </div>
                           </div>
                         )}
