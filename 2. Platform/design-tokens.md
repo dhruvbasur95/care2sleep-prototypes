@@ -10774,3 +10774,15 @@ Download certificate (hand-written 44px) are all **40px**; Download now uses
 `state: 'deactive'` when unavailable. ⚠️ Correction to §111.2, measured live:
 the opted-out banner is `position: static` and its content sits in the 1320px
 shell container (icon at **x96**, text at x124), not `px-8` at the viewport edge.
+
+### §112.6 — Collapsed-card status chip, search removed (2026-10-21, Round 75 follow-up)
+A collapsed card whose preview has been opened shows the shared `Chip` after
+the title, 12px gap, `flex-wrap`: **"In progress"** = tone `next`
+(`primary-hover` #200061 on 8%, 20% border, 14.4:1) and **"Completed"** = tone
+`success` (#1f7d37, 4.67:1). Card 86.5 → **94px** with a chip. Not shown on an
+open card (the bar says it). The demo seeds Week 2 in progress and Week 3
+completed (`coachModulePreview.ts`), so the page shows every state on
+arrival — live 1313. The header's search field is **removed** (hidden in Figma
+first); `SearchInput`'s `inputClassName` went with it.
+Figma: Chip set gained **`Tone=Next`** (`4438:8075`, text bound to
+`Purple/900` = #200061). Chip hug width 96 vs live 98 (§14 border).

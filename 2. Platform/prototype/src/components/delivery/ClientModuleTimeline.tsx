@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Download, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Chip } from '@/components/research/StatusChip'
 import { CONSUMER_MODULES, consumerModuleCover } from '@/data/spaces'
 import { MINUTES_PER_SLIDE } from '@/components/consumer/lessons'
 import { previewPercent, useAllPreviewProgress } from '@/data/coachModulePreview'
@@ -186,15 +187,29 @@ export function ClientModuleTimeline() {
                       {/* 16/600 closed → 20/500 open (frame). The size and
                           weight transition with the card, so the title grows
                           rather than jumping a step. */}
-                      <h3
-                        className={cn(
-                          'text-balance text-ink transition-[font-size,line-height,font-weight]',
-                          open ? 'text-title' : 'text-body-md',
+                      {/* A collapsed card says where the coach's preview got
+                          to (direct instruction): "In progress" (`next`,
+                          purple) or "Completed" (`success`, green) after the
+                          title — the shared status chip, never a hand-rolled
+                          pill. Absent until the preview has been opened, and
+                          absent on the open card, which shows the bar. */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <h3
+                          className={cn(
+                            'text-balance text-ink transition-[font-size,line-height,font-weight]',
+                            open ? 'text-title' : 'text-body-md',
+                          )}
+                          style={CSS_MOTION}
+                        >
+                          {mod.title}
+                        </h3>
+                        {!open && preview && (
+                          <Chip
+                            tone={preview.complete ? 'success' : 'next'}
+                            label={preview.complete ? 'Completed' : 'In progress'}
+                          />
                         )}
-                        style={CSS_MOTION}
-                      >
-                        {mod.title}
-                      </h3>
+                      </div>
                     </div>
                     <button
                       type="button"

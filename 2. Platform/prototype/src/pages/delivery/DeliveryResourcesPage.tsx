@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { DeliveryShell } from '@/components/delivery/DeliveryShell'
-import { SearchInput } from '@/components/SearchInput'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
 import { ClientModuleTimeline } from '@/components/delivery/ClientModuleTimeline'
 
@@ -12,13 +11,12 @@ type ResourceTab = (typeof RESOURCE_TABS)[number]['id']
 /**
  * Coach Delivery Portal "Resources" — coach stage only, after My Learning in the nav.
  *
- * Header (title, sub-line, search), then a section tab row. "Client modules"
+ * Header (title, sub-line), then a section tab row. "Client modules"
  * holds the six-week module timeline (`ClientModuleTimeline`). Same flush
  * column and 64px top inset as My Notes, so the title lines up with its
  * siblings.
  */
 export function DeliveryResourcesPage() {
-  const [query, setQuery] = useState('')
   const [tab, setTab] = useState<ResourceTab>('client-modules')
 
   return (
@@ -26,38 +24,15 @@ export function DeliveryResourcesPage() {
       {/* 48px between the header and the tab row — the coach portal's gap
           between page sections (My Notes uses the same `gap-12`). */}
       <div className="flex flex-col gap-12">
-        {/* Title block left, search bottom-right (direct instruction, 2026-10-21).
-            One wrapping row rather than a breakpoint: the search drops below the
-            sub-line exactly when the two no longer fit side by side, at any
-            width. `items-end` pins the search to the row's bottom edge, level
-            with the sub-line; once wrapped, `gap-y-6` is the space below it.
-            `basis-[480px]` is the narrowest the text block may get before the
-            search wraps, so the sub-line is never squeezed to a sliver. */}
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
-          {/* Same title + sub-line block as My Notes (`text-sub-greeting`, no
-              full stop), so the two pages read as one family. */}
-          <div className="flex min-w-0 grow basis-[480px] flex-col gap-2">
-            <h1 className="font-display text-display-lg text-primary">Resources</h1>
-            <p className="text-balance text-sub-greeting leading-[1.4] text-ink">
-              Find helpful information about the Care2Sleep project and how to use your dashboard
-            </p>
-          </div>
-          {/* Nothing to search yet — the page has no resources. The field holds
-              its own value so it can be typed into, and filters nothing. */}
-          <SearchInput
-            id="resources-search"
-            label="Search resources"
-            placeholder="Search resources"
-            value={query}
-            onChange={setQuery}
-            // 400px, up from the component's 280px default (direct instruction,
-            // 2026-10-21: "increase search bar width").
-            widthClassName="sm:w-[400px]"
-            // Purple 500 outline instead of the default grey hairline (direct
-            // instruction, 2026-10-21). `primary` is Purple/500 `#3a00ad`.
-            inputClassName="border-primary"
-            className="shrink-0"
-          />
+        {/* Title + sub-line, same block as My Notes (`text-sub-greeting`, no
+            full stop), so the two pages read as one family. The search field
+            that sat to its right was removed (direct instruction, 2026-10-21 —
+            hidden in Figma first): there is nothing on this page to search. */}
+        <div className="flex flex-col gap-2">
+          <h1 className="font-display text-display-lg text-primary">Resources</h1>
+          <p className="text-balance text-sub-greeting leading-[1.4] text-ink">
+            Find helpful information about the Care2Sleep project and how to use your dashboard
+          </p>
         </div>
         <div className="flex flex-col">
           {/* `flushStart` puts the first label on the title's left edge

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { CONSUMER_MODULES } from '@/data/spaces'
 
 /**
  * A coach's progress through each client-module preview (Resources → Client
@@ -22,7 +23,17 @@ export interface PreviewProgress {
   complete: boolean
 }
 
-let progress: Record<string, PreviewProgress> = {}
+/**
+ * Demo seed (direct instruction, 2026-10-21: "by default show week 2 in
+ * progress and week 3 completed to show different states"). Week 2 was left at
+ * the video, Week 3 was finished, the rest untouched — so the Resources page
+ * shows every card state on arrival. Keyed through `CONSUMER_MODULES` rather
+ * than written ids, so a renamed module cannot silently drop the seed.
+ */
+let progress: Record<string, PreviewProgress> = {
+  [CONSUMER_MODULES[1].id]: { stage: 'video', complete: false },
+  [CONSUMER_MODULES[2].id]: { stage: 'summary', complete: true },
+}
 const listeners = new Set<() => void>()
 
 function emit() {

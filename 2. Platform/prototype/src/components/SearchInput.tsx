@@ -22,7 +22,6 @@ export function SearchInput({
   placeholder,
   className,
   widthClassName = 'sm:w-[280px]',
-  inputClassName,
 }: {
   id: string
   label: string
@@ -42,10 +41,6 @@ export function SearchInput({
    *  order rather than intent. Default matches the previous behaviour, so the
    *  Coach Delivery Portal's call site is unchanged. */
   widthClassName?: string
-  /** Classes merged onto the `<input>` itself, for a caller that needs the
-   *  field's own paint changed — e.g. the coach Resources page's `primary`
-   *  outline. Width still goes through `widthClassName`, never here. */
-  inputClassName?: string
 }) {
   return (
     <div className={cn('flex w-full flex-col gap-1', widthClassName, className)}>
@@ -66,7 +61,6 @@ export function SearchInput({
             // A text field, not a button: the pill and height are the search
             // field's own shape. button-guard-ignore
             'h-9 w-full rounded-full border border-hairline bg-card pr-4 pl-10 text-caption text-ink outline-none transition-colors placeholder:text-ink-faint focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring',
-            inputClassName,
           )}
         />
       </div>
