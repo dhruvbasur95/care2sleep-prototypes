@@ -22,6 +22,10 @@ export type ZoomGuideBlock =
   | { kind: 'ul'; items: string[] }
   | { kind: 'ol'; items: string[] }
   | { kind: 'callout'; text: string }
+  /** A yellow box holding one value the coach pastes into Zoom, with a
+   *  button that copies it (direct instruction, 2026-10-21). `label` sits
+   *  before the value; `button` is the button's own text. */
+  | { kind: 'copy'; label: string; value: string; button: string }
 
 export interface ZoomGuideImage {
   file: string
@@ -70,6 +74,15 @@ export const ZOOM_GUIDE: ZoomGuideSlide[] = [
       {
         kind: 'p',
         text: 'In **Topic**, enter **C2S-SPACES-** and then the client ID. For example: **C2S-SPACES-1234**.',
+      },
+      /* Placeholder client ID, deliberately not linked to any client yet
+         (direct instruction: "for now add a random client ID"). Wire it to
+         the plan's own client when the wizard passes one in. */
+      {
+        kind: 'copy',
+        label: 'Your topic details:',
+        value: 'C2S-SPACES-4827',
+        button: 'Copy details',
       },
     ],
     image: {
@@ -167,6 +180,15 @@ export const ZOOM_GUIDE: ZoomGuideSlide[] = [
           'In **Alternative Hosts**, enter the email address of each research team member.',
           'Keep all of the co-owner options selected: **Meeting summary**, **Meeting cloud recording**, and **Add or edit polls**. These let the research team get the recordings.',
         ],
+      },
+      /* Placeholder address on the prototype's own `example.au` domain, so it
+         cannot be mistaken for a real inbox. Swap for the research team's
+         address when it is confirmed. */
+      {
+        kind: 'copy',
+        label: 'Researcher email:',
+        value: 'research.team@care2sleep.example.au',
+        button: 'Copy email',
       },
     ],
     image: {

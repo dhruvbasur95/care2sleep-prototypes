@@ -23,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { ResearchShell } from '@/components/research/ResearchShell'
+import { WithdrawnBanner } from '@/components/research/WithdrawnBanner'
 import { SupervisionRecords } from '@/pages/research/SpacesCoachProfilePage'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { FeedbackReportDialog } from '@/components/research/FeedbackReportDialog'
@@ -578,41 +579,6 @@ function annotationProgression(coach: Coach): AnnotationProgressionEntry[] {
  * is the one deliberate use of amber in the app; every other status chip
  * still keeps to the documented success/neutral/muted palette.
  */
-/**
- * Withdrawn banner — shown on every tab of a withdrawn trainee's record
- * (direct instruction, 2026-09-21: *"show a withdrawn banner uptop as shown
- * for consumers"*).
- *
- * Deliberately the Consumer Portal's own `OptedOutBanner` treatment — red
- * `destructive` fill, white text, a warning glyph, no dismiss — rather than
- * the amber `PendingInviteBanner` below. The two states are not the same
- * kind of thing: a pending invite is a waiting state that resolves itself,
- * a withdrawal is terminal. Amber for one and red for the other is the
- * distinction this app already draws everywhere else.
- *
- * Not dismissible, for the same reason the consumer one is not: it reports a
- * standing account state, not a one-time notice, and a researcher who
- * dismissed it would read the rest of the record as though the trainee were
- * still active.
- *
- * White on `--destructive` measures 5.86:1 (rasterised, not calculated —
- * Tailwind v4 emits `oklab()`).
- */
-function WithdrawnBanner({ coach }: { coach: Coach }) {
-  return (
-    <div role="status" className="border-b border-black/10 bg-destructive px-6 py-3 md:px-8">
-      <div className="mx-auto flex max-w-[1320px] items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.25} />
-        <p className="text-caption font-semibold text-white">
-          {coach.fullName} has withdrawn from the study
-          {coach.withdrawnOn ? ` on ${formatDate(coach.withdrawnOn)}` : ''}. They no longer have
-          access to the platform. Their records are kept per their consent.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function PendingInviteBanner({ coach }: { coach: Coach }) {
   return (
     <div role="status" className="border-b border-amber-200 bg-amber-100 px-6 py-3 md:px-8">

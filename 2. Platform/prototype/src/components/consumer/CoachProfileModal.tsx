@@ -291,7 +291,12 @@ export function CoachProfileModal({
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <h2 className="text-consumer-lesson text-ink">Speciality</h2>
             <p className="text-pretty text-body leading-[1.4] text-ink">
-              {coach
+              {/* The researcher-written "About coach" (coach record, Personal
+                  details) when there is one; otherwise the sentence built
+                  from the coach's real fields. */}
+              {coach?.aboutCoach
+                ? coach.aboutCoach
+                : coach
                 ? `${coach.fullName.split(' ')[0]} has ${coach.yearsInAgedCare} years of experience in aged care at ${coach.employer}, working as ${/^[aeiou]/i.test(coach.roleAtEmployer) ? 'an' : 'a'} ${coach.roleAtEmployer.toLowerCase()}. They are trained as a Care2Sleep coach to help you and your family build gentle, practical routines that make sleep easier.`
                 : 'Your coach will be introduced here once one is assigned to you.'}
             </p>
@@ -307,7 +312,13 @@ export function CoachProfileModal({
                 real `Coach` fields instead — a coach record carries no
                 biography, and inventing four sentences of one would put
                 fiction on a participant's screen. */}
-            {coach ? (
+            {/* The researcher-written "Professional background" (coach
+                record, Professional details) wins when it exists. */}
+            {coach?.professionalBackground ? (
+              <p className="text-pretty whitespace-pre-line text-body leading-[1.4] text-ink">
+                {coach.professionalBackground}
+              </p>
+            ) : coach ? (
               <ul className="ms-6 flex list-disc flex-col gap-2 text-body leading-[1.4] text-ink">
                 <li>{coach.roleAtEmployer} at {coach.employer}</li>
                 <li>{coach.yearsInAgedCare} years working in aged care</li>

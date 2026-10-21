@@ -78,6 +78,11 @@ export interface ResearchStore {
    *  has no reason step) keeps working unchanged. */
   withdrawCoach: (coachId: string, reason?: string, date?: string) => void
   updateContact: (coachId: string, patch: { email: string; phone: string }) => void
+  /** The coach's two profile texts, which the consumer reads in "Meet your coach". */
+  updateCoachProfileText: (
+    coachId: string,
+    patch: Partial<Pick<Coach, 'aboutCoach' | 'professionalBackground'>>,
+  ) => void
   /** Completed COACH phase numbers per coach id (Round 2.2 phase pipeline). */
   phaseCompletion: Record<string, number[]>
   /** Completion date per stage number, where one is known — see `initialPhaseDates`. */
@@ -379,10 +384,12 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
         ...c,
         status: 'withdrawn',
         withdrawnOn: date || TODAY,
+        withdrawalReason: reason?.replace(/\.$/, '') || undefined,
         withdrawalNote: [
           `Withdrawn by the research coordinator, effective ${formatDate(date || TODAY)} (prototype demo action).`,
           reason ? `Reason: ${reason.replace(/\.$/, '')}.` : null,
-          'Records retained per consent.',
+          // "Records retained per consent." removed on direct instruction,
+          // 2026-10-21.
         ]
           .filter(Boolean)
           .join(' '),
@@ -393,6 +400,13 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
 
   const updateContact = useCallback(
     (coachId: string, patch: { email: string; phone: string }) => {
+      patchCoach(coachId, (c) => ({ ...c, ...patch }))
+    },
+    [patchCoach],
+  )
+
+  const updateCoachProfileText = useCallback(
+    (coachId: string, patch: Partial<Pick<Coach, 'aboutCoach' | 'professionalBackground'>>) => {
       patchCoach(coachId, (c) => ({ ...c, ...patch }))
     },
     [patchCoach],
@@ -930,6 +944,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       addCoachTrainee,
       withdrawCoach,
       updateContact,
+      updateCoachProfileText,
       phaseCompletion,
       phaseCompletionDates,
       togglePhase,
@@ -979,6 +994,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       addCoachTrainee,
       withdrawCoach,
       updateContact,
+      updateCoachProfileText,
       phaseCompletion,
       phaseCompletionDates,
       togglePhase,

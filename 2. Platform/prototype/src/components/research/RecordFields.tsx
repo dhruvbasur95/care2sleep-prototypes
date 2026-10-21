@@ -1,4 +1,7 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useId, useState, type ReactNode } from 'react'
+import { Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -58,6 +61,73 @@ export const RECORD_SELECT = `${RECORD_INPUT} appearance-none pr-8`
 export const RECORD_LABEL = 'text-caption-medium text-ink'
 
 /**
+ * An info button beside a field label, for a field whose purpose is not
+ * obvious from its name — "About coach" first (direct instruction,
+ * 2026-10-21: *"add a info button next to it, this is where they need to
+ * mention about their speciality"*). Painted `destructive`, the red semantic
+ * (direct instruction, same day: *"use red semantic for it"*).
+ *
+ * It opens on hover, on keyboard focus **and on click** — a tooltip that only
+ * answers a hovering mouse is no use on a touchscreen, so the open state is
+ * held here and a click toggles it. Escape and clicking away close it (the
+ * primitive's own `onOpenChange`).
+ *
+ * The tooltip primitive sets no `aria-describedby`, so a screen reader
+ * would hear only "About the About coach field". The copy is therefore also
+ * in an `sr-only` span the button points at, which is always in the DOM.
+ *
+ * The hit area is the system's 40px icon button around a 16px glyph; the
+ * negative margins cancel the extra size so the label row keeps its own
+ * height.
+ */
+function RecordLabelInfo({ label, info }: { label: string; info: string }) {
+  const [open, setOpen] = useState(false)
+  const descId = useId()
+  return (
+    <>
+    <span id={descId} className="sr-only">
+      {info}
+    </span>
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`About the ${label} field`}
+            aria-describedby={descId}
+            onClick={() => setOpen((o) => !o)}
+            /* The system's ghost icon button in the red semantic (Round 72:
+               a hand-written pill here is a button-gate failure). 40px hit
+               area; the -12px margins keep the label row at its own 17px. */
+            className={cn(
+              buttonVariants({ variant: 'ghost', tone: 'destructive', size: 'icon' }),
+              '-my-3 -ms-3 shrink-0',
+            )}
+          />
+        }
+      >
+        <Info aria-hidden="true" className="size-4" strokeWidth={2} />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-caption leading-normal">
+        {info}
+      </TooltipContent>
+    </Tooltip>
+    </>
+  )
+}
+
+/** A field label, plus its info button when the field carries one. */
+function RecordLabelRow({ label, info, children }: { label: string; info?: string; children: ReactNode }) {
+  if (!info) return <>{children}</>
+  return (
+    <div className="flex items-center gap-1">
+      {children}
+      <RecordLabelInfo label={label} info={info} />
+    </div>
+  )
+}
+
+/**
  * The field grid both modes share. Written once so a card cannot read at three
  * columns and edit at two.
  *
@@ -90,6 +160,8 @@ export interface RecordFieldItem {
    *  box. Put these **last** in the list: a spanning item mid-grid pushes
    *  itself to the next full row and leaves the cells before it empty. */
   full?: boolean
+  /** Explanatory copy for an info button beside the label. */
+  info?: string
 }
 
 /**
@@ -111,7 +183,9 @@ export function RecordFieldList({
           key={f.key}
           className={cn('flex min-w-0 flex-col gap-2', f.full && RECORD_GRID_FULL)}
         >
-          <dt className={RECORD_LABEL}>{f.label}</dt>
+          <RecordLabelRow label={f.label} info={f.info}>
+            <dt className={RECORD_LABEL}>{f.label}</dt>
+          </RecordLabelRow>
           <dd className={RECORD_VALUE_BOX}>{f.value}</dd>
         </div>
       ))}
@@ -125,18 +199,22 @@ export function RecordFieldShell({
   id,
   label,
   full,
+  info,
   children,
 }: {
   id: string
   label: string
   full?: boolean
+  info?: string
   children: ReactNode
 }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', full && RECORD_GRID_FULL)}>
-      <label htmlFor={id} className={RECORD_LABEL}>
-        {label}
-      </label>
+      <RecordLabelRow label={label} info={info}>
+        <label htmlFor={id} className={RECORD_LABEL}>
+          {label}
+        </label>
+      </RecordLabelRow>
       {children}
     </div>
   )
@@ -191,6 +269,8 @@ export function RecordTextarea({
   onChange,
   rows = 3,
   full = true,
+  textareaRef,
+  info,
 }: {
   id: string
   label: string
@@ -198,10 +278,15 @@ export function RecordTextarea({
   onChange: (v: string) => void
   rows?: number
   full?: boolean
+  /** Same purpose as `RecordInput`'s `inputRef`: a card that opens straight
+   *  into this field focuses it, so focus never falls to `<body>`. */
+  textareaRef?: React.Ref<HTMLTextAreaElement>
+  info?: string
 }) {
   return (
-    <RecordFieldShell id={id} label={label} full={full}>
+    <RecordFieldShell id={id} label={label} full={full} info={info}>
       <textarea
+        ref={textareaRef}
         id={id}
         rows={rows}
         value={value}

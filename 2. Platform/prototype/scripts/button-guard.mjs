@@ -77,7 +77,7 @@ const SRC = join(ROOT, 'src')
  * The count at the last landed round. `--ci` fails only when the real count is
  * HIGHER than this. Lower it as each portal migrates; never raise it.
  */
-const BASELINE = 24
+const BASELINE = 23
 
 /**
  * Documented exceptions, with the reason each one is not a defect.

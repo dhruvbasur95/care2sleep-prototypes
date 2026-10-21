@@ -579,6 +579,14 @@ export interface Coach {
   roleAtEmployer: string
   /** Carried over from the EOI form — dropped by earlier onboarding logic (Round 2.2.4 fix). */
   yearsInAgedCare: number
+  /** "About coach" — last on the record's Personal details card: the coach's
+   *  speciality, written by the researcher. The consumer reads it as the
+   *  Speciality section of "Meet your coach". Absent until added. */
+  aboutCoach?: string
+  /** "Professional background" — last on the record's Professional details
+   *  card, written by the researcher. The consumer reads it as the
+   *  Professional background section of "Meet your coach". Absent until added. */
+  professionalBackground?: string
   cohort: string
   /** ISO date of enrolment (Phase 2 complete) */
   enrolmentDate: string
@@ -589,6 +597,10 @@ export interface Coach {
   currentPhase: number
   /** Present for withdrawn coaches */
   withdrawalNote?: string
+  /** The reason the researcher gave in the withdraw-coach flow, kept apart
+   *  from `withdrawalNote` so the record can show it on its own (the SPACES
+   *  coach record's red withdrawal callout). Absent for older seed records. */
+  withdrawalReason?: string
   /** ISO date the trainee/coach actually left the study, entered by the
    *  researcher on withdrawal (Notion brief, 2026-09-21). Distinct from when
    *  the record was edited — a withdrawal is often recorded after the fact. */
@@ -812,6 +824,10 @@ const certifiedCoaches: Coach[] = [
     employer: 'Hillcrest Aged Care',
     roleAtEmployer: 'Enrolled nurse',
     yearsInAgedCare: 11,
+    aboutCoach:
+      'Supporting people living with dementia and their carers through night-time waking and changes to sleep routines.',
+    professionalBackground:
+      'Enrolled nurse at Hillcrest Aged Care for 11 years, working mainly in the memory support unit. Before nursing, worked as a personal care assistant in home care.',
     cohort: 'Cohort 1',
     enrolmentDate: '2026-02-16',
     status: 'completed',
@@ -856,6 +872,10 @@ const certifiedCoaches: Coach[] = [
     employer: 'Correa Ridge Aged Care',
     roleAtEmployer: 'Personal care assistant',
     yearsInAgedCare: 5,
+    aboutCoach:
+      'Helping carers build calm evening routines, with a focus on reducing stress around bedtime.',
+    professionalBackground:
+      'Personal care assistant at Correa Ridge Aged Care for 5 years, supporting residents with daily routines and evening care. Speaks English and Mandarin.',
     cohort: 'Cohort 1',
     enrolmentDate: '2026-03-23',
     status: 'completed',
@@ -889,6 +909,10 @@ export const coaches: Coach[] = [
     employer: "St Brigid's Aged Care",
     roleAtEmployer: 'Enrolled nurse',
     yearsInAgedCare: 8,
+    aboutCoach:
+      'Working with families to manage daytime napping and restlessness in the late afternoon and evening.',
+    professionalBackground:
+      "Enrolled nurse at St Brigid's Aged Care for 8 years, including 3 years coordinating care plans for residents living with dementia.",
     cohort: 'Cohort 1',
     enrolmentDate: '2026-05-04',
     status: 'completed',

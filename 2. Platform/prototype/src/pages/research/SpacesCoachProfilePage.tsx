@@ -20,6 +20,7 @@ import {
   Paperclip,
   Search,
   Trash2,
+  TriangleAlert,
   Users,
   Video,
 } from 'lucide-react'
@@ -55,12 +56,14 @@ import {
   StudyLogSection,
   StudyProgressTimelineCard,
 } from '@/pages/research/ConsumerDetailPage'
-import { Chip, CertificationChip, CoachStatusChip } from '@/components/research/StatusChip'
+import { Chip, CertificationChip } from '@/components/research/StatusChip'
+import { WithdrawnBanner } from '@/components/research/WithdrawnBanner'
 import {
   RECORD_GRID,
   RECORD_TEXTAREA,
   RecordFieldList,
   RecordInput,
+  RecordTextarea,
 } from '@/components/research/RecordFields'
 import { Card } from '@/components/ui/card'
 import { TabIntro } from '@/components/research/TabIntro'
@@ -463,7 +466,10 @@ function OverviewTab({
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <div className="flex items-center gap-3 px-2">
                     <p className="min-w-0 flex-1 truncate text-title text-ink">{coach.fullName}</p>
-                    {withdrawn && <CoachStatusChip status={coach.status} />}
+                    {/* The same chip as the Profile details tab's Study
+                        details card, so one record cannot name its own
+                        state two ways. */}
+                    {withdrawn && <Chip tone="destructive" label="Coach withdrawn" />}
                   </div>
                   {/* Three real grid tracks — 110px label / 24px colon / value —
                       matching the frame's own `row-label`/`row-separator`/
@@ -829,9 +835,13 @@ function OverviewTab({
 function CoachNotificationPreferencesCard({
   coach,
   onSave,
+  readOnly = false,
 }: {
   coach: Coach
   onSave: (prefs: NotificationPreferences) => void
+  /** A withdrawn coach's record cannot be edited (direct instruction,
+   *  2026-10-21). The boxes still show what was set, but cannot change. */
+  readOnly?: boolean
 }) {
   const preferences = coach.notificationPreferences ?? { email: true, sms: false }
   const [email, setEmail] = useState(preferences.email)
@@ -846,7 +856,7 @@ function CoachNotificationPreferencesCard({
   const dirty = email !== preferences.email || sms !== preferences.sms
 
   const checkboxClass =
-    'peer size-7 shrink-0 cursor-pointer appearance-none rounded-[6px] border border-hairline bg-card outline-none transition-colors checked:border-purple-500 checked:bg-purple-500 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+    'peer size-7 shrink-0 cursor-pointer appearance-none rounded-[6px] disabled:cursor-not-allowed disabled:opacity-60 border border-hairline bg-card outline-none transition-colors checked:border-purple-500 checked:bg-purple-500 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 
   return (
     <Card className="gap-0 overflow-hidden rounded-lg py-0">
@@ -862,7 +872,12 @@ function CoachNotificationPreferencesCard({
             setSaved(true)
           }}
         >
-          <label className="flex cursor-pointer items-center gap-3 text-caption text-ink">
+          <label
+            className={cn(
+              'flex items-center gap-3 text-caption text-ink',
+              readOnly ? 'cursor-not-allowed' : 'cursor-pointer',
+            )}
+          >
             <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
               <input
                 type="checkbox"
@@ -871,6 +886,7 @@ function CoachNotificationPreferencesCard({
                   setEmail(e.target.checked)
                   setSaved(false)
                 }}
+                disabled={readOnly}
                 className={checkboxClass}
               />
               <Check
@@ -879,7 +895,12 @@ function CoachNotificationPreferencesCard({
             </span>
             Email
           </label>
-          <label className="flex cursor-pointer items-center gap-3 text-caption text-ink">
+          <label
+            className={cn(
+              'flex items-center gap-3 text-caption text-ink',
+              readOnly ? 'cursor-not-allowed' : 'cursor-pointer',
+            )}
+          >
             <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
               <input
                 type="checkbox"
@@ -888,6 +909,7 @@ function CoachNotificationPreferencesCard({
                   setSms(e.target.checked)
                   setSaved(false)
                 }}
+                disabled={readOnly}
                 className={checkboxClass}
               />
               <Check
@@ -897,7 +919,7 @@ function CoachNotificationPreferencesCard({
             SMS
           </label>
 
-          {dirty && (
+          {dirty && !readOnly && (
             <Button
               type="submit"
             >
@@ -1254,6 +1276,10 @@ function WithdrawCoachDialog({
         confirmLabel="Withdraw coach"
         cancelLabel="Go back"
         destructive
+        /* Outline, not solid — Figma frame `2884:1410` draws this confirm as
+           `Style=Secondary, Tone=Destructive`, matching the page's own
+           Withdraw coach button that opened the flow. */
+        confirmVariant="secondary"
         /* Belt and braces on the flow's own invariant. Step 1's Continue is
            already gated on every consumer being placed, so this should never
            bite through the UI — but `commit` skips an unplaced consumer, and
@@ -1289,6 +1315,11 @@ function WithdrawCoachDialog({
             </ul>
           </div>
 
+          {/* Only when there is a caseload to move. A coach with no consumers
+              skips step 1, and this block then rendered a table of headers
+              with no rows under them (found mirroring the flow into Figma,
+              2026-10-21). */}
+          {needsTransfer && (
           <div className="flex flex-col gap-2">
             <p id="withdraw-summary-heading" className="text-fine text-ink-faint">
               Where each consumer goes
@@ -1323,9 +1354,23 @@ function WithdrawCoachDialog({
               </table>
             </div>
           </div>
+          )}
         </div>
       </ConfirmDialog>
     </>
+  )
+}
+
+/** A researcher-written profile text, or a quiet placeholder until one is
+ *  added. `whitespace-pre-line` keeps the researcher's own line breaks. */
+const ABOUT_COACH_INFO =
+  "Describe the coach's speciality: what they focus on when supporting clients. Clients read this as Speciality when they open their coach's profile."
+
+function profileText(text: string | undefined) {
+  return text ? (
+    <span className="whitespace-pre-line">{text}</span>
+  ) : (
+    <span className="text-ink-muted">Not added yet</span>
   )
 }
 
@@ -1341,7 +1386,8 @@ function WithdrawCoachDialog({
  *  here — that framing only applied while the coach was being onboarded
  *  into SPACES. */
 function ProfileDetailsTab({ coach }: { coach: Coach }) {
-  const { consumerDyads, updateContact, updateCoachNotificationPreferences } = useResearch()
+  const { consumerDyads, updateContact, updateCoachProfileText, updateCoachNotificationPreferences } =
+    useResearch()
   const dyads = consumerDyads.filter((d) => d.coachId === coach.id)
 
   /** Focus target after a withdrawal — see `WithdrawCoachDialog.onWithdrawn`.
@@ -1352,6 +1398,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
   const [editingContact, setEditingContact] = useState(false)
   const [email, setEmail] = useState(coach.email)
   const [phone, setPhone] = useState(coach.phone)
+  const [aboutCoach, setAboutCoach] = useState(coach.aboutCoach ?? '')
   const [withdrawOpen, setWithdrawOpen] = useState(false)
 
   // The "Edit details" trigger unmounts the moment `editingContact` flips —
@@ -1374,6 +1421,23 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
     else editContactButtonRef.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingContact])
+
+  // Professional details gets its own Edit details toggle for the one field a
+  // researcher writes there (the other three are captured at onboarding).
+  // Same focus contract as the contact card above.
+  const [editingBackground, setEditingBackground] = useState(false)
+  const [background, setBackground] = useState(coach.professionalBackground ?? '')
+  const backgroundInputRef = useRef<HTMLTextAreaElement>(null)
+  const editBackgroundButtonRef = useRef<HTMLButtonElement>(null)
+  const backgroundMounted = useRef(false)
+  useEffect(() => {
+    if (!backgroundMounted.current) {
+      backgroundMounted.current = true
+      return
+    }
+    if (editingBackground) backgroundInputRef.current?.focus()
+    else editBackgroundButtonRef.current?.focus()
+  }, [editingBackground])
 
   const withdrawn = coach.status === 'withdrawn'
   const firstName = coach.fullName.split(' ')[0]
@@ -1401,10 +1465,16 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
     },
   ]
 
-  const personalFields = [
+  /* "About coach" is the coach's speciality, and it is what the client reads
+     under Speciality in "Meet your coach" (Consumer Portal, `CoachProfileModal`).
+     Last and full width (direct instruction, 2026-10-21: "add after Phone ...
+     use 100% width of the parent container") — `RecordFieldList` wants every
+     spanning field at the end anyway. */
+  const personalFields: { label: string; value: React.ReactNode; full?: boolean; info?: string }[] = [
     { label: 'Full name', value: coach.fullName },
-    { label: 'Email', value: coach.email, breakAll: true },
+    { label: 'Email', value: coach.email },
     { label: 'Phone', value: coach.phone },
+    { label: 'About coach', value: profileText(coach.aboutCoach), full: true, info: ABOUT_COACH_INFO },
   ]
 
   /* Labels are the Notion brief's own wording (coach profile details tab:
@@ -1429,12 +1499,16 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
     { label: 'Aged-care organisation', value: coach.employer },
     { label: 'Role at organisation', value: coach.roleAtEmployer },
     { label: 'Years of work experience at enrolment', value: `${coach.yearsInAgedCare} years` },
+    /* What the client reads under Professional background in "Meet your
+       coach". Last and full width, as About coach is on Personal details. */
+    { label: 'Professional background', value: profileText(coach.professionalBackground), full: true },
   ]
 
-  // Withdraw button classes match the trainee/consumer record pages' own
-  // withdraw button exactly (`bg-card` so the pill reads white against the
-  // `purple-50` band — the class that was missing here before, which is why
-  // it didn't match).
+  // Withdraw coach is the system's `secondary · destructive` button (direct
+  // instruction, 2026-10-21: "also update withdraw button"). It was a
+  // hand-written 36px pill; the system makes it 40px, the same height as the
+  // Edit details buttons on the cards below it, and as Figma's
+  // `Style=Secondary, Tone=Destructive, Size=40` instance on this frame.
   //
   // The active-caseload gate that used to *disable* this button is gone: it
   // told the researcher what was wrong and gave them no way to fix it from
@@ -1442,10 +1516,6 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
   // makes them place every consumer with another coach before it will let the
   // withdrawal through — so the button is always live, and the constraint is
   // enforced inside the flow rather than in front of it.
-  const withdrawButtonClass = cn(
-    'inline-flex h-9 shrink-0 items-center rounded-full border bg-white px-[18px] text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]',
-    'border-destructive text-destructive hover:bg-destructive/10',
-  )
 
   return (
     <div className="flex flex-col gap-10">
@@ -1455,15 +1525,20 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             Study details
           </h2>
           {withdrawn ? (
-            <CoachStatusChip status={coach.status} />
+            /* "Coach withdrawn" in the red semantic, on the global Chip's own
+               `destructive` tone — no override, no new tone (direct
+               instruction, 2026-10-21). */
+            <Chip tone="destructive" label="Coach withdrawn" />
           ) : (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              tone="destructive"
               onClick={() => setWithdrawOpen(true)}
-              className={withdrawButtonClass}
+              className="shrink-0"
             >
               Withdraw coach
-            </button>
+            </Button>
           )}
         </div>
         {/* Round 47: the shared "title + text field" vocabulary
@@ -1474,17 +1549,44 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
           fields={studyFields.map((f) => ({ key: f.label, label: f.label, value: f.node }))}
         />
         {withdrawn ? (
-          <p className="px-6 pb-4 text-caption text-ink-faint">
-            {firstName} is no longer participating in the study
-            {coach.withdrawalNote ? `. ${coach.withdrawalNote}` : '.'}
-          </p>
+          /* Direct instruction, 2026-10-21: under Study details, a banner in
+             the red semantic giving the date and reason of the withdrawal.
+             A tint, not the solid fill of the page-top `WithdrawnBanner`, so
+             the two do not read as the same alert twice. Replaces the plain
+             grey sentence that used to sit here. */
+          <div className="px-6 pb-6">
+            <div
+              role="note"
+              className="flex items-start gap-3 rounded-sm border border-destructive/20 bg-destructive/8 px-4 py-3"
+            >
+              <TriangleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 text-destructive"
+                strokeWidth={2.25}
+              />
+              <div className="flex min-w-0 flex-col gap-1 text-caption text-ink">
+                <p className="font-semibold text-destructive">
+                  {firstName} was withdrawn from the study
+                  {coach.withdrawnOn ? ` on ${formatDate(coach.withdrawnOn)}` : ''}.
+                </p>
+                <p>
+                  <span className="font-semibold">Reason:</span>{' '}
+                  {/* The store trims a trailing full stop so the reason can sit
+                      mid-sentence in `withdrawalNote`; put it back here. */}
+                  {coach.withdrawalReason
+                    ? coach.withdrawalReason.replace(/([^.!?])$/, '$1.')
+                    : (coach.withdrawalNote ?? 'Not recorded.')}
+                </p>
+              </div>
+            </div>
+          </div>
         ) : null}
       </Card>
 
       <Card className="gap-0 overflow-hidden rounded-lg py-0">
         <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
           <h2 className="font-display text-title text-ink">Personal details</h2>
-          {!editingContact && (
+          {!editingContact && !withdrawn && (
             <button
               ref={editContactButtonRef}
               type="button"
@@ -1502,6 +1604,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
             onSubmit={(e) => {
               e.preventDefault()
               updateContact(coach.id, { email, phone })
+              updateCoachProfileText(coach.id, { aboutCoach: aboutCoach.trim() || undefined })
               setEditingContact(false)
             }}
           >
@@ -1521,6 +1624,14 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
                 value={phone}
                 onChange={setPhone}
               />
+              <RecordTextarea
+                id="spaces-about-coach"
+                label="About coach"
+                value={aboutCoach}
+                onChange={setAboutCoach}
+                rows={3}
+                info={ABOUT_COACH_INFO}
+              />
             </div>
             <div className="flex gap-3">
               <Button
@@ -1533,6 +1644,7 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
                 onClick={() => {
                   setEmail(coach.email)
                   setPhone(coach.phone)
+                  setAboutCoach(coach.aboutCoach ?? '')
                   setEditingContact(false)
                 }}
                 variant="secondary"
@@ -1545,24 +1657,83 @@ function ProfileDetailsTab({ coach }: { coach: Coach }) {
         ) : (
           <RecordFieldList
             className="p-6"
-            fields={personalFields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+            fields={personalFields.map((f) => ({ key: f.label, ...f }))}
           />
         )}
       </Card>
 
       <Card className="gap-0 overflow-hidden rounded-lg py-0">
-        <div className="flex min-h-16 items-center bg-purple-50 px-6 py-3">
+        <div className="flex min-h-16 items-center justify-between gap-4 bg-purple-50 px-6 py-3">
           <h2 className="font-display text-title text-ink">Professional details</h2>
+          {!editingBackground && !withdrawn && (
+            <button
+              ref={editBackgroundButtonRef}
+              type="button"
+              onClick={() => setEditingBackground(true)}
+              className={OUTLINE_FILLED_BUTTON}
+            >
+              Edit details
+            </button>
+          )}
         </div>
-        <RecordFieldList
-          className="p-6"
-          fields={professionalFields.map((f) => ({ key: f.label, label: f.label, value: f.value }))}
-        />
+        {editingBackground ? (
+          <form
+            className="flex flex-col gap-4 p-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              updateCoachProfileText(coach.id, { professionalBackground: background.trim() || undefined })
+              setEditingBackground(false)
+            }}
+          >
+            {/* The three onboarding facts stay read-only; only the
+                researcher-written background is editable here. */}
+            <RecordFieldList
+              fields={professionalFields
+                .filter((f) => !f.full)
+                .map((f) => ({ key: f.label, label: f.label, value: f.value }))}
+            />
+            <div className={RECORD_GRID}>
+              <RecordTextarea
+                textareaRef={backgroundInputRef}
+                id="spaces-professional-background"
+                label="Professional background"
+                value={background}
+                onChange={setBackground}
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button type="submit">Save changes</Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setBackground(coach.professionalBackground ?? '')
+                  setEditingBackground(false)
+                }}
+                variant="secondary"
+                className="shrink-0"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <RecordFieldList
+            className="p-6"
+            fields={professionalFields.map((f) => ({
+              key: f.label,
+              label: f.label,
+              value: f.value,
+              full: f.full,
+            }))}
+          />
+        )}
       </Card>
 
       <CoachNotificationPreferencesCard
         coach={coach}
         onSave={(prefs) => updateCoachNotificationPreferences(coach.id, prefs)}
+        readOnly={withdrawn}
       />
 
       <WithdrawCoachDialog
@@ -5579,8 +5750,13 @@ export function SpacesCoachProfilePage() {
          already sticky at the same offset, and two stickies at `top-12`
          park on top of each other. See `ResearchShell`'s own note. */
       topBannerSticky={false}
+      /* Withdrawal wins over a transfer notice: it is terminal, and the
+         trainee record's own banner is reused so the two records report a
+         withdrawal identically (direct instruction, 2026-10-21). */
       topBanner={
-        transferBannerDyad?.transfer ? (
+        coach.status === 'withdrawn' ? (
+          <WithdrawnBanner coach={coach} />
+        ) : transferBannerDyad?.transfer ? (
           <TransferTopBanner
             coach={coach}
             dyad={transferBannerDyad}

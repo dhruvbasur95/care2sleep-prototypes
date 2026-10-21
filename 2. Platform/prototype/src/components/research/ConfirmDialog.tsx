@@ -21,6 +21,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   destructive = false,
+  confirmVariant = 'primary',
   confirmTone,
   singleAction = false,
   /** Round 11 design-critique fix — every dropdown-then-confirm flow this
@@ -58,6 +59,12 @@ export function ConfirmDialog({
    * carrying "brand action" in one place and nothing in the other.
    */
   confirmTone?: 'primary' | 'destructive' | 'success'
+  /** The confirm button's `variant` axis. Additive and optional: omitted, it
+   *  is the solid `primary` every dialog has always had. The SPACES coach
+   *  withdraw flow's last step passes `'secondary'`, because Figma draws that
+   *  "Withdraw coach" as `Style=Secondary, Tone=Destructive` (frame
+   *  `2884:1410`) — the same outline button as the one that opened the flow. */
+  confirmVariant?: 'primary' | 'secondary'
   /** Round 6.1 (§21 `widget-picker`) — for dialogs whose `children` slot is a
    *  row-list where each row carries its own action, so there's nothing for
    *  a Cancel/Confirm pair to confirm. Renders one text-link "close" control
@@ -384,6 +391,7 @@ export function ConfirmDialog({
                       type="button"
                       onClick={onConfirm}
                       disabled={confirmDisabled}
+                      variant={confirmVariant}
                       // `confirmTone` is the system's `tone` under an older
                       // name; `primary` here meant the brand colour.
                       tone={

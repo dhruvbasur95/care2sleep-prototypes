@@ -10677,3 +10677,33 @@ number in a demo built specifically to show the bug:
 **Gate:** `tsc -b` clean · `oxlint` 26 / 0 · `layoutAudit()` empty on 9 routes
 at 1281 with `scrollWidth === innerWidth` · every edited file transforms in
 Vite · `guard --ci` passing · `public/__audit.js` deleted after the run.
+
+---
+
+## §110 — Withdrawn coach state, label info buttons, copy boxes (2026-10-21, Round 72)
+
+### §110.1 — Withdrawn SPACES coach
+- **Top:** `components/research/WithdrawnBanner.tsx` (moved from
+  `CoachProfilePage` at its second caller): `bg-destructive`, white 14/600,
+  `px-8 py-3`, 45px at 1512. White on `#d70015` 5.86:1.
+- **Chip:** `Chip tone="destructive"` — `#d70015` on `#fcebec`, `#f7ccd0`
+  border, 134×27.
+- **Callout under Study details:** `rounded-sm border-destructive/20
+  bg-destructive/8 px-4 py-3` inside `px-6 pb-6`; 16px warning glyph; first
+  line 14/600 `#d70015`, second 14/400 ink. 1062×69 at 1512. **A tint, not the
+  banner's solid fill**, so the page does not show the same alert twice.
+- Figma has no `triangle-alert` master; frames use a "⚠" glyph (open decision).
+
+### §110.2 — A label's info button (`RecordFields` `info` prop)
+`buttonVariants({ variant: 'ghost', tone: 'destructive', size: 'icon' })`,
+16px `Info` glyph, `-my-3 -ms-3` so the 40px hit area leaves the label row at
+17px. Opens on hover, focus **and click** (controlled `Tooltip`); the copy is
+also an `sr-only` span the button's `aria-describedby` points at, because the
+tooltip primitive sets none.
+
+### §110.3 — Copy box (`ZoomGuideSlide` `copy` block)
+`border-yellow-200 bg-yellow-50 px-4 py-3`, `flex-wrap justify-between`,
+66px with a 40px primary `Button` + `Copy` glyph end. Both labels stack in one
+grid cell so "Copied" never changes the width (142 / 134px). Figma:
+`Icon 16 / copy` `4389:628`, the button's own "Icon end" slot.
+
