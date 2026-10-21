@@ -85,7 +85,9 @@ function RecordLabelInfo({ label, info }: { label: string; info: string }) {
   const descId = useId()
   return (
     <>
-    <span id={descId} className="sr-only">
+    {/* aria-hidden so the copy is not read as part of the label it sits
+        in; aria-describedby still resolves hidden content. */}
+    <span id={descId} className="sr-only" aria-hidden="true">
       {info}
     </span>
     <Tooltip open={open} onOpenChange={setOpen}>
@@ -183,9 +185,13 @@ export function RecordFieldList({
           key={f.key}
           className={cn('flex min-w-0 flex-col gap-2', f.full && RECORD_GRID_FULL)}
         >
-          <RecordLabelRow label={f.label} info={f.info}>
-            <dt className={RECORD_LABEL}>{f.label}</dt>
-          </RecordLabelRow>
+          {/* The info button sits INSIDE the <dt>: a <dl>'s row may hold only
+              <dt>/<dd>, so wrapping the <dt> in a flex <div> (the first pass)
+              broke the label/value pairing for assistive tech. */}
+          <dt className={cn(RECORD_LABEL, f.info && 'flex items-center gap-1')}>
+            {f.label}
+            {f.info && <RecordLabelInfo label={f.label} info={f.info} />}
+          </dt>
           <dd className={RECORD_VALUE_BOX}>{f.value}</dd>
         </div>
       ))}
