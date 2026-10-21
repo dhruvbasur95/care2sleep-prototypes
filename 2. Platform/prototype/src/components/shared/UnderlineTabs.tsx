@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
  *
  * Behaviour, all of it this app's own convention rather than the Figma frames'
  * (which draw a static colour-only active tab):
- * - A sliding `framer-motion` `layoutId` underline, the same `h-0.5 bg-primary`
+ * - A sliding `framer-motion` `layoutId` underline, the same 3px `bg-primary`
  *   bar and spring the record-page tab rows use, so switching tabs animates
  *   consistently everywhere in the dashboard.
  * - Roving tabindex + Left/Right/Home/End keys, per the WAI-ARIA tabs pattern:
@@ -43,14 +43,13 @@ export function UnderlineTabs<T extends string>({
    *
    *  Off by default, so the three existing callers stay byte-identical. */
   flushStart = false,
-  /** Thickness of the active tab's sliding underline.
+  /** Colour of the 1px rule under the whole row.
    *
-   *  `'section'` (default) is this row's own 2px bar, unchanged for every
-   *  existing caller. `'page'` is the 5px bar the record pages' own top-level
-   *  tab rows use — pass it where a section row sits directly under one of
-   *  those, so the two selected states read as the same mark at two levels
-   *  rather than two different treatments (direct instruction, Round 37). */
-  underlineEmphasis = 'section',
+   *  `'hairline'` (default) is unchanged for every existing caller.
+   *  `'primary'` is the coach portal's page-level tab rule — the same 1px
+   *  `primary` line the client record's own tab row sits on — so a coach page
+   *  using this component matches it (direct instruction, 2026-10-21). */
+  rule = 'hairline',
 }: {
   tabs: readonly {
     id: T
@@ -78,10 +77,10 @@ export function UnderlineTabs<T extends string>({
   idPrefix: string
   panelId: string
   flushStart?: boolean
-  underlineEmphasis?: 'section' | 'page'
+  rule?: 'hairline' | 'primary'
 }) {
   return (
-    <div className="border-b border-hairline">
+    <div className={cn('border-b', rule === 'primary' ? 'border-primary' : 'border-hairline')}>
       <div
         role="tablist"
         aria-label={ariaLabel}
@@ -125,15 +124,12 @@ export function UnderlineTabs<T extends string>({
             {active === t.id && (
               <motion.span
                 layoutId={layoutId}
-                className={cn(
-                  'absolute inset-x-4 rounded-full bg-primary',
-                  underlineEmphasis === 'page'
-                    ? // `-bottom-0.5` overlaps the row's own baseline rule, so
-                      // the two read as one mark — same as the record pages'
-                      // top-level rows.
-                      '-bottom-0.5 h-[5px]'
-                    : 'bottom-0 h-0.5',
-                )}
+                // One weight for every tab marker in the app: 3px (direct
+                // instruction, 2026-10-21 — "keep it 3px app wide"). This
+                // retires the old 2px `section` / 5px `page` split. `-bottom-px`
+                // lays it over the row's own 1px baseline rule so the two read
+                // as one mark.
+                className="absolute inset-x-4 -bottom-px h-[3px] rounded-full bg-primary"
                 transition={{ type: 'spring', stiffness: 500, damping: 35 }}
               />
             )}

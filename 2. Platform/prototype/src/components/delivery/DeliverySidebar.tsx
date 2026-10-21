@@ -4,6 +4,7 @@ import {
   CalendarDays,
   GraduationCap,
   Home,
+  LibraryBig,
   NotebookText,
   PanelLeftClose,
   PanelLeftOpen,
@@ -124,6 +125,15 @@ const links: DeliveryLink[] = [
   // rather than in the markup so the collapsed and expanded rows — two separate
   // `NavLink`s — cannot end up anchoring different elements.
   { to: '/delivery/learning', label: 'My Learning', icon: GraduationCap, end: true, tour: 'nav-learning' },
+  /* 2026-10-21, direct instruction: a new "Resources" tab, placed after My
+     Learning (moved from first, same day). Coach only, like My Schedule — the page is empty for now. */
+  {
+    to: '/delivery/resources',
+    label: 'Resources',
+    icon: LibraryBig,
+    end: true,
+    coachOnly: true,
+  },
   { to: '/delivery/notes', label: 'My Notes', icon: NotebookText, end: true, tour: 'nav-notes' },
   { to: '/delivery/account', label: 'My Profile', icon: UserRound, end: false, tour: 'nav-profile' },
 ]

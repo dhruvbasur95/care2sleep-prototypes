@@ -228,12 +228,16 @@ function CardFront({
   onFlip,
   hidden,
   buttonRef,
+  photo = PILLOW_PHOTO,
 }: {
   card: ModuleSummaryCard
   title: string
   onFlip: () => void
   hidden: boolean
   buttonRef: React.RefObject<HTMLButtonElement | null>
+  /** Overrides the shared pillow photo — the coach preview passes the
+   *  module's own cover. */
+  photo?: string
 }) {
   const pillow = PILLOW_STYLES[card.style]
   const frame = PILLOW_FRAMES[card.style]
@@ -328,7 +332,7 @@ function CardFront({
               the card was designed around, not a hole in it. */}
           <path d={frame.d} fill={PILLOW_FILL} />
           <image
-            href={PILLOW_PHOTO}
+            href={photo}
             clipPath={`url(#${clipId})`}
             preserveAspectRatio="xMidYMid slice"
             x={-3}
@@ -670,7 +674,7 @@ function CardBack({
   )
 }
 
-function SummaryCard({ card, title }: { card: ModuleSummaryCard; title: string }) {
+function SummaryCard({ card, title, photo }: { card: ModuleSummaryCard; title: string; photo?: string }) {
   const [flipped, setFlipped] = useState(false)
   const reduceMotion = useReducedMotion()
   const labelId = useId()
@@ -716,6 +720,7 @@ function SummaryCard({ card, title }: { card: ModuleSummaryCard; title: string }
         <CardFront
           card={card}
           title={title}
+          photo={photo}
           hidden={flipped}
           buttonRef={frontRef}
           onFlip={() => setFlipped(true)}
@@ -794,7 +799,7 @@ function useEqualHeaders(ref: React.RefObject<HTMLUListElement | null>) {
   }, [ref])
 }
 
-export function ModuleSummaryCards({ episode }: { episode: ModuleEpisode }) {
+export function ModuleSummaryCards({ episode, photo }: { episode: ModuleEpisode; photo?: string }) {
   const listRef = useRef<HTMLUListElement>(null)
   useEqualHeaders(listRef)
 
@@ -838,7 +843,7 @@ export function ModuleSummaryCards({ episode }: { episode: ModuleEpisode }) {
       className="grid w-full grid-cols-1 gap-6 min-[1024px]:auto-rows-fr min-[1024px]:grid-cols-2 min-[1200px]:grid-cols-3"
     >
       {episode.summaryCards.map((card) => (
-        <SummaryCard key={card.chapterId} card={card} title={titleFor(card.chapterId)} />
+        <SummaryCard key={card.chapterId} card={card} title={titleFor(card.chapterId)} photo={photo} />
       ))}
     </ul>
   )

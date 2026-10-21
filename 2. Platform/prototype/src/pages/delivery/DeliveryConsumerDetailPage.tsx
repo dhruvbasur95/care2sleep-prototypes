@@ -3041,12 +3041,10 @@ export function DeliveryConsumerDetailPage() {
              directly on top of it.
              `purple-700` at 1px (direct instruction — tried at 2px, then
              1.5px, settled back at 1px), up from `purple-200`: the change that
-             mattered was the colour, not the weight. Note the knock-on: the
-             active tab's own indicator is
-             the *same* `primary` colour, so at its old 3px it would have read
-             as barely thicker than the baseline it sits on. It is 4px below to
-             keep the active tab distinguishable — the label's weight and colour
-             carry the rest. */
+             mattered was the colour, not the weight. The active tab's own
+             indicator is the *same* `primary` colour, at 3px (the app-wide tab
+             marker weight, 2026-10-21) — the label's weight and colour carry
+             the rest of the selected state. */
           className={cn(
             'flex items-end gap-8 overflow-x-auto border-b transition-colors duration-200',
             // Hidden while parked (direct instruction): the card's own bottom
@@ -3082,13 +3080,14 @@ export function DeliveryConsumerDetailPage() {
                   {active && (
                     <motion.span
                       layoutId="delivery-consumer-detail-tab-underline"
-                      /* 5px in **both** states (direct instruction). A pass that
-                         thickened it only while parked was reverted: the marker
-                         changing size as you scroll draws attention to the
-                         scroll rather than to which tab is selected.
-                         `-bottom-0.5` keeps it overlapping the row's baseline
-                         rule at rest so the two read as one mark, not two. */
-                      className="absolute inset-x-0 -bottom-0.5 h-[5px] rounded-full bg-primary"
+                      /* 3px in **both** states — one tab-marker weight app
+                         wide (direct instruction, 2026-10-21; was 5px). A pass
+                         that thickened it only while parked was reverted: the
+                         marker changing size as you scroll draws attention to
+                         the scroll rather than to which tab is selected.
+                         `-bottom-px` lays it over the row's 1px baseline rule
+                         at rest so the two read as one mark, not two. */
+                      className="absolute inset-x-0 -bottom-px h-[3px] rounded-full bg-primary"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}

@@ -10724,3 +10724,53 @@ the researcher's `checkbox email` / `checkbox sms` frames (`2016:7286` /
 `top-12` under `AppHeader`; full viewport width (1512×45 at y48). Identical
 treatment to `WithdrawnBanner` — the two say the same kind of thing.
 
+## §112 — Coach Resources: client-module timeline, coach module preview (2026-10-21, Round 75)
+
+### §112.1 — Page (`/delivery/resources`, coach stage only)
+Title `display-lg` + `sub-greeting` sub-line, search right (400px, 1px
+`primary` outline via `SearchInput`'s new `inputClassName`), one wrapping row
+(`flex-wrap items-end`, text block `basis-[480px]`; search drops below with
+`gap-y-6`). 48px to the tab row. Tabs: `UnderlineTabs rule="primary"` →
+1px `primary` rule; panel `pt-8`, intro `body`, 32px to the timeline.
+
+### §112.2 — Tab marker weight: **3px, app-wide**
+Every tab marker is 3px (direct instruction). `UnderlineTabs` lost its
+`underlineEmphasis` prop (was 2px `section` / 5px `page`); the coach client
+record row went 5 → 3; the yellow researcher hero rows were already 3. The
+marker sits `-bottom-px` over the 1px rule. The Consumer Portal's pill nav is
+not an underline and is out of scope. Live tab row: **43.5px**.
+
+### §112.3 — `ClientModuleTimeline`
+Rail: 40px node (`border-2 primary`; filled when open), 2px `purple-200` line
+`flex-1`, 24px to the card, rows `pb-4`. Card: 16px radius, 1px `parchment`,
+white; open `py-6 shadow-card`, closed `py-5`. **One open at a time**, Week 1
+by default. Collapsed hover: outline `purple-200` + `shadow-card` + underlined
+"Show details"; the whole card is the hit area (`after:inset-0`), cursor stays
+default. Motion: **0.5s `cubic-bezier(.45,0,.55,1)`** for height, cover width,
+padding, gap and title size; content fades in at 25% delay, out at 40% duration.
+The height animates for real (not a `layout` transform), so the rail line
+lengthens with the card. Cover: **240px wide, card height, `object-cover`
+centred, `absolute`** (it must not prop a closing card open — that caused a
+~90px end-of-animation drop). Hidden below a 560px card (`@container`).
+Open content: eyebrow `caption-medium` primary (16px to the 20/500 title; 8px
+on a closed card), "About N min" `caption` + 96px progress bar + % (green
+`success` at 100%), 24px to a `<dl>` (`body-md` ink labels, `body` ink-muted
+values, `auto` label column, 12px gap, baseline-aligned), 32px to Preview
+(primary, `Play`) + "Download the resource" (secondary, unwired).
+Toggles: `min-h-9` with `-my-2.5`, so 36px hit area without moving the row.
+
+### §112.4 — Coach module preview (`/delivery/resources/modules/:moduleId`)
+`ConsumerModulePage coachPreview`. Coach `AppHeader` instead of the client
+shell; the player reads `--consumer-header-h` / `--consumer-chrome-h` = **48px**
+and `--consumer-flow-footer-h` = **73px** from `CoachPreviewFrame` (left at 72,
+the column came up 24px short — dead space under the footer). Footer and bar
+take `surface="app"` → 40px buttons. Three stages (welcome · video · summary),
+bar shown on all three: 0 / 33 / 67%, 100% on Finish. Progress is
+`data/coachModulePreview.ts` (module-scoped, session only).
+
+### §112.5 — Coach My Profile: buttons on the system
+Edit details, Save changes, Cancel (were `h-9` pins), Opt out (`h-11` pin) and
+Download certificate (hand-written 44px) are all **40px**; Download now uses
+`state: 'deactive'` when unavailable. ⚠️ Correction to §111.2, measured live:
+the opted-out banner is `position: static` and its content sits in the 1320px
+shell container (icon at **x96**, text at x124), not `px-8` at the viewport edge.

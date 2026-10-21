@@ -1,4 +1,4 @@
-import { moduleByNumber, moduleIndex } from '@/data/spaces'
+import { consumerModuleCover, moduleByNumber, moduleIndex } from '@/data/spaces'
 
 /**
  * The content behind a consumer module's inner pages — Round 46, frames
@@ -313,10 +313,41 @@ export function moduleLesson(moduleId: string | undefined) {
     label: `Module ${index}`,
     intro: MODULE_INTROS[moduleId] ?? '',
     episode,
+    /** The photo the player shows on its chapter thumbnails and summary
+     *  pillows. `undefined` keeps the consumer portal's one shared photo (its
+     *  own direct instruction); only the coach preview sets it. */
+    cover: undefined as string | undefined,
   }
 }
 
 export type ModuleLesson = NonNullable<ReturnType<typeof moduleLesson>>
+
+/** The module whose content stands in for the five that have none yet. */
+const PREVIEW_FALLBACK_MODULE = 'daytime-habits'
+
+/**
+ * The coach's preview of a client module (Resources → Client modules).
+ *
+ * Every module opens the same player (direct instruction, 2026-10-21: "for all
+ * modules, just open same module launcher but with updated images"). Only
+ * `daytime-habits` has written content, so the other five borrow its episode
+ * and intro under their OWN title, number and cover art. When a module gets
+ * its own content it is picked up here with no change.
+ */
+export function moduleLessonForPreview(moduleId: string | undefined): ModuleLesson | null {
+  if (!moduleId) return null
+  const index = moduleIndex(moduleId)
+  if (index < 1) return null
+  return {
+    index,
+    id: moduleId,
+    title: moduleByNumber(index)!.title,
+    label: `Module ${index}`,
+    intro: MODULE_INTROS[moduleId] ?? MODULE_INTROS[PREVIEW_FALLBACK_MODULE] ?? '',
+    episode: MODULE_EPISODES[moduleId] ?? MODULE_EPISODES[PREVIEW_FALLBACK_MODULE],
+    cover: consumerModuleCover(moduleId),
+  }
+}
 
 /* ── Reflection questions ───────────────────────────────────────────────── */
 

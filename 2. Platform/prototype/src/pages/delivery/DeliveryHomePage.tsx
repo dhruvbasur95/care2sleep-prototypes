@@ -3170,11 +3170,11 @@ export function DeliveryHomePage() {
               which also keeps the frame's own wording after a trim was
               rejected there. Naming the three things (sessions, health data,
               progress) is what makes it match the page underneath it. */}
-          {/* Round 40, direct instruction: `body` (16/400), not `sub-greeting`
-              (18/400). The trainee Home's own greeting keeps `sub-greeting` —
-              that one is a single short line under a `display-lg`, where this
-              is three clauses and reads better at body size. */}
-          <p className="max-w-[640px] text-body leading-[1.4] text-ink">
+          {/* `sub-greeting` (18/400), matching the sub-line under every other
+              coach-portal title (direct instruction, 2026-10-21). This
+              overturns Round 40's `body` (16/400), which made Home the one tab
+              whose sub-line read smaller than its siblings'. */}
+          <p className="max-w-[640px] text-balance text-sub-greeting leading-[1.4] text-ink">
             Manage sessions with your clients, review their health data, and track progress, all in
             one place.
           </p>

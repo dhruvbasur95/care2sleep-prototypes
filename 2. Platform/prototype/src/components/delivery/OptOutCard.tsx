@@ -108,7 +108,8 @@ export function OptOutCard() {
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
-                className={cn(buttonVariants({ variant: 'secondary', tone: 'destructive' }), 'h-11 bg-transparent transition-colors')} /* button-height-pinned: round-69 */
+                // 40px, the coach button height (was pinned to 44 in round 69).
+                className={cn(buttonVariants({ variant: 'secondary', tone: 'destructive' }), 'bg-transparent transition-colors')}
               >
                 Opt out of the study
               </button>

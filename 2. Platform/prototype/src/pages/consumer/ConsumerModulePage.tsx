@@ -39,11 +39,21 @@ import { useResearch } from '@/data/research-context'
 import {
   formatTimestamp,
   moduleLesson,
+  moduleLessonForPreview,
   moduleReflection,
   type ModuleLesson,
   type ReflectionQuestion,
 } from '@/data/consumerLessonContent'
 import { buttonVariants } from '@/components/ui/button'
+import { btn } from '@/components/shared/buttonSystem'
+import { AppHeader } from '@/components/AppHeader'
+import {
+  PREVIEW_STAGES,
+  getPreviewProgress,
+  previewPercent,
+  savePreviewProgress,
+  type PreviewStage,
+} from '@/data/coachModulePreview'
 
 /**
  * A consumer module's inner pages — complete as of Round 47.
@@ -236,13 +246,23 @@ function ModuleBar({
   stage,
   onHome,
   shown,
+  percent,
+  exitLabel = EXIT_LABEL,
+  surface = 'consumer',
 }: {
   lesson: ModuleLesson
   stage: ProgressStage
   onHome: () => void
   shown: boolean
+  /** Overrides the stage-derived figure — the coach preview's own count. */
+  percent?: number
+  exitLabel?: string
+  /** `'app'`: the 40px researcher/coach button instead of the consumer 48px
+   *  pill (coach preview, direct instruction). */
+  surface?: 'consumer' | 'app'
 }) {
-  const pct = Math.round(stageProgress(stage) * 100)
+  const pct = percent ?? Math.round(stageProgress(stage) * 100)
+  const app = surface === 'app'
   return (
     <div
       // Sticks directly under the global header, which is `sticky top-0`. The
@@ -295,9 +315,13 @@ function ModuleBar({
         type="button"
         onClick={onHome}
         className={cn(
-          CONSUMER_PILL_OUTLINE,
+          app ? btn({ surface: 'app', variant: 'secondary' }) : CONSUMER_PILL_OUTLINE,
           'shrink-0 whitespace-nowrap',
-          'size-12 px-0 min-[640px]:size-auto min-[640px]:h-12 min-[640px]:min-w-32 min-[640px]:px-5',
+          // Longhand per surface: a breakpoint built by interpolation emits no
+          // CSS (CLAUDE.md).
+          app
+            ? 'size-10 px-0 min-[640px]:size-auto min-[640px]:h-10 min-[640px]:px-5'
+            : 'size-12 px-0 min-[640px]:size-auto min-[640px]:h-12 min-[640px]:min-w-32 min-[640px]:px-5',
         )}
       >
         {/* 20px at stroke 2.25, not the frame's 16 at lucide's default 2.
@@ -312,7 +336,7 @@ function ModuleBar({
             thin"): a 2-unit stroke rendered into a 16px box paints 1.33 device
             px and reads lighter than the 16/600 label beside it. */}
         <ChevronLeft aria-hidden="true" strokeWidth={1.75} className="size-6 shrink-0"  />
-        <span className="sr-only min-[640px]:not-sr-only">{EXIT_LABEL}</span>
+        <span className="sr-only min-[640px]:not-sr-only">{exitLabel}</span>
       </button>
 
       <div className="flex min-w-0 flex-col items-start gap-1 min-[640px]:items-end">
@@ -602,11 +626,14 @@ function ChapterCarousel({
                       is a 666x1000 portrait and a plain `object-cover` into a
                       180x108 landscape box lands on a shoulder. 29.7% is where
                       the two faces sit. */}
+                  {/* The coach preview passes the module's own cover
+                      (`lesson.cover`); the consumer keeps the shared photo and
+                      its face-height crop. */}
                   <img
-                    src="/illustrations/consumer-home/lesson-cover.jpg"
+                    src={lesson.cover ?? '/illustrations/consumer-home/lesson-cover.jpg'}
                     alt=""
                     className="size-full rounded-lg object-cover"
-                    style={{ objectPosition: 'center 29.7%' }}
+                    style={{ objectPosition: lesson.cover ? 'center' : 'center 29.7%' }}
                   />
                 </button>
 
@@ -892,7 +919,7 @@ One download for the whole
         }
       />
 
-      <ModuleSummaryCards episode={lesson.episode} />
+      <ModuleSummaryCards episode={lesson.episode} photo={lesson.cover} />
     </div>
   )
 }
@@ -1169,7 +1196,33 @@ function ModuleDoneStage({
 
 /* ── Page ───────────────────────────────────────────────────────────────── */
 
-export function ConsumerModulePage() {
+/** Where a coach's preview returns to. */
+const COACH_RESOURCES = '/delivery/resources'
+
+/** Where Resume puts a coach back: their saved stage, or the start once the
+ *  preview has been finished. */
+function previewResumeStage(moduleId: string | undefined): PreviewStage {
+  const saved = moduleId ? getPreviewProgress(moduleId) : undefined
+  return saved && !saved.complete ? saved.stage : 'welcome'
+}
+
+/**
+ * `coachPreview` (2026-10-21, direct instruction): a coach opens this same
+ * player from Resources → Client modules → Preview module. Differences, each
+ * asked for:
+ * - every module plays (the content falls back to the one module that has
+ *   any; titles and cover art are the module's own) — `moduleLessonForPreview`
+ * - the flow ENDS after the Module summary: no reflection questions, no
+ *   completion screen; Finish returns to Resources
+ * - Go home returns to Resources (labelled so — a control that says "home"
+ *   and lands elsewhere is the lie this file already removed once)
+ * - buttons are the coach's 40px, not the consumer's 48px
+ * - the progress bar shows on every stage, the welcome screen included
+ * - leaving part-way keeps the coach's place, and the Resources card shows
+ *   the progress with a Resume
+ * No dyad: a coach is not a client, so nothing here reads one.
+ */
+export function ConsumerModulePage({ coachPreview = false }: { coachPreview?: boolean } = {}) {
   const { dyadId, moduleId } = useParams()
   const { consumerDyads } = useResearch()
   const navigate = useNavigate()
@@ -1177,7 +1230,7 @@ export function ConsumerModulePage() {
   const from = searchParams.get('from')
   const reduceMotion = useReducedMotion()
 
-  const [stage, setStage] = useState<Stage>('welcome')
+  const [stage, setStage] = useState<Stage>(() => (coachPreview ? previewResumeStage(moduleId) : 'welcome'))
   /**
    * The furthest stage reached, which is not the same as the current one and is
    * the only thing that can tell "Start learning" from "Go next" on the welcome
@@ -1188,7 +1241,9 @@ export function ConsumerModulePage() {
    * `ModulePlayerNav`'s own `furthestIndex` is (Round 33): re-reading an earlier
    * screen must never make a later one unreachable, or roll a label back.
    */
-  const [furthest, setFurthest] = useState(0)
+  const [furthest, setFurthest] = useState(() =>
+    coachPreview ? PREVIEW_STAGES.indexOf(previewResumeStage(moduleId)) : 0,
+  )
   const chrome = useScrollChrome(!!reduceMotion, stage)
 
   /**
@@ -1279,7 +1334,7 @@ export function ConsumerModulePage() {
     return rows
   }, [dyad])
 
-  const lesson = moduleLesson(moduleId)
+  const lesson = coachPreview ? moduleLessonForPreview(moduleId) : moduleLesson(moduleId)
   const questions = moduleReflection(moduleId)
 
   /**
@@ -1304,14 +1359,24 @@ export function ConsumerModulePage() {
     node?.focus({ preventScroll: true })
   }, [])
 
-  if (!dyad) return <Navigate to="/consumer" replace />
+  if (!coachPreview && !dyad) return <Navigate to="/consumer" replace />
   // A module with no content yet, or an id that is not a numbered module, goes
   // back to the list rather than rendering an empty player.
-  if (!lesson) return <Navigate to={`/consumer/${dyadId}/learning`} replace />
+  if (!lesson) {
+    return <Navigate to={coachPreview ? COACH_RESOURCES : `/consumer/${dyadId}/learning`} replace />
+  }
+
+  /** The coach's way out: keep their place, and reopen this module's card on
+   *  the Resources page so the progress they just made is in view. */
+  const toResources = (complete: boolean) => {
+    const at = (PREVIEW_STAGES as readonly string[]).includes(stage) ? (stage as PreviewStage) : 'summary'
+    savePreviewProgress(lesson.id, { stage: at, complete })
+    navigate(COACH_RESOURCES, { state: { openModule: lesson.id } })
+  }
 
   /** Leaving part-way through returns you where you came from — Home, or My
    *  Modules if that is where the module was opened from. */
-  const toOrigin = () => navigate(moduleExitTo(dyad.id, from))
+  const toOrigin = () => (coachPreview ? toResources(false) : navigate(moduleExitTo(dyad!.id, from)))
   /**
    * Finishing goes **Home**, always — direct instruction: "after completing
    * module, take me back to homepage".
@@ -1327,10 +1392,24 @@ export function ConsumerModulePage() {
    * different intent from finishing, and going back to the list you were
    * browsing is the right answer there.
    */
-  const toHomePage = () => navigate(`/consumer/${dyad.id}`)
+  const toHomePage = () => navigate(`/consumer/${dyad!.id}`)
   const advance = () => {
     if (stage === 'done') {
       toHomePage()
+      return
+    }
+    if (coachPreview) {
+      // The preview ends after the Module summary (direct instruction): no
+      // reflection questions and no completion screen.
+      const i = PREVIEW_STAGES.indexOf(stage as PreviewStage)
+      if (i === PREVIEW_STAGES.length - 1) {
+        toResources(true)
+        return
+      }
+      const nextStage = PREVIEW_STAGES[i + 1]
+      setStage(nextStage)
+      setFurthest((f) => Math.max(f, i + 1))
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
       return
     }
     // Finishing the last progress stage lands on the completion screen rather
@@ -1390,26 +1469,8 @@ export function ConsumerModulePage() {
         exit: { opacity: 0, transition: { duration: 0.2 } },
       }
 
-  return (
-    <ConsumerShell
-      dyadId={dyad.id}
-      accountLabel={dyad.carer.name}
-      showNav={false}
-      // A module is entered from Home or My Modules, so the portal's own
-      // first-run welcome does not belong in front of it.
-      showWelcome={false}
-      // The shell contributes no padding: the welcome stage's photo band is
-      // full-bleed and the yellow bar and footer bleed to the viewport edges,
-      // so every inset below is the stage's own.
-      contentClassName="bg-consumer-canvas relative overflow-x-clip p-0"
-      contentFullBleed
-      // The footer is viewport-anchored whenever the chrome slides it in, and
-      // the shell's cue pins itself to the same corner — measured overlapping
-      // the footer's own Go back on a phone. The sliding chrome already says
-      // there is more below.
-      showScrollCue={false}
-      optedOut={dyad.optedOut}
-    >
+  const body = (
+    <>
       {/*
         Direct instruction: "the lower footer should always be sticky at
         bottom". `sticky bottom-0` alone is not enough — a sticky element only
@@ -1432,12 +1493,18 @@ export function ConsumerModulePage() {
           progress figure, and neither means anything on a screen you have not
           started, where "25% complete" is a claim about work nobody has done.
           The footer stays, because that screen does need a way forward. */}
-      {stage !== 'welcome' && stage !== 'done' && (
+      {/* The coach preview shows the bar on the welcome screen too (direct
+          instruction: "Show the progress bar up top") — 0% there, which is
+          true: nothing has been finished yet. */}
+      {(coachPreview ? stage !== 'done' : stage !== 'welcome' && stage !== 'done') && (
         <ModuleBar
           lesson={lesson}
-          stage={stage}
+          stage={stage as ProgressStage}
           onHome={() => setConfirmExit(true)}
           shown={chrome.bar}
+          percent={coachPreview ? previewPercent({ stage: stage as PreviewStage, complete: false }) : undefined}
+          exitLabel={coachPreview ? 'Back to resources' : undefined}
+          surface={coachPreview ? 'app' : 'consumer'}
         />
       )}
 
@@ -1527,11 +1594,15 @@ export function ConsumerModulePage() {
           than 48px left to scroll, so a short Summary on a tall monitor still
           shows nothing. */}
       <ConfirmDialog
-        variant="consumer"
+        variant={coachPreview ? undefined : 'consumer'}
         open={confirmExit}
         title="Leave this module?"
-        body="You can come back whenever you like, and you will start again from this same page. Nothing you have done is lost."
-        confirmLabel="Go home"
+        body={
+          coachPreview
+            ? 'You can resume from this same page from the Resources tab.'
+            : 'You can come back whenever you like, and you will start again from this same page. Nothing you have done is lost.'
+        }
+        confirmLabel={coachPreview ? 'Back to resources' : 'Go home'}
         cancelLabel="Stay here"
         onConfirm={() => {
           setConfirmExit(false)
@@ -1579,7 +1650,7 @@ export function ConsumerModulePage() {
               ) : (
                 'Start learning'
               )
-            ) : stage === 'reflection' ? (
+            ) : stage === 'reflection' || (coachPreview && stage === 'summary') ? (
               <>
                 <span className="min-[768px]:hidden">Finish</span>
                 <span className="hidden min-[768px]:inline">Finish module</span>
@@ -1610,9 +1681,69 @@ export function ConsumerModulePage() {
              its back control goes, not in what it says. */
           onBack={stage === 'welcome' ? toOrigin : retreat}
           shown={chrome.footer}
+          surface={coachPreview ? 'app' : 'consumer'}
       />
       )}
       </div>
+    </>
+  )
+
+  if (coachPreview) return <CoachPreviewFrame>{body}</CoachPreviewFrame>
+
+  return (
+    <ConsumerShell
+      dyadId={dyad!.id}
+      accountLabel={dyad!.carer.name}
+      showNav={false}
+      // A module is entered from Home or My Modules, so the portal's own
+      // first-run welcome does not belong in front of it.
+      showWelcome={false}
+      // The shell contributes no padding: the welcome stage's photo band is
+      // full-bleed and the yellow bar and footer bleed to the viewport edges,
+      // so every inset below is the stage's own.
+      contentClassName="bg-consumer-canvas relative overflow-x-clip p-0"
+      contentFullBleed
+      // The footer is viewport-anchored whenever the chrome slides it in, and
+      // the shell's cue pins itself to the same corner — measured overlapping
+      // the footer's own Go back on a phone. The sliding chrome already says
+      // there is more below.
+      showScrollCue={false}
+      optedOut={dyad!.optedOut}
+    >
+      {body}
     </ConsumerShell>
+  )
+}
+
+/**
+ * The coach preview's page frame: the coach portal's own header (a coach is
+ * not signed in as a client, so the client header and its account menu would
+ * be wrong), then the player.
+ *
+ * The player reads three variables the consumer portal normally supplies, all
+ * re-pointed at the coach header here: `--consumer-header-h` (the full-height
+ * column subtracts it — left at the client header's 72px, the column came up
+ * 24px short and the footer sat above a 24px strip of dead space),
+ * `--consumer-chrome-h` (what the module bar sticks under — the
+ * coach header's measured 48px) and `--consumer-flow-footer-h` (what the
+ * scroll cue lifts by — 1px border + 16px + the 40px coach button + 16px).
+ */
+function CoachPreviewFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="min-h-screen bg-background"
+      style={
+        {
+          '--consumer-header-h': '48px',
+          '--consumer-chrome-h': '48px',
+          '--consumer-flow-footer-h': '73px',
+        } as React.CSSProperties
+      }
+    >
+      <AppHeader portal="delivery" accountLabel="Helen Zhang" />
+      <main id="main-content" tabIndex={-1} className="bg-consumer-canvas relative min-w-0 overflow-x-clip outline-none">
+        {children}
+      </main>
+    </div>
   )
 }

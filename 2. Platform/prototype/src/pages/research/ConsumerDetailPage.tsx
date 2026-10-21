@@ -3825,16 +3825,10 @@ export function FitbitSyncMonitor({
    *  can represent. Consumer Portal turns this off; every other site keeps it. */
   showComparative?: boolean
   /** Aligns this section's member tabs with the *page's* own tab row: label
-   *  flush to the section gutter, and the 5px active underline the Coach
-   *  Delivery Portal's per-client row uses (direct instruction, Round 37 —
-   *  a 2px bar 16px inboard read as a different kind of selected state on the
-   *  same screen).
-   *
-   *  Opt-in, because the other two callers sit under page rows of their own
-   *  with different underlines (the researcher record page's yellow 3px hero
-   *  tabs, the Consumer Portal's 3px primary row) — turning this on for them
-   *  would swap one mismatch for another. Both still show the same 16px label
-   *  indent this fixes here; correcting them is a separate call. */
+   *  flush to the section gutter (direct instruction, Round 37). The marker
+   *  weight no longer depends on this — every tab marker is 3px since
+   *  2026-10-21. Opt-in because the other callers' page rows start their
+   *  labels at a different inset. */
   tabsMatchPageRow?: boolean
 }) {
   const [uncontrolledMember, setUncontrolledMember] = useState<FitbitTab>(
@@ -3959,9 +3953,8 @@ export function FitbitSyncMonitor({
           layoutId="consumer-health-data-hub-member-underline"
           idPrefix="fitbit-member-tab"
           panelId="fitbit-table-panel"
-          /* See `tabsMatchPageRow` above: flush label + the page row's 5px bar. */
+          /* See `tabsMatchPageRow` above: flush label. */
           flushStart={tabsMatchPageRow}
-          underlineEmphasis={tabsMatchPageRow ? 'page' : 'section'}
         />
       )}
 

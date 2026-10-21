@@ -16,6 +16,7 @@ import { DeliveryHomePage } from '@/pages/delivery/DeliveryHomePage'
 import { DeliveryMeetingsPage } from '@/pages/delivery/DeliveryMeetingsPage'
 import { DeliveryLearningHomePage } from '@/pages/delivery/DeliveryLearningHomePage'
 import { DeliveryNotesPage } from '@/pages/delivery/DeliveryNotesPage'
+import { DeliveryResourcesPage } from '@/pages/delivery/DeliveryResourcesPage'
 import { DeliveryConsumerDetailPage } from '@/pages/delivery/DeliveryConsumerDetailPage'
 import { DeliveryAccountPage } from '@/pages/delivery/DeliveryAccountPage'
 import { ResearchAccountPage } from '@/pages/research/ResearchAccountPage'
@@ -83,6 +84,10 @@ export default function App() {
             <Route path="/delivery/meetings" element={<DeliveryMeetingsPage />} />
             <Route path="/delivery/learning" element={<DeliveryLearningHomePage />} />
             <Route path="/delivery/notes" element={<DeliveryNotesPage />} />
+            <Route path="/delivery/resources" element={<DeliveryResourcesPage />} />
+            {/* A coach previewing a client module: the consumer player in its
+                coach mode (Resources → Client modules → Preview module). */}
+            <Route path="/delivery/resources/modules/:moduleId" element={<ConsumerModulePage coachPreview />} />
             {/* Coach Delivery Portal — per-consumer detail view (Round 6.2) */}
             <Route path="/delivery/consumers/:dyadId" element={<DeliveryConsumerDetailPage />} />
             {/* Coach Delivery Portal — Account tab (Round 6.2.1) */}

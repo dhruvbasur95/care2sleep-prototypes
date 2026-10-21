@@ -54,7 +54,10 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
               // app's own primary-outline pill instead — white fill, `primary`
               // label — which is what every other action on a tinted trainee
               // band uses (the pathway card's "Learn more").
-              className={cn(buttonVariants({ variant: 'secondary' }), 'h-9')} /* button-height-pinned: round-69 */
+              // 40px, the coach button height (direct instruction, 2026-10-21:
+              // "stream line button height to match button system height") —
+              // the round-69 `h-9` pin is gone.
+              className={buttonVariants({ variant: 'secondary' })}
             >
               Edit details
             </button>
@@ -95,7 +98,7 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
             <div className="flex gap-3">
               <button
                 type="submit"
-                className={cn(buttonVariants(), 'h-9 focus-visible:ring-offset-2')} /* button-height-pinned: round-69 */
+                className={cn(buttonVariants(), 'focus-visible:ring-offset-2')}
               >
                 Save changes
               </button>
@@ -106,7 +109,7 @@ function ProfileDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['
                   setPhone(coach.phone)
                   setEditing(false)
                 }}
-                className={cn(buttonVariants({ variant: 'secondary' }), 'h-9')} /* button-height-pinned: round-69 */
+                className={buttonVariants({ variant: 'secondary' })}
               >
                 Cancel
               </button>
@@ -196,9 +199,12 @@ function StudyDetailsCard({ coach }: { coach: ReturnType<typeof useResearch>['co
             type="button"
             onClick={canDownload ? downloadCertificate : (e) => e.preventDefault()}
             aria-disabled={canDownload ? undefined : true}
+            // On the button system at the coach 40px (was a hand-written 44px
+            // pill). Unavailable = `state: 'deactive'`, which carries no hover
+            // paint, paired with the `aria-disabled` above.
             className={cn(
-              'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-primary px-[18px] text-caption-medium text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-              canDownload ? 'hover:bg-primary/10' : 'cursor-not-allowed opacity-50',
+              buttonVariants({ variant: 'secondary', state: canDownload ? 'static' : 'deactive' }),
+              'shrink-0',
             )}
           >
             <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />

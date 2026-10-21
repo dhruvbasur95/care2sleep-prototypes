@@ -6,6 +6,11 @@ import {
   CONSUMER_PILL_OUTLINE,
   CONSUMER_PILL_PRIMARY,
 } from '@/components/shared/buttonStyles'
+import { btn } from '@/components/shared/buttonSystem'
+
+/** The researcher/coach 40px pair, for `surface="app"`. */
+const APP_PILL_PRIMARY = btn({ surface: 'app' })
+const APP_PILL_OUTLINE = btn({ surface: 'app', variant: 'secondary' })
 
 /**
  * The Consumer Portal's Go back / Go next flow footer, and the pill geometry
@@ -100,6 +105,7 @@ export function ConsumerFlowFooter({
   continueBlockedReason,
   backBlockedReason,
   shown = true,
+  surface = 'consumer',
 }: {
   /** A node, not a string, so a caller can vary the wording by breakpoint with
    *  two CSS-hidden spans — `display: none` text is excluded from the
@@ -135,7 +141,13 @@ export function ConsumerFlowFooter({
   backBlockedReason?: string
   /** Defaults to in. A flow with direction-aware chrome passes its own flag. */
   shown?: boolean
+  /** `'app'` sizes both controls to the researcher/coach 40px button instead
+   *  of the Consumer Portal's 48px — the coach's preview of a client module
+   *  (direct instruction, 2026-10-21: "follow standard coach button height,
+   *  not consumers"). Default leaves every consumer flow untouched. */
+  surface?: 'consumer' | 'app'
 }) {
+  const app = surface === 'app'
   return (
     <div
       className={cn(
@@ -164,7 +176,7 @@ export function ConsumerFlowFooter({
                  lines inside a 48px pill. Letting Go back size to its own
                  content (~120) fits both on one line with room to spare. */
               className={cn(
-                CONSUMER_PILL_OUTLINE,
+                app ? APP_PILL_OUTLINE : CONSUMER_PILL_OUTLINE,
                 'shrink-0 gap-4 whitespace-nowrap min-[768px]:w-38',
                 /* 60%, not the 40% the diary's own Back used before this footer
                    took the job: rasterised over the footer's white, 40% paints
@@ -196,14 +208,15 @@ export function ConsumerFlowFooter({
             aria-describedby={continueBlockedReason ? FORWARD_REASON_ID : undefined}
             onClick={continueBlockedReason ? undefined : onContinue}
             className={cn(
-              CONSUMER_PILL_PRIMARY,
+              app ? APP_PILL_PRIMARY : CONSUMER_PILL_PRIMARY,
               'w-full justify-between',
               /* /65, not /55. Rasterised over the footer's white: 55% paints
                  rgb(147,115,210) and puts the white label at 3.73:1, which fails
                  AA; 65% paints rgb(127,89,202) at 5.02:1. Round 33's own disabled
                  Next was kept legible for the same reason. No `cursor-not-allowed`
                  — the hint replaces it, which is the whole point of the hint. */
-              continueBlockedReason && 'bg-consumer-primary/65 hover:bg-consumer-primary/65',
+              continueBlockedReason &&
+                (app ? 'bg-primary/65 hover:bg-primary/65' : 'bg-consumer-primary/65 hover:bg-consumer-primary/65'),
             )}
           >
             <span className="flex-1 whitespace-nowrap text-center">{label}</span>
