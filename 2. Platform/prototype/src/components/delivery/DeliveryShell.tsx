@@ -9,6 +9,8 @@ import { CoachStageSwitcher } from '@/components/delivery/CoachStageSwitcher'
 import { useCoachStage } from '@/data/coachStage'
 import { startDeliveryTour } from '@/data/deliveryTour'
 import { cn } from '@/lib/utils'
+import { useOptedOut } from '@/data/optOut'
+import { OptedOutBanner } from '@/components/delivery/OptedOutBanner'
 
 /**
  * Onboarding is deliberately **not persisted** (direct instruction, Round 29):
@@ -140,6 +142,7 @@ export function DeliveryShell({
    */
   heroFlushBelow?: boolean
 }) {
+  const optedOut = useOptedOut()
   const navigate = useNavigate()
   const stage = useCoachStage()
   const reduceMotion = useReducedMotion()
@@ -223,6 +226,14 @@ export function DeliveryShell({
           match, but keeping it means every coach screen shares one chrome and
           the sidebar never shifts when the welcome flow ends. */}
       <AppHeader portal="delivery" accountLabel={accountLabel} />
+      {/* Once the trainee/coach has opted out, a red banner right under the
+          header on every page — the same slot and sticky offset as
+          `ResearchShell`'s `topBanner`. */}
+      {optedOut && (
+        <div className="sticky top-12 z-20">
+          <OptedOutBanner />
+        </div>
+      )}
 
       {/* Frame `542:1597` columns, transcribed at its own 1281px width:
           24 (left) + 200 (sidebar) + 48 (gap) + 961 (content) + 48 (right).

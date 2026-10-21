@@ -9,7 +9,6 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarPlus,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -58,6 +57,7 @@ import {
 } from '@/pages/research/ConsumerDetailPage'
 import { Chip, CertificationChip } from '@/components/research/StatusChip'
 import { WithdrawnBanner } from '@/components/research/WithdrawnBanner'
+import { BrandCheckbox } from '@/components/shared/BrandCheckbox'
 import {
   RECORD_GRID,
   RECORD_TEXTAREA,
@@ -855,8 +855,6 @@ function CoachNotificationPreferencesCard({
 
   const dirty = email !== preferences.email || sms !== preferences.sms
 
-  const checkboxClass =
-    'peer size-7 shrink-0 cursor-pointer appearance-none rounded-[6px] disabled:cursor-not-allowed disabled:opacity-60 border border-hairline bg-card outline-none transition-colors checked:border-purple-500 checked:bg-purple-500 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 
   return (
     <Card className="gap-0 overflow-hidden rounded-lg py-0">
@@ -872,52 +870,27 @@ function CoachNotificationPreferencesCard({
             setSaved(true)
           }}
         >
-          <label
-            className={cn(
-              'flex items-center gap-3 text-caption text-ink',
-              readOnly ? 'cursor-not-allowed' : 'cursor-pointer',
-            )}
-          >
-            <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
-              <input
-                type="checkbox"
-                checked={email}
-                onChange={(e) => {
-                  setEmail(e.target.checked)
-                  setSaved(false)
-                }}
-                disabled={readOnly}
-                className={checkboxClass}
-              />
-              <Check
-                aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
-            </span>
-            Email
-          </label>
-          <label
-            className={cn(
-              'flex items-center gap-3 text-caption text-ink',
-              readOnly ? 'cursor-not-allowed' : 'cursor-pointer',
-            )}
-          >
-            <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
-              <input
-                type="checkbox"
-                checked={sms}
-                onChange={(e) => {
-                  setSms(e.target.checked)
-                  setSaved(false)
-                }}
-                disabled={readOnly}
-                className={checkboxClass}
-              />
-              <Check
-                aria-hidden="true"
-                className="pointer-events-none absolute size-4 text-white opacity-0 peer-checked:opacity-100" strokeWidth={2.25} />
-            </span>
-            SMS
-          </label>
+          {/* The shared app checkbox — it started here and moved to
+              `components/shared/BrandCheckbox` when the trainee/coach profile
+              adopted it (2026-10-21). */}
+          <BrandCheckbox
+            label="Email"
+            checked={email}
+            disabled={readOnly}
+            onChange={(v) => {
+              setEmail(v)
+              setSaved(false)
+            }}
+          />
+          <BrandCheckbox
+            label="SMS"
+            checked={sms}
+            disabled={readOnly}
+            onChange={(v) => {
+              setSms(v)
+              setSaved(false)
+            }}
+          />
 
           {dirty && !readOnly && (
             <Button

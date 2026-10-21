@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { NotificationPreferences } from '@/data/research'
 import { buttonVariants } from '@/components/ui/button'
+import { BrandCheckbox } from '@/components/shared/BrandCheckbox'
 
 /**
  * Shared across all 3 Account tabs (Round 6.2.1) — the checkbox pair is always
@@ -94,7 +95,17 @@ export function NotificationPreferencesCard({
             setSaved(true)
           }}
         >
-          <label className={cn('flex min-h-11 cursor-pointer items-center gap-2 text-ink', t.label)}>
+          {variant === 'app' ? (
+            /* The app's checkbox (2026-10-21, "not consistent to researcher
+               dash"). `min-h-11` keeps each row a 44px target. The Consumer
+               Portal keeps its own controls below. */
+            <>
+              <BrandCheckbox label="Email" checked={email} onChange={(v) => { setEmail(v); setSaved(false) }} className="min-h-11" />
+              <BrandCheckbox label="SMS" checked={sms} onChange={(v) => { setSms(v); setSaved(false) }} className="min-h-11" />
+            </>
+          ) : (
+            <>
+            <label className={cn('flex min-h-11 cursor-pointer items-center gap-2 text-ink', t.label)}>
             <input
               type="checkbox"
               checked={email}
@@ -106,7 +117,7 @@ export function NotificationPreferencesCard({
             />
             Email
           </label>
-          <label className={cn('flex min-h-11 cursor-pointer items-center gap-2 text-ink', t.label)}>
+            <label className={cn('flex min-h-11 cursor-pointer items-center gap-2 text-ink', t.label)}>
             <input
               type="checkbox"
               checked={sms}
@@ -118,6 +129,9 @@ export function NotificationPreferencesCard({
             />
             SMS
           </label>
+
+            </>
+          )}
 
           {dirty && (
             <button

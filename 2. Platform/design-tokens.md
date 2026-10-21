@@ -10707,3 +10707,20 @@ tooltip primitive sets none.
 grid cell so "Copied" never changes the width (142 / 134px). Figma:
 `Icon 16 / copy` `4389:628`, the button's own "Icon end" slot.
 
+---
+
+## §111 — One checkbox, and the opted-out banner (2026-10-21, Round 74)
+
+### §111.1 — `BrandCheckbox`
+28×28, `rounded-[6px]`, `border-hairline` on `bg-card`; checked fills
+`purple-500` (`#3a00ad`) with a white 16px `Check` (stroke 2.25); focus ring
+offset 2; `disabled` at 60% opacity. Label `text-caption` ink, 12px gap. In
+`NotificationPreferencesCard` each row keeps `min-h-11` (44px target). Figma:
+the researcher's `checkbox email` / `checkbox sms` frames (`2016:7286` /
+`2016:7290`) — there is no checkbox component.
+
+### §111.2 — `OptedOutBanner`
+`bg-destructive`, white 14/600, `px-8 py-3`, 16px `TriangleAlert`; sticky
+`top-12` under `AppHeader`; full viewport width (1512×45 at y48). Identical
+treatment to `WithdrawnBanner` — the two say the same kind of thing.
+

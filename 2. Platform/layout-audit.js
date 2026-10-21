@@ -242,9 +242,27 @@ function layoutAudit(rootSelector) {
     const target = cell.querySelector('a, span, p') ?? cell
     const words = (target.textContent ?? '').trim().split(/\s+/).filter(Boolean)
     if (words.length === 0 || words.length > 3) return
-    const range = document.createRange()
-    range.selectNodeContents(target)
-    const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)))
+    // SEVENTH CALIBRATION (2026-10-21, Round 73): line tops come from TEXT
+    // nodes only. The range used to cover the cell's whole contents, so an
+    // element box on the same line counted as a line of its own: My Notes'
+    // actions cell (View · Download · a 36px trash button, one flex row,
+    // nothing wrapped) reported because the button's box top (936) differed
+    // from the links' text top (946). Measured: View and Download both at
+    // y946, cell width 210 against 165 of content. Real wraps are still lines
+    // of text at different tops, so they still fire (probe below).
+    // Proved both ways: the 40px "Assigned Coach" <th> probe and a 60px
+    // "View note" link cell still fire; a View/Download/icon-button cell does
+    // not. Still fires (left deliberately): TEXT inside a taller sibling
+    // control on the same line — its text sits lower, which is rare enough to
+    // read as a real finding until proven otherwise.
+    const tops = new Set()
+    const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.textContent.trim()) continue
+      const range = document.createRange()
+      range.selectNodeContents(n)
+      for (const r of range.getClientRects()) if (r.width > 0) tops.add(Math.round(r.top))
+    }
     if (tops.size < 2) return
 
     // SIXTH CALIBRATION: a header whose widest word fits its own content box

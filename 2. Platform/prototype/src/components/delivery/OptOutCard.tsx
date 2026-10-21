@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/research/ConfirmDialog'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { setOptedOut, useOptedOut } from '@/data/optOut'
 
 /**
  * "Opt out of the study" — the trainee's own withdrawal request.
@@ -26,7 +27,12 @@ import { cn } from '@/lib/utils'
  */
 export function OptOutCard() {
   const [confirming, setConfirming] = useState(false)
-  const [optedOut, setOptedOut] = useState(false)
+  /* Shared, not local: the red banner across the top of the portal reads the
+     same flag, and it must survive navigating away and back. */
+  const optedOut = useOptedOut()
+  /** True only for the render after "Opt out" was confirmed here, so a card
+   *  that mounts already opted out does not steal focus. */
+  const justOptedOut = useRef(false)
   const doneRef = useRef<HTMLParagraphElement>(null)
 
   // Focus has to land on the acknowledgement, and it has to land there *after*
@@ -41,12 +47,14 @@ export function OptOutCard() {
   // So this waits out the panel's own 200ms exit rather than racing it. A
   // timeout keyed on the state change, not a frame count.
   useEffect(() => {
-    if (!optedOut) return
+    if (!optedOut || !justOptedOut.current) return
+    justOptedOut.current = false
     const t = window.setTimeout(() => doneRef.current?.focus(), 300)
     return () => window.clearTimeout(t)
   }, [optedOut])
 
   function confirm() {
+    justOptedOut.current = true
     setOptedOut(true)
     setConfirming(false)
   }
