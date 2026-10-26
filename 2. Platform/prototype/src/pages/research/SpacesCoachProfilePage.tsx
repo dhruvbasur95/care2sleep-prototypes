@@ -3165,10 +3165,23 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
     { key: 'carer', heading: dyad.carer.name, log: dyad.carerLog },
   ]
 
-  const measures: { key: string; label: string; count: (log: HealthLogEntry[]) => number }[] = [
-    { key: 'tracked', label: 'Nights tracked', count: (log) => log.length },
-    { key: 'diary', label: 'Sleep diary entries', count: (log) => log.filter((e) => !!e.diary).length },
-    { key: 'synced', label: 'Fitbit nights synced', count: (log) => log.filter((e) => e.synced).length },
+  const measures: { key: string; label: string; value: (log: HealthLogEntry[]) => string | number }[] = [
+    { key: 'tracked', label: 'Nights tracked', value: (log) => log.length },
+    { key: 'diary', label: 'Sleep diary entries', value: (log) => log.filter((e) => !!e.diary).length },
+    { key: 'synced', label: 'Fitbit nights synced', value: (log) => log.filter((e) => e.synced).length },
+    /* Direct instruction (2026-10-26): the date each person's Fitbit last
+       reported, so a researcher can see how stale a gap is, not just that one
+       exists. Read off the same `synced` flag as the row above, so the count
+       and the date cannot disagree. A person with no synced night says so in
+       words rather than rendering an empty cell. */
+    {
+      key: 'last-synced',
+      label: 'Fitbit last synced',
+      value: (log) => {
+        const last = log.filter((e) => e.synced).map((e) => e.date).sort().pop()
+        return last ? formatDate(last) : 'Not synced yet'
+      },
+    },
   ]
 
   function Group({ title, children, last }: { title: string; children: ReactNode; last?: boolean }) {
@@ -3307,7 +3320,7 @@ function ModulesAndSessionsCard({ dyad }: { dyad: ConsumerDyad }) {
                         key={c.key}
                         className="px-4 py-3 text-right text-caption-medium text-ink tabular-nums"
                       >
-                        {m.count(c.log)}
+                        {m.value(c.log)}
                       </td>
                     ))}
                   </tr>
