@@ -4461,9 +4461,45 @@ const moodLabel = (id: ConsumerSessionFeedback['mood']) =>
  *  the picker also removed this component's only reason to know about the
  *  coach's *other* consumers; it now takes just the dyad it displays, plus the
  *  coach for the possessive copy. */
+/**
+ * ⚠️ **DUMMY, view-level only.** The transfer demo's session reflections split
+ * across the two coaches, keyed by dyad, then internal session number → held
+ * date.
+ *
+ * Direct instruction, 2026-10-26: the researcher's Session reflection tab for
+ * a transferred consumer shows **two tables** — the current coach's progress on
+ * top, and below it what the previous coach shared before the hand-over — and
+ * *"no need to update database"*. So these dates live here and the seed's
+ * `sessionCompletion` is untouched; every other surface (the timeline, the
+ * session counts, the coach's own screens) still reads the seed, which has
+ * Planning + Sessions 1–2 under Fatima and no plan yet under Helen.
+ *
+ * **What replaces this:** a real per-session coach attribution on the
+ * completion record. Once that exists the split derives from it and this map
+ * goes.
+ */
+const TRANSFER_REFLECTION_DEMO: Record<
+  string,
+  { previous: Record<number, string>; current: Record<number, string> }
+> = {
+  'dyad-015': {
+    // Planning + Sessions 1–3 with Fatima, all before the 16 Jul hand-over.
+    previous: { 1: '2026-05-04', 2: '2026-05-18', 3: '2026-06-01', 4: '2026-06-15' },
+    // Helen's own planning session + Session 4, between the hand-over and
+    // TODAY (22 Jul). Sessions 5 and 6 are still to come.
+    current: { 1: '2026-07-17', 5: '2026-07-21' },
+  },
+}
+
 function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerDyad }) {
-  const { sessionCompletion } = useResearch()
-  const firstName = coach.fullName.split(' ')[0]
+  const { sessionCompletion, coaches } = useResearch()
+  /* The transfer split, only on the receiving coach's record — the coach who
+     holds the consumer now is the one whose table goes on top. */
+  const split =
+    dyad.transfer && dyad.coachId === coach.id ? TRANSFER_REFLECTION_DEMO[dyad.id] : undefined
+  const previousCoach = split
+    ? coaches.find((c) => c.id === dyad.transfer!.fromCoachId)
+    : undefined
   /* The table lists all seven sessions whether or not they have happened,
      so `rows.length` can no
      longer be the empty test — it is always seven. A client with no plan
@@ -4474,6 +4510,13 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const [feedbackId, setFeedbackId] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const prevHeadingRef = useRef<HTMLHeadingElement>(null)
+  /* A dialog unmounts its trigger's context, so focus goes back to the
+     heading of the table the row came from rather than to `<body>`. */
+  const returnFocus = (key: string | null) =>
+    (key?.startsWith('prev-') ? prevHeadingRef : headingRef).current?.focus({
+      preventScroll: true,
+    })
 
   /* Both document columns offer the same pair of actions, so they share one
      control style — a text link at the app's 36px control height. Round 58
@@ -4499,24 +4542,24 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   /* The transcript is the same dummy conversation for every session — see
      `data/transcript.ts` for what replaces it. Names are the pairing's own so
      the document reads as theirs. */
-  const transcriptFor = () =>
+  const transcriptFor = (author: string) =>
     sessionTranscript({
-      coach: coach.fullName,
+      coach: author,
       ple: dyad.patient?.name,
       carer: dyad.carer.name,
     })
 
-  const downloadReflection = (label: string, e: AnnotationSummaryEntry) => {
-    const heading = `${coach.fullName} — reflection — ${label} (${formatDate(e.date)})`
+  const downloadReflection = (label: string, e: AnnotationSummaryEntry, author: string) => {
+    const heading = `${author} — reflection — ${label} (${formatDate(e.date)})`
     const body = e.components.map((c) => `${c.label}\n${c.answer}\n`).join('\n')
     downloadText(`reflection-${dyad.id}-${fileStem(label)}.txt`, `${heading}\n\n${body}`)
   }
 
-  const downloadTranscript = (label: string) => {
+  const downloadTranscript = (label: string, author: string) => {
     const heading = `${dyadTitle(dyad)} — ${label} — session transcript`
     downloadText(
       `transcript-${dyad.id}-${fileStem(label)}.txt`,
-      transcriptAsText(transcriptFor(), heading),
+      transcriptAsText(transcriptFor(author), heading),
     )
   }
 
@@ -4606,6 +4649,9 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     key: string
     session?: number
     label: string
+    /** Full name of the coach who held this session — names the reflection,
+     *  its download and the transcript's speaker. */
+    author: string
     heldDate?: string
     /** Never absent on a held session — see `claimReflection`. */
     reflection?: AnnotationSummaryEntry
@@ -4614,50 +4660,204 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     feedbackAsked: boolean
   }
 
-  const rows: ReflectionRow[] = [
-    ...sessionKeys.map((n) => {
-      /* The real completion record and nothing else.
-         ⚠️ A view-level fill briefly stood in here, showing Planning and
-         Session 1 as held for every consumer. It is gone: the two dyads that
-         needed it now carry real plans and real completions in the seed
-         (direct instruction, *"every client will have a session plan"*), and
-         Arthur Ngata is deliberately exempt — he is the *"client assigned but
-         no session planned"* case, so his rows must read as dashes rather
-         than being papered over. A fill here would also have put this card
-         out of step with the Consumer Management roster, which counts the
-         same sessions from the same store. */
-      const held = completed.find((c) => c.session === n)?.completedDate
-      /* The Planning session carries a transcript and nothing else (direct
-         instruction, 2026-10-05: *"no coach reflection, no consumer feedback,
-         only session transcript"*). It is the one meeting where no coaching
-         has happened yet — the pair are agreeing a calendar — so there is
-         nothing for either of them to account for.
+  const buildRow = (n: number, held: string | undefined, author: string, keyPrefix = '') => {
+    /* The real completion record and nothing else.
+       ⚠️ A view-level fill briefly stood in here, showing Planning and
+       Session 1 as held for every consumer. It is gone: the two dyads that
+       needed it now carry real plans and real completions in the seed
+       (direct instruction, *"every client will have a session plan"*), and
+       Arthur Ngata is deliberately exempt — he is the *"client assigned but
+       no session planned"* case, so his rows must read as dashes rather
+       than being papered over. A fill here would also have put this card
+       out of step with the Consumer Management roster, which counts the
+       same sessions from the same store. */
+    /* The Planning session carries a transcript and nothing else (direct
+       instruction, 2026-10-05: *"no coach reflection, no consumer feedback,
+       only session transcript"*). It is the one meeting where no coaching
+       has happened yet — the pair are agreeing a calendar — so there is
+       nothing for either of them to account for.
 
-         `claimReflection` is deliberately **not called** for it rather than
-         called and discarded: it deals unmapped reflections out of a shared
-         pool with `shift()`, so calling it here would silently consume one
-         that belongs to a real session. */
-      const planning = n === PLANNING_SESSION
-      return {
-        key: `s-${n}`,
-        session: n,
-        label: sessionRowLabel(n),
-        heldDate: held,
-        reflection: planning || !held ? undefined : claimReflection(n, held),
-        feedback: held && !planning ? dummyConsumerFeedback(dyad.id, n) : undefined,
-        feedbackAsked: !!held && !planning,
-      }
-    }),
-  ]
+       `claimReflection` is deliberately **not called** for it rather than
+       called and discarded: it deals unmapped reflections out of a shared
+       pool with `shift()`, so calling it here would silently consume one
+       that belongs to a real session. */
+    const planning = n === PLANNING_SESSION
+    return {
+      key: `${keyPrefix}s-${n}`,
+      session: n,
+      label: sessionRowLabel(n),
+      author,
+      heldDate: held,
+      reflection: planning || !held ? undefined : claimReflection(n, held),
+      feedback: held && !planning ? dummyConsumerFeedback(dyad.id, n) : undefined,
+      feedbackAsked: !!held && !planning,
+    }
+  }
+
+  /* A transferred consumer's arc is split at the hand-over: the sessions the
+     previous coach held go to their own table, and the current coach's table
+     is their own Planning plus everything still to come. Each coach plans
+     with the consumer, so Planning appears in both. */
+  const rows: ReflectionRow[] = split
+    ? sessionKeys
+        .filter((n) => n === PLANNING_SESSION || !(n in split.previous))
+        .map((n) => buildRow(n, split.current[n], coach.fullName))
+    : sessionKeys.map((n) =>
+        buildRow(n, completed.find((c) => c.session === n)?.completedDate, coach.fullName),
+      )
+  const previousRows: ReflectionRow[] =
+    split && previousCoach
+      ? sessionKeys
+          .filter((n) => n in split.previous)
+          .map((n) => buildRow(n, split.previous[n], previousCoach.fullName, 'prev-'))
+      : []
+  const allRows = [...rows, ...previousRows]
 
   const lastPage = Math.max(0, Math.ceil(rows.length / REFLECTIONS_PER_PAGE) - 1)
   useEffect(() => {
     if (page > lastPage) setPage(lastPage)
   }, [page, lastPage])
   const visible = rows.slice(page * REFLECTIONS_PER_PAGE, (page + 1) * REFLECTIONS_PER_PAGE)
-  const viewing = rows.find((r) => r.key === viewingId) ?? null
-  const transcriptRow = rows.find((r) => r.key === transcriptId) ?? null
-  const feedbackRow = rows.find((r) => r.key === feedbackId) ?? null
+  const viewing = allRows.find((r) => r.key === viewingId) ?? null
+  const transcriptRow = allRows.find((r) => r.key === transcriptId) ?? null
+  const feedbackRow = allRows.find((r) => r.key === feedbackId) ?? null
+
+  /* One table, rendered once per coach on a transferred consumer. */
+  const renderTable = (tableRows: ReflectionRow[]) => (
+      <Card className="gap-0 rounded-lg py-0">
+        <div className="overflow-x-auto">
+          {/* `table-fixed` is load-bearing: under auto layout the one-line
+              excerpt sizes the Reflection column off its longest row and
+              pushes the table well past its container — the same bug the
+              coach portal's own notes table hit (Round 31). */}
+          <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+            <thead>
+              <tr className="bg-purple-50">
+                {/* Even fifths. Every column now holds a short, similar value
+                    — two dates and three action pairs — so there is nothing
+                    variable left to absorb slack and equal tracks read as
+                    balanced. Column names are the study's own (direct
+                    instruction). */}
+                <th scope="col" className="w-1/5 px-6 py-4 text-caption-medium text-ink">
+                  Session number
+                </th>
+                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                  Session held date
+                </th>
+                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                  Coach reflection
+                </th>
+                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                  Consumer feedback
+                </th>
+                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                  Session transcript
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, i) => (
+                <tr
+                  key={row.key}
+                  className={cn('align-top', i > 0 && 'border-t border-hairline')}
+                >
+                  <td className="px-6 py-5 text-caption-medium text-ink">
+                    {/* Never a bare number — internal 1 is "Planning", and a
+                        reflection written before sessions were mapped has no
+                        session at all, which is a real absence. */}
+                    {row.label}
+                  </td>
+                  <td className="px-4 py-5 text-caption whitespace-nowrap text-ink-muted">
+                    {row.heldDate ? formatDate(row.heldDate) : '\u2014'}
+                  </td>
+
+                  {/* The three document columns read alike: each is either a
+                      View/Download pair or a single short reason it is
+                      absent. An em dash means nothing has been written yet;
+                      "Skipped" means the consumer was asked and declined,
+                      which is an answer rather than a gap. */}
+                  <td className="px-4 py-5">
+                    {row.reflection ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setViewingId(row.key)}
+                          className={DOC_ACTION}
+                        >
+                          View<span className="sr-only"> coach reflection for {row.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadReflection(row.label, row.reflection!, row.author)}
+                          className={DOC_ACTION}
+                        >
+                          Download
+                          <span className="sr-only"> coach reflection for {row.label}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                    )}
+                  </td>
+
+                  <td className="px-4 py-5">
+                    {!row.feedbackAsked ? (
+                      <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                    ) : row.feedback ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackId(row.key)}
+                          className={DOC_ACTION}
+                        >
+                          View<span className="sr-only"> consumer feedback for {row.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadFeedback(row.label, row.feedback)}
+                          className={DOC_ACTION}
+                        >
+                          Download
+                          <span className="sr-only"> consumer feedback for {row.label}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      /* Badge, not plain text (direct instruction), on the
+                         shared `Chip` in its `destructive` tone — this app's
+                         one chip geometry, already contrast-measured. */
+                      <Chip tone="destructive" label="Skipped" />
+                    )}
+                  </td>
+
+                  <td className="px-4 py-5">
+                    {row.heldDate ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setTranscriptId(row.key)}
+                          className={DOC_ACTION}
+                        >
+                          View<span className="sr-only"> transcript for {row.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadTranscript(row.label, row.author)}
+                          className={DOC_ACTION}
+                        >
+                          Download<span className="sr-only"> transcript for {row.label}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+  )
 
   return (
     /* Direct instruction: "under coach reflection add back table view as done
@@ -4696,141 +4896,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           Session 1, 2, 3 (direct instruction, 2026-10-05), and the two opening
           rows are always populated — so there is no state in which this tab
           has nothing to show. */}
-      {(
-        <Card className="gap-0 rounded-lg py-0">
-          <div className="overflow-x-auto">
-            {/* `table-fixed` is load-bearing: under auto layout the one-line
-                excerpt sizes the Reflection column off its longest row and
-                pushes the table well past its container — the same bug the
-                coach portal's own notes table hit (Round 31). */}
-            <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
-              <thead>
-                <tr className="bg-purple-50">
-                  {/* Even fifths. Every column now holds a short, similar value
-                      — two dates and three action pairs — so there is nothing
-                      variable left to absorb slack and equal tracks read as
-                      balanced. Column names are the study's own (direct
-                      instruction). */}
-                  <th scope="col" className="w-1/5 px-6 py-4 text-caption-medium text-ink">
-                    Session number
-                  </th>
-                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
-                    Session held date
-                  </th>
-                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
-                    Coach reflection
-                  </th>
-                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
-                    Consumer feedback
-                  </th>
-                  <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
-                    Session transcript
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((row, i) => (
-                  <tr
-                    key={row.key}
-                    className={cn('align-top', i > 0 && 'border-t border-hairline')}
-                  >
-                    <td className="px-6 py-5 text-caption-medium text-ink">
-                      {/* Never a bare number — internal 1 is "Planning", and a
-                          reflection written before sessions were mapped has no
-                          session at all, which is a real absence. */}
-                      {row.label}
-                    </td>
-                    <td className="px-4 py-5 text-caption whitespace-nowrap text-ink-muted">
-                      {row.heldDate ? formatDate(row.heldDate) : '\u2014'}
-                    </td>
-
-                    {/* The three document columns read alike: each is either a
-                        View/Download pair or a single short reason it is
-                        absent. An em dash means nothing has been written yet;
-                        "Skipped" means the consumer was asked and declined,
-                        which is an answer rather than a gap. */}
-                    <td className="px-4 py-5">
-                      {row.reflection ? (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <button
-                            type="button"
-                            onClick={() => setViewingId(row.key)}
-                            className={DOC_ACTION}
-                          >
-                            View<span className="sr-only"> coach reflection for {row.label}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadReflection(row.label, row.reflection!)}
-                            className={DOC_ACTION}
-                          >
-                            Download
-                            <span className="sr-only"> coach reflection for {row.label}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-5">
-                      {!row.feedbackAsked ? (
-                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
-                      ) : row.feedback ? (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <button
-                            type="button"
-                            onClick={() => setFeedbackId(row.key)}
-                            className={DOC_ACTION}
-                          >
-                            View<span className="sr-only"> consumer feedback for {row.label}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadFeedback(row.label, row.feedback)}
-                            className={DOC_ACTION}
-                          >
-                            Download
-                            <span className="sr-only"> consumer feedback for {row.label}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        /* Badge, not plain text (direct instruction), on the
-                           shared `Chip` in its `destructive` tone — this app's
-                           one chip geometry, already contrast-measured. */
-                        <Chip tone="destructive" label="Skipped" />
-                      )}
-                    </td>
-
-                    <td className="px-4 py-5">
-                      {row.heldDate ? (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <button
-                            type="button"
-                            onClick={() => setTranscriptId(row.key)}
-                            className={DOC_ACTION}
-                          >
-                            View<span className="sr-only"> transcript for {row.label}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadTranscript(row.label)}
-                            className={DOC_ACTION}
-                          >
-                            Download<span className="sr-only"> transcript for {row.label}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-caption text-ink-muted">{'\u2014'}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      {renderTable(visible)}
 
       {rows.length > REFLECTIONS_PER_PAGE && (
         <TablePager
@@ -4842,9 +4908,31 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
         />
       )}
 
+      {/* The previous coach's half of a transferred consumer's arc (direct
+          instruction, 2026-10-26). Reuses the table heading with "previous"
+          added, then names who that was, so a researcher never has to
+          cross-reference the transfer notice to read the table. */}
+      {previousRows.length > 0 && previousCoach && (
+        <div className="mt-6 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h2
+              ref={prevHeadingRef}
+              tabIndex={-1}
+              className="font-display text-title text-balance text-ink outline-none"
+            >
+              Session reflections shared by previous coach and consumer
+            </h2>
+            <p className="text-body-md text-ink">
+              Previous coach: <span className="text-purple-500">{previousCoach.fullName}</span>
+            </p>
+          </div>
+          {renderTable(previousRows)}
+        </div>
+      )}
+
       <ConfirmDialog
         open={!!viewing?.reflection}
-        title={viewing ? `${firstName}\u2019s reflection: ${viewing.label}` : ''}
+        title={viewing ? `${viewing.author.split(' ')[0]}\u2019s reflection: ${viewing.label}` : ''}
         body={
           viewing?.reflection
             ? `${formatDate(viewing.reflection.date)}  ·  ${formatTime(viewing.reflection.time)}`
@@ -4857,7 +4945,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           viewing?.reflection && (
             <button
               type="button"
-              onClick={() => downloadReflection(viewing.label, viewing.reflection!)}
+              onClick={() => downloadReflection(viewing.label, viewing.reflection!, viewing.author)}
               className={DOC_ACTION_PRIMARY}
             >
               Download<span className="sr-only"> this reflection</span>
@@ -4875,11 +4963,11 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           /* The dialog unmounts and its trigger — the row's View button — may
              have re-rendered, so focus lands on this section's heading rather
              than `<body>`. This project's most-repeated defect. */
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(viewingId)
         }}
         onClose={() => {
           setViewingId(null)
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(viewingId)
         }}
       >
         {viewing?.reflection && (
@@ -4927,7 +5015,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
           transcriptRow && (
             <button
               type="button"
-              onClick={() => downloadTranscript(transcriptRow.label)}
+              onClick={() => downloadTranscript(transcriptRow.label, transcriptRow.author)}
               className={DOC_ACTION_PRIMARY}
             >
               Download<span className="sr-only"> this transcript</span>
@@ -4940,16 +5028,16 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
         panelClassName="max-h-[85vh] w-full max-w-[860px]"
         onConfirm={() => {
           setTranscriptId(null)
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(transcriptId)
         }}
         onClose={() => {
           setTranscriptId(null)
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(transcriptId)
         }}
       >
         {transcriptRow && (
           <div className="flex flex-col gap-4 rounded-sm border border-hairline p-5">
-            {transcriptFor().map((line, i) => (
+            {transcriptFor(transcriptRow.author).map((line, i) => (
               <div key={i} className="flex flex-col gap-1 sm:flex-row sm:gap-6">
                 <p className="text-fine whitespace-nowrap text-ink-faint sm:w-[168px] sm:shrink-0">
                   <span className="tabular-nums">{line.time}</span>{' '}
@@ -4991,11 +5079,11 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
         panelClassName="max-h-[85vh] w-full max-w-[860px]"
         onConfirm={() => {
           setFeedbackId(null)
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(feedbackId)
         }}
         onClose={() => {
           setFeedbackId(null)
-          headingRef.current?.focus({ preventScroll: true })
+          returnFocus(feedbackId)
         }}
       >
         {feedbackRow?.feedback && (
