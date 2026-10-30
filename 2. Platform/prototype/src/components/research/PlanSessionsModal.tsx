@@ -1904,6 +1904,21 @@ export function PlanSessionsModal({
                                   <span className="font-semibold text-primary">
                                     {formatTime(catchupTime)} to {formatTime(catchupEndTime)}
                                   </span>
+                                  {/* The client's clock, worded and placed as in
+                                      the review step's plan summary (direct
+                                      instruction, 2026-10-30). Only for a client
+                                      in another zone. */}
+                                  {clientZoneTimes && (
+                                    <>
+                                      {' '}
+                                      <ClientTimeChip
+                                        lead="for your client it will be"
+                                        showHelp={false}
+                                        range={`${clientZoneTimes.start} to ${clientZoneTimes.end}`}
+                                        abbreviation={clientZoneTimes.abbrev}
+                                      />
+                                    </>
+                                  )}
                                   , from{' '}
                                   <span className="font-semibold text-primary">{formatDate(firstSessionDate)}</span>.
                                 </p>
