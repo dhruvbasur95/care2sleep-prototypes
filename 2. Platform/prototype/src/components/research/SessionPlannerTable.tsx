@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { AlertTriangle, ChevronDown, Globe } from 'lucide-react'
+import { AlertTriangle, ChevronDown, CircleQuestionMark, Globe } from 'lucide-react'
 import { Chip } from '@/components/research/StatusChip'
 import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
 import {
@@ -62,6 +62,63 @@ export const STEP_TIME_CONTROL = cn(
   STEP_CONTROL,
   '[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0',
 )
+
+/** A week's catch-up on the client's clock, by that row's own date — the
+ *  collapsed row and the editing drawer both say this, so they read one
+ *  definition and cannot disagree. */
+function clientTimeRange(date: string, time: string, endTime: string | undefined, zone: string) {
+  const start = timeInZone(date, time, COACH_TIMEZONE, zone)
+  return endTime ? `${start} to ${timeInZone(date, endTime, COACH_TIMEZONE, zone)}` : start
+}
+
+/**
+ * The yellow "For Client: 8:00 AM to 9:00 AM (AWST) ?" line — a catch-up time
+ * on the client's clock. Shared by the planner table's rows and the wizard's
+ * plan summary sentence (direct instruction, 2026-10-30), so the two cannot
+ * drift apart.
+ *
+ * "For Client", not "For your client" (direct instruction, 2026-10-30); the
+ * Modify drawer's own banner keeps its wording. No icon in front (*"no icon"*).
+ * The trailing question mark is a placeholder for an explanation still to come
+ * — inert and `aria-hidden` until it does something (*"no need to make it
+ * interactable yet"*).
+ *
+ * `inline-flex` so it can sit inside a sentence as well as on its own line.
+ */
+export function ClientTimeChip({
+  range,
+  abbreviation,
+  lead = 'For Client:',
+  showHelp = true,
+  className,
+}: {
+  range: string
+  abbreviation: string
+  /** The words before the time. The table's "For Client:" by default; the
+   *  plan summary passes "for your client it will be", since there the chip
+   *  continues a sentence (direct instruction, 2026-10-30). */
+  lead?: string
+  /** The trailing question mark. The summary drops it (direct instruction,
+   *  2026-10-30); the table keeps it. */
+  showHelp?: boolean
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex w-fit items-center gap-1.5 rounded-sm bg-yellow-100 px-3 py-2 align-middle text-caption whitespace-nowrap text-ink',
+        className,
+      )}
+    >
+      <span>
+        {lead} <span className="font-semibold text-primary">{range}</span> ({abbreviation})
+      </span>
+      {showHelp && (
+        <CircleQuestionMark aria-hidden="true" className="size-4 shrink-0 text-ink" strokeWidth={2.25} />
+      )}
+    </span>
+  )
+}
 
 export function SessionPlannerTable({
   rows,
@@ -130,6 +187,9 @@ export function SessionPlannerTable({
             const locked = lockedFor?.(s.number) ?? null
             const editing = !locked && editingWeeks.includes(s.number)
             const issues = rowIssues(s.number)
+            /* Whether this row carries the "For Client" line under its
+               catch-up time. */
+            const showClientTime = !locked && !editing && !!clientTimezone && !!row.date && !!row.time
             return (
               <Fragment key={s.number}>
                 <tr className={cn(i > 0 && 'border-t border-hairline')}>
@@ -157,6 +217,19 @@ export function SessionPlannerTable({
                             {formatTime(row.time)}
                             {row.endTime ? ` to ${formatTime(row.endTime)}` : ''}
                           </span>
+                        )}
+                        {/* The client's clock under the coach's (direct
+                            instruction, 2026-10-30). Steps aside while this
+                            week's drawer is open, since the drawer's own
+                            banner already says it. */}
+                        {showClientTime && clientTimezone && row.date && row.time && (
+                          /* `flex` overrides the chip's `inline-flex` so it
+                             takes its own line under the date. */
+                          <ClientTimeChip
+                            className="mt-2 flex"
+                            range={clientTimeRange(row.date, row.time, row.endTime, clientTimezone)}
+                            abbreviation={zoneAbbreviation(row.date, clientTimezone)}
+                          />
                         )}
                       </>
                     )}
@@ -295,10 +368,7 @@ export function SessionPlannerTable({
                               <span>
                                 For your client:{' '}
                                 <span className="font-semibold text-primary">
-                                  {timeInZone(row.date, row.time, COACH_TIMEZONE, clientTimezone)}
-                                  {row.endTime
-                                    ? ` to ${timeInZone(row.date, row.endTime, COACH_TIMEZONE, clientTimezone)}`
-                                    : ''}
+                                  {clientTimeRange(row.date, row.time, row.endTime, clientTimezone)}
                                 </span>{' '}
                                 ({zoneAbbreviation(row.date, clientTimezone)})
                               </span>

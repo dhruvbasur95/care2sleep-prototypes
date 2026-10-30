@@ -870,7 +870,10 @@ function instantOf(date: string, time: string, zone: string): Date {
 
 /**
  * A wall-clock `time` on `date` in `from`, expressed as the wall-clock time in
- * `to`. Returns "8:00 am" style, matching `formatTime`.
+ * `to`. Returns "8:00 AM" style, matching `formatTime` — it said "8:00 am"
+ * until 2026-10-30, by then the only lowercase time in the plan wizard, sitting
+ * directly under a `formatTime` "10:00 AM" (direct instruction: *"change
+ * client time to AM to match"*).
  */
 export function timeInZone(date: string, time: string, from: string, to: string): string {
   const at = instantOf(date, time, from)
@@ -882,7 +885,7 @@ export function timeInZone(date: string, time: string, from: string, to: string)
   })
     .format(at)
     .replace(/\u202f/g, ' ')
-    .toLowerCase()
+    .toUpperCase()
 }
 
 /** The zone's short name on that date — "AEST", "AEDT", "AWST". Date-dependent

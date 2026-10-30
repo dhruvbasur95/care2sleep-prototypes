@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
 import {
+  ClientTimeChip,
   SessionPlannerTable,
   STEP_TIME_CONTROL,
   TIME_STEP_SECONDS,
@@ -2180,6 +2181,24 @@ export function PlanSessionsModal({
                                 <span className="font-semibold text-primary">
                                   {formatTime(catchupTime)} to {formatTime(catchupEndTime)}
                                 </span>
+                                {/* The same yellow client-time chip each table
+                                    row carries, straight after the coach's own
+                                    time (direct instruction, 2026-10-30). Only
+                                    for a client in another zone, like the rows.
+                                    Taken on the first session's date, as
+                                    `clientZoneTimes` is everywhere else in this
+                                    wizard. */}
+                                {clientZoneTimes && (
+                                  <>
+                                    {' '}
+                                    <ClientTimeChip
+                                      lead="for your client it will be"
+                                      showHelp={false}
+                                      range={`${clientZoneTimes.start} to ${clientZoneTimes.end}`}
+                                      abbreviation={clientZoneTimes.abbrev}
+                                    />
+                                  </>
+                                )}
                                 , for {SPACES_CATCHUP_COUNT} weeks. The first module is available{' '}
                                 <span className="font-semibold text-primary">
                                   {formatDate(rows.find((r) => r.session === 2)?.moduleTargetDate ?? PLAN_ANCHOR)}
