@@ -724,7 +724,7 @@ const M6_CHAPTER_1: ChapterContent = {
         },
         {
           tag: 'sub-title',
-          copy: 'Throughout this program, every strategy is designed to strengthen one or more of these three ingredients. Some strategies help build sleep drive, others strengthen the body clock, while others calm the mind and body. Together, they create the best conditions for healthy sleep. However, we know that sleep challenges and the circumstances surrounding them are unique to each person. As your client progresses through these modules, some strategies may feel general in nature or not immediately suitable for them. As the coach it will be your role to discuss how these strategies may be adapted, prioritised, and applied in a way that best fits their individual circumstances, needs, and preferences. The goal is to find strategies and routines that are realistic and sustainable, rather than aiming for perfection!',
+          copy: 'Throughout this program, every strategy is designed to strengthen one or more of these three ingredients. Some strategies help build sleep drive, others strengthen the body clock, while others calm the mind and body. Together, they create the best conditions for healthy sleep.\n\nHowever, we know that sleep challenges and the circumstances surrounding them are unique to each person. As your client progresses through these modules, some strategies may feel general in nature or not immediately suitable for them. As the coach it will be your role to discuss how these strategies may be adapted, prioritised, and applied in a way that best fits their individual circumstances, needs, and preferences. The goal is to find strategies and routines that are realistic and sustainable, rather than aiming for perfection!',
         },
         {
           tag: 'interactive',
@@ -913,7 +913,13 @@ const M6_CHAPTER_1: ChapterContent = {
           label: 'Know Why',
           title: 'Why the Good Sleep Recipe Matters',
           subtitle: 'Why this matters for the clients you\'ll be working with',
-          body: 'For the clients you\'ll work with, sleep difficulties rarely have one simple cause. Someone may be tired but not sleepy at bedtime because their sleep drive has been reduced by daytime sleep. Someone else may be sleeping at times that don\'t fit well with their body clock. Another person may have plenty of sleep drive but find that worry, stress or the demands of caring keep their mind and body on alert. The Good Sleep Recipe gives you a simple way to make sense of these different experiences without suggesting that there is one solution that works for everyone. As a coach, your role is not to expect people to get all three ingredients “right”. It is to help them notice what may be contributing to their sleep difficulties, identify what matters most to them, and find changes that fit their circumstances.',
+          body:
+            'For the clients you\'ll work with, sleep difficulties rarely have one simple cause.\n\n' +
+            '- Someone may be tired but not sleepy at bedtime because their sleep drive has been reduced by daytime sleep.\n' +
+            '- Someone else may be sleeping at times that don\'t fit well with their body clock.\n' +
+            '- Another person may have plenty of sleep drive but find that worry, stress or the demands of caring keep their mind and body on alert.\n\n' +
+            'The Good Sleep Recipe gives you a simple way to make sense of these different experiences without suggesting that there is one solution that works for everyone.\n\n' +
+            'As a coach, your role is not to expect people to get all three ingredients “right”. It is to help them notice what may be contributing to their sleep difficulties, identify what matters most to them, and find changes that fit their circumstances.',
         },
       ],
     },
@@ -1027,7 +1033,14 @@ const M6_CHAPTER_2: ChapterContent = {
           tag: 'text-3',
           subtitle:
             'Supporting someone to protect their sleep drive for bedtime, will involve understanding a) their typical routines and b) where sleep-related habits and routines may be influencing the rate or amount of “sleep hunger” has accumulated over the day.',
-          body: 'The sleep assessment you do with your client should help you understand some of this background information. you\'ll go through how to do sleep assessment in Module 12 - Sleep Assessment. During your coaching session, it might look like: Understanding how regular their sleep and wake times are from day to day. Asking about naps or periods of daytime sleep, including when they happen, how long they last, and how often. Exploring how long they are awake before going to bed and whether they tend to go to bed because they are sleepy or because it is their usual bedtime. Understanding how the caring role affects their sleep and wake patterns, including whether they need to wake during the night or adjust their routine around the person they support. Exploring what sleep and wake patterns seem to work for the person they are caring for, and what feels realistic to maintain.',
+          body:
+            'The sleep assessment you do with your client should help you understand some of this background information. you\'ll go through how to do sleep assessment in Module 12 - Sleep Assessment.\n\n' +
+            'During your coaching session, it might look like:\n\n' +
+            '- Understanding how regular their sleep and wake times are from day to day.\n' +
+            '- Asking about naps or periods of daytime sleep, including when they happen, how long they last, and how often.\n' +
+            '- Exploring how long they are awake before going to bed and whether they tend to go to bed because they are sleepy or because it is their usual bedtime.\n' +
+            '- Understanding how the caring role affects their sleep and wake patterns, including whether they need to wake during the night or adjust their routine around the person they support.\n' +
+            '- Exploring what sleep and wake patterns seem to work for the person they are caring for, and what feels realistic to maintain.',
         },
         {
           tag: 'interactive',
@@ -1427,7 +1440,13 @@ const M6_CHAPTER_2: ChapterContent = {
           label: 'Know Why',
           title: 'Why Understanding Sleep Drive Matters',
           subtitle: 'Why this matters for the clients you\'ll be working with',
-          body: 'For the clients you\'ll work with, understanding sleep drive starts with understanding what happens across the whole day. A person living with dementia may nap because they are genuinely tired, spend long periods resting, or have an irregular sleep-wake pattern. A care partner may adjust their own routine around overnight care, sleep in after a difficult night, or go to bed earlier because they are worried about being exhausted the next day. These responses are understandable, but they can also change how much sleep hunger has built by bedtime. A good assessment helps you look for these patterns without assuming that any one behaviour is the problem. A long daytime nap, for example, may be important recovery time for the person, while an early bedtime may be the only way a care partner feels they can manage after a difficult night. The important question is how these patterns relate to what happens at night and what the client wants to change.',
+          body:
+            'For the clients you\'ll work with, understanding sleep drive starts with understanding what happens across the whole day.\n\n' +
+            '- A person living with dementia may nap because they are genuinely tired, spend long periods resting, or have an irregular sleep-wake pattern.\n' +
+            '- A care partner may adjust their own routine around overnight care, sleep in after a difficult night, or go to bed earlier because they are worried about being exhausted the next day.\n\n' +
+            'These responses are understandable, but they can also change how much sleep hunger has built by bedtime.\n\n' +
+            'A good assessment helps you look for these patterns without assuming that any one behaviour is the problem. A long daytime nap, for example, may be important recovery time for the person, while an early bedtime may be the only way a care partner feels they can manage after a difficult night.\n\n' +
+            'The important question is how these patterns relate to what happens at night and what the client wants to change.',
         },
       ],
     },

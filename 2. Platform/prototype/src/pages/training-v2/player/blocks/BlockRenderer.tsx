@@ -182,6 +182,34 @@ export function SectionEyebrow({ icon: Icon, label }: { icon: LucideIcon; label:
 /** A control the frame draws but which has no handler wired renders focusable
  *  and `aria-disabled` with an `sr-only` cue — never silently dead, never
  *  dropped (standing rule). */
+/**
+ * One long-form copy field rendered as chunks (2026-11-03, direct instruction:
+ * "break into two paragraphs" / "break into chunks and add bullets"). The field
+ * stays a single string so the block's shape is unchanged: a blank line starts
+ * a new paragraph, and a chunk whose lines all begin `- ` is a bullet list.
+ * A string with neither renders as one paragraph, exactly as before.
+ */
+function ChunkedText({ text, className }: { text: string; className?: string }) {
+  const chunks = text.split(/\n\s*\n/).map((chunk) => chunk.trim()).filter(Boolean)
+  return (
+    <div className={cn('flex flex-col gap-4', className)}>
+      {chunks.map((chunk, i) => {
+        const lines = chunk.split('\n').map((line) => line.trim())
+        if (lines.every((line) => line.startsWith('- '))) {
+          return (
+            <ul key={i} className="flex list-disc flex-col gap-2 pl-6">
+              {lines.map((line) => (
+                <li key={line}>{line.slice(2)}</li>
+              ))}
+            </ul>
+          )
+        }
+        return <p key={i}>{chunk}</p>
+      })}
+    </div>
+  )
+}
+
 function OutroButton({
   onClick,
   className,
@@ -858,7 +886,7 @@ export function BlockView({
           {/* 24px below the sub title (direct instruction). The body joins the
               chain here rather than carrying the `body` block's own spacing —
               that block sat in a separate box a 40px gap away. */}
-          <p className="mt-6 text-body text-ink-muted">{block.body}</p>
+          <ChunkedText text={block.body} className="mt-6 text-body text-ink-muted" />
         </div>
       )
 
@@ -872,7 +900,7 @@ export function BlockView({
           >
             {block.subtitle}
           </Heading>
-          <p className="mt-2 text-body text-ink-muted">{block.body}</p>
+          <ChunkedText text={block.body} className="mt-2 text-body text-ink-muted" />
         </div>
       )
 
@@ -964,7 +992,7 @@ export function BlockView({
         // marking the field, not a typographic instruction: the block library
         // defines Sub title as 18/500 with no slant, and the same copy set in
         // italic read as an aside rather than as the section's own sub-line.
-        <p className="text-sub-greeting leading-[1.4] text-ink-muted">{block.copy}</p>
+        <ChunkedText text={block.copy} className="text-sub-greeting leading-[1.4] text-ink-muted" />
       )
 
     case 'body':
