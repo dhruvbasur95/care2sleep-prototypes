@@ -135,7 +135,7 @@ const TRANSITION_ICONS: Record<TransitionIcon, LucideIcon> = {
  * supplies one `coreSkillsIntro` line, which sits over the SIPTEA discs; it has
  * nothing for the practice group beneath the rule. This is block chrome (a
  * label, like "Core skills covered" was) rather than content, which is why it
- * lives here and not in `moduleContent.ts`, where `verify-transcription.py`
+ * lives here and not in `moduleContent.ts`, where `09. verify-transcription.py`
  * would correctly fail it for not appearing in the source.
  *
  * Taken verbatim from the Figma template `2609:21746`. The template's *first*

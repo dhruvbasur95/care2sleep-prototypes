@@ -165,7 +165,7 @@ const ART_SCALE = 1.12
  * ⚠️ **A build-side field with no authoring column** — the seventh, after the
  * four icon fields and the outro's next-module name. module.md's Revision row
  * is bold-term/definition pairs and nothing else, so the glyph is chosen
- * against each term's own meaning. `verify-transcription.py` excludes any key
+ * against each term's own meaning. `09. verify-transcription.py` excludes any key
  * named `icon`, which is why adding it keeps the check passing.
  */
 const REVISION_ICONS: Record<RevisionIcon, LucideIcon> = {

@@ -81,7 +81,7 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
     // in `pathway.ts` for why this card and not module 2's, and why the id
     // stays `portal-orientation` while the copy does not.
     id: 'portal-orientation',
-    // Both strings are the source's own, from `Modules/Module 6.md`'s MODULE
+    // Both strings are the source's own, from `05. Modules/Module 6_updated.md`'s MODULE
     // SETUP table — the description from "Core message". They are NOT written
     // here: a first pass invented a hero sub-line and it was caught.
     //

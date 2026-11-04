@@ -56,7 +56,7 @@ const DISPLAY_OVERRIDES: Record<string, { status: ModuleStatus; progress: number
  *  `understanding-sleep` (the Round 7 Module 4 content, retired when the
  *  player was rebuilt around the real `module.md` block vocabulary) to
  *  `building-blocks-good-sleep`, built from
- *  `Coaching modules master/Modules/Module 6.md`. */
+ *  `3. Coaching modules/05. Modules/Module 6_updated.md`. */
 export const MODULE_PLAYER_ID = 'building-blocks-good-sleep'
 
 /**

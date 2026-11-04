@@ -648,7 +648,7 @@ export function ModuleOverviewPage() {
                    * Build-side chrome, exactly like `BlockRenderer`'s own
                    * `PRACTICE_SKILLS_INTRO` (direct instruction, 2026-09-18).
                    * It deliberately does NOT live in `moduleContent.ts`:
-                   * module.md has no row for it, so `verify-transcription.py`
+                   * module.md has no row for it, so `09. verify-transcription.py`
                    * would correctly fail it for not appearing in the source.
                    *
                    * ⚠️ This card used to carry a **second** half below the

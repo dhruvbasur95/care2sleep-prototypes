@@ -34,7 +34,7 @@ import { buttonVariants } from '@/components/ui/button'
  * right answer wrong. So each side is reduced to its leading letter and matched
  * on that, with a normalised-text comparison as the fallback for a segment that
  * carries no letter (none in Module 6, but the authoring template does not
- * require one). Never "fix" this in the source — `Modules/*.md` is read-only.
+ * require one). Never "fix" this in the source — `05. Modules/*.md` is read-only.
  *
  * ## Native inputs, not a hand-rolled radiogroup
  * `<fieldset>` + real `<input type="radio">` / `<input type="checkbox">`,
@@ -90,7 +90,7 @@ function parseOptions(raw: string[]): ParsedOption[] {
  * leaves every existing single-separator cell byte-identical — a `+`-joined
  * cell has a letter at the start of each segment anyway, so the second split
  * finds nothing new. **Never "fix" the separator in the source**:
- * `Modules/*.md` is read-only.
+ * `05. Modules/*.md` is read-only.
  */
 function answerSegments(correctAnswer: string): string[] {
   return correctAnswer

@@ -8817,7 +8817,7 @@ Slides can now exceed the content area (a Know What slide carrying four `<Text b
 
 ### Three defects found by measurement, not by looking
 
-1. **55 string literals had the wrong apostrophe.** The source mixes straight `'` and curly `’`; the transcription had normalised everything to curly. Caught by a new `verify-transcription.py`, which checks that every string of copy in the built data appears verbatim in the source. This is the mandated second pass, mechanised — it is not a check the eye passes.
+1. **55 string literals had the wrong apostrophe.** The source mixes straight `'` and curly `’`; the transcription had normalised everything to curly. Caught by a new `09. verify-transcription.py`, which checks that every string of copy in the built data appears verbatim in the source. This is the mandated second pass, mechanised — it is not a check the eye passes.
 2. **Duplicate React key.** Slide labels are not unique: a multi-scenario chapter has a "Transition" slide per scenario, and the rail keyed sub-steps by label. Console errors on every render. Key by step index.
 3. **Slides with no heading at all.** You Might Also Hear and Your turn slides are *only* interactive placeholders, so there was no `<h1>` and nowhere for focus to land on arrival — the focus-to-`<body>` class this project has shipped in six rounds. The placeholder's pattern name is now a real heading.
 
@@ -8838,7 +8838,7 @@ All by direct instruction, applied to the block renderers only (nothing app-wide
 
 **Transition slides.** A slide whose *only* block is a `<Text block _Sub title>` is a transition beat — detected structurally, never by matching the slide's authored label. It renders centred, with an icon above, and its text bound to `<Text block _Title>`: read from Figma (`2584:1043`) as Inter Medium 32/500, letter-spacing −0.374, `neutral/black`, which is exactly `display-md` + `ink`, so it mapped to existing tokens rather than needing a new step.
 
-The icon is the Consumer Portal's `CardIcon` treatment — a bare glyph, **no plate or tinted circle**, `size-10`, `strokeWidth={1.75}` — and is **chosen per slide against that slide's own copy**, not fixed for the pattern (`TRANSITION_ICONS` in `BlockRenderer.tsx`). Module 6: `Blocks`, `Search`, `Scale`, `SunMoon`. `icon` is the one block field module.md does not supply, so `verify-transcription.py` excludes it as authored.
+The icon is the Consumer Portal's `CardIcon` treatment — a bare glyph, **no plate or tinted circle**, `size-10`, `strokeWidth={1.75}` — and is **chosen per slide against that slide's own copy**, not fixed for the pattern (`TRANSITION_ICONS` in `BlockRenderer.tsx`). Module 6: `Blocks`, `Search`, `Scale`, `SunMoon`. `icon` is the one block field module.md does not supply, so `09. verify-transcription.py` excludes it as authored.
 
 **Figma mirror.** "Transition slide block" (`2596:1050`) was created in the block library's composite stack, in module.md slide order, matching the code. Its icon came in as the real lucide `footprints` vector via `figma.createNodeFromSvg` — a genuine export, never redrawn — and its layer is named as a per-slide swap slot. **`use_figma` resolved every node id the read tools returned**, which contradicts the Round 35 note above; that failure did not reproduce.
 
@@ -8908,7 +8908,7 @@ parsing the computed string as RGB returns nonsense) — painted `rgb(58, 0, 173
 ### The module outro block
 
 Rebuilt from a Figma template Dhruv authored mid-session (`2594:19665`). The block
-library doc (`Coaching modules master/block-types-reference.md` -> "The module outro
+library doc (`Coaching modules master/03. block-types-reference.md` -> "The module outro
 block") is the spec; only the app-side decisions are recorded here.
 
 - **Two proportions are derived, not transcribed.** The frame is 1281px wide;
@@ -8933,7 +8933,7 @@ block") is the spec; only the app-side decisions are recorded here.
   "Coming up next" number/name rows collapsed to one 18/500 line). The two outer
   gaps now differ — 24 and 40 — so the band, copy block and card cannot be
   flattened into one evenly-gapped column. They briefly were, and only the later
-  revision exposed it. Full spec: `block-types-reference.md` -> "The module outro
+  revision exposed it. Full spec: `03. block-types-reference.md` -> "The module outro
   block".
 - **Both CTAs are wired**, to the player's own two moves (advance a step; leave with
   progress kept — every step is already persisted). They take `caption-medium`, not

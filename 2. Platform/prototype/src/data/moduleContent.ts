@@ -24,7 +24,7 @@
  * chapter is adding four slides to an array, not a type change.
  *
  * ## Source
- * `Coaching modules master/Modules/Module 6.md`, transcribed verbatim.
+ * `3. Coaching modules/05. Modules/Module 6_updated.md`, transcribed verbatim.
  * **That file is read-only** — never edit it; flag discrepancies in
  * conversation instead. Known content flags for this module are listed in
  * `CONTENT_FLAGS` at the foot of this file rather than silently corrected.
@@ -67,7 +67,7 @@ export interface AccordionImageItem {
    *
    * ⚠️ This note used to say the verifier's `authored` tuple would need
    * `image` adding to it when the field was first populated. **It does not**,
-   * and no change was made: `verify-transcription.py` skips pure kebab-case
+   * and no change was made: `09. verify-transcription.py` skips pure kebab-case
    * literals *before* it applies the 25-character rule, so a stem is exempt on
    * its own. That also means `strengthening-sleep-drive` — exactly 25 chars —
    * passes. Storing a path or an extension would break both exemptions, which
@@ -110,7 +110,7 @@ export type InteractivePattern = 'revision' | 'you-might-also-hear' | 'your-turn
  * ⚠ **This is the one field on a block that module.md does not supply.** The
  * authoring format has no icon column, so the choice is made here, against the
  * slide's own copy, and is a build-side design decision rather than
- * transcribed content. `verify-transcription.py` therefore must not check it —
+ * transcribed content. `09. verify-transcription.py` therefore must not check it —
  * it is excluded as an authored field. If the authoring template ever gains an
  * icon field, this should read from it instead (see the workflow doc §6.1).
  *
@@ -127,7 +127,7 @@ export type TransitionIcon = 'blocks' | 'search' | 'scale' | 'sun-moon'
  * ⚠️ **No authoring column** — module.md's Revision row is bold-term/definition
  * pairs and nothing else, so this is chosen in the build against each term's own
  * meaning, like the transition slide's and the chapter-opening topics'.
- * `verify-transcription.py` excludes any key named `icon`, which is why the
+ * `09. verify-transcription.py` excludes any key named `icon`, which is why the
  * check still passes with these present.
  */
 export type RevisionIcon =
@@ -161,7 +161,7 @@ export interface RevisionTerm {
   /** Watercolour art shown INSIDE the front card's pillow, as a bare asset
    *  STEM — `illustrations/module/revision/<stem>.webp` is composed in
    *  `RevisionFlipCards`. Same rule as `heroArt`: store the stem, never the
-   *  path or the extension, so `verify-transcription.py`'s 25-character rule
+   *  path or the extension, so `09. verify-transcription.py`'s 25-character rule
    *  and its kebab-case skip both keep passing.
    *
    *  It depicts the same subject as `icon` — the glyph on the flip side — drawn
@@ -270,7 +270,7 @@ export type Block =
        *  `chapter-intro-hero.webp`, so other modules are untouched.
        *
        *  ⚠️ Store the stem, never the path or the extension. This is the same
-       *  trap as the YouTube ids: `verify-transcription.py` reports any string
+       *  trap as the YouTube ids: `09. verify-transcription.py` reports any string
        *  literal of 25+ characters that is not in module.md, and it skips pure
        *  kebab-case, which a `.webp` suffix breaks. A stem is short and
        *  kebab-case, so the check stays untouched.
@@ -342,7 +342,7 @@ export type Block =
        * exists, and this field is how one arrives, not an exception to it.
        *
        * **The id rather than the URL is deliberate, and it keeps
-       * `verify-transcription.py` untouched.** That check reads every string
+       * `09. verify-transcription.py` untouched.** That check reads every string
        * literal of 25+ characters and requires it to appear verbatim in
        * module.md; a full share link is 28+ and would be reported as a
        * transcription failure, forcing an exclusion to be added to the
@@ -465,7 +465,7 @@ export type Block =
  *
  * ⚠️ Like the transition slide's, this field has **no authoring column** —
  * module.md lists key topics as bare lines of copy. So the choice is made in
- * the build against each topic's own words, and `verify-transcription.py`
+ * the build against each topic's own words, and `09. verify-transcription.py`
  * excludes any key named `icon` for exactly this reason. See workflow §6.1.
  */
 export type TopicIcon =
@@ -536,7 +536,7 @@ export interface ModuleContent {
 
 /* ------------------------------------------------------------------ */
 /* Module 6 — The Building Blocks of Good Sleep                        */
-/* Source: `Coaching modules master/Modules/Module 6.md` (read-only).   */
+/* Source: `3. Coaching modules/05. Modules/Module 6_updated.md` (read-only).   */
 /* ------------------------------------------------------------------ */
 
 const M6_SETUP: ModuleSetup = {
@@ -800,7 +800,7 @@ const M6_CHAPTER_1: ChapterContent = {
           variant: 'scenario',
           // Chapter 1's Know How scenario video ('Dyad'). Re-shot; link
           // replaced 2026-09-28. The 11-character id, never the share URL —
-          // `verify-transcription.py` checks every 25+ character literal
+          // `09. verify-transcription.py` checks every 25+ character literal
           // against module.md, and a share link is 28+ and would be reported
           // as a transcription failure (CLAUDE.md). The `si=` parameter is
           // dropped for the same reason it always is: it identifies the share,
