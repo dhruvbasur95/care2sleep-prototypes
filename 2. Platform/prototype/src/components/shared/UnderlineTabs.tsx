@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { motion } from 'framer-motion'
 import { TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,6 +51,11 @@ export function UnderlineTabs<T extends string>({
    *  `primary` line the client record's own tab row sits on — so a coach page
    *  using this component matches it (direct instruction, 2026-10-21). */
   rule = 'hairline',
+  /** A 1px `ink` (black) rule before this tab, splitting the row into two groups
+   *  (coach checklist: the coach's own tabs | the client's, 2026-11-09).
+   *  Decorative and `aria-hidden`, so arrow keys still run across every tab.
+   *  Additive: callers that omit it render exactly as before. */
+  dividerBefore,
 }: {
   tabs: readonly {
     id: T
@@ -78,6 +84,7 @@ export function UnderlineTabs<T extends string>({
   panelId: string
   flushStart?: boolean
   rule?: 'hairline' | 'primary'
+  dividerBefore?: T
 }) {
   return (
     <div className={cn('border-b', rule === 'primary' ? 'border-primary' : 'border-hairline')}>
@@ -87,8 +94,11 @@ export function UnderlineTabs<T extends string>({
         className={cn('flex gap-2', flushStart && '-ml-4')}
       >
         {tabs.map((t, i) => (
+          <Fragment key={t.id}>
+          {t.id === dividerBefore && (
+            <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-ink" />
+          )}
           <button
-            key={t.id}
             type="button"
             role="tab"
             id={`${idPrefix}-${t.id}`}
@@ -134,6 +144,7 @@ export function UnderlineTabs<T extends string>({
               />
             )}
           </button>
+          </Fragment>
         ))}
       </div>
     </div>

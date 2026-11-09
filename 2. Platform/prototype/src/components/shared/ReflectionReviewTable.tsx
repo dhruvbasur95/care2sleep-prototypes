@@ -98,19 +98,36 @@ export function ReflectionReviewTable({
    *  `initial: null` already render as a plain label, so the heading is the
    *  only thing that needed to move. */
   questionHeading = 'SIPTEA component',
+  /** The header row's fill. `purple-50` everywhere except the coach
+   *  checklist's Client’s module tab, which tints each step's table (green
+   *  for the goals step, 2026-11-09). Pass a literal class. */
+  headerClassName = 'bg-purple-50',
+  /** A 1px hairline between the question and answer columns, header to last
+   *  row. Off by default; on in Client’s module (direct instruction,
+   *  2026-11-09: "add vertical separator between questions and client
+   *  answers"). */
+  columnRule = false,
 }: {
   rows: ReflectionRow[]
   onEdit?: (index: number) => void
   answerHeading?: string
   emptyLabel?: string
   questionHeading?: string
+  headerClassName?: string
+  columnRule?: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="bg-purple-50">
-            <th scope="col" className="w-[34%] px-4 py-3.5 text-caption-medium text-ink-muted">
+          <tr className={headerClassName}>
+            <th
+              scope="col"
+              className={cn(
+                'w-[34%] px-4 py-3.5 text-caption-medium text-ink-muted',
+                columnRule && 'border-r border-hairline',
+              )}
+            >
               {questionHeading}
             </th>
             <th scope="col" className="px-4 py-3.5 text-caption-medium text-ink-muted">
@@ -126,7 +143,10 @@ export function ReflectionReviewTable({
                   reader reading across. */}
               <th
                 scope="row"
-                className="px-4 py-3 text-left align-top text-caption-medium font-medium text-ink"
+                className={cn(
+                  'px-4 py-3 text-left align-top text-caption-medium font-medium text-ink',
+                  columnRule && 'border-r border-hairline',
+                )}
               >
                 <span className="flex items-center gap-2">
                   {row.initial && (

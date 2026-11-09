@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { NumberedTimeline } from '@/components/shared/NumberedTimeline'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu } from '@base-ui/react/menu'
@@ -2124,45 +2125,14 @@ export function SessionPlanEmptyBanner({
             It rides a zero-height flex child that absorbs the row's slack, so
             it always reaches from one marker to the next however much copy a
             step carries — a fixed height breaks the moment an email wraps. */}
-        <ol className="flex flex-col">
-          {STEPS.map((step, i) => (
-            <li key={step.key} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                {/* 40px. `yellow-200` with an `ink` numeral on the purple
-                    card, `primary` with a white one on the yellow — see
-                    `BANNER_SCHEME`. Never white on a yellow tint: the ramp is
-                    light enough that white fails AA on every step of it, which
-                    is why the record-page hero's active tab underline uses the
-                    same ink pairing. */}
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-full text-body-md',
-                    scheme.marker,
-                  )}
-                >
-                  {i + 1}
-                </span>
-                {i < STEPS.length - 1 && (
-                  <span
-                    aria-hidden="true"
-                    className={cn('w-[1.5px] flex-1', scheme.rule)}
-                  />
-                )}
-              </div>
-              {/* NOT `last:pb-0`. `last:` is `:last-child` against the `<li>`,
-                  where this content column IS the last child — so the modifier
-                  matched every step and zeroed the gap on all of them. Two
-                  separate "increase the spacing" passes moved a number that was
-                  being overridden. Keyed on the index instead. The 64px lives
-                  INSIDE the row so the dotted rule spans it; a `gap` on the
-                  `<ol>` would leave the line broken between steps. */}
-              <div
-                className={cn(
-                  'flex min-w-0 flex-1 flex-col items-start gap-2',
-                  i < STEPS.length - 1 && 'pb-16',
-                )}
-              >
+        <NumberedTimeline
+          markerClassName={scheme.marker}
+          ruleClassName={scheme.rule}
+          contentClassName="items-start"
+          steps={STEPS.map((step) => ({
+            key: step.key,
+            content: (
+              <>
                 <p className={cn('text-body-md', scheme.copy)}>{step.title}</p>
                 <p className={cn('text-body leading-[1.4]', scheme.copyMuted)}>
                   {step.instruction}
@@ -2227,10 +2197,10 @@ export function SessionPlanEmptyBanner({
                     </div>
                   )}
                 </div>
-              </div>
-            </li>
-          ))}
-        </ol>
+              </>
+            ),
+          }))}
+        />
       </div>
 
       {/* Round 40, direct instruction: rebuilt. The first pass was a narrow
@@ -3499,10 +3469,11 @@ const CONSUMER_SUBTABS = [
      progress stack and onto its own sub-tab, last. It is the one thing on this
      panel authored by the coach rather than derived from the consumer's
      record, so it read oddly as the tail of a column of derived cards. */
-  /* Tab label keeps "and transcripts" (direct instruction). Only the table's
-     own heading dropped it — the heading names who authored what, the tab
-     names everything the panel holds. */
-  { id: 'reflection', label: 'Session reflection and transcripts' },
+  /* The tab names everything the panel holds (direct instruction); the
+     table's own heading names who authored what. "Session reflection and
+     transcripts" until 2026-11-09, when the Goal setting column joined the
+     table (direct instruction: "Session goals, reflection & transcripts"). */
+  { id: 'reflection', label: 'Session goals, reflection & transcripts' },
 ] as const
 type ConsumerSubtab = (typeof CONSUMER_SUBTABS)[number]['id']
 

@@ -108,7 +108,7 @@ export function DeliveryNotesPage() {
           {stage === 'coach' && (
             <p className="text-caption text-ink-muted">
               These notes are just for you. Notes about a client belong on that
-              client&rsquo;s record, under Case notes.
+              client&rsquo;s record, under the My notes tab.
             </p>
           )}
         </div>

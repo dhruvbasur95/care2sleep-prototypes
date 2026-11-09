@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { Fragment, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Check,
   ChevronLeft,
+  ClipboardList,
   Download,
   Info,
   Moon,
@@ -44,7 +45,7 @@ import {
   moduleReflection,
   type ReflectionQuestion,
 } from '@/data/consumerLessonContent'
-import { downloadCsv, downloadText } from '@/lib/csv'
+import { downloadCsv } from '@/lib/csv'
 import { WaveDivider } from '@/components/delivery/WaveDivider'
 import { BannerBlob } from '@/pages/delivery/DeliveryHomePage'
 import { Chip } from '@/components/research/StatusChip'
@@ -55,6 +56,7 @@ import { TablePager } from '@/components/shared/TablePager'
 import { Toast } from '@/components/shared/Toast'
 import { SegmentedSwitch } from '@/components/shared/SegmentedSwitch'
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs'
+import { NumberedTimeline } from '@/components/shared/NumberedTimeline'
 import { cn } from '@/lib/utils'
 /* `SessionTracker`'s import went with the Round 39 removal of the after-session
    half of the Coaching workspace tab. The component itself is untouched and
@@ -115,35 +117,31 @@ const NOTES_PER_PAGE = 5
    and became the place a coach does the work — run the session plan, mark a
    session held, write the reflection that follows. "Overview" named the old
    contents; this names what it is for. */
-/* Round 40, direct instruction: "My reflections" sits **before** Client Profile
-   Details. That order is also the working order — the first four tabs are what
-   a coach does around a session (prepare, write up, read the data, reflect),
-   and the client's own record is reference material behind them. */
+/* Order (2026-11-09, direct instructions): the client's four tabs, then a
+   divider, then the coach's own two — My notes and My reflections. This
+   replaces Round 40's "My reflections before Client Profile Details". */
 const TABS = [
   'Coaching workspace',
-  'Case notes',
   'Client sleep & health data',
   /* 2026-11-09, direct instruction: after Client sleep & health data. Every
      goal a coach has set with this client, one row per held session. */
   'Client goals',
-  'My reflections',
+  /* Before My notes (direct instruction, 2026-11-09): the client's own tabs
+     first, then the coach's own two after a divider (`COACH_OWN_TABS_START`). */
   'Client Profile Details',
+  /* "Case notes" until 2026-11-09, and moved here from second place the same
+     day (direct instructions: "change case notes to my notes", "move it after
+     client goals"). The tab label only — the notes inside are still case notes. */
+  'My notes',
+  'My reflections',
 ] as const
 type Tab = (typeof TABS)[number]
 
-/**
- * Where the tab row parks, in px from the top of the viewport.
- *
- * `AppHeader` is itself `sticky` and measures 48px, so anything smaller slides
- * underneath it. The remaining 24px is `DeliveryShell`'s own `py-6` — the exact
- * gap the side nav card keeps below the header — so when the row parks, its top
- * edge lines up with the sidebar's (direct instruction) rather than sitting on
- * an offset of its own.
- *
- * Shared by the CSS offset and the sentinel's `rootMargin` — they have to agree
- * or the chrome switches on at the wrong scroll position.
- */
-const TABS_STICKY_TOP_PX = 48 + 24
+/** Where the coach's own tabs start. A 1px `ink` rule sits before it,
+ *  separating the client's tabs from My notes and My reflections (direct
+ *  instruction, 2026-11-09: first "use same p500", then "make vertical stroke
+ *  between tabs black not purple"). */
+const COACH_OWN_TABS_START: Tab = 'My notes'
 
 /* Round 55: `dyadTitle()` was DELETED here. Its only reader was the
    `dyadTitle` prop on `AddAnnotationSummaryModal`, which fed the vertical
@@ -1242,8 +1240,9 @@ function heldGoalRows(
   completed: SessionCompletionRecord[],
   saved: ReturnType<typeof useGoalSetting>['saved'],
 ) {
+  // Newest first, Planning last — the researcher's order (2026-11-09).
   return SPACES_SESSIONS.map((s) => s.number)
-    .sort((a, b) => a - b)
+    .sort((a, b) => b - a)
     .flatMap((n) => {
       const held = completed.find((c) => c.session === n)
       const answers = held ? goalsForSession(saved, dyadId, n, completed) : undefined
@@ -1285,11 +1284,17 @@ function GoalSettingCard({
   state,
   onStart,
   headingRef,
+  alone = false,
 }: {
   state: 'start' | 'resume' | 'done'
   onStart: () => void
   /** Focus target after saving — the CTA that opened the modal is gone. */
   headingRef: React.Ref<HTMLHeadingElement>
+  /** The planning call, where the card is the only thing on the workspace
+   *  and runs full width: 40px top and bottom at `xl` (Figma `Goal setting ·
+   *  7 Planning`, direct instruction, 2026-11-09). Beside the session card it
+   *  keeps 24, so the two cards' heights still match. */
+  alone?: boolean
 }) {
   if (state === 'done') {
     return (
@@ -1312,7 +1317,7 @@ function GoalSettingCard({
        The wrapper is the grid item; the card fills it. */
     <div className="goal-orb min-w-0">
     <span aria-hidden="true" className="goal-orb-glow" />
-    <div className="goal-card-glow flex h-full min-w-0 flex-col items-start gap-6 rounded-lg bg-primary p-6 text-white md:flex-row xl:flex-col xl:items-center xl:justify-center xl:text-center">
+    <div className={cn('goal-card-glow flex h-full min-w-0 flex-col items-start gap-6 rounded-lg bg-primary p-6 text-white md:flex-row xl:flex-col xl:items-center xl:justify-center xl:text-center', alone && 'xl:py-10')}>
       {/* Icon first (direct instruction, 2026-11-09) — the same 56px, 1.5
           stroke as the completed state's badge, so the two states hold the
           same shape and only the glyph and colour change. */}
@@ -1345,7 +1350,8 @@ function GoalSettingCard({
 
 /**
  * Client goals tab — every goal set with this client, one row per held
- * session, Planning first (direct instruction, 2026-11-09). The researcher's
+ * session, newest at the top and Planning at the bottom — the researcher's
+ * Session reflection order (direct instruction, 2026-11-09). The researcher's
  * Session reflection table's title-on-canvas + card-table shape, with the one
  * column the coach needs.
  */
@@ -1448,15 +1454,33 @@ function ClientGoalsTab({ dyad }: { dyad: ConsumerDyad }) {
  * for the consumer-portal goals view, which comes later (direct answer,
  * 2026-11-09).
  */
-function LastSessionGoals({ dyad }: { dyad: ConsumerDyad }) {
+function LastSessionGoals({
+  dyad,
+  title = 'Goals from last session',
+  className,
+  tableHeaderClassName,
+  columnRule = false,
+}: {
+  dyad: ConsumerDyad
+  /** Client’s module passes its numbered step title (2026-11-09). */
+  title?: string
+  /** Extra classes on the wrapper (title-to-table is `gap-4`, 16px, which is
+   *  also what Client’s module uses for its other steps). */
+  className?: string
+  /** Header fill for the goals table — green in Client’s module. */
+  tableHeaderClassName?: string
+  /** Client’s module layout: a hairline between the question and answer
+   *  columns. */
+  columnRule?: boolean
+}) {
   const { sessionCompletion } = useResearch()
   const { saved } = useGoalSetting()
-  const last = heldGoalRows(dyad.id, sessionCompletion[dyad.id] ?? [], saved).at(-1)
+  const last = heldGoalRows(dyad.id, sessionCompletion[dyad.id] ?? [], saved)[0]
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn('flex flex-col gap-4', className)}>
       <div>
-        <h3 className="text-body-md text-ink">Goals from last session</h3>
+        <h3 className="text-body-md text-ink">{title}</h3>
         {last && (
           <p className="mt-1 text-caption text-ink-muted">
             Set in {last.label === 'Planning' ? 'the planning session' : last.label} on{' '}
@@ -1470,6 +1494,8 @@ function LastSessionGoals({ dyad }: { dyad: ConsumerDyad }) {
           questionHeading="Question"
           answerHeading="Client’s answer"
           emptyLabel="Not answered."
+          headerClassName={tableHeaderClassName}
+          columnRule={columnRule}
         />
       ) : (
         <p className="text-caption text-ink-muted">No goals have been set with this client yet.</p>
@@ -2292,7 +2318,7 @@ function PreviousSessionNotesPanel({ dyad }: { dyad: ConsumerDyad }) {
               there is no URL to point at, so a real anchor would be a lie.
               Styled as emphasis, and the sentence names the tab so it is
               followable. */}
-          <span className="font-semibold text-primary">Case notes tab</span>.
+          <span className="font-semibold text-primary">My notes tab</span>.
         </p>
       </div>
     </div>
@@ -2318,7 +2344,14 @@ function PreviousSessionNotesPanel({ dyad }: { dyad: ConsumerDyad }) {
  * pointer happens to be over. The reflections table's `sticky` header works
  * against this element, which is its nearest scrolling ancestor.
  */
-const CHECKLIST_PANEL_H = 'h-[440px] overflow-y-auto'
+/* 2026-11-09 (direct instruction): the CARD now takes the side nav's own
+   height and this panel fills what is left of it, so the fixed 440px became
+   `flex-1`. Still one scroller, still the same size on every tab.
+   `-mx-4 px-4 pb-4`: a scroller clips everything past its own box, shadows
+   included, so the box reaches 16px into the card's 24px gutter (content does
+   not move) and ends 16px below the last table — room for `shadow-card`
+   (2px 4px 16px), which every Client’s module table now carries. */
+const CHECKLIST_PANEL_H = '-mx-4 min-h-0 flex-1 overflow-y-auto px-4 pb-4'
 
 /* ── Module recap + Consumer reflections ─────────────────────────────────── */
 
@@ -2382,28 +2415,13 @@ function ChecklistEmpty({
 }
 
 /** Title left, Export right — the header row both new panels share. */
-function PanelHeader({
-  title,
-  subtitle,
-  onExport,
-  exportLabel,
-}: {
-  title: string
-  subtitle?: string
-  onExport: () => void
-  exportLabel: string
-}) {
+function PanelHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  /* Title only since 2026-11-09 — the Client’s module tab dropped its Export
+     ("remove export button also"), and these were its only callers. */
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 flex-1">
-        <h3 className="text-body-md text-ink">{title}</h3>
-        {subtitle && <p className="mt-1 text-caption text-ink-muted">{subtitle}</p>}
-      </div>
-      <button type="button" onClick={onExport} className={EXPORT_BUTTON}>
-        <Download aria-hidden="true" className="size-4" strokeWidth={2.25} />
-        Export
-        <span className="sr-only"> {exportLabel}</span>
-      </button>
+    <div className="min-w-0">
+      <h3 className="text-body-md text-ink">{title}</h3>
+      {subtitle && <p className="mt-1 text-caption text-ink-muted">{subtitle}</p>}
     </div>
   )
 }
@@ -2476,55 +2494,16 @@ function ModuleRecapPanel({ dyad, session }: { dyad: ConsumerDyad; session: numb
     )
   }
 
-  const { index, module } = found
-  /* The panel's own name, not the module's (direct instruction, 2026-10-05).
-     The number and title moved into the table as their own rows, so a heading
-     repeating them would be the third place on one screen saying "Module 4".
-     "Current" because a client's arc has seven and this panel is always about
-     the one the upcoming session reviews. */
-  const heading = 'Current module recap'
+  const { module } = found
   const engagement = dyad.moduleEngagement.find((m) => m.moduleId === module.id)
   const progress = moduleProgressChip(engagement?.status)
 
-  /* Chapter number and title come from different places on purpose: the card
-     carries the number, the chapter list carries the title. Looking the title
-     up by `chapterId` rather than storing it twice is the same "two surfaces,
-     one fact" rule the summary cards themselves are built on. */
-  const chapters = lesson
-    ? lesson.episode.summaryCards.map((c) => ({
-        number: c.number,
-        title: lesson.episode.chapters.find((ch) => ch.id === c.chapterId)?.title ?? c.chapterId,
-        lead: c.lead,
-        bullets: c.bullets,
-      }))
-    : []
-
-  const handleExport = () => {
-    /* Mirrors the panel exactly. It had drifted — still exporting a length,
-       a chapter count and a last-opened date after all three came off the
-       screen — and an export that carries fields the UI does not show is a
-       second, quietly different version of the same record. */
-    const lines = [
-      heading,
-      '',
-      `Client: ${dyad.patient ? `${dyad.patient.name} and ${dyad.carer.name}` : dyad.carer.name}`,
-      `Module number: ${lesson ? lesson.index : 'Not numbered'}`,
-      `Module name: ${module.title}`,
-      `Module status: ${progress.label}`,
-      '',
-      'Module summary',
-      lesson?.episode.coreMessage ?? 'The summary for this module has not been written yet.',
-      ...chapters.map((c) => `- ${c.lead}`),
-    ]
-    downloadText(`${dyad.id}-module-${index}-recap.txt`, lines.join('\n'))
-  }
+  const chapters = recapChapters(lesson)
 
   return (
     <div className="flex flex-col gap-6">
-      {/* No sub copy (direct instruction). It said the panel was about what
-          the client had worked through, which the tab label and the rows
-          below now say between them. */}
-      <PanelHeader title={heading} onExport={handleExport} exportLabel="this module recap" />
+      {/* The step title above it in `ClientModulePanel` names this table
+          now; the panel's own header and Export went (2026-11-09). */}
 
       {/* **Status and Summary, in a table, and nothing else** (direct
           instruction, 2026-10-05: *"just keep status and summary in here. I
@@ -2547,7 +2526,7 @@ function ModuleRecapPanel({ dyad, session }: { dyad: ConsumerDyad; session: numb
           into the wrapper's rounded corners unless the wrapper clips it, so
           the border curves and the fill does not. Reported as "table edges
           not rounded properly". */}
-      <div className="overflow-hidden rounded-sm border border-parchment">
+      <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
         <table className="w-full border-collapse text-left">
           <tbody>
             {/* Module number and name lead the table (direct instruction,
@@ -2631,9 +2610,97 @@ function ModuleRecapPanel({ dyad, session }: { dyad: ConsumerDyad; session: numb
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
 
-      {/* After Current module recap (direct answer, 2026-11-09). */}
-      <LastSessionGoals dyad={dyad} />
+/** Chapter takeaways for the recap's summary row — and for the export, so the
+ *  file says exactly what the table says. */
+function recapChapters(lesson: ReturnType<typeof moduleLesson>) {
+  /* Chapter number and title come from different places on purpose: the card
+     carries the number, the chapter list carries the title. Looking the title
+     up by `chapterId` rather than storing it twice is the same "two surfaces,
+     one fact" rule the summary cards themselves are built on. */
+  return lesson
+    ? lesson.episode.summaryCards.map((c) => ({
+        number: c.number,
+        title: lesson.episode.chapters.find((ch) => ch.id === c.chapterId)?.title ?? c.chapterId,
+        lead: c.lead,
+        bullets: c.bullets,
+      }))
+    : []
+}
+
+/** Step titles (direct instruction, 2026-11-09), numbered by the timeline. */
+const CLIENT_MODULE_STEP_1 = 'What clients covered in their current module'
+/** The user's own wording, pending their pick of a `/design:ux-copy` option. */
+const CLIENT_MODULE_STEP_2 = 'What clients decided to set as their goals'
+const CLIENT_MODULE_STEP_3 = 'What clients reflected from their learning'
+
+/**
+ * **Client’s module** (2026-11-09). Two numbered steps on the session plan
+ * banner's own vertical timeline (`NumberedTimeline`, direct instruction:
+ * "reuse component from session plan creation card"): what the client covered
+ * (the old Module recap table), the goals they set at their last session,
+ * then what they reflected (the old Client module reflection tab) — direct
+ * instructions, 2026-11-09. **No Export** ("remove export button also").
+ * One empty state when there is no module, not two stacked.
+ *
+ * `primary` discs on the ink dotted rule; each step's table takes its own
+ * light tint (direct instruction, 2026-11-09).
+ */
+function ClientModulePanel({ dyad, session }: { dyad: ConsumerDyad; session: number | undefined }) {
+  const found = moduleForSession(session)
+  if (!found) {
+    return <ChecklistEmpty icon={NotebookText} copy="No module to recap before this session" />
+  }
+
+  return (
+    <div className="flex flex-col gap-10">
+      {/* Spacing and colour (direct instruction, 2026-11-09): **16px** from each
+          step title to its content — first 32px (`gap-8`), then "reduce … down to
+          16px" (`gap-4`) the same day. Every disc is `primary` with a
+          white numeral; each step's **table** carries the tint — purple-50,
+          green `#e2f5ec`, yellow-100 (the session plan welcome's light fills).
+          Ticks in step 3 stay `primary`. */}
+      <NumberedTimeline
+        markerClassName="bg-primary text-white"
+        ruleClassName="bg-[repeating-linear-gradient(to_bottom,#1a1a1a66_0_3px,transparent_3px_11px)]"
+        contentClassName="gap-4"
+        /* 64px between steps: 40, then "+24px" (direct instruction, 2026-11-09). */
+        stepGapClassName="pb-16"
+        steps={[
+          {
+            key: 'covered',
+            content: (
+              <>
+                <PanelHeader title={CLIENT_MODULE_STEP_1} />
+                <ModuleRecapPanel dyad={dyad} session={session} />
+              </>
+            ),
+          },
+          {
+            key: 'goals',
+            content: (
+              <LastSessionGoals
+                dyad={dyad}
+                title={CLIENT_MODULE_STEP_2}
+                tableHeaderClassName="bg-[#e2f5ec]"
+                columnRule
+              />
+            ),
+          },
+          {
+            key: 'reflected',
+            content: (
+              <>
+                <PanelHeader title={CLIENT_MODULE_STEP_3} />
+                <ConsumerReflectionsPanel dyad={dyad} session={session} />
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }
@@ -2725,42 +2792,17 @@ function ConsumerReflectionsPanel({
 
   if (!found || questions.length === 0) {
     return (
-      <ChecklistEmpty icon={NotebookPen} copy="No reflection questions for this module yet" />
+      /* Boxed in the tables' own outline and filled with step 3's yellow
+         (`yellow-100`, the table header's tint) — direct instructions,
+         2026-11-09. It sits where the other steps show tables. */
+      <div className="rounded-sm border border-parchment bg-yellow-100 py-8 shadow-card">
+        <ChecklistEmpty icon={NotebookPen} copy="No reflection questions for this module yet" />
+      </div>
     )
-  }
-
-  const handleExport = () => {
-    downloadCsv(`${dyad.id}-module-${found.index}-reflections.csv`, [
-      ['Question', 'Option', ...people.map((p) => `${p.role}: ${p.name}`)],
-      ...questions.flatMap((q) =>
-        q.options.map((o) => [
-          q.prompt,
-          o.label,
-          ...people.map((p) => (pickedOptions(dyad.id, q, p.key).has(o.id) ? 'Selected' : '')),
-        ]),
-      ),
-    ])
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <PanelHeader
-        title="Reflection questions"
-        /* "clients" plural (direct instruction, 2026-10-05): a dyad is two
-           people and this table has a column for each, so the singular
-           described a narrower thing than the table shows. No colon before
-           the module name, same instruction.
-
-           A plain block comment, not a JSX one: a JSX comment inside an
-           attribute list is a second child where no child belongs. See the
-           Round 23 note in CLAUDE.md, and note the companion trap — writing
-           a JSX comment's own delimiters inside a block comment ends the
-           comment at the inner closer, which is how this very comment broke
-           the file once. */
-        subtitle={`What your clients have answered at the end of module ${found.module.title}`}
-        onExport={handleExport}
-        exportLabel="these reflection answers"
-      />
       {/* ⚠️ **No `overflow-hidden` here**, unlike the recap table. It clips
           the header fill to the rounded corners, but `overflow: hidden` also
           makes this div a scroll container — and `position: sticky` sticks to
@@ -2768,7 +2810,7 @@ function ConsumerReflectionsPanel({
           sticking and scrolled away with the rows. Measured: the thead went
           to -336px inside the panel. The corners are rounded on the header
           cells themselves instead, which costs nothing. */}
-      <div className="rounded-sm border border-parchment">
+      <div className="rounded-sm border border-parchment shadow-card">
         <table className="w-full border-collapse text-left">
           {/* Sticky against the panel, which is the one scroller — a name
               column whose heading has scrolled away is a tick against
@@ -2784,7 +2826,7 @@ function ConsumerReflectionsPanel({
             <tr>
               <th
                 scope="col"
-                className="sticky top-0 z-10 rounded-tl-sm bg-purple-50 px-4 py-3 text-caption-medium text-ink"
+                className="sticky top-0 z-10 rounded-tl-sm bg-yellow-100 px-4 py-3 text-caption-medium text-ink"
               >
                 Question and options
               </th>
@@ -2792,7 +2834,7 @@ function ConsumerReflectionsPanel({
                 <th
                   key={p.key}
                   scope="col"
-                  className="sticky top-0 z-10 w-[140px] bg-purple-50 px-4 py-3 text-center text-caption-medium text-ink last:rounded-tr-sm"
+                  className="sticky top-0 z-10 w-[140px] bg-yellow-100 px-4 py-3 text-center text-caption-medium text-ink last:rounded-tr-sm"
                 >
                   {p.name}
                   <span className="block text-fine font-normal text-ink-muted">{p.role}</span>
@@ -2807,7 +2849,8 @@ function ConsumerReflectionsPanel({
             const picks = people.map((p) => pickedOptions(dyad.id, q, p.key))
             return (
               <tbody key={q.id} className={cn(qi > 0 && 'border-t border-hairline')}>
-                <tr className="bg-purple-50/50">
+                {/* Yellow, as the header: step 3 of Client’s module (2026-11-09). */}
+                <tr className="bg-yellow-100/50">
                   <th
                     scope="colgroup"
                     colSpan={1 + people.length}
@@ -2882,12 +2925,18 @@ function ConsumerReflectionsPanel({
    Round 30: researcher-facing surfaces say consumer, coach-facing surfaces
    say client. This is a coach surface. The `reflections` id is unchanged
    because ids are code, not copy. */
+/* 2026-11-09, direct instruction — superseding the order above: the coach's
+   own two first (Session preparation, Previous session notes), a black
+   (`ink`) divider, then the client's three. "Module recap" became Session
+   preparation (content WIP); its recap table and the old "Client module
+   reflection" tab merged into Client’s module. Sentence case per the copy
+   rule ("Session Preparation" in the instruction). */
 const CHECKLIST_TABS = [
+  { id: 'prep', label: 'Session preparation' },
+  { id: 'notes', label: 'Previous session notes' },
+  { id: 'module', label: 'Client’s module' },
   { id: 'fitbit', label: 'Fitbit data' },
   { id: 'diary', label: 'Sleep diary data' },
-  { id: 'recap', label: 'Module recap' },
-  { id: 'reflections', label: 'Client module reflection' },
-  { id: 'notes', label: 'Previous session notes' },
 ] as const
 type ChecklistTab = (typeof CHECKLIST_TABS)[number]['id']
 
@@ -2914,10 +2963,15 @@ function PreSessionChecklist({
   dyad: ConsumerDyad
   session: number | undefined
 }) {
-  const [tab, setTab] = useState<ChecklistTab>('fitbit')
+  const [tab, setTab] = useState<ChecklistTab>('prep')
 
   return (
-    <Card className="gap-0 rounded-lg py-0">
+    /* The side nav's exact height (`DeliverySidebar`: `100dvh - 3rem - 48px`,
+       direct instruction, 2026-11-09) — so with the page's bottom gap cut to
+       the shell's 24px on this tab, the card's top and bottom sit flush with
+       the side nav's at the end of the scroll. `min-h` keeps the panel usable
+       on a short window, where flush gives way to legibility. */
+    <Card className="h-[calc(100dvh-3rem-48px)] min-h-[560px] gap-0 rounded-lg py-0">
       <div className="bg-purple-50 p-6">
         <h2 className="font-display text-title text-ink">Your pre-session checklist</h2>
         {/* Round 40, direct instruction: too wordy. The sentence spent 17 of
@@ -2936,7 +2990,7 @@ function PreSessionChecklist({
           It is the flex gap rather than a margin on the panel so all three
           panels get it identically — a margin would have to be repeated on
           each and would drift. */}
-      <div className="flex flex-col gap-10 border-t border-hairline px-6 pt-4 pb-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-10 border-t border-hairline px-6 pt-4 pb-6">
         {/* `UnderlineTabs` here rather than the `SegmentedSwitch` above: these
             three are levels of the same task (things to read before a
             session), which is what a tab row means, and the frame draws them
@@ -2951,6 +3005,7 @@ function PreSessionChecklist({
           idPrefix="pre-session-tab"
           panelId="pre-session-panel"
           flushStart
+          dividerBefore="module"
         />
         {/* The one scroller — see `CHECKLIST_PANEL_H`. `flex flex-col` is what
             lets an empty state claim the spare height and centre in it; with a
@@ -2981,8 +3036,11 @@ function PreSessionChecklist({
               averageNights={CHECKLIST_AVERAGE_NIGHTS}
             />
           )}
-          {tab === 'recap' && <ModuleRecapPanel dyad={dyad} session={session} />}
-          {tab === 'reflections' && <ConsumerReflectionsPanel dyad={dyad} session={session} />}
+          {/* ⚠️ WIP (direct instruction, 2026-11-09): content to come. */}
+          {tab === 'prep' && (
+            <ChecklistEmpty icon={ClipboardList} copy="Work in progress. Details to come." />
+          )}
+          {tab === 'module' && <ClientModulePanel dyad={dyad} session={session} />}
           {tab === 'notes' && <PreviousSessionNotesPanel dyad={dyad} />}
         </div>
       </div>
@@ -3068,40 +3126,6 @@ export function DeliveryConsumerDetailPage() {
   const [goalSession, setGoalSession] = useState<GoalSessionSnapshot | null>(null)
   const goalHeadingRef = useRef<HTMLHeadingElement>(null)
 
-  /* Is the tab row currently parked under the header?
-     Direct instruction: the white card chrome is a *stuck* treatment only — at
-     rest the row sits on the page canvas like every other tab row in the app.
-     CSS alone cannot express "is stuck", so a zero-height sentinel is rendered
-     immediately above the sticky element and observed with the sticky offset as
-     a negative `rootMargin`: the moment the sentinel crosses that line the row
-     has taken the top, and `isIntersecting` flips.
-     An IntersectionObserver rather than a scroll listener on purpose — it does
-     not fire per frame during a scroll, so there is no work to throttle.
-
-     A **callback ref**, not `useRef` + a `[]` effect. This page mounts while
-     the welcome flow may still be up, and `DeliveryShell` renders its
-     `children` only once onboarding is done — so on a trainee-stage load the
-     sentinel does not exist at first commit, a mount effect reads `null`,
-     bails, and never runs again because its deps never change. Measured: the
-     row stuck correctly and the chrome never appeared. A callback ref fires
-     when the node actually arrives, whenever that is, and again with `null`
-     when it leaves. */
-  const observerRef = useRef<IntersectionObserver | null>(null)
-  const [tabsStuck, setTabsStuck] = useState(false)
-
-  const stickySentinelRef = useCallback((el: HTMLDivElement | null) => {
-    observerRef.current?.disconnect()
-    observerRef.current = null
-    if (!el) return
-    const io = new IntersectionObserver(([entry]) => setTabsStuck(!entry.isIntersecting), {
-      rootMargin: `-${TABS_STICKY_TOP_PX}px 0px 0px 0px`,
-    })
-    io.observe(el)
-    observerRef.current = io
-  }, [])
-
-  useEffect(() => () => observerRef.current?.disconnect(), [])
-
   const ownDyad = dyadsForCoach(COACH_ID).find((d) => d.id === dyadId)
   const dyad = ownDyad ? consumerDyads.find((d) => d.id === dyadId) ?? ownDyad : undefined
 
@@ -3136,6 +3160,10 @@ export function DeliveryConsumerDetailPage() {
      is the whole workspace (with the planning banner above it once the goals
      are saved). */
   const inPlanningCall = planningTranscriptDue
+  /* The checklist card is on screen — the one case where the page ends 24px
+     above the window (the side nav's own gap) instead of 64px, so the two sit
+     flush at the bottom (direct instruction, 2026-11-09). */
+  const showsChecklist = tab === 'Coaching workspace' && planned && !inPlanningCall
   const goalCardState = (n: number) =>
     goalsSaved(n) ? 'done' : goalDrafts[goalKey(dyad.id, n)] ? 'resume' : 'start'
 
@@ -3175,7 +3203,7 @@ export function DeliveryConsumerDetailPage() {
       // the shell's content `cn()`, so this one does win. Both breakpoints are
       // named because the shell sets a `md:` variant that would otherwise take
       // over at desktop width.
-      contentClassName="px-0 md:px-0 pt-4 md:pt-4"
+      contentClassName={cn('px-0 md:px-0 pt-4 md:pt-4', showsChecklist && 'pb-0')}
       hero={
         /* Frame `728:4421`: the back link and the names are one left-hand
            column, with "Edit session plan" right-aligned and bottom-aligned
@@ -3259,93 +3287,13 @@ export function DeliveryConsumerDetailPage() {
         </div>
       }
     >
-      {/* Sticky tab row (direct instruction). It has to live in the **content
-          column**, not in the hero: `position: sticky` is scoped to its own
-          parent's box, so inside the hero block the row would unstick and
-          scroll away the moment the hero did — which is exactly the behaviour
-          being fixed. Here its parent is the page body, so it holds the top
-          for the whole scroll.
-
-          It parks at `TABS_STICKY_TOP_PX` — see that constant for why the
-          number is the header's height plus the shell's own gutter.
-
-          The card treatment (white fill, `parchment` stroke, card shadow) is
-          applied **only while stuck** — at rest the row sits on the page canvas
-          like every other tab row in the app, and the chrome appears when it
-          needs to separate itself from content passing underneath. The
-          transition is on colour and shadow only, so nothing reflows as it
-          switches. `px-6` is held in both states so the labels do not shift
-          sideways at the changeover. */}
-      <div ref={stickySentinelRef} aria-hidden="true" />
-      {/* `-mx-6 px-6`: the box bleeds 24px past the content column on each side
-          so the tab labels stay flush with the back link, the names and the
-          cards below, in both states. The bleed lands in the shell's own 48px
-          column gap on the left and 48px right pad, so it cannot cause a
-          horizontal page scroll — measured. */}
-      <div
-        className="sticky z-20 -mx-6 mb-12 px-6 pt-4"
-        style={{ top: TABS_STICKY_TOP_PX }}
-      >
-        {/* The white card is its **own absolutely-positioned layer** rather
-            than classes toggled on the box itself. That is what makes the
-            transition safe: fill, stroke and shadow cross-fade with **zero**
-            reflow, so the tab labels cannot shift by a pixel at the moment the
-            row parks — animating the box's own border/padding would move them.
-
-            It scales up from 98% and rises 4px as it fades, so the chrome reads
-            as settling into place rather than blinking on. `initial={false}`
-            means a page that loads already scrolled shows the card outright
-            instead of playing the arrival at mount. Same symmetric
-            `[0.4, 0, 0.2, 1]` curve Round 32 settled the tour on — two things
-            moving together on one easing is most of what stops a transition
-            reading as springy. */}
-        {/* The 24px strip between the header and the card. The card holds a
-            gap off the header so its top edge lines up with the side nav's,
-            which leaves a window that page content scrolls cleanly through.
-            Blurring it (rather than filling it) keeps that alignment while
-            stopping text from reading sharply in the gap.
-
-            `backdrop-blur` needs something to blur *behind* it, so this is a
-            separate layer from the card above — the card's own fill is opaque
-            and would hide the effect entirely.
-
-            Two effects stacked, which is what makes it read as content
-            *dissolving* rather than sliding under a panel: `backdrop-blur`
-            defocuses whatever is behind, and the canvas-coloured gradient on
-            top lifts it toward the page colour.
-
-            Deliberately **subtle** (direct instruction): a first pass ran the
-            gradient to fully opaque `background` with `blur-md` and read as a
-            hard wipe — the strip looked like a solid bar rather than a fade.
-            It now tops out at 70%, so the content is still faintly there at
-            the header edge, and the blur is the lighter `sm`. */}
-        {/* A plain div with a CSS opacity transition, **not** a `motion.div`.
-            As a motion sibling it inherited the card layer's own animated
-            `scale: 0.98 / y: -4` — React reconciles these two siblings by
-            position, so adding this one in front handed it the card's existing
-            motion state, and its `animate` only set `opacity`, so the transform
-            was never cleared. Measured: `matrix(0.98, 0, 0, 0.98, 0, -4)`,
-            which lifted the strip 3.8px above the header and left a ~4px band
-            directly above the tabs with no blur at all — exactly the sliver
-            that was reported twice. There is nothing here CSS cannot do. */}
-        <div
-          aria-hidden="true"
-          className={cn(
-            'absolute inset-x-0 -top-6 -z-10 h-6 bg-gradient-to-t from-background/0 via-background/25 to-background/70 backdrop-blur-sm transition-opacity duration-200',
-            tabsStuck ? 'opacity-100' : 'opacity-0',
-          )}
-        />
-        <motion.div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 rounded-sm border border-parchment bg-card shadow-card"
-          initial={false}
-          animate={
-            tabsStuck
-              ? { opacity: 1, scale: 1, y: 0 }
-              : { opacity: 0, scale: 0.98, y: -4 }
-          }
-          transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-        />
+      {/* Not sticky (direct instruction, 2026-11-09: "I no longer want this to
+          be pinned at top, and have any blur background behind"). The parked
+          white card, the blurred strip above it and the scroll sentinel that
+          switched them on were all removed; the row is a plain tab row on the
+          page canvas, as it always looked at rest. `-mx-6 px-6` keeps the
+          labels flush with the back link and the cards below. */}
+      <div className="-mx-6 mb-12 px-6 pt-4">
         <div
           role="tablist"
           aria-label="Client detail sections"
@@ -3361,21 +3309,20 @@ export function DeliveryConsumerDetailPage() {
              indicator is the *same* `primary` colour, at 3px (the app-wide tab
              marker weight, 2026-10-21) — the label's weight and colour carry
              the rest of the selected state. */
-          className={cn(
-            'flex items-end gap-8 overflow-x-auto border-b transition-colors duration-200',
-            // Hidden while parked (direct instruction): the card's own bottom
-            // stroke already closes the row there, and two rules 1px apart read
-            // as a double line. `border-transparent` rather than dropping
-            // `border-b`, so the row's height does not change by 1px at the
-            // changeover and the tabs cannot jog.
-            tabsStuck ? 'border-transparent' : 'border-primary',
-          )}
+          className="flex items-end gap-8 overflow-x-auto border-b border-primary"
         >
             {TABS.map((t, i) => {
               const active = t === tab
               return (
+                <Fragment key={t}>
+                {t === COACH_OWN_TABS_START && (
+                  /* Decorative: aria-hidden, so the tablist still holds only
+                     tabs and arrow keys run straight across it. `mb-3` lines
+                     it up with the labels' `pb-3`; the row's `gap-8` puts it
+                     32px from each neighbour. */
+                  <span aria-hidden="true" className="mb-3 h-5 w-px shrink-0 bg-ink" />
+                )}
                 <button
-                  key={t}
                   ref={(el) => {
                     tabRefs.current[i] = el
                   }}
@@ -3408,6 +3355,7 @@ export function DeliveryConsumerDetailPage() {
                     />
                   )}
                 </button>
+                </Fragment>
               )
             })}
         </div>
@@ -3606,6 +3554,7 @@ export function DeliveryConsumerDetailPage() {
                       <GoalSettingCard
                         state={goalCardState(goalTarget)}
                         headingRef={goalHeadingRef}
+                        alone={inPlanningCall}
                         onStart={() => {
                           setGoalSession({ session: goalTarget, label: sessionRowLabel(goalTarget) })
                           setGoalOpen(true)
@@ -3711,7 +3660,7 @@ export function DeliveryConsumerDetailPage() {
             requestAnimationFrame(() => editPlanBtnRef.current?.focus())
           }}
         />
-        {tab === 'Case notes' && <SessionNotesTab key={dyad.id} dyad={dyad} />}
+        {tab === 'My notes' && <SessionNotesTab key={dyad.id} dyad={dyad} />}
         {tab === 'My reflections' && <ReflectionsTab key={dyad.id} dyad={dyad} />}
         {tab === 'Client sleep & health data' && <SleepHealthDataTab dyad={dyad} />}
         {tab === 'Client goals' && <ClientGoalsTab key={dyad.id} dyad={dyad} />}

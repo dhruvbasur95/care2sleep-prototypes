@@ -10799,6 +10799,7 @@ No Figma frames; this section is the spec. Code: `GoalSettingCard` in `DeliveryC
 ### §113.2 Card
 - `bg-primary`, white text, 56px lucide `Goal` icon, `inverse` CTA (`h-9`, `w-full max-w-[300px]`; 240px in the `md` row). Saved: `bg-success`, 56px `BadgeCheck`, title only.
 - Layout by width: `xl+` centred column (both 60/40 and 100%) · `md`-`xl` banner row, CTA **top right** · `<md` stacked, left.
+- Padding: `p-6` (24) everywhere, except the **Planning** card alone at `xl+`: `xl:py-10` → 40 top/bottom, 24 sides, 244 → **276** tall (2026-11-09, from the user's edit to Figma `Goal setting · 7 Planning` `4881:12039`). Prop `alone`. The 60/40 card keeps 24 so it still matches the session card's height.
 
 ### §113.3 Travelling-orb stroke + glow
 - `.goal-orb` (wrapper) animates a registered `--goal-orb-angle` (`@property`, `inherits: true`) 0→360° in **5.6s linear**; stroke and glow both read it, so they cannot drift.
@@ -10816,3 +10817,24 @@ Paths in lucide order: (1) pole + pennant, (2) outer ring, (3) inner ring.
 
 ### §113.5 Modal
 The reflection wizard's chassis: 920px panel, `ReflectionStepBar` (questions + Review), `WizardWelcomeSteps` (extracted, shared with the reflection wizard), `ReflectionReviewTable` (new `questionHeading` prop). Welcome → one question per screen (centred vertically, **160px** fixed textarea) → Review → Save goals → thank-you (`ThanksMascot`). Every answer required (`aria-disabled` Next + inline alert). **Finish later** / Escape / backdrop keep answers *and* the current question; no confirm. Store: module-scoped drafts + saved goals, `data/goalSetting.ts`.
+
+## §114 — Coach client page: tab groups and the pre-session checklist card (2026-11-09, Round 86)
+
+### §114.1 Client tab row
+- Order: Coaching workspace · Client sleep & health data · Client goals · Client Profile Details **|** My notes · My reflections. The client's four, a divider, the coach's own two.
+- Divider: `1px × 20px`, **`bg-ink`** (#1a1a1a) — first built `primary`, changed same day ("make vertical stroke between tabs black not purple"). `aria-hidden`, sits in the row's 32px gap (32 from each label), `mb-3` to line up with the labels' `pb-3`.
+- **Not sticky** (direct instruction). The parked white card, the 24px blurred strip and the IntersectionObserver sentinel were removed; `TABS_STICKY_TOP_PX` is gone.
+
+### §114.2 Pre-session checklist card
+- Height = the side nav's, by the same expression: `h-[calc(100dvh-3rem-48px)]`, `min-h-[560px]`. On the Coaching workspace tab with the checklist showing, the page's `pb-16` becomes `pb-0`, so the shell's 24px is the only gap. Measured at 1512×982, scrolled to the end: card **72 → 958** = side nav **72 → 958**. The panel is `min-h-0 flex-1 overflow-y-auto` (was a fixed `h-[440px]`) → 657px. Still exactly one scroller.
+- Below a ~656px window the 560 floor wins and the card ends lower than the nav — chosen, not drift.
+- Tabs: Session preparation · Previous session notes **|** Client’s module · Fitbit data · Sleep diary data. Divider via `UnderlineTabs`' new `dividerBefore` (1×20 `bg-ink`, `self-center`, 24px from each label = the tab's 16px pad + 8px gap). Default tab `prep`.
+
+### §114.3 Client’s module tab
+- `NumberedTimeline` (`components/shared/`, extracted verbatim from `SessionPlanEmptyBanner`): 40px discs, 1.5px painted dotted rule, step gap inside the row. Here: discs **`bg-primary text-white`**, rule `#1a1a1a66`, `stepGapClassName="pb-16"` (64px), title → content **16px** (`gap-4`; 32 tried first).
+- Each step's **table** carries its tint (direct instruction, after a first pass tinted the discs instead): 1 recap labels `purple-50` · 2 goals header `#e2f5ec` · 3 reflections header + question rows `yellow-100` (`/50` on the rows). Ticks stay `primary`. The fills are the session plan welcome's badge tints (`PlanSessionsModal`).
+- Step 2 table (`ReflectionReviewTable`): `columnRule` (1px hairline between question and answer), `headerClassName`. Both default off/`purple-50`, so every other caller is unchanged.
+- **All three tables carry `shadow-card`** (a no-shadow pass was reversed the same day: "add shadow to all three tables"). The panel is `-mx-4 px-4 pb-4` so its scroller does not clip them: tables x353→1439, panel box 281→1455 at 1512.
+- Step 3 with no reflection questions: the empty state sits in a table-shaped box — `rounded-sm border border-parchment bg-yellow-100 py-8 shadow-card`.
+- Steps are **64px** apart (`pb-16`; 40 first, then +24).
+- **No Export** anywhere in the tab ("remove export button also"); `PanelHeader` is title-only now.
