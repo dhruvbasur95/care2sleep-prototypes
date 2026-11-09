@@ -977,6 +977,182 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Goal setting card — the travelling orb stroke (direct instruction, 2026-11-09)
+   ─────────────────────────────────────────────────────────────────────────
+
+   *"Outline stroke set at centre with 2px width, glowing orb style outline
+   (purple theme colours)… I want to capture user eyes"*, then *"I want
+   outline stroke to move like a orb in loop around the card rather than just
+   fade in or out"*. The first pass (a pulsing `outline`) is gone.
+
+   Three layers, one clock:
+   - **`.goal-orb`** (the wrapper) owns the only animation: it turns the
+     registered `--goal-orb-angle`. `inherits: true`, so the two layers below
+     read the same value and cannot drift apart — one flag, not two matching
+     numbers.
+   - **The stroke** is the card's `::before`: a conic gradient — a faint
+     `purple-300` base all the way round plus one bright `purple-300` → white
+     orb — masked to a 2px ring. `inset: -1px` + `padding: 2px` puts 1px
+     outside the card's edge and 1px inside: Figma's "Center" alignment.
+   - **The glow** is `.goal-orb-glow`, a sibling *behind* the card: the same
+     gradient with only the orb opaque, blurred. It has to be a separate
+     element — a filter on the masked ring is cut back off by its own mask.
+     Behind the card, only the part spilling past the edge shows, so the halo
+     trails the orb round the outside.
+
+   5.6s a lap, linear, so the orb's speed is steady — the same 5.6s as the
+   icon's ring swing. Reduced motion: the orb parks top-right and nothing
+   moves. The completed green state uses none of this. */
+@property --goal-orb-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+
+.goal-orb {
+  position: relative;
+  isolation: isolate;
+  animation: goal-orb-lap 5.6s linear infinite;
+}
+
+.goal-orb-glow {
+  position: absolute;
+  /* Spread: a 6px bleed past the card, blurred 16px, over a 110° lit arc
+     (direct instructions, 2026-11-09: raised from 3px/12px to 10px/22px,
+     then ~5% back, then reduced again to this).
+
+     ⚠️ **Safari clips a `filter: blur` at the element's own border box**
+     (reported 2026-11-09 — hard straight edges round the halo, Safari only;
+     Chrome lets the blur spill as ink overflow). So the blur gets room
+     *inside* the box: the gradient is painted only in the content box
+     (card + 6px) and 34px of transparent padding around it is where the blur
+     spreads. At 34px past the paint a 16px blur is down to ~2% of its peak,
+     so Safari's clip edge is invisible (confirmed in Safari by the user).
+     Keep the padding at roughly 2× the blur if either changes.
+
+     The padding is not free to grow: the box is card + 40px, and both gutters around
+     this card are 48px (`DeliveryShell`'s `pr-12` / `gap-12`). The box's own
+     size counts towards the page's scroll width even though the blur does
+     not — past 48px the page scrolls sideways. Change the bleed and the
+     padding together. */
+  inset: -40px;
+  padding: 34px;
+  background-clip: content-box;
+  background-origin: content-box;
+  z-index: 0;
+  background-image: conic-gradient(
+    from var(--goal-orb-angle),
+    transparent 0deg 250deg,
+    rgb(160 112 255 / 0.9) 305deg,
+    rgb(194 163 255) 335deg,
+    transparent 360deg
+  );
+  filter: blur(16px);
+  pointer-events: none;
+  /* Held back until the card's entrance has finished, then faded in.
+     ⚠️ Measured in Chrome (2026-11-09): while an ancestor is mid-animation
+     on `opacity`/`transform` — the card's slide-in, 0.25s delay + 0.45s —
+     Chrome rasterises it as one layer and cuts this blur off at the layer's
+     rectangle, so the halo showed hard straight edges. At rest nothing clips
+     it. So the glow simply is not there while the card moves. */
+  opacity: 0;
+  animation: goal-orb-glow-in 0.5s ease-out 0.75s forwards;
+}
+
+@keyframes goal-orb-glow-in {
+  to { opacity: 1; }
+}
+
+.goal-card-glow {
+  position: relative;
+  z-index: 1;
+  box-shadow: 3px 5px 30px rgb(0 0 0 / 0.22);
+}
+
+.goal-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 2px;
+  border-radius: 17px; /* the card's 16px + the 1px outside */
+  background: conic-gradient(
+    from var(--goal-orb-angle),
+    rgb(194 163 255 / 0.35) 0deg 285deg,
+    var(--color-purple-300) 315deg,
+    #fff 338deg,
+    var(--color-purple-300) 352deg,
+    rgb(194 163 255 / 0.35) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes goal-orb-lap {
+  to { --goal-orb-angle: 360deg; }
+}
+
+/* The card's Goal icon, animated **by its parts** (direct instruction,
+   2026-11-09: *"I want flag and circles to animate, do not add animation to
+   just icon"*). lucide's `goal` glyph is three paths, in this order —
+   (1) pole + pennant, (2) the outer ring, (3) the inner ring — so each is
+   addressed with `:nth-of-type`. The paths are lucide's, untouched; only CSS
+   moves them. If lucide ever reorders the glyph, this is what to re-check.
+
+   - **Flag** flutters: `skewY` from the pennant's own bottom-left, which is
+     the pole's foot, so the pole stays upright and only the cloth moves.
+     2.8s — two flutters per orb lap (slowed from 1.4s, direct
+     instruction, 2026-11-09).
+   - **Rings** swing like a pendulum about the target's centre (direct
+     instruction, 2026-11-09, replacing a fade-and-swell ripple): rotation
+     only, no opacity, no scale. Both are open arcs, so their gaps show the
+     swing. **Both swing the same way, together** (direct instruction,
+     2026-11-09 — they briefly ran in opposition). 5.6s a full swing, the
+     orb's own lap. `view-box` origin at 50% is the target's centre (12,12),
+     so they turn in place.
+
+   ⚠️ `transform-box` is load-bearing on both: without it `transform-origin`
+   resolves against the wrong box and the motion becomes a swing. */
+.goal-icon-anim > path:nth-of-type(1) {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: goal-flag-flutter 2.8s ease-in-out infinite;
+}
+
+.goal-icon-anim > path:nth-of-type(2),
+.goal-icon-anim > path:nth-of-type(3) {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: goal-ring-swing 5.6s ease-in-out infinite;
+}
+
+@keyframes goal-flag-flutter {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  30%      { transform: skewY(-10deg) scaleX(0.9); }
+  60%      { transform: skewY(6deg) scaleX(0.96); }
+}
+
+@keyframes goal-ring-swing {
+  0%, 100% { transform: rotate(-18deg); }
+  50%      { transform: rotate(18deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-orb,
+  .goal-icon-anim > path {
+    animation: none;
+  }
+  /* No entrance to wait for — show the halo outright. */
+  .goal-orb-glow {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Login screen — the artwork panel's width
    ─────────────────────────────────────────────────────────────────────────
 

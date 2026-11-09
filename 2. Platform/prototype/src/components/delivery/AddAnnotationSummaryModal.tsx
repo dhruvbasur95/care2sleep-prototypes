@@ -20,6 +20,7 @@ import { FileDropzone, type UploadStage } from '@/components/shared/FileDropzone
 import { ReflectionReviewTable, rowsFromAnswers } from '@/components/shared/ReflectionReviewTable'
 import { ReflectionStepBar, ReflectionStepStatus } from '@/components/shared/ReflectionStepBar'
 import { ThanksMascot } from '@/components/shared/ThanksMascot'
+import { WizardWelcomeSteps } from '@/components/shared/WizardWelcomeSteps'
 import { SipteaSkillChip } from '@/pages/training-v2/player/blocks/SipteaSkillChip'
 import { SIPTEA_INITIALS, SIPTEA_NAMES, type SipteaInitial } from '@/data/siptea'
 import {
@@ -237,39 +238,13 @@ function WelcomeScreen({
           icon would be ceremony around a file picker, and a four-step row
           would describe work this flow does not ask for. The blurb above is
           the whole orientation it needs. */}
+      {/* The row itself is shared with the goal setting modal since
+          2026-11-09 — `WizardWelcomeSteps` carries the metrics and their
+          reasons. */}
       {!transcriptOnly && (
-      <div className="relative isolate">
-        {/* Hidden on the stacked layout: a horizontal rule joining four
-            vertically stacked steps points at nothing. A 736px row does not fit
-            a narrow panel, hence `min-[880px]:` where the trainee's 636px row
-            uses `min-[640px]:`. */}
-        <span
-          aria-hidden="true"
-          className="absolute top-[27px] right-[80px] left-[80px] -z-10 hidden h-0.5 bg-hairline min-[880px]:block"
+        <WizardWelcomeSteps
+          steps={COACH_WELCOME_STEPS.map((s, i) => ({ ...s, Icon: icons[i] }))}
         />
-        <ol className="flex min-w-0 flex-col items-center gap-8 min-[880px]:flex-row min-[880px]:items-stretch min-[880px]:justify-center min-[880px]:gap-8">
-          {COACH_WELCOME_STEPS.map((s, i) => {
-            const Icon = icons[i]
-            return (
-              <li
-                key={s.label}
-                className="flex w-full min-w-0 max-w-[280px] flex-col items-center gap-4 min-[880px]:w-[160px] min-[880px]:max-w-none"
-              >
-                <span
-                  aria-hidden="true"
-                  className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-full bg-purple-50 text-primary"
-                >
-                  <Icon className="size-6" strokeWidth={1.75} />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="text-body-md text-ink">{s.label}</p>
-                  <p className="text-balance text-caption text-ink-muted">{s.description}</p>
-                </div>
-              </li>
-            )
-          })}
-        </ol>
-      </div>
       )}
     </div>
   )

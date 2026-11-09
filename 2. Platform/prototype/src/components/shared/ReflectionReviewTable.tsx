@@ -93,11 +93,17 @@ export function ReflectionReviewTable({
   /** Shown in place of an empty answer. A wizard says "not yet"; a saved
    *  record says it was left blank, which is final rather than pending. */
   emptyLabel = 'Not answered yet.',
+  /** What the left column is called. Goal setting (2026-11-09) reuses this
+   *  table with numbered questions in place of SIPTEA components — rows with
+   *  `initial: null` already render as a plain label, so the heading is the
+   *  only thing that needed to move. */
+  questionHeading = 'SIPTEA component',
 }: {
   rows: ReflectionRow[]
   onEdit?: (index: number) => void
   answerHeading?: string
   emptyLabel?: string
+  questionHeading?: string
 }) {
   return (
     <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
@@ -105,7 +111,7 @@ export function ReflectionReviewTable({
         <thead>
           <tr className="bg-purple-50">
             <th scope="col" className="w-[34%] px-4 py-3.5 text-caption-medium text-ink-muted">
-              SIPTEA component
+              {questionHeading}
             </th>
             <th scope="col" className="px-4 py-3.5 text-caption-medium text-ink-muted">
               {answerHeading}

@@ -10786,3 +10786,33 @@ arrival — live 1313. The header's search field is **removed** (hidden in Figma
 first); `SearchInput`'s `inputClassName` went with it.
 Figma: Chip set gained **`Tone=Next`** (`4438:8075`, text bound to
 `Purple/900` = #200061). Chip hug width 96 vs live 98 (§14 border).
+
+## §113 — Goal setting card, modal and travelling-orb stroke (2026-11-09, Round 85)
+
+No Figma frames; this section is the spec. Code: `GoalSettingCard` in `DeliveryConsumerDetailPage.tsx`, `components/delivery/GoalSettingModal.tsx`, `data/goalSetting.ts`, `.goal-*` in `index.css`.
+
+### §113.1 Placement
+- **Sessions 1-6:** Join Zoom → the card appears beside Upcoming session details. Grid at `xl` is always two tracks, `1fr 0fr` / `column-gap 0` at rest → `3fr 2fr` / `24px` (60/40); `grid-template-columns` transitions 500ms `cubic-bezier(0.4,0,0.2,1)`. The card fades + drifts in (opacity 0→1, x 24→0, 0.25s delay, 0.45s). Measured at 1512: 1320px → 777.6 / 518.4.
+- **Planning:** after the plan is saved the coach is still on the call, so the card is the whole workspace — no Upcoming card, no Before-session checklist — until the transcript is shared.
+- The debrief banner ("How did Session N go?") and the planning "Upload transcript" banner now wait for **saved goals**, not Join Zoom.
+
+### §113.2 Card
+- `bg-primary`, white text, 56px lucide `Goal` icon, `inverse` CTA (`h-9`, `w-full max-w-[300px]`; 240px in the `md` row). Saved: `bg-success`, 56px `BadgeCheck`, title only.
+- Layout by width: `xl+` centred column (both 60/40 and 100%) · `md`-`xl` banner row, CTA **top right** · `<md` stacked, left.
+
+### §113.3 Travelling-orb stroke + glow
+- `.goal-orb` (wrapper) animates a registered `--goal-orb-angle` (`@property`, `inherits: true`) 0→360° in **5.6s linear**; stroke and glow both read it, so they cannot drift.
+- **Stroke:** card `::before`, `inset: -1px; padding: 2px` (centre-aligned 2px), conic gradient — `purple-300` @0.35 base + a `purple-300 → #fff → purple-300` orb over 285-360°, masked to a ring (`-webkit-mask-composite: xor` / `mask-composite: exclude`).
+- **Glow:** `.goal-orb-glow`, a sibling behind the card. Paint = card + **6px**, `blur(16px)`, lit arc 250-360°, `purple-400` @0.9 → `purple-300`.
+- ⚠️ **Safari clips a `filter: blur` at the element's border box.** The glow box is card + 40px with `padding: 34px`, gradient painted only in the content box (`background-clip/origin: content-box`), so the blur fades out (~2% left) inside its own box. Keep padding ≈ 2× blur. Box must stay ≤ 48px past the card (the shell's `pr-12` / `gap-12`) or the page scrolls sideways.
+- ⚠️ **Chrome clips the same blur while an ancestor animates `opacity`/`transform`.** The glow is `opacity: 0` and fades in at 0.75s, after the card's entrance ends.
+- Reduced motion: orb parked, glow shown outright, icon still.
+
+### §113.4 Icon motion (lucide `Goal`, by its parts)
+Paths in lucide order: (1) pole + pennant, (2) outer ring, (3) inner ring.
+- Flag: `skewY`/`scaleX` from the pole's foot (`transform-box: fill-box; origin 0% 100%`), **2.8s**.
+- Rings: pendulum `rotate(-18deg ↔ 18deg)` about (12,12) (`transform-box: view-box`), **5.6s**, both in the same direction. No fade, no scale.
+- Re-check if lucide reorders the glyph.
+
+### §113.5 Modal
+The reflection wizard's chassis: 920px panel, `ReflectionStepBar` (questions + Review), `WizardWelcomeSteps` (extracted, shared with the reflection wizard), `ReflectionReviewTable` (new `questionHeading` prop). Welcome → one question per screen (centred vertically, **160px** fixed textarea) → Review → Save goals → thank-you (`ThanksMascot`). Every answer required (`aria-disabled` Next + inline alert). **Finish later** / Escape / backdrop keep answers *and* the current question; no confirm. Store: module-scoped drafts + saved goals, `data/goalSetting.ts`.

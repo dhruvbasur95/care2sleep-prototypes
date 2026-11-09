@@ -75,6 +75,7 @@ import {
 } from '@/components/research/ResearchPrioritiesSection'
 import { Separator } from '@/components/ui/separator'
 import { downloadText } from '@/lib/csv'
+import { goalReviewRows, goalsAsText, heldSessionGoals, useGoalSetting } from '@/data/goalSetting'
 import { sessionTranscript, transcriptAsText } from '@/data/transcript'
 import { cn } from '@/lib/utils'
 import { type Coach, type NotificationPreferences } from '@/data/research'
@@ -4508,6 +4509,8 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [transcriptId, setTranscriptId] = useState<string | null>(null)
   const [feedbackId, setFeedbackId] = useState<string | null>(null)
+  const [goalsId, setGoalsId] = useState<string | null>(null)
+  const { saved: savedGoals } = useGoalSetting()
   const [page, setPage] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const prevHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -4554,6 +4557,14 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     const body = e.components.map((c) => `${c.label}\n${c.answer}\n`).join('\n')
     downloadText(`reflection-${dyad.id}-${fileStem(label)}.txt`, `${heading}\n\n${body}`)
   }
+
+  /* Goal setting (2026-11-09) — the questions and the answers agreed in the
+     session, as a plain document like the row's other downloads. */
+  const downloadGoals = (label: string, session: number, answers: string[]) =>
+    downloadText(
+      `goal-setting-${dyad.id}-${fileStem(label)}.txt`,
+      goalsAsText(`${dyadTitle(dyad)} — ${label} — goal setting`, session, answers),
+    )
 
   const downloadTranscript = (label: string, author: string) => {
     const heading = `${dyadTitle(dyad)} — ${label} — session transcript`
@@ -4655,6 +4666,8 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
     heldDate?: string
     /** Never absent on a held session — see `claimReflection`. */
     reflection?: AnnotationSummaryEntry
+    /** The goals set in the session — every held session, Planning included. */
+    goals?: string[]
     /** Only ever asked for once a session has actually happened. */
     feedback?: ConsumerSessionFeedback
     feedbackAsked: boolean
@@ -4689,6 +4702,8 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
       author,
       heldDate: held,
       reflection: planning || !held ? undefined : claimReflection(n, held),
+      /* Planning has goals too — eight questions to the catch-ups' five. */
+      goals: held ? heldSessionGoals(savedGoals, dyad.id, n) : undefined,
       feedback: held && !planning ? dummyConsumerFeedback(dyad.id, n) : undefined,
       feedbackAsked: !!held && !planning,
     }
@@ -4721,6 +4736,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
   const viewing = allRows.find((r) => r.key === viewingId) ?? null
   const transcriptRow = allRows.find((r) => r.key === transcriptId) ?? null
   const feedbackRow = allRows.find((r) => r.key === feedbackId) ?? null
+  const goalsRow = allRows.find((r) => r.key === goalsId) ?? null
 
   /* One table, rendered once per coach on a transferred consumer. */
   const renderTable = (tableRows: ReflectionRow[]) => (
@@ -4730,7 +4746,7 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
               excerpt sizes the Reflection column off its longest row and
               pushes the table well past its container — the same bug the
               coach portal's own notes table hit (Round 31). */}
-          <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+          <table className="w-full min-w-[860px] table-fixed border-collapse text-left">
             <thead>
               <tr className="bg-purple-50">
                 {/* Even fifths. Every column now holds a short, similar value
@@ -4738,19 +4754,23 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
                     variable left to absorb slack and equal tracks read as
                     balanced. Column names are the study's own (direct
                     instruction). */}
-                <th scope="col" className="w-1/5 px-6 py-4 text-caption-medium text-ink">
+                <th scope="col" className="w-1/6 px-6 py-4 text-caption-medium text-ink">
                   Session number
                 </th>
-                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                <th scope="col" className="w-1/6 px-4 py-4 text-caption-medium text-ink">
                   Session held date
                 </th>
-                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                {/* Before Coach reflection (direct instruction, 2026-11-09). */}
+                <th scope="col" className="w-1/6 px-4 py-4 text-caption-medium text-ink">
+                  Goal setting
+                </th>
+                <th scope="col" className="w-1/6 px-4 py-4 text-caption-medium text-ink">
                   Coach reflection
                 </th>
-                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                <th scope="col" className="w-1/6 px-4 py-4 text-caption-medium text-ink">
                   Consumer feedback
                 </th>
-                <th scope="col" className="w-1/5 px-4 py-4 text-caption-medium text-ink">
+                <th scope="col" className="w-1/6 px-4 py-4 text-caption-medium text-ink">
                   Session transcript
                 </th>
               </tr>
@@ -4776,6 +4796,29 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
                       absent. An em dash means nothing has been written yet;
                       "Skipped" means the consumer was asked and declined,
                       which is an answer rather than a gap. */}
+                  <td className="px-4 py-5">
+                    {row.goals ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setGoalsId(row.key)}
+                          className={DOC_ACTION}
+                        >
+                          View<span className="sr-only"> goal setting for {row.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadGoals(row.label, row.session!, row.goals!)}
+                          className={DOC_ACTION}
+                        >
+                          Download<span className="sr-only"> goal setting for {row.label}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-caption text-ink-muted">{'\u2014'}</span>
+                    )}
+                  </td>
+
                   <td className="px-4 py-5">
                     {row.reflection ? (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -4995,6 +5038,47 @@ function ConsumerReflectionCard({ coach, dyad }: { coach: Coach; dyad: ConsumerD
             answerHeading="Coach's answer"
             /* A saved record, so a blank is final rather than pending. Same
                wording the coach's own viewer of this entry uses. */
+            emptyLabel="Not answered."
+          />
+        )}
+      </ConfirmDialog>
+
+      {/* Goal setting viewer (2026-11-09). The reflection viewer's chassis:
+          session title, held date below, questions left and the answers agreed
+          in the session right. */}
+      <ConfirmDialog
+        open={!!goalsRow?.goals}
+        title={goalsRow ? `Goal setting: ${goalsRow.label}` : ''}
+        body={goalsRow?.heldDate ? formatDate(goalsRow.heldDate) : ''}
+        headerAction={
+          goalsRow?.goals && (
+            <button
+              type="button"
+              onClick={() => downloadGoals(goalsRow.label, goalsRow.session!, goalsRow.goals!)}
+              className={DOC_ACTION_PRIMARY}
+            >
+              Download<span className="sr-only"> this goal setting</span>
+            </button>
+          )
+        }
+        confirmLabel="Close"
+        cancelLabel="Close"
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[860px]"
+        onConfirm={() => {
+          setGoalsId(null)
+          returnFocus(goalsId)
+        }}
+        onClose={() => {
+          setGoalsId(null)
+          returnFocus(goalsId)
+        }}
+      >
+        {goalsRow?.goals && (
+          <ReflectionReviewTable
+            rows={goalReviewRows(goalsRow.session!, goalsRow.goals)}
+            questionHeading="Question"
+            answerHeading="Consumer’s answer"
             emptyLabel="Not answered."
           />
         )}

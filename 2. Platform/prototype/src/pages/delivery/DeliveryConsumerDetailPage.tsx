@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Activity,
   ArrowRight,
+  BadgeCheck,
   BellRing,
+  Goal,
   CalendarClock,
   ChevronDown,
   Check,
@@ -27,6 +29,16 @@ import {
   rowsFromStored,
 } from '@/components/shared/ReflectionReviewTable'
 import { coachDraftKey, useCoachReflectionDrafts } from '@/data/coachReflections'
+import { GoalSettingModal, type GoalSessionSnapshot } from '@/components/delivery/GoalSettingModal'
+import {
+  GOAL_CARD_DONE_TITLE,
+  GOAL_CARD_TITLE,
+  GOAL_CARD_BLURB,
+  goalKey,
+  goalReviewRows,
+  goalsForSession,
+  useGoalSetting,
+} from '@/data/goalSetting'
 import {
   moduleLesson,
   moduleReflection,
@@ -72,6 +84,7 @@ import {
   PLANNING_SESSION,
   sessionRowLabel,
   SPACES_CATCHUP_COUNT,
+  SPACES_SESSIONS,
   type AnnotationSummaryEntry,
   type ConsumerDyad,
   type HealthLogEntry,
@@ -110,6 +123,9 @@ const TABS = [
   'Coaching workspace',
   'Case notes',
   'Client sleep & health data',
+  /* 2026-11-09, direct instruction: after Client sleep & health data. Every
+     goal a coach has set with this client, one row per held session. */
+  'Client goals',
   'My reflections',
   'Client Profile Details',
 ] as const
@@ -1209,6 +1225,260 @@ function ReflectionReviewDialog({
    no longer imports it. */
 
 /* ------------------------------------------------------------------------ */
+/* Goal setting (2026-11-09)                                                 */
+/* ------------------------------------------------------------------------ */
+
+/** The row action's text-link treatment — the same string `ReflectionsTab`'s
+ *  View uses, so the two tables' actions read as one system. */
+const GOAL_ROW_ACTION =
+  'rounded-xs text-caption-medium text-primary underline underline-offset-2 outline-none transition-colors hover:text-primary-hover focus-visible:ring-2 focus-visible:ring-ring'
+
+/** One held session's goals for the coach's own surfaces. Sessions not yet held
+ *  have none — goals follow the client's timeline. A goal saved in the app for
+ *  a session the coach has not yet completed is left out on purpose: the tab
+ *  lists goals "once a session gets completed" (direct instruction). */
+function heldGoalRows(
+  dyadId: string,
+  completed: SessionCompletionRecord[],
+  saved: ReturnType<typeof useGoalSetting>['saved'],
+) {
+  return SPACES_SESSIONS.map((s) => s.number)
+    .sort((a, b) => a - b)
+    .flatMap((n) => {
+      const held = completed.find((c) => c.session === n)
+      const answers = held ? goalsForSession(saved, dyadId, n, completed) : undefined
+      return held && answers
+        ? [{ session: n, label: sessionRowLabel(n), heldDate: held.completedDate, answers }]
+        : []
+    })
+}
+
+/**
+ * "My Care2Sleep goal setting" — the card beside Upcoming session details,
+ * 50/50, once the coach has joined the call (direct instruction, 2026-11-09).
+ *
+ * `primary` (Purple/500) while outstanding (direct instruction, 2026-11-09,
+ * replacing the first pass's yellow), semantic green once saved, with the
+ * title alone. The card stays in its draft state (Resume) until every answer
+ * is in and saved.
+ *
+ * **Centred at `xl`, left-aligned below it** (same instruction). `xl` is
+ * exactly where the parent grid goes 50/50, so the breakpoint *is* "in the
+ * split"; below it the card stacks under the session card at full width and
+ * reads as a banner. `shadow-float`, not `shadow-card`: the warm card shadow
+ * is invisible against a solid fill (see `--shadow-siptea-chip`'s note).
+ *
+ * The completed glyph is lucide's `BadgeCheck` (direct answer, 2026-11-09):
+ * the brief drew a 12-point rounded star with a tick, which has no lucide
+ * equivalent, and this is the closest library mark.
+ */
+/*
+ * **Three layouts, by width** (direct instruction, 2026-11-09):
+ *   - `xl` and up — centred column: icon, copy, button. Same whether the card
+ *     sits beside the session card (60/40) or alone at 100% on the planning
+ *     call.
+ *   - `md` to `xl` ("wrap mode") — a banner row like every other banner in
+ *     the portal: icon and copy on the left, the button **top right**.
+ *   - below `md` — stacked, left-aligned.
+ */
+function GoalSettingCard({
+  state,
+  onStart,
+  headingRef,
+}: {
+  state: 'start' | 'resume' | 'done'
+  onStart: () => void
+  /** Focus target after saving — the CTA that opened the modal is gone. */
+  headingRef: React.Ref<HTMLHeadingElement>
+}) {
+  if (state === 'done') {
+    return (
+      <div className="flex min-w-0 items-center gap-4 rounded-lg border border-success bg-success p-6 text-white shadow-float xl:flex-col xl:justify-center xl:text-center">
+        <BadgeCheck aria-hidden="true" className="size-14 shrink-0" strokeWidth={1.5} />
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="min-w-0 font-display text-title text-balance outline-none"
+        >
+          {GOAL_CARD_DONE_TITLE}
+        </h2>
+      </div>
+    )
+  }
+  return (
+    /* The travelling orb stroke (index.css): `.goal-orb` runs the clock,
+       `.goal-orb-glow` is the blurred halo behind the card, and the card's own
+       `::before` is the 2px stroke — so no `border` and no `shadow-*` here.
+       The wrapper is the grid item; the card fills it. */
+    <div className="goal-orb min-w-0">
+    <span aria-hidden="true" className="goal-orb-glow" />
+    <div className="goal-card-glow flex h-full min-w-0 flex-col items-start gap-6 rounded-lg bg-primary p-6 text-white md:flex-row xl:flex-col xl:items-center xl:justify-center xl:text-center">
+      {/* Icon first (direct instruction, 2026-11-09) — the same 56px, 1.5
+          stroke as the completed state's badge, so the two states hold the
+          same shape and only the glyph and colour change. */}
+      {/* `goal-icon-anim` (index.css) animates the glyph's own parts — the
+          flag flutters, the two rings swing — never the icon as a whole. */}
+      <Goal aria-hidden="true" className="goal-icon-anim size-14 shrink-0" strokeWidth={1.5} />
+      <div className="flex min-w-0 flex-col gap-1 md:flex-1 xl:flex-none">
+        <h2 ref={headingRef} tabIndex={-1} className="font-display text-title text-balance outline-none">
+          {GOAL_CARD_TITLE}
+        </h2>
+        <p className="text-body text-balance opacity-90">{GOAL_CARD_BLURB}</p>
+      </div>
+      {/* `inverse` — the system's tone *for* a coloured band; a `brand` pill
+          on `primary` would be the same colour as the card. `h-9` matches
+          Join Zoom and Reschedule beside it. */}
+      <button
+        type="button"
+        onClick={onStart}
+        /* `w-full max-w-[300px]` — wider (direct instruction, 2026-11-09),
+           capped so it does not run the card's full width when stacked. In
+           the `md` banner row it is a fixed 240px at the top right. */
+        className={cn(buttonVariants({ tone: 'inverse' }), 'h-9 w-full max-w-[300px] md:w-[240px] md:shrink-0 xl:w-full focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary')} /* button-height-pinned: round-69 */
+      >
+        {state === 'resume' ? 'Resume goal setting' : 'Start goal setting'}
+      </button>
+    </div>
+    </div>
+  )
+}
+
+/**
+ * Client goals tab — every goal set with this client, one row per held
+ * session, Planning first (direct instruction, 2026-11-09). The researcher's
+ * Session reflection table's title-on-canvas + card-table shape, with the one
+ * column the coach needs.
+ */
+function ClientGoalsTab({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion } = useResearch()
+  const { saved } = useGoalSetting()
+  const [viewing, setViewing] = useState<number | null>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const rows = heldGoalRows(dyad.id, sessionCompletion[dyad.id] ?? [], saved)
+  const row = rows.find((r) => r.session === viewing) ?? null
+
+  return (
+    <section className="flex flex-col gap-6">
+      <h2 ref={headingRef} tabIndex={-1} className="font-display text-title text-ink outline-none">
+        Goals set with your client
+      </h2>
+
+      {rows.length === 0 ? (
+        <div className={NOTES_SURFACE}>
+          <EmptyState icon={NotebookText} copy="No goals yet. Goals appear here after each session." />
+        </div>
+      ) : (
+        <Card className="gap-0 rounded-lg py-0">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed border-collapse text-left">
+              <thead>
+                <tr className="bg-purple-50">
+                  <th scope="col" className="w-1/3 px-6 py-4 text-caption-medium text-ink">
+                    Session number
+                  </th>
+                  <th scope="col" className="w-1/3 px-4 py-4 text-caption-medium text-ink">
+                    Session held date
+                  </th>
+                  <th scope="col" className="w-1/3 px-4 py-4 text-caption-medium text-ink">
+                    Client goals
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.session} className={cn('align-top', i > 0 && 'border-t border-hairline')}>
+                    <td className="px-6 py-5 text-caption-medium text-ink">{r.label}</td>
+                    <td className="px-4 py-5 text-caption whitespace-nowrap text-ink-muted">
+                      {formatDate(r.heldDate)}
+                    </td>
+                    <td className="px-4 py-5">
+                      <button
+                        type="button"
+                        onClick={() => setViewing(r.session)}
+                        className={cn(GOAL_ROW_ACTION, 'inline-flex h-9 items-center')}
+                      >
+                        View<span className="sr-only"> client goals for {r.label}</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* The researcher's reflection viewer, for goals: session title with no
+          names, the held date below, then questions left and answers right.
+          Read-only — coaches cannot edit saved goals for now (direct answer,
+          2026-11-09). */}
+      <ConfirmDialog
+        open={!!row}
+        title={row ? `Goal setting: ${row.label}` : ''}
+        body={row ? formatDate(row.heldDate) : ''}
+        confirmLabel="Close"
+        cancelLabel="Close"
+        singleAction
+        panelClassName="max-h-[85vh] w-full max-w-[860px]"
+        onConfirm={() => {
+          setViewing(null)
+          headingRef.current?.focus()
+        }}
+        onClose={() => {
+          setViewing(null)
+          headingRef.current?.focus()
+        }}
+      >
+        {row && (
+          <ReflectionReviewTable
+            rows={goalReviewRows(row.session, row.answers)}
+            questionHeading="Question"
+            answerHeading="Client’s answer"
+            emptyLabel="Not answered."
+          />
+        )}
+      </ConfirmDialog>
+    </section>
+  )
+}
+
+/**
+ * The client's goals from their most recent held session, under Current module
+ * recap — the coach reads them back before the next call. Also the placeholder
+ * for the consumer-portal goals view, which comes later (direct answer,
+ * 2026-11-09).
+ */
+function LastSessionGoals({ dyad }: { dyad: ConsumerDyad }) {
+  const { sessionCompletion } = useResearch()
+  const { saved } = useGoalSetting()
+  const last = heldGoalRows(dyad.id, sessionCompletion[dyad.id] ?? [], saved).at(-1)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-body-md text-ink">Goals from last session</h3>
+        {last && (
+          <p className="mt-1 text-caption text-ink-muted">
+            Set in {last.label === 'Planning' ? 'the planning session' : last.label} on{' '}
+            {formatDate(last.heldDate)}
+          </p>
+        )}
+      </div>
+      {last ? (
+        <ReflectionReviewTable
+          rows={goalReviewRows(last.session, last.answers)}
+          questionHeading="Question"
+          answerHeading="Client’s answer"
+          emptyLabel="Not answered."
+        />
+      ) : (
+        <p className="text-caption text-ink-muted">No goals have been set with this client yet.</p>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------------ */
 /* Coaching workspace — upcoming session + pre-session checklist             */
 /* (Round 39, frame `728:4388`)                                              */
 /* ------------------------------------------------------------------------ */
@@ -1420,6 +1690,7 @@ function UpcomingSessionCard({
   dyad,
   onReschedule,
   attended,
+  goalsSaved = false,
   onJoin,
   headingRef,
 }: {
@@ -1433,6 +1704,10 @@ function UpcomingSessionCard({
    *  `SessionDebriefBanner` for why joining is the prototype's stand-in for the
    *  clock passing the session's end time. */
   attended: boolean
+  /** The goals for this session are saved — what turns the chip from
+   *  In progress to Completed (DUMMY: a mock stand-in for the session ending,
+   *  direct instruction 2026-11-09). */
+  goalsSaved?: boolean
   onJoin: () => void
 }) {
   const { sessionPlans, sessionCompletion } = useResearch()
@@ -1503,7 +1778,16 @@ function UpcomingSessionCard({
                   <p className="font-display text-title text-primary">
                     {sessionRowLabel(next.session)}
                   </p>
-                  {attended && <Chip tone="success" label="Completed" />}
+                  {/* 2026-11-09, direct instruction: joining the call means the
+                      session is **In progress**, not Completed. It reads
+                      Completed once the goals are saved — a mock for the
+                      session ending, which this prototype has no clock for. */}
+                  {attended &&
+                    (goalsSaved ? (
+                      <Chip tone="success" label="Completed" />
+                    ) : (
+                      <Chip tone="next" label="In progress" />
+                    ))}
                 </div>
               </div>
               {/* A real `<dl>` — these are four label/value pairs, and the
@@ -2347,6 +2631,9 @@ function ModuleRecapPanel({ dyad, session }: { dyad: ConsumerDyad; session: numb
           </tbody>
         </table>
       </div>
+
+      {/* After Current module recap (direct answer, 2026-11-09). */}
+      <LastSessionGoals dyad={dyad} />
     </div>
   )
 }
@@ -2772,7 +3059,14 @@ export function DeliveryConsumerDetailPage() {
    * below.
    */
   const [planningTranscriptDue, setPlanningTranscriptDue] = useState(false)
+  const reduceMotion = useReducedMotion()
   const upcomingHeadingRef = useRef<HTMLHeadingElement>(null)
+  /* Goal setting (2026-11-09). The modal is opened on a snapshot for the same
+     reason the debrief wizard is — see `debriefSession` below. */
+  const { saved: savedGoals, drafts: goalDrafts } = useGoalSetting()
+  const [goalOpen, setGoalOpen] = useState(false)
+  const [goalSession, setGoalSession] = useState<GoalSessionSnapshot | null>(null)
+  const goalHeadingRef = useRef<HTMLHeadingElement>(null)
 
   /* Is the tab row currently parked under the header?
      Direct instruction: the white card chrome is a *stuck* treatment only — at
@@ -2822,6 +3116,28 @@ export function DeliveryConsumerDetailPage() {
      join handler all share. Three separate reads is how a banner ends up
      announcing a different session from the card beneath it. */
   const nextSession = nextPlannedSession(sessionPlans[dyad.id], sessionCompletion[dyad.id] ?? [])
+  const attendedNext = !!nextSession && attendedSessions.includes(nextSession.session)
+
+  /* Which session's goal setting card is up, if any. The planning session's
+     comes first: it opens the moment the plan is saved, before Session 1 can
+     have been joined. A catch-up's opens on Join Zoom (direct instruction,
+     2026-11-09) — joining used to raise the debrief banner directly; that
+     banner now waits for the goals. */
+  const goalTarget = planningTranscriptDue
+    ? PLANNING_SESSION
+    : attendedNext && nextSession
+      ? nextSession.session
+      : null
+  const goalsSaved = (n: number) => !!savedGoals[goalKey(dyad.id, n)]
+  /* Still on the planning call (direct instruction, 2026-11-09). The plan has
+     just been made *in* that Zoom call, so the coach is still in it — Session
+     1's details and its "Before session" checklist are not what they are
+     doing yet. Until the planning transcript is shared, the goal setting card
+     is the whole workspace (with the planning banner above it once the goals
+     are saved). */
+  const inPlanningCall = planningTranscriptDue
+  const goalCardState = (n: number) =>
+    goalsSaved(n) ? 'done' : goalDrafts[goalKey(dyad.id, n)] ? 'resume' : 'start'
 
   const onTabKeyDown = (e: React.KeyboardEvent, i: number) => {
     let next: number
@@ -3160,7 +3476,9 @@ export function DeliveryConsumerDetailPage() {
                     has just happened, where that one is about the next. In
                     practice they never both show: the plan was created a
                     moment ago, so Session 1 cannot yet have been attended. */}
-                {planningTranscriptDue && (
+                {/* Waits for the planning goals (2026-11-09): goal setting
+                    happens in the call, the transcript after it. */}
+                {planningTranscriptDue && goalsSaved(PLANNING_SESSION) && (
                   <SessionDebriefBanner
                     planning
                     sessionNumber={displaySessionNumber(PLANNING_SESSION)}
@@ -3183,7 +3501,10 @@ export function DeliveryConsumerDetailPage() {
                 {/* Frame `728:4984`, above the Upcoming session details card
                     (direct instruction). Only once the session has been
                     attended — before that there is nothing to write up. */}
-                {nextSession && attendedSessions.includes(nextSession.session) && (
+                {/* Now raised by saving the goals, not by Join Zoom (direct
+                    instruction, 2026-11-09). Saving goals is not completing
+                    the session — this banner still owns that. */}
+                {nextSession && attendedNext && goalsSaved(nextSession.session) && (
                   <SessionDebriefBanner
                     sessionNumber={displaySessionNumber(nextSession.session)}
                     date={nextSession.date}
@@ -3221,21 +3542,84 @@ export function DeliveryConsumerDetailPage() {
                     }}
                   />
                 )}
-                <UpcomingSessionCard
-                  dyad={dyad}
-                  headingRef={upcomingHeadingRef}
-                  onReschedule={() => setPlanModalOpen(true)}
-                  attended={!!nextSession && attendedSessions.includes(nextSession.session)}
-                  onJoin={() =>
-                    setAttendedSessions((prev) =>
-                      nextSession && !prev.includes(nextSession.session)
-                        ? [...prev, nextSession.session]
-                        : prev,
-                    )
-                  }
-                />
-                <WaveDivider label="Before session" />
-                <PreSessionChecklist dyad={dyad} session={nextSession?.session} />
+                {/* Side by side with the goal setting card while one is up
+                    (direct instruction, 2026-11-09); full width otherwise. Stacks
+                    below `xl`, where half the column is too narrow for the
+                    session card's date/time row. `min-w-0` on both cells so
+                    neither sizes the track. */}
+                {/* **The split animates in** (direct instruction, 2026-11-09:
+                    "zoom card moves left, and the goal setting card appears
+                    subtly"). At `xl` the grid always has two tracks —
+                    `1fr 0fr` with no column gap while there is nothing to
+                    show — so joining the call is a change of track sizes,
+                    and `grid-template-columns` transitions between fr
+                    values. The session card narrows to the left; the goal
+                    card fades in behind the opening track (below).
+                    Below `xl` the grid is one column and nothing slides.
+                    60/40, session card wider (direct instruction; was
+                    50/50). Every variant is written longhand — a Tailwind
+                    class built by interpolation emits no CSS — and `cn()`
+                    (tailwind-merge) lets the split's `xl:` classes win. */}
+                <div
+                  className={cn(
+                    'grid min-w-0 gap-y-6 transition-[grid-template-columns,column-gap] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none xl:grid-cols-[1fr_0fr] xl:gap-x-0',
+                    goalTarget !== null && 'xl:grid-cols-[3fr_2fr] xl:gap-x-6',
+                    inPlanningCall && 'xl:grid-cols-1 xl:gap-x-0',
+                  )}
+                >
+                  {!inPlanningCall && (
+                  <div className="min-w-0 [&>*]:h-full">
+                    <UpcomingSessionCard
+                      dyad={dyad}
+                      headingRef={upcomingHeadingRef}
+                      onReschedule={() => setPlanModalOpen(true)}
+                      attended={attendedNext}
+                      goalsSaved={!!nextSession && goalsSaved(nextSession.session)}
+                      onJoin={() =>
+                        setAttendedSessions((prev) =>
+                          nextSession && !prev.includes(nextSession.session)
+                            ? [...prev, nextSession.session]
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                  )}
+                  {goalTarget !== null && (
+                    /* Fades and drifts in from the right, starting once the
+                       track is mostly open (0.25s into its 0.5s), so the card
+                       never shows its text reflowing in a sliver of a column.
+                       `min-w-0` + `[&>*]:h-full` so the wrapper is a plain
+                       grid cell and the card still fills the row. */
+                    <motion.div
+                      className="min-w-0 [&>*]:h-full"
+                      initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{
+                        /* No track to wait for on the planning call — it is
+                           the only card. */
+                        delay: inPlanningCall ? 0 : 0.25,
+                        duration: 0.45,
+                        ease: [0.4, 0, 0.2, 1],
+                      }}
+                    >
+                      <GoalSettingCard
+                        state={goalCardState(goalTarget)}
+                        headingRef={goalHeadingRef}
+                        onStart={() => {
+                          setGoalSession({ session: goalTarget, label: sessionRowLabel(goalTarget) })
+                          setGoalOpen(true)
+                        }}
+                      />
+                    </motion.div>
+                  )}
+                </div>
+                {!inPlanningCall && (
+                  <>
+                    <WaveDivider label="Before session" />
+                    <PreSessionChecklist dyad={dyad} session={nextSession?.session} />
+                  </>
+                )}
               </>
             ) : (
               <SessionPlanEmptyBanner
@@ -3295,6 +3679,21 @@ export function DeliveryConsumerDetailPage() {
           />
         )}
 
+        {goalSession && (
+          <GoalSettingModal
+            open={goalOpen}
+            dyadId={dyad.id}
+            session={goalSession}
+            onClose={({ saved }) => {
+              setGoalOpen(false)
+              /* Saving swaps the card's CTA for the completed state, so the
+                 modal's trigger is gone — focus the card's own heading, which
+                 now says the goals are set. */
+              if (saved) requestAnimationFrame(() => goalHeadingRef.current?.focus())
+            }}
+          />
+        )}
+
         {/* The create wizard. Saving flips `planned`, which unmounts the banner
             and its CTA entirely — so focus goes to the hero's "Edit session
             plan", the control that exists precisely once a plan does, rather
@@ -3315,6 +3714,7 @@ export function DeliveryConsumerDetailPage() {
         {tab === 'Case notes' && <SessionNotesTab key={dyad.id} dyad={dyad} />}
         {tab === 'My reflections' && <ReflectionsTab key={dyad.id} dyad={dyad} />}
         {tab === 'Client sleep & health data' && <SleepHealthDataTab dyad={dyad} />}
+        {tab === 'Client goals' && <ClientGoalsTab key={dyad.id} dyad={dyad} />}
         {tab === 'Client Profile Details' && (
           <ProfileDetailsSections dyad={dyad} viewerRole="coach" />
         )}
