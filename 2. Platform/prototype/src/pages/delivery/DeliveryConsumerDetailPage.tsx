@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { Fragment, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Activity,
   ArrowRight,
@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Check,
   ChevronLeft,
-  ClipboardList,
   Download,
   Info,
   Moon,
@@ -95,7 +94,7 @@ import {
 } from '@/data/spaces'
 import { useResearch } from '@/data/research-context'
 import { formatDate, formatDateLong, formatSleepDuration, formatTime, TODAY } from '@/data/format'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 
 const COACH_ID = 'helen-zhang'
 
@@ -1460,6 +1459,7 @@ function LastSessionGoals({
   className,
   tableHeaderClassName,
   columnRule = false,
+  questionCellClassName,
 }: {
   dyad: ConsumerDyad
   /** Client’s module passes its numbered step title (2026-11-09). */
@@ -1472,6 +1472,8 @@ function LastSessionGoals({
   /** Client’s module layout: a hairline between the question and answer
    *  columns. */
   columnRule?: boolean
+  /** Client’s module: the question column at half the header's green. */
+  questionCellClassName?: string
 }) {
   const { sessionCompletion } = useResearch()
   const { saved } = useGoalSetting()
@@ -1483,8 +1485,13 @@ function LastSessionGoals({
         <h3 className="text-body-md text-ink">{title}</h3>
         {last && (
           <p className="mt-1 text-caption text-ink-muted">
-            Set in {last.label === 'Planning' ? 'the planning session' : last.label} on{' '}
-            {formatDate(last.heldDate)}
+            {/* Direct instruction, 2026-11-11: session, comma and date in
+                purple-500 at medium weight. */}
+            Goals set during:{' '}
+            <span className="font-medium text-purple-500">
+              {last.label === 'Planning' ? 'Planning session' : last.label},{' '}
+              {formatDate(last.heldDate)}
+            </span>
           </p>
         )}
       </div>
@@ -1496,6 +1503,7 @@ function LastSessionGoals({
           emptyLabel="Not answered."
           headerClassName={tableHeaderClassName}
           columnRule={columnRule}
+          questionCellClassName={questionCellClassName}
         />
       ) : (
         <p className="text-caption text-ink-muted">No goals have been set with this client yet.</p>
@@ -2631,10 +2639,692 @@ function recapChapters(lesson: ReturnType<typeof moduleLesson>) {
     : []
 }
 
+/** Session preparation's header (2026-11-11). The title was first the
+ *  card's own "Your pre-session checklist", repeated directly beneath it; the
+ *  user picked option A of a `/design:ux-copy` pass. See `ux-copy.md`. */
+const SESSION_PREP_TITLE = 'Get ready for your session'
+const SESSION_PREP_SUBTITLE = 'Go through each item below before you join the call.'
+
+/**
+ * Session preparation's opening table (direct instruction, 2026-11-11): which
+ * session this is, the module the client covered for it, and the session's
+ * goals. Label/value rows in the Module recap table's own style
+ * (`RECAP_LABEL`, the shared outline, `shadow-card` — "this table to have
+ * shadow").
+ *
+ * Session number and module are read from the `session` the card was handed,
+ * so they cannot disagree with the session card above or with Client’s
+ * module's recap. ⚠️ **Session goals is a placeholder**: the user will supply
+ * the content, so the row says so rather than inventing goals.
+ */
+function SessionPrepSummary({ session }: { session: number | undefined }) {
+  const found = moduleForSession(session)
+  const rows: { label: string; value: ReactNode }[] = [
+    {
+      label: 'Session number',
+      value: session === undefined ? 'Not planned yet' : displaySessionNumber(session),
+    },
+    {
+      label: 'Client module covered',
+      value: found ? `Module ${found.index}: ${found.module.title}` : 'No module yet',
+    },
+    {
+      label: 'Session goals',
+      value: <span className="text-ink-muted">To be added.</span>,
+    },
+  ]
+
+  return (
+    /* `overflow-hidden` clips the label column's fill to the rounded corners —
+       see `ModuleRecapPanel`, whose table this copies. */
+    <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
+      <table className="w-full border-collapse text-left">
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.label} className={cn(i > 0 && 'border-t border-hairline')}>
+              {/* `whitespace-nowrap`: at 20% "Client module covered" broke
+                  onto two lines in a 1004px window, so the column grows to
+                  its longest label instead of wrapping it. */}
+              <th
+                scope="row"
+                className={cn(RECAP_LABEL, 'whitespace-nowrap', i === 0 && 'w-[20%]')}
+              >
+                {row.label}
+              </th>
+              <td className="px-4 py-3 align-top text-caption text-ink">{row.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/**
+ * Session preparation's seven session steps (direct instruction, 2026-11-11),
+ * the user's own wording. Numbered by the timeline's discs, so the titles
+ * carry no "Step N." of their own — as in Client’s module.
+ */
+const SESSION_STEPS = [
+  {
+    key: 'review',
+    title: 'Review',
+    copy: 'Open the conversation and find out how the past week has been.',
+  },
+  {
+    key: 'module-content',
+    title: 'Module content',
+    copy: 'Find out whether the client had a chance to review the module, then choose the route that fits.',
+  },
+  {
+    key: 'key-points',
+    title: 'Module key points',
+    copy: 'Talk through the key ideas in plain language. Use these as a reference, not a script.',
+  },
+  {
+    key: 'strategy-tailoring',
+    title: 'Strategy tailoring',
+    copy: 'Go through each strategy and note whether the client will try it.',
+  },
+  {
+    key: 'goals',
+    title: 'My Care2Sleep goals',
+    copy: 'Complete this with the client in the pop-up box, in their own words.',
+  },
+  {
+    key: 'contextual-tailoring',
+    title: 'Contextual tailoring',
+    copy: 'Fit the strategies to the client’s routine, caring role and the needs of the person they support.',
+  },
+  {
+    key: 'conclusion',
+    title: 'Session conclusion',
+    copy: 'Close the session and set up the next one.',
+  },
+] as const
+
+/** Step 1 · Review (2026-11-11), verbatim from the user's source. */
+const REVIEW_QUESTIONS = ['How have things been going since we last spoke?'] as const
+
+/** Step 3 · Module key points (2026-11-11), verbatim from the user's source.
+ *  ⚠️ DUMMY for every client: written for one module, shown whichever module
+ *  the session covers. */
+const MODULE_KEY_POINTS = [
+  'Sleep is an active process that happens in roughly 90-minute cycles. It has different stages (NREM and REM), each supporting things like memory, learning, physical repair and overall health.',
+  'Sleep commonly changes with age and with dementia. People living with dementia and care partners may have more disrupted sleep because of brain changes, caregiving demands, health issues, stress or the environment.',
+  'Good sleep relies on three key ingredients: a strong sleep drive, a well-aligned body clock, and a calm mind and body before bed.',
+  'Sleep drive (also called homeostatic sleep pressure) is the body’s natural, increasing need for sleep. It builds up the longer you stay awake.',
+  'To build sleep drive: keep a consistent wake time, avoid or limit naps, and avoid going to bed too early.',
+] as const
+
+/** Step 4 · Strategy tailoring (2026-11-11), verbatim from the user's source.
+ *  Two strategies have no detail there, and the cell is left empty to match.
+ *  ⚠️ DUMMY for every client: one module's strategies. */
+const STRATEGIES = [
+  { strategy: 'Keep a consistent wake time.', detail: '' },
+  {
+    strategy: 'Avoid or limit naps.',
+    detail: 'If naps are unavoidable: shorter (20–30 minutes) and earlier in the day.',
+  },
+  { strategy: 'Avoid going to bed too early.', detail: '' },
+] as const
+
+/** Step 5 · My Care2Sleep goals (2026-11-11), verbatim from the user's
+ *  source. */
+const SESSION_GOALS_QUESTIONS = [
+  'What are some small steps you feel confident starting with?',
+  'What might this look like in practice?',
+  'What might you need to put in place to support you to try this? (for example, alarms, activities to do in the evenings)',
+  'What might get in the way?',
+  'What could you do if something gets in the way?',
+  'What would success look like for you this week?',
+] as const
+
+/**
+ * Step 4's table — Strategy | Detail, no number column. The same chassis and
+ * two-hue pattern as `CoachAsksTable` (header full, first column half), the
+ * strategy as a row header since the detail is *about* it.
+ */
+function StrategyTable() {
+  return (
+    <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr className="bg-purple-50">
+            <th
+              scope="col"
+              className="w-[38%] border-r border-hairline px-4 py-3 text-caption-medium text-ink-muted"
+            >
+              Strategy
+            </th>
+            <th scope="col" className="px-4 py-3 text-caption-medium text-ink-muted">
+              Detail
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-card">
+          {STRATEGIES.map((row) => (
+            <tr key={row.strategy} className="border-t border-hairline">
+              <th
+                scope="row"
+                className="border-r border-hairline bg-purple-50/50 px-4 py-3 text-left align-top text-caption-medium text-ink"
+              >
+                {row.strategy}
+              </th>
+              <td className="px-4 py-3 align-top text-caption text-ink">
+                {row.detail || <span className="sr-only">No detail</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Step 6 · Contextual tailoring (2026-11-11), verbatim from the user's
+ *  source. */
+const CONTEXTUAL_TAILORING_QUESTIONS = [
+  'How regular are your sleep and wake patterns now? And for the person you support?',
+  'What about naps?',
+  'How does your caring role affect your schedule or flexibility?',
+  'What seems to work best for the person you’re caring for?',
+  'How do their needs influence what feels realistic for you in terms of these strategies?',
+  'How might you get out of bed in the mornings or stay out of bed in the evenings?',
+] as const
+
+/** Step 7 · Session conclusion (2026-11-11), verbatim from the user's source.
+ *  ⚠️ DUMMY for every client: line 1 names one module's strategies. */
+const SESSION_CONCLUSION_LINES = [
+  'Today we have talked about the first set of strategies, focused on building your sleep drive.',
+  'Do you have any final questions?',
+  'Confirm the next coaching session.',
+] as const
+
+type SessionStepKey = (typeof SESSION_STEPS)[number]['key']
+
+/**
+ * One session step's table (all seven supplied by the user, 2026-11-11). A
+ * `switch` over the step key, so adding a step to `SESSION_STEPS` without a
+ * body here is a type error rather than a silent empty step.
+ *
+ * Colours: step 2's are the user's (green / yellow / purple). No colour was
+ * named for any other step, so they take the app's default table header,
+ * `purple-50`.
+ */
+function SessionStepBody({ stepKey }: { stepKey: SessionStepKey }) {
+  switch (stepKey) {
+    case 'review':
+      return (
+        <CoachAsksTable
+          questions={REVIEW_QUESTIONS}
+          headerClassName="bg-purple-50"
+          numberClassName="bg-purple-50/50"
+        />
+      )
+    case 'module-content':
+      return <ModuleContentRoutes />
+    case 'key-points':
+      /* ⚠️ One module's points — they do not change with the client's
+         current module yet. */
+      return (
+        <CoachAsksTable
+          questions={MODULE_KEY_POINTS}
+          heading="Key point"
+          headerClassName="bg-purple-50"
+          numberClassName="bg-purple-50/50"
+        />
+      )
+    case 'strategy-tailoring':
+      return <StrategyTable />
+    case 'goals':
+      /* ⚠️ The user's six questions differ from the Goal setting pop-up's
+         own five (`SESSION_GOAL_QUESTIONS`) — flagged, not reconciled. */
+      return (
+        <CoachAsksTable
+          questions={SESSION_GOALS_QUESTIONS}
+          headerClassName="bg-purple-50"
+          numberClassName="bg-purple-50/50"
+        />
+      )
+    case 'contextual-tailoring':
+      return (
+        <CoachAsksTable
+          questions={CONTEXTUAL_TAILORING_QUESTIONS}
+          headerClassName="bg-purple-50"
+          numberClassName="bg-purple-50/50"
+        />
+      )
+    case 'conclusion':
+      return (
+        <CoachAsksTable
+          questions={SESSION_CONCLUSION_LINES}
+          heading="Coach says or asks"
+          headerClassName="bg-purple-50"
+          numberClassName="bg-purple-50/50"
+        />
+      )
+    default: {
+      const unhandled: never = stepKey
+      return unhandled
+    }
+  }
+}
+
+/** Step 2's two routes (direct instruction, 2026-11-11). Copy verbatim from
+ *  the user's source document, numbering included — Route B's two tables
+ *  number on, 1–4 then 5–9, as the source does. */
+const MODULE_ROUTE_YES = [
+  'Did you have questions about anything you learnt?',
+  'Was anything interesting or surprising?',
+  'How did the module feel in terms of relevance to you or the person you’re caring for?',
+  'What felt most useful or least useful about it?',
+] as const
+const MODULE_ROUTE_NO_UNDERSTANDING = [
+  'How has it been for you trying to get to it?',
+  'A lot of people find it hard to keep up at times. What has your experience been like?',
+  'What’s been getting in the way of working on the module?',
+  'Did anything about the module itself make it difficult to get through?',
+] as const
+const MODULE_ROUTE_NO_PROBLEM_SOLVING = [
+  'What might help you take the next small step with the module?',
+  'Would breaking it into smaller chunks make it easier?',
+  'When might be a realistic time for you to come back to it?',
+  'How can I support you with this?',
+  'Would you prefer to go through parts of it together?',
+] as const
+
+type ModuleRoute = 'yes' | 'no'
+const MODULE_ROUTES = [
+  { id: 'yes', label: 'Yes, they reviewed it' },
+  { id: 'no', label: 'No, not yet' },
+] as const satisfies readonly { id: ModuleRoute; label: string }[]
+
+/**
+ * A numbered "Coach asks" table. Two hues per table, the pattern Client’s
+ * module set (2026-11-11): the header at full tint, the number column at
+ * half. Pass both as literal classes — a Tailwind class built from a
+ * variable emits no CSS.
+ */
+function CoachAsksTable({
+  questions,
+  start = 1,
+  heading = 'Coach asks',
+  headerClassName,
+  numberClassName,
+}: {
+  questions: readonly string[]
+  start?: number
+  /** The text column's heading — "Key point" on step 3. */
+  heading?: string
+  headerClassName: string
+  numberClassName: string
+}) {
+  return (
+    <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr className={headerClassName}>
+            <th
+              scope="col"
+              className="w-14 border-r border-hairline px-4 py-3 text-center text-caption-medium text-ink-muted"
+            >
+              #
+            </th>
+            <th scope="col" className="px-4 py-3 text-caption-medium text-ink-muted">
+              {heading}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-card">
+          {questions.map((q, i) => (
+            <tr key={q} className="border-t border-hairline">
+              <td
+                className={cn(
+                  'border-r border-hairline px-4 py-3 text-center align-top text-caption-medium text-ink',
+                  numberClassName,
+                )}
+              >
+                {start + i}
+              </td>
+              <td className="px-4 py-3 align-top text-caption text-ink">{q}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/**
+ * **Step 2 · Module content** (direct instruction, 2026-11-11): two routes,
+ * one shown at a time.
+ *
+ * The brief: "what I don't want is for the coach to first select yes or no
+ * … by default we show for yes, but we need a tab switcher for no … a very
+ * simple interaction". So this is **not** a required yes/no question gating
+ * the content (the source document's radio buttons) — it is a view switch,
+ * already on "Yes" when the step opens, the common case. One click shows the
+ * other route; nothing is recorded, nothing is blocked.
+ *
+ * The control is the app's own `SegmentedSwitch` — a filled two-pill view
+ * switch, `role="tablist"` with arrow keys — rather than a third underline
+ * tab row inside a card that already has two. The source's question stays as
+ * the switch's visible label, so "Yes" / "No" answer something; the pill
+ * labels carry the route names, so each one still reads without it.
+ *
+ * Colours (same instruction): Yes = green `#e2f5ec`; No = Understanding and
+ * validation yellow-100, Problem solving green `#e2f5ec` like Yes (was
+ * purple-50 — direct instruction, 2026-11-11).
+ *
+ * The route choice is local state and resets when the step is collapsed —
+ * collapsed content is unmounted. Deliberate: it is a reading aid, not a
+ * record.
+ */
+function ModuleContentRoutes() {
+  const [route, setRoute] = useState<ModuleRoute>('yes')
+  const questionId = 'module-content-route-question'
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p id={questionId} className="text-caption-medium text-ink">
+          Did the client have a chance to review the module?
+        </p>
+        <SegmentedSwitch
+          options={MODULE_ROUTES}
+          active={route}
+          onChange={setRoute}
+          ariaLabel="Did the client have a chance to review the module?"
+          idPrefix="module-content-route"
+          panelId="module-content-route-panel"
+        />
+      </div>
+      <div
+        id="module-content-route-panel"
+        role="tabpanel"
+        aria-labelledby={`module-content-route-${route}`}
+      >
+        {route === 'yes' ? (
+          <CoachAsksTable
+            questions={MODULE_ROUTE_YES}
+            headerClassName="bg-[#e2f5ec]"
+            numberClassName="bg-[#e2f5ec]/50"
+          />
+        ) : (
+          /* 24px between the two parts of Route B; 8px from each part's
+             title to its table. */
+          <div className="flex flex-col gap-6">
+            <section className="flex flex-col gap-2" aria-labelledby="module-route-no-understanding">
+              {/* `h5`: under the step's `h4`. */}
+              <h5 id="module-route-no-understanding" className="text-caption-medium text-ink">
+                Understanding and validation
+              </h5>
+              <CoachAsksTable
+                questions={MODULE_ROUTE_NO_UNDERSTANDING}
+                headerClassName="bg-yellow-100"
+                numberClassName="bg-yellow-100/50"
+              />
+            </section>
+            <section className="flex flex-col gap-2" aria-labelledby="module-route-no-problem-solving">
+              <h5 id="module-route-no-problem-solving" className="text-caption-medium text-ink">
+                Problem solving
+              </h5>
+              <CoachAsksTable
+                questions={MODULE_ROUTE_NO_PROBLEM_SOLVING}
+                start={MODULE_ROUTE_NO_UNDERSTANDING.length + 1}
+                headerClassName="bg-[#e2f5ec]"
+                numberClassName="bg-[#e2f5ec]/50"
+              />
+            </section>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * **Session steps** — the second section of Session preparation (2026-11-11):
+ * a title and sub copy, then the seven steps on the same `NumberedTimeline`
+ * Client’s module uses, with its markers, rule and 64px step gap copied
+ * verbatim.
+ *
+ * **Each step is an accordion** (direct instruction, 2026-11-11): the title
+ * row is the toggle, with a chevron, and the step's table collapses under it.
+ * The description is **not** part of the accordion (same day: "sub copy
+ * should not be part of accordion"), so a collapsed step still says what it
+ * is for. **Step 1 open, the rest collapsed, by default** (all collapsed
+ * first, then step 1 opened — both direct instructions the same day).
+ * "Expand all" / "Hide all" sit opposite the section title, each shown only
+ * when it would do something — with the default state counting as nothing
+ * to hide.  *
+ * Collapsed details are **unmounted**, not `height: 0` — collapsed content
+ * must not stay in the tab order or the a11y tree.
+ *
+ * Each step's content is `SessionStepBody` — the user's own tables, all
+ * seven supplied 2026-11-11 (they replaced empty placeholder tables).
+ */
+function SessionStepsTimeline() {
+  /* Step 1 open by default, the rest collapsed (direct instruction,
+     2026-11-11 — it was all collapsed first). */
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set([SESSION_STEPS[0].key]))
+  const reduceMotion = useReducedMotion()
+  const transition = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const }
+
+  /* "Hide all should not appear by default", and by default step 1 is open —
+     so the default state (step 1 alone) counts as nothing to hide. Once the
+     coach opens anything else, "Hide all" appears. */
+  const isDefault = open.size === 1 && open.has(SESSION_STEPS[0].key)
+  const anyOpen = open.size > 0 && !isDefault
+  const anyClosed = open.size < SESSION_STEPS.length
+
+  /* Each of the two buttons unmounts the moment it has done its job, so the
+     click would drop focus to `<body>`. Hand it to the other one, which is
+     the one that just appeared. An effect is safe here (unlike under
+     `AnimatePresence mode="wait"`): the target mounts in the same commit. */
+  const expandRef = useRef<HTMLButtonElement>(null)
+  const hideRef = useRef<HTMLButtonElement>(null)
+  const [focusAfter, setFocusAfter] = useState<'expand' | 'hide' | null>(null)
+  useEffect(() => {
+    if (!focusAfter) return
+    ;(focusAfter === 'hide' ? hideRef : expandRef).current?.focus()
+    setFocusAfter(null)
+  }, [focusAfter])
+
+  const toggle = (key: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* No wrap: the sub copy wraps instead, so the buttons stay opposite
+          the title at every width rather than dropping under it. */}
+      <div className="flex items-start justify-between gap-6">
+        <PanelHeader
+          title="Session steps"
+          subtitle="Read through these before the session to prepare, and work through them with the client during it."
+        />
+        {/* Side by side, opposite the title (direct instruction). No icons
+            (same day: "remove icon before expand all" — taken off "Hide all"
+            too, so the pair match when both show). `secondary`
+            buttons ("should be using button styles" — a first pass used
+            `ghost`, which reads as a text link). Each shows only when it
+            would do something: "Expand all" while any step is collapsed,
+            "Hide all" while any is open — so with every step collapsed by
+            default, "Hide all" is absent (direct instruction, 2026-11-11). */}
+        {(anyClosed || anyOpen) && (
+          <div className="flex shrink-0 items-center gap-2">
+            {anyClosed && (
+              <Button
+                ref={expandRef}
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setOpen(new Set(SESSION_STEPS.map((s) => s.key)))
+                  setFocusAfter('hide')
+                }}
+              >
+                Expand all
+              </Button>
+            )}
+            {anyOpen && (
+              <Button
+                ref={hideRef}
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setOpen(new Set())
+                  setFocusAfter('expand')
+                }}
+              >
+                Hide all
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      <NumberedTimeline
+        markerClassName="bg-primary text-white"
+        ruleClassName="bg-[repeating-linear-gradient(to_bottom,#1a1a1a66_0_3px,transparent_3px_11px)]"
+        contentClassName="gap-0"
+        /* A hairline between steps (direct instruction, 2026-11-11: "add …
+           separators between steps to indicate … accordion affordance") —
+           the row-divider an accordion is recognised by. 24px either side of
+           it, in place of the 64px open gap Client’s module uses. A margin,
+           not padding, below the line: margins of a flex item still grow the
+           `<li>`, so the dotted rule beside it runs on unbroken. */
+        stepGapClassName="mb-6 border-b border-hairline pb-6"
+        steps={SESSION_STEPS.map((step) => {
+          const isOpen = open.has(step.key)
+          const detailsId = `session-step-${step.key}`
+          return {
+            key: step.key,
+            content: (
+              <>
+                {/* **The whole step has a hover state** (direct instruction,
+                    2026-11-11: "when I hover on any step entire accordion
+                    should have a hover state") — header and, when open, its
+                    table, on one light grey ground — `pearl` `#f5f5f7`, not
+                    `purple-50` (direct instruction, same day: "light grey
+                    instead of purple"); the View/Hide label and chevron
+                    darken from `ink-muted` to `ink` with it. `pearl` is right
+                    here: it sits inside a white card, not on the warm page
+                    canvas. The ground bleeds 12px
+                    sideways and 8px vertically through negative margins, so
+                    nothing moves and the title stays centred on its disc.
+                    12px, not more: the panel scroller's gutter is 16px. */}
+                {/* No hover state at all while a step is open (direct
+                    instruction, 2026-11-11) — the ground, the purple label
+                    and the underline are a collapsed step's cue only. */}
+                <div
+                  className={cn(
+                    'group/step -mx-3 -my-2 rounded-sm px-3 py-2 transition-colors duration-150',
+                    !isOpen && 'hover:bg-pearl',
+                  )}
+                >
+                  {/* The step's header: title and description on the left,
+                      "View"/"Hide" + chevron on the right, **vertically centred
+                      on the whole header** (direct instruction, 2026-11-11 —
+                      it first sat on the title line alone).
+
+                      The whole header is the button, so the hit area is a real
+                      box (`layoutAudit()` measured 20px when only the title
+                      was, with an `after:` overlay it cannot see). The
+                      description is outside the *accordion* ("sub copy should
+                      not be part of accordion") but inside the button —
+                      `aria-label` keeps the button's name to the step title,
+                      and `aria-describedby` reads the description after it.
+                      Spans, not a `<p>`: a button may only hold phrasing
+                      content. `pt-2.5` centres the title line on its 40px
+                      disc. */}
+                  {/* `h4`: these sit under the section's own `h3`. */}
+                  <h4 className="text-body-md text-ink">
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-controls={detailsId}
+                      aria-label={step.title}
+                      aria-describedby={`${detailsId}-copy`}
+                      onClick={() => toggle(step.key)}
+                      className="group flex w-full items-center justify-between gap-4 rounded-xs text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
+                    >
+                      <span className="min-w-0 pt-2.5">
+                        <span className={cn('block', !isOpen && 'group-hover:underline')}>
+                          {step.title}
+                        </span>
+                        <span
+                          id={`${detailsId}-copy`}
+                          className="mt-1 block text-caption text-ink-muted"
+                        >
+                          {step.copy}
+                        </span>
+                      </span>
+                      {/* "View" / "Hide" before the chevron (direct
+                          instruction, 2026-11-11), so the toggle is not an
+                          icon alone. `aria-hidden`: `aria-expanded` already
+                          says open or closed. */}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'flex shrink-0 items-center gap-1 text-caption-medium text-ink-muted transition-colors duration-150',
+                          !isOpen && 'group-hover/step:text-ink',
+                        )}
+                      >
+                        {isOpen ? 'Hide' : 'View'}
+                        <ChevronDown
+                          className={cn(
+                            'size-5 transition-transform duration-300 motion-reduce:transition-none',
+                            isOpen && 'rotate-180',
+                          )}
+                        />
+                      </span>
+                    </button>
+                  </h4>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      /* `overflow-hidden` is what lets the height animate, and
+                         it would clip the table's shadow — so the box is grown
+                         by 16px each side and 24px below with padding, and the
+                         same taken back with negative margins. 16px, not more:
+                         the panel scroller's own gutter is 16px, and anything
+                         wider scrolls the panel sideways. */
+                      <motion.div
+                        key="details"
+                        id={detailsId}
+                        className="-mx-4 -mb-6 overflow-hidden px-4 pb-6"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1, transition }}
+                        exit={{ height: 0, opacity: 0, transition }}
+                      >
+                        {/* `pt-4`: 16px from the description, inside the clip
+                            so the shadow's top edge is not cut. */}
+                        <div className="pt-4">
+                          <SessionStepBody stepKey={step.key} />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            ),
+          }
+        })}
+      />
+    </div>
+  )
+}
+
 /** Step titles (direct instruction, 2026-11-09), numbered by the timeline. */
 const CLIENT_MODULE_STEP_1 = 'What clients covered in their current module'
-/** The user's own wording, pending their pick of a `/design:ux-copy` option. */
-const CLIENT_MODULE_STEP_2 = 'What clients decided to set as their goals'
+/** Settled 2026-11-11 (direct instruction). */
+const CLIENT_MODULE_STEP_2 = 'What clients set as their goals during last session'
 const CLIENT_MODULE_STEP_3 = 'What clients reflected from their learning'
 
 /**
@@ -2686,6 +3376,7 @@ function ClientModulePanel({ dyad, session }: { dyad: ConsumerDyad; session: num
                 dyad={dyad}
                 title={CLIENT_MODULE_STEP_2}
                 tableHeaderClassName="bg-[#e2f5ec]"
+                questionCellClassName="bg-[#e2f5ec]/50"
                 columnRule
               />
             ),
@@ -3036,9 +3727,25 @@ function PreSessionChecklist({
               averageNights={CHECKLIST_AVERAGE_NIGHTS}
             />
           )}
-          {/* ⚠️ WIP (direct instruction, 2026-11-09): content to come. */}
+          {/* Session preparation (2026-11-11), built a piece at a time on
+              direct instruction: the title first (the user's words), then
+              the sub copy fixed with `/design:ux-copy` from "go through the
+              following pre-session checklist...". The WIP empty state was
+              removed the same day (direct instruction); the items come next. */}
+          {/* 64px between the two sections ("leave some space", 2026-11-11)
+              — the same beat as the gap between timeline steps here and in
+              Client’s module. */}
           {tab === 'prep' && (
-            <ChecklistEmpty icon={ClipboardList} copy="Work in progress. Details to come." />
+            <div className="flex flex-col gap-16">
+              <div className="flex flex-col gap-4">
+                <PanelHeader
+                  title={SESSION_PREP_TITLE}
+                  subtitle={SESSION_PREP_SUBTITLE}
+                />
+                <SessionPrepSummary session={session} />
+              </div>
+              <SessionStepsTimeline />
+            </div>
           )}
           {tab === 'module' && <ClientModulePanel dyad={dyad} session={session} />}
           {tab === 'notes' && <PreviousSessionNotesPanel dyad={dyad} />}

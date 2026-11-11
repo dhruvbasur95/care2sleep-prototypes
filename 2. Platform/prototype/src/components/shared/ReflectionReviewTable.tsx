@@ -107,6 +107,11 @@ export function ReflectionReviewTable({
    *  2026-11-09: "add vertical separator between questions and client
    *  answers"). */
   columnRule = false,
+  /** Extra classes on each body row's question cell (the left column). Off
+   *  by default; Client’s module's goals step passes its header green at
+   *  half strength, two hues as step 3's yellow table uses (direct
+   *  instruction, 2026-11-11). Pass a literal class. */
+  questionCellClassName,
 }: {
   rows: ReflectionRow[]
   onEdit?: (index: number) => void
@@ -115,6 +120,7 @@ export function ReflectionReviewTable({
   questionHeading?: string
   headerClassName?: string
   columnRule?: boolean
+  questionCellClassName?: string
 }) {
   return (
     <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
@@ -146,6 +152,7 @@ export function ReflectionReviewTable({
                 className={cn(
                   'px-4 py-3 text-left align-top text-caption-medium font-medium text-ink',
                   columnRule && 'border-r border-hairline',
+                  questionCellClassName,
                 )}
               >
                 <span className="flex items-center gap-2">
