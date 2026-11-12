@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Mail, Phone } from 'lucide-react'
 import { CoachProfileModal } from '@/components/consumer/CoachProfileModal'
 import { useResearch } from '@/data/research-context'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { ConsumerDyad } from '@/data/spaces'
 
 /**
@@ -76,11 +78,9 @@ function ContactRow({ icon: Icon, value }: { icon: typeof Phone; value: string }
 /**
  * Frame `771:3707` (desktop, inline) / `787:1571` (mobile, full width).
  *
- * One definition, two placements — see the call sites. This is exactly this
- * app's canonical **primary outline** pill: 28px radius, 1px brand border,
- * brand label. The frames draw it 40px tall; it renders at 44 here, since the
- * 36px floor is a minimum and this portal's audience is the one with the
- * explicit big-targets note.
+ * One definition, two placements — see the call sites. The button system's
+ * consumer **primary** (solid `consumer-primary`, white label, 48px, r28)
+ * since 2026-11-12; it was a hand-written outline pill before.
  *
  * ⚠️ **This now opens `CoachProfileModal`.** It shipped as a focusable
  * `aria-disabled` control with an `sr-only` "(coming soon)" cue because, in this
@@ -102,7 +102,11 @@ function ReadProfileButton({ onClick, className }: { onClick: () => void; classN
     <button
       type="button"
       onClick={onClick}
-      className={`h-12 items-center justify-center rounded-3xl border border-consumer-primary bg-white px-5 text-body-md text-consumer-primary outline-none transition-colors hover:bg-consumer-primary/10 focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2 ${className ?? ''}`}
+      /* Primary since 2026-11-12 (direct instruction: "make read profile also
+         primary CTA"), and on the button system rather than hand-written —
+         `cn` lets the call site's `flex`/`hidden` win over the system's
+         `inline-flex`, which is the display trap the note above describes. */
+      className={cn(buttonVariants({ variant: 'primary', surface: 'consumer' }), className)}
     >
       Read profile
     </button>
