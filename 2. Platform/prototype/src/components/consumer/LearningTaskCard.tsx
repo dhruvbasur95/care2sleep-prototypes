@@ -202,9 +202,9 @@ export function LearningTaskCard({ dyad }: { dyad: ConsumerDyad }) {
               - the gap under the title is **16**, not the 8 the other two
                 states use (`gap-4` vs `gap-2`), so the progress block reads as
                 its own thing rather than as a third line of the title;
-              - the figure sits **above** a full-width bar at every width. This
-                card previously went side-by-side above 1281 with a fixed 264px
-                track. The new frame drops that arrangement, so it goes.
+              - the figure sits **above** a full-width bar on phones only. From
+                768 up (tablet and desktop) `LessonProgress` sets it in a row
+                beside a fixed 97px track (direct instruction, 2026-11-12).
           */}
           <div className={cn('flex flex-col', state === 'resume' ? 'gap-4' : 'gap-2')}>
             <p className="text-consumer-card-title text-white">{current.title}</p>

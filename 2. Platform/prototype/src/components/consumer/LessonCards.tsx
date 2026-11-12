@@ -178,17 +178,22 @@ export function LessonProgress({
     // Frame `787:1080`: mobile stacks the figure above a full-width bar;
     // desktop sets them in a row with a **fixed 97px** track (`787:1077`) and a
     // 16px gap. The bar is not full width on desktop — it sits beside the
-    // figure, which is why the wrapper stops stretching at `lg`.
+    // figure, which is why the wrapper stops stretching at `md`.
     //
-    // ⚠️ `lg:justify-start` is load-bearing. `justify-center` is VERTICAL while
-    // this is a column and becomes HORIZONTAL the moment `lg:flex-row` applies,
+    // 2026-11-12, direct instruction: tablet takes the desktop row too ("not a
+    // full 100% width"); only phones keep the full-width bar ("in mobile its
+    // fine actually to leave it as 100%"). So the switch is `md` (768), not
+    // `lg` — every class below moves together.
+    //
+    // ⚠️ `md:justify-start` is load-bearing. `justify-center` is VERTICAL while
+    // this is a column and becomes HORIZONTAL the moment `md:flex-row` applies,
     // which centred the figure and bar in the content column and was reported
     // as the row being broken. Flipping flex-direction silently reinterprets
     // every alignment class on the same element.
-    <div className="flex w-full flex-col justify-center gap-2 lg:w-auto lg:flex-row lg:items-center lg:justify-start lg:gap-4">
+    <div className="flex w-full flex-col justify-center gap-2 md:w-auto md:flex-row md:items-center md:justify-start md:gap-4">
       <p
         className={cn(
-          'text-consumer-eyebrow font-medium whitespace-nowrap lg:font-semibold',
+          'text-consumer-eyebrow font-medium whitespace-nowrap md:font-semibold',
           labelClassName,
         )}
       >
@@ -200,7 +205,7 @@ export function LessonProgress({
         aria-valuemax={100}
         aria-valuenow={Math.round(progress * 100)}
         aria-label={`${title} progress`}
-        className={cn('h-[7px] w-full overflow-hidden rounded-[24px] lg:w-[97px]', trackClassName)}
+        className={cn('h-[7px] w-full overflow-hidden rounded-[24px] md:w-[97px]', trackClassName)}
       >
         <div
           className={cn('h-full rounded-[24px]', fillClassName)}

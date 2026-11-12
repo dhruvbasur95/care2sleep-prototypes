@@ -10849,3 +10849,33 @@ The reflection wizard's chassis: 920px panel, `ReflectionStepBar` (questions + R
 - **Step tables** (`CoachAsksTable`): `#` | `Coach asks`, `w-14` number column with a hairline rule, header at full tint and number column at `/50` (Client’s module's two-hue pattern). Steps 1, 3, 4, 5, 6 and 7 `purple-50` (no colour named); bodies are an exhaustive `switch` in `SessionStepBody` (a step without a body is a type error); step 7's column is "Coach says or asks"; step 4 is `StrategyTable` (Strategy | Detail, no number column, strategy column 38% as a row header at `purple-50/50`, empty detail cells carry an `sr-only` "No detail"); step 3's text column is headed "Key point" (`heading` prop). **Step 2 = `SegmentedSwitch` view switch**, not a gating yes/no: "Yes, they reviewed it" preselected → green `#e2f5ec` table (1–4); "No, not yet" → Understanding and validation `yellow-100` (1–4) + Problem solving green `#e2f5ec` like Yes (5–9; was `purple-50`), 24px apart, `h5` title 8px above each. The route resets when the step collapses (unmounted). `layoutAudit()` empty on both routes at 1004.
 - **Defaults:** step 1 open, the rest collapsed. **Expand all / Hide all** are `secondary` `Button`s (40px, no icons), each rendered only when it would do something; the default state counts as nothing to hide, so only "Expand all" shows at first. Clicking one unmounts it, so focus is handed to the other (measured).
 - Gates: `layoutAudit()` empty at 1004 after the accordion work (1512 last run before it); no horizontal scroll in the panel.
+
+## §115 — Consumer Home: "5. Your Care2Sleep goals" card (2026-11-12, Round 88)
+
+Figma: user's frame `4942:25528` (deleted after build; read before deletion) and the master
+`Home / Goals card` `4960:13452` (Desktop/Tablet/Phone). Code: `components/consumer/ClientGoalsCard.tsx`,
+`CarouselNav.tsx`, `DashedOutline.tsx`, `data/clientGoals.ts`. **Followed 1:1** (user rule).
+
+### §115.1 Placement and visibility
+- Between "4. Your coach details" and the session plan, which is now **"6. Your coaching session plan"**.
+- Rendered only when `hasPlannedSession(plan)` (any of Sessions 1-6 dated) — the strip's own test, so 5 and 6 hide together (`dyad-014`).
+- Goals are **DUMMY defaults**, never the coach's saved goals.
+
+### §115.2 Session pills (tabs)
+- Built on `buttonVariants({ variant: 'secondary', surface: 'consumer' })` (48 tall, r28) with per-state paint: past `purple-50`/`purple-900`; **now** = last session held, `consumer-primary`, "This week: Session N"; future white + `DashedOutline` `[6,4]` `purple-300` (base border made transparent — it showed under the dashes). Selected-but-not-now: 2px solid `consumer-primary` ring (state not drawn in the frame).
+- Phone (<768): one non-wrapping scroller, "This week" centred on load and on every resize until the client scrolls/taps (input events, not `scroll`). Wraps from 768.
+
+### §115.3 Panel
+- `DashedOutline` `[8,6]` r12 `hairline` from 768 (2px inside, clipped to its own rounded shape — square clipping drew 4px corners); padding 32; none on phone.
+- **Fixed height across sessions:** Planning and Session bodies render as `invisible inert` sizers in the same grid cell as the live body. Measured 513 (1512), 546 (820), 472 (375).
+- Titles: "What matters to me" (Planning, 7 notes) · "What I’ll try this week" (Sessions, 5 notes). Future: no title, no card — `ThanksMascot` + "No goals set yet" + one line, centred.
+
+### §115.4 Sticky note
+- 331 × min 311 (from 768; phone `calc(100%-40px)`), 24 gap, `yellow-50` fill, 1px `yellow-200`, radii 16/16/32/16, `shadow-card`. Padding **`p-[23px]`** = Figma's 24 inside-stroke (text 283 wide in both).
+- "01" + question 18/500 (`text-consumer-eyebrow font-medium`, scales to 17/16 below desktop — settled), answer 16, 4-line clamp; **Show all** `size: 'md'` + `px-5` (107×40; frame 105 + the system's 2px border), opens in place, "Show less".
+- Folded corner: 36×36 `yellow-200`, radii 10/0/32/0, `-2,-2,4` shadow @25% — the user's original vector was lost; kept "to match app".
+- Trailing inset: `after:` 1px spacer with `-ml-[9px]` → 16px after the last note (a 0px spacer is ignored by the scrollable area).
+
+### §115.5 Chevrons (`CarouselNav`, shared with the session plan)
+- Centred, no dots (`showDots={false}`), next = solid primary (`nextVariant="primary"`); previous secondary. Deactive = system `state: 'deactive'` + `aria-disabled` (focus never drops). Hover from the system; press `active:scale-[0.97]`.
+- Presses target "next note after the last target" — a relative `scrollBy` mid-animation was swallowed by snapping.

@@ -7,6 +7,7 @@ import { SessionFeedbackBanner } from '@/components/consumer/SessionFeedbackBann
 import { SessionFeedbackModal } from '@/components/consumer/SessionFeedbackModal'
 import { CARD_HAIRLINE, CARD_PAD, CardIcon } from '@/components/consumer/ConsumerCard'
 import { SessionPlanStrip } from '@/components/consumer/SessionPlanStrip'
+import { ClientGoalsCard } from '@/components/consumer/ClientGoalsCard'
 import { ConsumerShell } from '@/components/consumer/ConsumerShell'
 import { NeedHelpButton } from '@/components/shared/NeedHelpButton'
 import { LearningTaskCard } from '@/components/consumer/LearningTaskCard'
@@ -21,6 +22,7 @@ import {
   displaySessionNumber,
   dyadFirstNames,
   type ConsumerDyad,
+  hasPlannedSession,
   nextPlannedSession,
 } from '@/data/spaces'
 import { cn } from '@/lib/utils'
@@ -684,13 +686,10 @@ export function ConsumerHomePage() {
                     to-do tasks for today and this week below"), which promises
                     a list — these are what make it read as one.
 
-                    ⚠️ The fifth section, "Your coaching session plan"
-                    (`SessionPlanStrip`), is deliberately NOT numbered: the
-                    instruction named four, and that strip is a reference view
-                    of the whole arc rather than something to do now. Flagged
-                    because 1-4 followed by an unnumbered heading is a visible
-                    asymmetry — if it should be 5, it is one string in
-                    `SessionPlanStrip.tsx`. */}
+                    2026-11-12: "5. Your Care2Sleep goals" and "6. Your
+                    coaching session plan" (`SessionPlanStrip`, which owns its
+                    own heading) continue the list. Both hide when no session is
+                    planned, so the numbers on screen never skip. */}
                 <h2 className="text-consumer-heading text-ink">1. Your module</h2>
                 <LearningTaskCard dyad={dyad} />
               </section>
@@ -759,6 +758,23 @@ export function ConsumerHomePage() {
               No `<h2>` above it: unlike the four sections before it, the frame
               gives this card its own intro paragraph and icon instead of a
               section heading, and adding one would say the same thing twice. */}
+          {/* Figma `4942:25528` — "5. Your Care2Sleep goals" (was "My …"; direct
+              instruction 2026-11-12: "it should be your Care2Sleep Goals", which
+              matches every other "Your …" heading on this page), full width,
+              between the session/coach row and the session plan (direct
+              instructions, 2026-11-12: "introduce another card after coach
+              details … before coaching session plan … 100% width", and "yes"
+              to numbering it 5). ⚠️ DUMMY goals, not linked to the coach's
+              goal setting — see `data/clientGoals.ts`. */}
+          {/* Hidden with the session plan strip when no session is planned
+              yet (direct instruction, 2026-11-12) — the heading goes too. */}
+          {hasPlannedSession(sessionPlans[dyad.id]) && (
+            <section className="flex min-w-0 flex-col gap-6">
+              <h2 className="text-consumer-heading text-ink">5. Your Care2Sleep goals</h2>
+              <ClientGoalsCard dyad={dyad} />
+            </section>
+          )}
+
           <SessionPlanStrip dyad={dyad} />
 
           {/*

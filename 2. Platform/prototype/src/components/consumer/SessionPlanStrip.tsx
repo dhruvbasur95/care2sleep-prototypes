@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { CalendarDays, Check, Clock } from 'lucide-react'
+import { CarouselNav } from './CarouselNav'
 import { CARD_HAIRLINE, CARD_PAD, CardIcon } from '@/components/consumer/ConsumerCard'
 import {
   SPACES_CATCHUP_COUNT,
   displaySessionNumber,
+  hasPlannedSession,
   nextPlannedSession,
   type ConsumerDyad,
   type SessionCompletionRecord,
@@ -13,7 +15,6 @@ import {
 import { formatTime } from '@/data/format'
 import { useResearch } from '@/data/research-context'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
 
 /**
  * The consumer's whole coaching arc, as one horizontal strip of session cells.
@@ -132,16 +133,6 @@ const BADGE_TONE: Record<CellStatus, string> = {
   rescheduled: 'bg-yellow-400 text-ink',
   scheduled: 'bg-parchment text-ink-muted',
 }
-
-/* The portal's own outline pill, squared off into a circle: 48px, which is
-   this portal's CTA height since Round 46 and well clear of the app's 36px
-   floor. `disabled:` rather than hiding at the ends, so the pair does not
-   reflow as it is used. */
-const CHEVRON =
-  cn(
-    buttonVariants({ variant: 'secondary', size: 'icon', surface: 'consumer' }),
-    'flex size-12 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-  )
 
 const BADGE_LABEL: Record<CellStatus, string> = {
   completed: 'Completed',
@@ -287,7 +278,7 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
     atEnd: false,
     active: 0,
   })
-  const { rows, completedSessions, nextSession } = useResolvedPlan(dyad)
+  const { plan, rows, completedSessions, nextSession } = useResolvedPlan(dyad)
 
   /**
    * Direct instruction: "In mobile view, by default the upcoming session card
@@ -477,7 +468,7 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
     two statements of the same absence is the duplication this page keeps
     removing.
   */
-  if (!rows.some((row) => row.date)) return null
+  if (!hasPlannedSession(plan)) return null
 
 
   return (
@@ -486,8 +477,11 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
        heading owned by the page would be left stranded over nothing. */
     <section className="flex flex-col gap-6">
       {/* Direct instruction, after the card was first built headingless to match
-          the frame, which draws none: "Your coaching session plan". */}
-      <h2 className="text-consumer-heading text-ink">Your coaching session plan</h2>
+          the frame, which draws none: "Your coaching session plan". Numbered 6
+          on 2026-11-12 ("your coach session plan should be point 6"), after
+          "5. Your Care2Sleep goals" — both hide together when nothing is
+          planned, so the visible numbers never skip. */}
+      <h2 className="text-consumer-heading text-ink">6. Your coaching session plan</h2>
 
       <div className={cn(CARD_HAIRLINE, CARD_PAD, 'flex flex-col gap-8 bg-white')}>
       {/* The frame is desktop-only and sets the icon beside the copy. On a phone
@@ -563,75 +557,20 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
 
           Hidden entirely once the row fits, which is the desktop case. */}
       {scrollState.overflowing && (
-        <div className="flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            disabled={scrollState.atStart}
-            aria-label="Show earlier sessions"
-            className={CHEVRON}
-          >
-            <ChevronLeft aria-hidden="true" className="size-6" strokeWidth={1.75}  />
-          </button>
-
-          {/*
-            Pagination (direct instruction: "for mobile and tablet view add
-            pagination also. the centre one is always longer width wise. rest
-            circles, also factor in animation for this").
-
-            Real buttons, not decoration — each jumps to its own session, which
-            also gives the row a keyboard path to any card without scrolling
-            through the ones between. The visible dot is 10px but the control is
-            24 x 36: this project has shipped 6px pagination dots once already
-            and they failed WCAG 2.2's 2.5.8 target-size minimum. 36 tall is
-            this app's own control floor, which `layout-audit.js` caught at a
-            first-pass 24 — a real finding, not a false positive. The width
-            stays at 24 (2.5.8's own minimum) because six 36px-wide controls
-            plus two 48px chevrons do not fit a 375px card: measured 344px
-            against 293px of room.
-
-            The active pill is `w-7` against the circles' `w-2.5`, animated with a
-            plain width/colour transition rather than framer-motion — one property
-            on six small elements, and `motion-reduce` then removes it honestly.
-            (The thing to avoid here is an arbitrary *property* under stacked
-            variants: Round 46 found `motion-safe:hover:[--x:1]` emitting no CSS
-            at all. A plain `transition-*` utility is not that.)
-          */}
-          <ol className="flex items-center gap-1">
-            {rows.map((row, i) => {
-              const isActive = i === scrollState.active
-              return (
-                <li key={row.session} className="flex">
-                  <button
-                    type="button"
-                    onClick={() => goTo(i)}
-                    aria-label={`Show session ${String(displaySessionNumber(row.session)).padStart(2, '0')}`}
-                    aria-current={isActive ? 'true' : undefined}
-                    className="flex h-9 w-6 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-consumer-primary focus-visible:ring-offset-2"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'h-2.5 rounded-full transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none',
-                        isActive ? 'w-7 bg-consumer-primary' : 'w-2.5 bg-hairline',
-                      )}
-                    />
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-
-          <button
-            type="button"
-            onClick={() => step(1)}
-            disabled={scrollState.atEnd}
-            aria-label="Show later sessions"
-            className={CHEVRON}
-          >
-            <ChevronRight aria-hidden="true" className="size-6" strokeWidth={1.75}  />
-          </button>
-        </div>
+        <CarouselNav
+          className="justify-center"
+          count={rows.length}
+          active={scrollState.active}
+          atStart={scrollState.atStart}
+          atEnd={scrollState.atEnd}
+          onStep={step}
+          onGoTo={goTo}
+          previousLabel="Show earlier sessions"
+          nextLabel="Show later sessions"
+          dotLabel={(i) =>
+            `Show session ${String(displaySessionNumber(rows[i].session)).padStart(2, '0')}`
+          }
+        />
       )}
       </div>
     </section>
@@ -641,6 +580,7 @@ export function SessionPlanStrip({ dyad }: { dyad: ConsumerDyad }) {
 /** Pulls the dyad's plan + completion out of the store and reduces them to the
  *  6 numbered catch-ups this strip renders. */
 function useResolvedPlan(dyad: ConsumerDyad): {
+  plan: SessionPlan | undefined
   rows: SessionPlanRow[]
   completedSessions: Set<number>
   nextSession: number | undefined
@@ -653,5 +593,5 @@ function useResolvedPlan(dyad: ConsumerDyad): {
   const completedSessions = new Set(completed.map((c) => c.session))
   const nextSession = nextPlannedSession(plan, completed)?.session
 
-  return { rows, completedSessions, nextSession }
+  return { plan, rows, completedSessions, nextSession }
 }

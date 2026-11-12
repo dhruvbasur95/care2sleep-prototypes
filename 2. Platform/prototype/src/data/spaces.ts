@@ -334,6 +334,15 @@ export function isPlanSet(plan: SessionPlan | undefined): boolean {
  *  `PlanSessionsModal.handleSubmit`) — nothing that reads "the next
  *  session" should ever be handed the planning session back as if it were
  *  a real, numbered, schedulable item. */
+/** Whether the coach has planned any catch-up yet — at least one of
+ *  Sessions 1-6 has a date. The store seeds every dyad with an undated
+ *  `emptySessionPlan()`, so "a plan exists" or "it has rows" is NOT this test
+ *  (`dyad-012` is the real case). The Consumer Home's session plan strip and
+ *  goals card both hide on it, so they come and go together. */
+export function hasPlannedSession(plan: SessionPlan | undefined): boolean {
+  return !!plan?.sessions.some((s) => s.session !== PLANNING_SESSION && !!s.date)
+}
+
 export function nextPlannedSession(
   plan: SessionPlan | undefined,
   completed: SessionCompletionRecord[],
