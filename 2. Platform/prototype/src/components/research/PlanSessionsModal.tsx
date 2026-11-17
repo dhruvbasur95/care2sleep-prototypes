@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, useMemo} from 'react'
+import { useCallback, useEffect, useId, useRef, useState, useMemo} from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -926,6 +926,18 @@ export function PlanSessionsModal({
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const timeErrorId = useId()
+  /* The end-time alert renders BELOW the timeline + summary row, and at
+     1512x982 that row already fills the scroll area, so the alert landed
+     under the fold with only a sliver showing (2026-11-17). Scroll it into
+     view when it mounts. A callback ref, not an effect: it fires once, on
+     the element itself, and never re-scrolls while the coach keeps editing.
+     `scroll-mb-5` on the alert matches the area's `pb-5`, so the scroll ends
+     at the real bottom rather than 20px short of it. */
+  const revealTimeError = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })
+  }, [])
   const generateTimeoutRef = useRef<number | undefined>(undefined)
   const saveTimeoutRef = useRef<number | undefined>(undefined)
   // Round 15 final-audit critical fix: `showIntro` turning false, `step`
@@ -1939,7 +1951,7 @@ export function PlanSessionsModal({
                                   ) : catchupWeekday !== null && firstSessionDate ? (
                                     <p>
                                       Finally, select what <span className="font-medium text-primary">time of day</span> you would both
-                                      like to meet on <span className="font-medium text-primary">{dayLabel(catchupWeekday)}</span>,
+                                      like to meet on every <span className="font-medium text-primary">{dayLabel(catchupWeekday)}</span>,
                                       starting <span className="font-medium text-primary">{formatDate(firstSessionDate)}</span>.
                                     </p>
                                   ) : catchupWeekday !== null ? (
@@ -1965,9 +1977,10 @@ export function PlanSessionsModal({
 
                             {timeOrderInvalid && catchupWeekday !== null && (
                               <div
+                                ref={revealTimeError}
                                 role="alert"
                                 id={timeErrorId}
-                                className="flex items-start gap-2 rounded-sm border border-destructive bg-destructive/10 px-4 py-3"
+                                className="flex scroll-mb-5 items-start gap-2 rounded-sm border border-destructive bg-destructive/10 px-4 py-3"
                               >
                                 <AlertTriangle
                                   aria-hidden="true"

@@ -10903,6 +10903,11 @@ the Edit pop-up set it whenever a session date changes.
 | Box text | `text-sub-greeting font-normal text-ink-muted text-balance`, centred; picked values `font-medium text-primary` |
 | Complete state | Sparkles 40px, `strokeWidth` 1.8 (3px painted), `primary`; 16px → "To summarise:" (`text-sub-greeting-semibold`); 32px → text |
 
+**End-time alert.** Renders below the row; on mount it scrolls itself into view (callback ref,
+`scrollIntoView({ block: 'nearest' })`, `behavior: 'auto'` under reduced motion) with `scroll-mb-5`
+matching the area's `pb-5`. Without it the alert sat under the fold at 1512×982 (15px visible).
+Round 90.
+
 **Review step / Edit pop-up.** Summary title: Sparkles 24px (`strokeWidth` 2), `gap-3` (12px),
 "Your session plan summary:". `SessionPlannerTable` wrapper `shadow-card`; both scrollers keep
 24px side room (`-mx-6 px-6 pb-5`) so it is not clipped. Modify drawer: 2 fields (session date,
