@@ -3,13 +3,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
   ArrowLeftRight,
-  BookOpen,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Globe,
   ListChecks,
+  Sparkles,
   Video,
 } from 'lucide-react'
 import { SessionDateCalendar } from '@/components/research/SessionDateCalendar'
@@ -19,6 +19,7 @@ import {
   STEP_TIME_CONTROL,
   TIME_STEP_SECONDS,
 } from '@/components/research/SessionPlannerTable'
+import { NumberedTimeline } from '@/components/shared/NumberedTimeline'
 import { WizardStepHeading } from '@/components/shared/WizardStepHeading'
 import { ZoomGuideSlide } from '@/components/research/ZoomGuideSlide'
 import { ZOOM_GUIDE } from '@/data/zoomGuide'
@@ -43,8 +44,8 @@ import {
   displaySessionNumber,
   catchupSessionsCompleted,
   generatePlanRows,
-  moduleUnlockDayLabel,
-  nextWeekday,
+  MODULE_UNLOCK_LEAD_DAYS,
+  moduleUnlockDate,
   type ConsumerDyad,
   type SessionPlanRow,
 } from '@/data/spaces'
@@ -177,7 +178,7 @@ const PLAN_ANCHOR = TODAY
  * opacity recipes doing the same job before this was unified.
  */
 
-type StepKey = 'client-status' | 'catchup-meeting' | 'module-unlock-day' | 'zoom-link' | 'review'
+type StepKey = 'client-status' | 'catchup-meeting' | 'zoom-link' | 'review'
 
 type WizardStep = { key: StepKey; navLabel: string; heading: string; subtitle: string }
 
@@ -235,7 +236,6 @@ function ClientStatusTable({
      use for this figure, against the same denominator, so the three surfaces
      cannot report different module counts for one client. */
   const modulesDone = dyad.moduleEngagement.filter((m) => m.status === 'completed').length
-  const previousDay = moduleUnlockDayLabel(transfer?.previousModuleUnlockDay)
 
   const rows: { label: string; value: string; hint?: string }[] = [
     {
@@ -258,19 +258,6 @@ function ClientStatusTable({
          1:1 rule the study actually runs on. */
       label: 'Modules completed',
       value: `${modulesDone} of ${CONSUMER_MODULE_COUNT} modules completed`,
-    },
-    {
-      /* "Preferred" (direct instruction, 2026-10-09). It distinguishes this
-         row from the wizard's own step 3, which is ALSO called "module unlock
-         day" and is the day the coach is about to choose — without it the
-         table looks like it is already stating the answer to a question two
-         screens later. This one is what the client and their last coach had
-         settled on. */
-      label: 'Preferred module unlock day',
-      /* "Not recorded" rather than an em dash — this audience reads a dash as
-         a missing value they should go hunting for (the same call the contact
-         card on the launching banner makes). */
-      value: previousDay ?? 'Not recorded',
     },
   ]
 
@@ -312,7 +299,7 @@ function ClientStatusTable({
 const STEPS: WizardStep[] = [
   {
     key: 'catchup-meeting',
-    navLabel: 'Set catch-up meeting',
+    navLabel: 'Set sessions and modules',
     /* ⚠️ **No sequence adverb.** This read "First, agree on your weekly
        catch-up" until 2026-10-09, when the transferred-client step made it
        step 2 for some clients and the word became a lie on exactly those
@@ -324,30 +311,31 @@ const STEPS: WizardStep[] = [
        been stripped of its own adverb on 2026-10-01 for related reasons. All
        four headings are now adverb-free, so no heading in this wizard has to
        know its own position. */
-    heading: 'Agree on your weekly catch-up',
+    /* 2026-11-17, direct instruction: the step now sets the catch-up AND,
+       from it, when modules become available, so the old "Agree on your
+       weekly catch-up" named only half of it. Option B from `/design:ux-copy`,
+       made specific about the lead time on instruction. The number is read
+       from `MODULE_UNLOCK_LEAD_DAYS`, never written, so the sentence cannot
+       disagree with the rule that builds the dates. */
+    heading: 'Choose when you meet and when modules become available',
+    /* Option B from `/design:ux-copy`, 2026-11-17. "We will show you", not
+       "pick": the module date is the system's, shown in the summary box, and
+       the box states the 3-day rule once the plan is complete. */
     subtitle:
-      'A weekly Zoom session where you and your client go through the module they have just finished. Weekly is the study plan. You choose the day, the first session date, and the time.',
-  },
-  {
-    key: 'module-unlock-day',
-    navLabel: 'Decide module unlock day',
-    /* "Now," dropped for the same reason as step 1's "First," — see above. */
-    heading: 'Choose the module unlock day',
-    subtitle:
-      'Each week’s module unlocks in your client’s portal on this day, any day of the week. They need to finish it before the catch-up, so more days in between gives them more time.',
+      'Pick your catch-up day, first session date and time. We will show you when the first module becomes available.',
   },
   {
     key: 'zoom-link',
     /* Kept in step with `INTRO_STEPS`' own entry, which was renamed from
        "Zoom link" to name the task rather than the object. The two are the
        same words on purpose — the strip previews these labels. */
-    navLabel: 'Create Zoom link',
+    navLabel: 'Add meeting link',
     /* 2026-10-01, direct instruction. There is no Zoom integration and there
        is not going to be one, so the coach creates the recurring meeting in
        Zoom themselves and pastes the link back here. This step is the hand-off
        for that: instructions, one field, and a walkthrough gallery.
-       Deliberately placed AFTER both day questions — the meeting cannot be set
-       up until its day and time are known, which steps 1 and 2 decide. */
+       Deliberately placed AFTER the catch-up step — the meeting cannot be set
+       up until its day and time are known. */
     /* Shortened 2026-10-01 from "Now, create the Zoom meeting and paste the
        link", which fought the subtitle beneath it in two ways: it opened
        "Now," against the subtitle's "Next,", and it pre-announced the paste
@@ -397,7 +385,8 @@ const STEPS: WizardStep[] = [
   {
     key: 'review',
     navLabel: 'Review your plan',
-    heading: 'Review the plan, then confirm',
+    /* 2026-11-17, direct instruction: "then confirm" dropped. */
+    heading: 'Review your session plan',
     subtitle:
       'Check each week below and modify anything that needs it. Nothing is saved until you confirm.',
   },
@@ -538,15 +527,12 @@ const INTRO_STEPS: IntroStep[] = [
      duplicated as that step's `navLabel` — keep the two in step. */
   {
     icon: CalendarDays,
-    name: 'Set catch-up meeting',
-    description: 'Pick a day and time to meet each week.',
+    /* 2026-11-17, option A: the step now sets the sessions AND, from them,
+       when modules become available. Also ends the "catch-/up" hyphen break
+       the old name took at 160px. Keep in step with `STEPS[0].navLabel`. */
+    name: 'Set sessions and modules',
+    description: 'Pick when you meet and see when modules become available.',
     tone: 'amber',
-  },
-  {
-    icon: BookOpen,
-    name: 'Decide module unlock day',
-    description: 'Pick the day modules unlock.',
-    tone: 'green',
   },
   {
     icon: Video,
@@ -554,9 +540,12 @@ const INTRO_STEPS: IntroStep[] = [
        entry named something the coach does (direct instruction, 2026-10-09:
        *"step 4 zoom link is vague, say Create Zoom link"*). Its own step
        heading already says "Create and add your Zoom meeting link". */
-    name: 'Create Zoom link',
+    name: 'Add meeting link',
     nameBreakAfter: 2,
-    description: 'Add your Zoom meeting link.',
+    /* 2026-11-17, direct instruction: the old name and description both said
+       "Zoom link". The name says what the coach ends up with, the description
+       how. */
+    description: 'Create and add your Zoom link.',
     tone: 'purple',
   },
   {
@@ -594,10 +583,21 @@ const LOADING_MS = 700
  *  cue rather than decoration, which matters for this audience: at any moment
  *  exactly one card says "you are here", and the last answer hands the
  *  emphasis to the dashed summary card below. */
-const stepCard = (active: boolean) =>
+/* The shadow belongs to the current card only (direct instruction,
+   2026-11-17: *"shadow should only appear on current step, not before or
+   afterwards"*), so the lift walks down the step with the highlight. */
+/* `inactive`: a question that cannot be answered yet sits on light grey
+   `pearl` (direct instruction, 2026-11-17), the same fill as the module box
+   beside it before it has anything to say. */
+const stepCard = (active: boolean, inactive = false) =>
   cn(
-    'rounded-sm border border-parchment p-4 shadow-[2px_4px_16px_rgba(85,85,85,0.08)] transition-colors',
-    active ? 'bg-purple-200' : 'bg-purple-50',
+    /* 8px radius (direct instruction, 2026-11-17; 16px was tried). */
+    'rounded-sm border border-parchment p-4 transition-[background-color,box-shadow]',
+    inactive
+      ? 'bg-pearl'
+      : active
+        ? 'bg-purple-200 shadow-[2px_4px_16px_rgba(85,85,85,0.08)]'
+        : 'bg-purple-50',
   )
 /** 15 minutes, in seconds. `step` on a time input makes the browser's own
  *  picker list quarter-hour increments in a compact, anchored, scrollable
@@ -739,8 +739,6 @@ function WeekdayPicker({
   idPrefix,
   groupLabel,
   tone,
-  captions,
-  options = DAY_OF_WEEK_OPTIONS,
 }: {
   value: number | null
   onChange: (value: number) => void
@@ -750,16 +748,6 @@ function WeekdayPicker({
    *  white tile with a `purple-300` outline that fills `primary` when chosen.
    *  `green`/`amber` remain the Round 15 topic colours for the other steps. */
   tone: 'green' | 'amber' | 'purple'
-  /** Optional one-line caption under each tile's day name (Round 38 — the
-   *  Learning day step shows the concrete date the first module would
-   *  arrive, so the choice is a real date rather than an abstract weekday).
-   *  Kept `aria-hidden`; the same fact is folded into the button's own
-   *  `aria-label` so a screen reader hears one coherent name. */
-  captions?: Partial<Record<number, string>>
-  /** Which days to offer. Defaults to working days; the module unlock day
-   *  passes all seven (Round 38) since the client does that on their own time
-   *  and a carer's free time is often the weekend. */
-  options?: typeof DAY_OF_WEEK_OPTIONS
 }) {
   // Tailwind's build-time scanner needs every class name as a literal
   // string — a template-interpolated `border-${accent}` is invisible to it
@@ -787,7 +775,10 @@ function WeekdayPicker({
       ? cn('border-purple-300 bg-card text-ink active:scale-[0.97]', hoverClass)
       : cn('border-hairline bg-card text-ink active:scale-[0.97]', hoverClass)
   const tileSizeClass = tone === 'purple' ? 'h-[68px] rounded-xs' : 'h-24 rounded-sm'
-  const labelClass = tone === 'purple' ? 'text-body-md' : ''
+  /* Below `sm` the step's numbered timeline takes 56px of the card's width,
+     which left the tiles 26px wide and clipped "Wed" (35px) — measured at
+     375. The phone label steps down to 14px and the gap to 4px, which fits. */
+  const labelClass = tone === 'purple' ? 'text-caption-medium sm:text-body-md' : ''
   return (
     <div
       role="group"
@@ -795,10 +786,10 @@ function WeekdayPicker({
       // Columns follow the option count so the row always fills its card —
       // a fixed `grid-cols-7` left an empty seventh column whenever the
       // catch-up day was excluded, which reads as a missing tile.
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-      className={cn('grid', tone === 'purple' ? 'gap-3' : 'gap-2')}
+      style={{ gridTemplateColumns: `repeat(${DAY_OF_WEEK_OPTIONS.length}, minmax(0, 1fr))` }}
+      className={cn('grid', tone === 'purple' ? 'gap-1 sm:gap-3' : 'gap-2')}
     >
-      {options.map((o) => {
+      {DAY_OF_WEEK_OPTIONS.map((o) => {
         const selected = value === o.value
         return (
           <button
@@ -811,7 +802,7 @@ function WeekdayPicker({
             // tile's identity explicitly.
             id={`${idPrefix}-${o.value}`}
             aria-pressed={selected}
-            aria-label={captions?.[o.value] ? `${o.label}, ${captions[o.value]}` : o.label}
+            aria-label={o.label}
             onClick={() => onChange(o.value)}
             className={cn(
               'relative flex flex-col items-center justify-center gap-1 overflow-hidden border text-caption-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring',
@@ -825,11 +816,6 @@ function WeekdayPicker({
             >
               {o.short}
             </span>
-            {captions?.[o.value] && (
-              <span aria-hidden="true" className={cn('text-fine', !selected && 'text-ink-faint')}>
-                {captions[o.value]}
-              </span>
-            )}
           </button>
         )
       })}
@@ -850,13 +836,6 @@ export function PlanSessionsModal({
 }) {
   const { sessionCompletion, bulkSetSessionPlan, toggleSession } = useResearch()
   const completed = sessionCompletion[dyad.id] ?? []
-  // "You, Arthur Ngata and Tania Ngata" for a full dyad; "You and Tania Ngata"
-  // for a carer-only one. Built as the whole phrase rather than just the names
-  // because the conjunction differs: a names-only string reads "You, Tania
-  // Ngata will meet" the moment there is no PLE.
-  const meetingParty = dyad.patient
-    ? `You, ${dyad.patient.name} and ${dyad.carer.name}`
-    : `You and ${dyad.carer.name}`
 
   /* Derived from the dyad, like the banner that launches this wizard — not a
      prop. Both callers render this modal for whatever client is open. */
@@ -888,10 +867,6 @@ export function PlanSessionsModal({
    * always had.
    */
   const introCol = introSteps.length > 4 ? { w: 132, gap: 20 } : { w: 160, gap: 32 }
-  /** The day the previous coach and this client had agreed, resolved through
-   *  `moduleUnlockDayLabel()` so the words are never written at a call site.
-   *  `undefined` when there is no transfer, or a transfer with no agreed day. */
-  const previousUnlockDay = moduleUnlockDayLabel(dyad.transfer?.previousModuleUnlockDay)
 
   const stepCount = steps.length
   const reviewStep = stepCount - 1
@@ -929,7 +904,6 @@ export function PlanSessionsModal({
   // highlight from one question to the next.
   const [firstSessionTouched, setFirstSessionTouched] = useState(false)
   const [timeTouched, setTimeTouched] = useState(false)
-  const [moduleWeekday, setModuleWeekday] = useState<number | null>(null)
   const [rows, setRows] = useState<SessionPlanRow[]>([])
   /* The recurring meeting link the coach pastes back from Zoom, plus the
      gallery's own slide index. Held here, not in the store: there is no Zoom
@@ -948,10 +922,6 @@ export function PlanSessionsModal({
   const [saving, setSaving] = useState(false)
   // A one-time welcome screen ahead of the 3 real steps.
   const [showIntro, setShowIntro] = useState(true)
-  // Announces the stale-learning-day auto-clear below to screen-reader users
-  // (Round 15 final-audit fix, direction flipped in Round 38) — cleared again
-  // the moment the coach picks a new day.
-  const [moduleDayClearedNotice, setModuleDayClearedNotice] = useState(false)
 
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
@@ -978,10 +948,8 @@ export function PlanSessionsModal({
       setGenerating(false)
       setSaving(false)
       setShowIntro(true)
-      setModuleDayClearedNotice(false)
       setRows([])
       setPlannerGeneration((g) => g + 1)
-      setModuleWeekday(null)
       setCatchupWeekday(null)
       /* ⚠️ Empty here TOO, not just in `useState`. This effect re-seeds every
          field each time the modal opens, so the initial state is almost dead
@@ -1088,17 +1056,17 @@ export function PlanSessionsModal({
   // The next 5 occurrences of the chosen meeting weekday, strictly after
   // today — Session 0 (the planning meeting producing this plan) is today,
   // so the first real catch-up can never also be today.
-  // The earliest first session that works for EVERY unlock day. The longest
-  // runway on offer is 6 days (the day after the catch-up), so a first session
-  // at least a week out guarantees module 1 can open strictly after today for
-  // any choice the coach makes in step 2. Enforcing it here — at the point of
-  // choice — is what keeps the two steps consistent: step 1 never promises a
-  // start date that step 2 has to move, and step 2 never has to grey out days
-  // that are perfectly good patterns.
+  // The earliest first session: a week out. Module 1 unlocks
+  // `MODULE_UNLOCK_LEAD_DAYS` before it, so a week guarantees it can never
+  // unlock before today.
   const EARLIEST_FIRST_SESSION = addDays(PLAN_ANCHOR, WEEKLY_CADENCE_DAYS)
-  const defaultFirstSession =
-    catchupWeekday === null ? undefined : nextWeekday(EARLIEST_FIRST_SESSION, catchupWeekday)
-  const firstSessionDate = firstSessionIso ?? defaultFirstSession
+  /* No default date (direct instruction, 2026-11-17: *"do not share date by
+     default, let user choose"*). The coach picks it, so the module panel
+     beside the questions only fills once a real answer exists. */
+  const firstSessionDate = firstSessionIso
+  /* The time unlocks after the DATE, not the day (direct instruction,
+     2026-11-17): the three questions open one at a time, in order. */
+  const timeLocked = !firstSessionDate
   // The last of the weekly catch-ups, so the summary can answer "until when?"
   // (direct instruction). Derived from `SPACES_CATCHUP_COUNT` rather than a
   // literal 6 — that constant is itself derived from `SPACES_SESSIONS`, so a
@@ -1106,71 +1074,15 @@ export function PlanSessionsModal({
   const lastSessionDate = firstSessionDate
     ? addDays(firstSessionDate, (SPACES_CATCHUP_COUNT - 1) * WEEKLY_CADENCE_DAYS)
     : undefined
+  /* The module unlock, derived — never chosen (direct instruction, 2026-11-17).
+     Read off the first session through the same `moduleUnlockDate()` that
+     builds every row, so the step 1 panel, the review summary and the table
+     cannot name different days. `null` until a day AND a date are known. */
+  const firstModuleUnlock = firstSessionDate ? moduleUnlockDate(firstSessionDate) : undefined
+  const moduleUnlockWeekday = firstModuleUnlock
+    ? new Date(`${firstModuleUnlock}T00:00:00`).getDay()
+    : null
 
-  // Days between a candidate module day and the meeting day, wrapping the
-  // week — a Friday module ahead of a Thursday catch-up is 6 days, not an
-  // invalid same-week ordering. Never 0 in practice: the meeting day itself
-  // is the one disabled tile.
-  const runwayFor = (day: number) =>
-    catchupWeekday === null ? 0 : (catchupWeekday - day + 7) % 7 || 7
-  // THE RULE (Round 38, direct instruction): the client has to be able to
-  // finish the module before the first catch-up, so a module day is only
-  // offered when module 1 can actually land on its own natural date. If that
-  // date is already in the past — "we agreed today that we meet Mondays, so
-  // we cannot meet tomorrow" — the plan would have to shorten week 1, which
-  // is exactly the promise it must not break. Those days are blocked with
-  // the reason on the tile instead of being silently clamped.
-  // Correction (direct feedback): an unlock day is a *recurring pattern*, and
-  // for a Thursday catch-up every one of Fri/Sat/Sun (previous week) and
-  // Mon/Tue/Wed (same week) is a legitimate pattern. Blocking them because
-  // week 1 alone could not be delivered removed six valid answers to fix one
-  // week. The rule now constrains the START instead: if module 1 could not
-  // open in time, the whole plan begins a week later, which is stated rather
-  // than done quietly. Only the catch-up day itself is ever unpickable.
-  /** The unlock days, ordered *from* the catch-up day: for a Thursday
-   *  catch-up this reads Fri, Sat, Sun, Mon, Tue, Wed — the day after the
-   *  meeting through to the day before the next one. That is the coach's own
-   *  description of the real option set, and ordering it this way removes the
-   *  thing they found confusing: a bare Mon-Sun strip forces you to work out
-   *  which days fall in the previous week and which in the same week. Here
-   *  the sequence simply runs forward and the runway falls from most to
-   *  least. The catch-up day is not in the list at all — it is not an option,
-   *  so it should not occupy a tile. */
-  const moduleDayOptions =
-    catchupWeekday === null
-      ? []
-      : Array.from({ length: 6 }, (_, i) => {
-          const value = (catchupWeekday + 1 + i) % 7
-          return DAY_OF_WEEK_OPTIONS_ALL.find((o) => o.value === value)!
-        })
-
-
-
-  // Only the catch-up day is captioned. The per-tile "Available <date>" line
-  // was removed on direct instruction, and it was the right call: it showed
-  // *module 1's* date, so whenever the first session was only days away
-  // several days collapsed to an identical "Available today" and the tile
-  // then disagreed with the summary's runway figure — both true, but about
-  // different weeks. The recurring fact (days to finish) now lives in the
-  // step summary, where it belongs, and the tiles are just days.
-  // Only the catch-up day is captioned. A too-soon day is struck through
-  // instead of labelled (direct instruction) — the strike says "not available"
-  // without adding a second column of text to a row of seven tiles. The reason
-  // is still carried in the tile's `aria-label`, so nothing is lost to a
-  // screen reader.
-  // A struck name alone was reported as too quiet to read as "you cannot pick
-  // this" (direct feedback), so an unavailable day now says so in words as
-  // well: struck name + "Not available" + a dashed, muted tile. Three signals
-  // rather than one, and none of them colour-only.
-  // Each tile states what the coach is actually choosing between: how long
-  // the client gets. No dates on the tile — those depend on week 1 and were
-  // the source of the "Available today" collision this replaced.
-  const moduleDayCaptions: Partial<Record<number, string>> = Object.fromEntries(
-    moduleDayOptions.map((o) => {
-      const r = runwayFor(o.value)
-      return [o.value, `${r} ${r === 1 ? 'day' : 'days'}`]
-    }),
-  )
   /**
    * The chosen catch-up window as the CLIENT's clock will show it, or `null`
    * when they share the coach's zone and there is nothing to translate.
@@ -1191,20 +1103,6 @@ export function PlanSessionsModal({
   }, [dyad, catchupTime, catchupEndTime, firstSessionDate])
 
   const dayLabel = (day: number | null) => DAY_OF_WEEK_OPTIONS_ALL.find((o) => o.value === day)?.label
-  const bestModuleDay = (moduleDayOptions.length ? moduleDayOptions : DAY_OF_WEEK_OPTIONS_ALL).reduce(
-    (a, b) => (runwayFor(b.value) > runwayFor(a.value) ? b : a),
-  )
-
-  // Edge case (Round 15, direction flipped in Round 38): a coach can go
-  // "Back" to step 0 and move the meeting onto the day already picked for
-  // modules on step 1. Clear it rather than leave the meeting day silently
-  // selected underneath its own "Catch-up day" mark.
-  useEffect(() => {
-    if (moduleWeekday !== null && moduleWeekday === catchupWeekday) {
-      setModuleWeekday(null)
-      setModuleDayClearedNotice(true)
-    }
-  }, [catchupWeekday, moduleWeekday])
 
   /* **Any non-empty value is accepted** (direct instruction, 2026-10-01: "do
      not force me to add a specific link, accept any for now"). An earlier pass
@@ -1251,7 +1149,7 @@ export function PlanSessionsModal({
     zoomLinkTouched && zoomLinkInvalid ? 'Paste your Zoom meeting link to continue.' : undefined
 
   const runGenerate = () => {
-    if (moduleWeekday === null || catchupWeekday === null || !firstSessionDate) return
+    if (catchupWeekday === null || !firstSessionDate) return
     setGenerating(true)
     generateTimeoutRef.current = window.setTimeout(() => {
       // Round 15 final-audit fix, still load-bearing: Session 0 anchors to
@@ -1262,7 +1160,6 @@ export function PlanSessionsModal({
         generatePlanRows(
           PLAN_ANCHOR,
           firstSessionDate,
-          moduleWeekday,
           catchupTime,
           catchupEndTime,
         ),
@@ -1284,11 +1181,6 @@ export function PlanSessionsModal({
     }
     if (stepKey === 'catchup-meeting') {
       if (catchupWeekday === null || timeInvalid) return
-      setStep((s) => s + 1)
-      return
-    }
-    if (stepKey === 'module-unlock-day') {
-      if (moduleWeekday === null) return
       setStep((s) => s + 1)
       return
     }
@@ -1451,15 +1343,6 @@ export function PlanSessionsModal({
                 <p aria-live="polite" role="status" className="sr-only">
                   {busy ? (generating ? 'Building your session plan…' : 'Creating your session plan…') : ''}
                 </p>
-                {/* Round 15 final-audit fix: announces the stale-catch-up-day
-                    auto-clear effect above — going Back and changing the
-                    module day used to silently reset an already-picked
-                    catch-up day with no notice to screen-reader users. */}
-                <p aria-live="polite" role="status" className="sr-only">
-                  {moduleDayClearedNotice
-                    ? 'Your previous learning day was cleared because it is now your catch-up day.'
-                    : ''}
-                </p>
 
 
                 {busy ? (
@@ -1490,8 +1373,15 @@ export function PlanSessionsModal({
                      4x160 + 3x32 = **736px** inside 744px. The connector's
                      inset moves with the column width, since it has to land on
                      the first and last circle centres — half of 160 is 80. */
-                  <div className="flex flex-1 flex-col items-center overflow-y-auto px-10 pt-[72px] pb-10 text-center">
-                    <div className="flex w-full flex-col items-center gap-14">
+                  /* Centred vertically (direct instruction, 2026-11-17: "the
+                     content is not in centre"). With one step fewer the block
+                     is shorter, and the frame's fixed 72px top left 137px of
+                     space under it. `my-auto` rather than `justify-center`:
+                     auto margins fall to 0 when the block is taller than this
+                     scroller, so a short window still scrolls to the top
+                     instead of clipping it. */
+                  <div className="flex flex-1 flex-col items-center overflow-y-auto px-10 py-10 text-center">
+                    <div className="my-auto flex w-full flex-col items-center gap-14">
                       <div className="flex w-full flex-col items-center gap-2">
                         <h2
                           ref={introHeadingRef}
@@ -1519,8 +1409,8 @@ export function PlanSessionsModal({
                             two strings are the other half of the edit. */}
                         <p className="max-w-[640px] text-body text-ink-muted">
                           {transferred
-                            ? 'Set this up together with your client. You will see where they are in the study, set your catch-up meeting, decide the module unlock day, create the Zoom link, then review your plan.'
-                            : 'Set this up together with your client. You will set your catch-up meeting, decide the module unlock day, create the Zoom link, then review your plan.'}
+                            ? 'Set this up together with your client. You will see where they are in the study, set your sessions and modules, add the meeting link, then review your plan.'
+                            : 'Set this up together with your client. You will set your sessions and modules, add the meeting link, then review your plan.'}
                         </p>
                       </div>
                       <div className="relative isolate">
@@ -1665,7 +1555,7 @@ export function PlanSessionsModal({
                       room for the case where a table is the last thing in a
                       scrolled step. Widened box is 320→1192, still inside the
                       modal's own `overflow-hidden` at 312→1200. */}
-                  <div className="-mx-6 flex min-h-0 flex-col overflow-y-auto px-6 pb-5">
+                  <div className="-mx-6 flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-5">
                         <WizardStepHeading
                           step={step}
                           stepCount={stepCount}
@@ -1682,9 +1572,65 @@ export function PlanSessionsModal({
                         )}
 
                         {stepKey === 'catchup-meeting' && (
-                          <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
+                          /* `flex-1` down the chain (scroller -> this -> grid)
+                             so step 1 fills the panel's fixed height instead of
+                             leaving it empty below (direct instruction,
+                             2026-11-17: "cover the empty space below"). */
+                          /* `justify-center`: the steps and the box sit in the
+                             middle of the space under the heading, not at its
+                             top (direct instruction, 2026-11-17: "centre align
+                             ... only the steps + right container"). Safe on a
+                             short window: a flex-1 item never shrinks below its
+                             content, so nothing is pushed above the scroll. */
+                          /* `pb-5` evens the optical gaps: above the steps sit
+                             the heading's 8px + this 32px, below them only the
+                             scroller's 20px — measured 85 vs 65 without it. */
+                          <div className={cn(PLAN_STEP_GAP, 'flex flex-1 flex-col justify-center gap-6 pb-5')}>
+                            {/* Two columns (direct instruction, 2026-11-17): the
+                                three questions stacked on the left, and on the
+                                right what they decide for the client, when each
+                                module unlocks. The coach no longer chooses that
+                                day, so it is shown as an outcome beside the
+                                answers that produce it rather than asked as a
+                                question of its own. Stacks below `sm`, panel
+                                last, so a phone still reads question first.
+                                60/40 (direct instruction, 2026-11-17, after
+                                50/50 was tried), 24px between the columns (48
+                                was tried and reverted). Splits
+                                at 800px, not `sm`: below it the left column is
+                                too narrow for the timeline discs plus five day
+                                tiles — measured, "Wed" (35px) clipped in a 26px
+                                tile at 680. */}
+                            <div className="grid min-w-0 gap-6 min-[800px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                            {/* The three questions on the app's numbered
+                                timeline (direct instruction, 2026-11-17: "re-use
+                                the vertical number dotted style"), the same disc
+                                and dotted rule as the checklist's Client’s
+                                module tab. A disc is light grey while its
+                                question is locked and purple 500 once it opens,
+                                so the order they unlock in is drawn. The numbers
+                                live on the discs, so the labels drop theirs. */}
+                            <NumberedTimeline
+                              className="min-w-0"
+                              markerClassName="bg-primary text-white transition-colors"
+                              ruleClassName="bg-[repeating-linear-gradient(to_bottom,#1a1a1a66_0_3px,transparent_3px_11px)]"
+                              /* 8px from each question to its card: the labels
+                                 sit OUTSIDE the cards (direct instruction,
+                                 2026-11-17), as "To summarise:" does over the
+                                 box. */
+                              contentClassName="gap-2"
+                              /* 48px between steps, fixed (direct
+                                 instruction, 2026-11-17: "not more than 48px").
+                                 Stretching the steps to fill the panel was
+                                 tried and pushed the gaps far past it. */
+                              stepGapClassName="pb-12"
+                              steps={[
+                                {
+                                  key: 'day',
+                                  content: (
+                                    <>
+                            <p className={STEP_QUESTION}>Which day of the week will you meet?</p>
                             <div className={cn(stepCard(catchupWeekday === null), 'flex flex-col gap-4')}>
-                              <p className={STEP_QUESTION}>1. Which day will you meet?</p>
                               <WeekdayPicker
                                 value={catchupWeekday}
                                 onChange={(v) => {
@@ -1693,23 +1639,37 @@ export function PlanSessionsModal({
                                   // survive the change — clearing it lets the default for
                                   // the new day take over.
                                   setFirstSessionIso(undefined)
+                                  setFirstSessionTouched(false)
                                 }}
                                 idPrefix="plan-catchup-day"
-                                groupLabel="Which day will you meet?"
+                                groupLabel="Which day of the week will you meet?"
                                 tone="purple"
                               />
                             </div>
-
-                            <div className="grid gap-6 sm:grid-cols-2">
+                                    </>
+                                  ),
+                                },
+                                {
+                                  key: 'date',
+                                  markerClassName: catchupWeekday === null ? 'bg-ink-faint' : undefined,
+                                  content: (
+                                    <>
+                                {/* Light grey while inactive (direct instruction,
+                                    2026-11-17): questions 2 and 3 cannot be
+                                    answered until a day is picked, and their
+                                    controls already render `ink-faint`. */}
+                                <label
+                                  htmlFor="plan-first-session"
+                                  className={cn(STEP_QUESTION, catchupWeekday === null && 'text-ink-faint')}
+                                >
+                                  When do you want your first session to be held?
+                                </label>
                               <div
                                 className={cn(
-                                  stepCard(catchupWeekday !== null && !firstSessionTouched),
+                                  stepCard(catchupWeekday !== null && !firstSessionTouched, catchupWeekday === null),
                                   'flex flex-col gap-4',
                                 )}
                               >
-                                <label htmlFor="plan-first-session" className={STEP_QUESTION}>
-                                  2. When should the first session be?
-                                </label>
                                 <SessionDateCalendar
                                   id="plan-first-session"
                                   value={firstSessionDate}
@@ -1722,15 +1682,14 @@ export function PlanSessionsModal({
                                   disabled={catchupWeekday === null}
                                 />
                               </div>
-
-                              <div
-                                className={cn(
-                                  stepCard(
-                                    catchupWeekday !== null && firstSessionTouched && !timeTouched,
+                                    </>
                                   ),
-                                  'flex flex-col gap-4',
-                                )}
-                              >
+                                },
+                                {
+                                  key: 'time',
+                                  markerClassName: timeLocked ? 'bg-ink-faint' : undefined,
+                                  content: (
+                                    <>
                                 {/* The zone is named ON the question (direct
                                     instruction: *"show the time zone"*).
                                     Without it "10:00" is just a number, and
@@ -1739,13 +1698,27 @@ export function PlanSessionsModal({
                                     people in the session. Resolved from the
                                     first session's own date so it says AEST or
                                     AEDT correctly rather than guessing. */}
-                                <p className={STEP_QUESTION}>
-                                  3. At what time?{' '}
-                                  <span className="text-caption text-ink-muted">
+                                <p className={cn(STEP_QUESTION, timeLocked && 'text-ink-faint')}>
+                                  At what time would you like to meet?{' '}
+                                  <span
+                                    className={cn(
+                                      'text-caption',
+                                      timeLocked ? 'text-ink-faint' : 'text-ink-muted',
+                                    )}
+                                  >
                                     ({zoneAbbreviation(firstSessionDate || TODAY, COACH_TIMEZONE)}, your
                                     time)
                                   </span>
                                 </p>
+                              <div
+                                className={cn(
+                                  stepCard(
+                                    catchupWeekday !== null && firstSessionTouched && !timeTouched,
+                                    timeLocked,
+                                  ),
+                                  'flex flex-col gap-4',
+                                )}
+                              >
                                 <div className="flex items-center gap-2">
                                   <label htmlFor="plan-catchup-time" className="sr-only">
                                     Session start time
@@ -1760,16 +1733,28 @@ export function PlanSessionsModal({
                                         setCatchupTime(e.target.value)
                                         setTimeTouched(true)
                                       }}
-                                      disabled={catchupWeekday === null}
+                                      disabled={timeLocked}
                                       aria-invalid={timeOrderInvalid || undefined}
                                       aria-describedby={timeOrderInvalid ? timeErrorId : undefined}
                                       className={STEP_TIME_CONTROL}
                                     />
                                     <ChevronDown
                                       aria-hidden="true"
-                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
+                                      className={cn(
+                                        'pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2',
+                                        timeLocked ? 'text-ink-faint' : 'text-ink',
+                                      )}
+                                      strokeWidth={2.25}
+                                    />
                                   </div>
-                                  <span className="shrink-0 text-caption-medium text-ink-muted">to</span>
+                                  <span
+                                    className={cn(
+                                      'shrink-0 text-caption-medium',
+                                      timeLocked ? 'text-ink-faint' : 'text-ink-muted',
+                                    )}
+                                  >
+                                    to
+                                  </span>
                                   <label htmlFor="plan-catchup-end-time" className="sr-only">
                                     Session end time
                                   </label>
@@ -1783,14 +1768,19 @@ export function PlanSessionsModal({
                                         setCatchupEndTime(e.target.value)
                                         setTimeTouched(true)
                                       }}
-                                      disabled={catchupWeekday === null}
+                                      disabled={timeLocked}
                                       aria-invalid={timeOrderInvalid || undefined}
                                       aria-describedby={timeOrderInvalid ? timeErrorId : undefined}
                                       className={STEP_TIME_CONTROL}
                                     />
                                     <ChevronDown
                                       aria-hidden="true"
-                                      className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink" strokeWidth={2.25} />
+                                      className={cn(
+                                        'pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2',
+                                        timeLocked ? 'text-ink-faint' : 'text-ink',
+                                      )}
+                                      strokeWidth={2.25}
+                                    />
                                   </div>
                                 </div>
                                 {/* What the client will actually see on their
@@ -1837,6 +1827,140 @@ export function PlanSessionsModal({
                                   </p>
                                 )}
                               </div>
+                                    </>
+                                  ),
+                                },
+                              ]}
+                            />
+
+                            {/* When modules unlock. An outcome, not a question,
+                                so it carries no step-card highlight and no
+                                number. Copy chosen 2026-11-17 ("Day + start
+                                date"); it names the weekday and the first date
+                                only, never a number of days to finish, since
+                                that is the same for every client.
+                                `role="status"` on the sentence so the change
+                                from the empty line is announced as the coach
+                                picks a day. */}
+                            {/* No title over the box: "To summarise" lives
+                                inside it, under the icon (direct instruction,
+                                2026-11-17, after it was tried above). */}
+                            <div className="flex min-w-0 flex-col">
+                            <div
+                              className={cn(
+                                /* 16px icon -> title and 16px title -> copy
+                                   (direct instruction, 2026-11-17; title -> copy
+                                   was 8). */
+                                /* 500ms ease-out on the grey -> yellow change
+                                   (direct instruction, 2026-11-17: "should not be
+                                   instant"); the default 150ms read as a snap. */
+                                'flex min-w-0 flex-1 flex-col items-center justify-center gap-8 rounded-sm p-6 text-center transition-colors duration-500 ease-out motion-reduce:transition-none',
+                                /* Grey until there is an outcome to show, then
+                                   yellow 50 (direct instruction, 2026-11-17;
+                                   purple 200 and yellow 200 were both tried and
+                                   rejected). `pearl` is the app's light grey
+                                   surface; `#e0e0e0` is outline-only and never a
+                                   fill. */
+                                /* No outline in either state (direct instruction,
+                                   2026-11-17, after dotted and solid strokes were
+                                   both tried): the fill alone marks the box. */
+                                /* Yellow from the moment a day is picked
+                                   (direct instruction, 2026-11-17; was from the
+                                   date). */
+                                catchupWeekday !== null ? 'bg-yellow-50' : 'bg-pearl',
+                              )}
+                            >
+                              {/* A summary icon over the finished plan only
+                                  (direct instruction, 2026-11-17: "big bold
+                                  icon", ~32px clear — the box's `gap-8`). 40px,
+                                  and `strokeWidth` 1.8 paints 3px at that size,
+                                  heavier than the consumer icons' 2px. */}
+                              {!timeInvalid && catchupWeekday !== null && firstSessionDate && (
+                                /* Icon, then "To summarise" 16px below it, then
+                                   32px (the box's `gap-8`) to the summary. */
+                                <div className="flex flex-col items-center gap-4">
+                                  <Sparkles
+                                    aria-hidden="true"
+                                    className="size-10 shrink-0 text-primary"
+                                    strokeWidth={1.8}
+                                  />
+                                  <p className="text-sub-greeting-semibold text-ink">To summarise:</p>
+                                </div>
+                              )}
+                              <div className="flex flex-col gap-4">
+                                {/* This box IS the step 1 summary (direct
+                                    instruction, 2026-11-17: "make this step 1
+                                    summary ... we wont need step 1 summary
+                                    below"). It builds up one answer at a time:
+                                    pick a day -> pick the date -> the module
+                                    day + pick a time -> the whole plan. No icon
+                                    and no title ("visual mess"). Picked values
+                                    are `primary` at medium weight. Sub-greeting
+                                    size with `font-normal`, since the token's
+                                    own weight is 500. */}
+                                {/* Centred in every state (left-aligning the
+                                    finished summary was tried and reverted,
+                                    2026-11-17). */}
+                                <div
+                                  role="status"
+                                  className="flex flex-col gap-4 text-balance text-sub-greeting font-normal text-ink-muted"
+                                >
+                                  {/* The user's own four lines, 2026-11-17, with
+                                      spelling and punctuation only ("catch up",
+                                      "until"). Counts come from the plan's
+                                      constants, never written. */}
+                                  {!timeInvalid && catchupWeekday !== null && firstSessionDate ? (
+                                    <>
+                                      <p>
+                                        {dyad.patient
+                                          ? `You, ${dyad.patient.name} and ${dyad.carer.name}`
+                                          : `You and ${dyad.carer.name}`}{' '}
+                                        will meet every <span className="font-medium text-primary">{dayLabel(catchupWeekday)}</span>,{' '}
+                                        <span className="font-medium text-primary">
+                                          {formatTime(catchupTime)} to {formatTime(catchupEndTime)}
+                                        </span>{' '}
+                                        {/* The coach's zone after the time (direct
+                                            instruction, 2026-11-17), resolved from
+                                            the first session's date so AEST/AEDT is
+                                            right, as question 3's label does. */}
+                                        ({zoneAbbreviation(firstSessionDate, COACH_TIMEZONE)}), weekly from <span className="font-medium text-primary">{formatDate(firstSessionDate)}</span> until{' '}
+                                        <span className="font-medium text-primary">{formatDate(lastSessionDate!)}</span>.
+                                      </p>
+                                      <p>
+                                        Modules will be released{' '}
+                                        <span className="font-medium text-primary">{MODULE_UNLOCK_LEAD_DAYS} days</span> before each
+                                        catch-up date. The first module will be released on{' '}
+                                        <span className="font-medium text-primary">
+                                          {firstModuleUnlock ? formatDate(firstModuleUnlock) : ''}
+                                        </span>
+                                        .
+                                      </p>
+                                    </>
+                                  ) : catchupWeekday !== null && firstSessionDate ? (
+                                    <p>
+                                      Finally, select what <span className="font-medium text-primary">time of day</span> you would both
+                                      like to meet on <span className="font-medium text-primary">{dayLabel(catchupWeekday)}</span>,
+                                      starting <span className="font-medium text-primary">{formatDate(firstSessionDate)}</span>.
+                                    </p>
+                                  ) : catchupWeekday !== null ? (
+                                    <p>
+                                      {/* Option A from `/design:ux-copy`, chosen
+                                          2026-11-17: names the date as Session 1,
+                                          the label the plan table uses. */}
+                                      Great, next select your{' '}
+                                      <span className="font-medium text-primary">first session date</span>. This
+                                      will be <span className="font-medium text-primary">Session 1</span>.
+                                    </p>
+                                  ) : (
+                                    <p>
+                                      Select what <span className="font-medium text-primary">day of the week</span> that works for both
+                                      of you to plan your weekly catch up for the next {SPACES_CATCHUP_COUNT} weeks.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            </div>
                             </div>
 
                             {timeOrderInvalid && catchupWeekday !== null && (
@@ -1854,184 +1978,6 @@ export function PlanSessionsModal({
                                 </p>
                               </div>
                             )}
-
-                            {/* The frame's dashed Summary card. It reads back the whole
-                                answer in one sentence, so it holds the confirmation copy
-                                that used to trail the time card. */}
-                            <div className={cn(SUMMARY_CARD, 'mt-4')}>
-                              <p className={STEP_QUESTION}>Step {step + 1} summary</p>
-                              {catchupWeekday !== null && !timeInvalid && firstSessionDate ? (
-                                <p className="text-body text-ink-muted">
-                                  {meetingParty} will meet every{' '}
-                                  <span className="font-semibold text-primary">{dayLabel(catchupWeekday)}</span>,{' '}
-                                  <span className="font-semibold text-primary">
-                                    {formatTime(catchupTime)} to {formatTime(catchupEndTime)}
-                                  </span>
-                                  , from{' '}
-                                  <span className="font-semibold text-primary">{formatDate(firstSessionDate)}</span>{' '}
-                                  until{' '}
-                                  <span className="font-semibold text-primary">{formatDate(lastSessionDate!)}</span>.
-                                  Weekly, for {SPACES_CATCHUP_COUNT} sessions.
-                                </p>
-                              ) : (
-                                <p className="text-body text-ink-faint">
-                                  Choose a day, a first session date and a time to see the plan summary here.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {stepKey === 'module-unlock-day' && (
-                          <div className={cn(PLAN_STEP_GAP, 'flex flex-col gap-6')}>
-                            {/* Step 1's answers, carried forward (direct instruction).
-                                The unlock day is chosen *against* the catch-up, so the
-                                coach should not have to go Back to remember what it is.
-                                Deliberately a quiet reference strip, not another card:
-                                it is settled information, not a question. */}
-                            {/* The catch-up answered on the previous step,
-                                carried forward (direct instruction). The unlock
-                                day is chosen *against* the catch-up, so the
-                                coach should not have to go Back to remember
-                                what it is. Deliberately a quiet reference
-                                strip, not another card: it is settled
-                                information, not a question. */}
-                            {catchupWeekday !== null && firstSessionDate && (
-                              <div className="rounded-sm bg-parchment px-4 py-3">
-                                <p className="text-caption text-ink-muted">
-                                  Your catch-up: every{' '}
-                                  <span className="font-semibold text-primary">{dayLabel(catchupWeekday)}</span>,{' '}
-                                  <span className="font-semibold text-primary">
-                                    {formatTime(catchupTime)} to {formatTime(catchupEndTime)}
-                                  </span>
-                                  {/* The client's clock, worded and placed as in
-                                      the review step's plan summary (direct
-                                      instruction, 2026-10-30). Only for a client
-                                      in another zone. */}
-                                  {clientZoneTimes && (
-                                    <>
-                                      {' '}
-                                      <ClientTimeChip
-                                        lead="for your client it will be"
-                                        showHelp={false}
-                                        range={`${clientZoneTimes.start} to ${clientZoneTimes.end}`}
-                                        abbreviation={clientZoneTimes.abbrev}
-                                      />
-                                    </>
-                                  )}
-                                  , from{' '}
-                                  <span className="font-semibold text-primary">{formatDate(firstSessionDate)}</span>.
-                                </p>
-                              </div>
-                            )}
-
-                            {/* The question and the previous coach's agreed day
-                                are ONE group, 16px apart, inside a step whose
-                                other children sit 24px apart (direct
-                                instruction). The tighter gap is what binds the
-                                note to the picker it belongs to rather than
-                                letting it float as a third peer.
-
-                                ⚠️ Placement moved twice in one session and this
-                                is the settled one: it began *below* the summary
-                                card (after the decision, where reference is
-                                worthless), went *above* the picker, and now
-                                sits directly **below** the picker — close
-                                enough to read while choosing, without standing
-                                between the question and its own heading.
-
-                                `yellow-100` (direct instruction) — the yellow
-                                this feature uses as its transfer flag
-                                everywhere else: the caseload chip and the
-                                banner that launched this wizard. It is
-                                pointedly NOT `purple-50`, which is the question
-                                card's own tint and made carried-in reference
-                                look like part of the question.
-
-                                Copy states the fact and stops. An earlier
-                                version added "Keeping the same day is usually
-                                easier for your client, but choose whatever
-                                suits them now" — cut on instruction. It
-                                advised where the row only needs to inform, and
-                                nothing here pre-selects the picker, so the
-                                coach's freedom to choose never needed stating.
-
-                                Shown only when the record carries a day — a
-                                consumer transferred before any plan existed has
-                                none, and a banner whose whole content is an
-                                absence is worse than no banner. */}
-                            <div className="flex flex-col gap-4">
-                              <div className={cn(stepCard(moduleWeekday === null), 'flex flex-col gap-4')}>
-                                <p className={STEP_QUESTION}>1. Which day should each module unlock?</p>
-                                <WeekdayPicker
-                                  value={moduleWeekday}
-                                  onChange={(v) => {
-                                    setModuleWeekday(v)
-                                    setModuleDayClearedNotice(false)
-                                  }}
-                                  captions={moduleDayCaptions}
-                                  idPrefix="plan-module-day"
-                                  groupLabel="Which day should each module unlock?"
-                                  tone="purple"
-                                  options={moduleDayOptions}
-                                />
-                              </div>
-                              {previousUnlockDay && (
-                                <div className="flex items-start gap-3 rounded-sm bg-yellow-100 px-4 py-3">
-                                  <ArrowLeftRight
-                                    aria-hidden="true"
-                                    className="mt-0.5 size-4 shrink-0 text-ink"
-                                    strokeWidth={2.25}
-                                  />
-                                  <p className="text-caption text-ink">
-                                    This client previously preferred their modules to unlock on a{' '}
-                                    <span className="font-semibold text-primary">
-                                      {previousUnlockDay}
-                                    </span>
-                                    .
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className={cn(SUMMARY_CARD, 'mt-4')}>
-                              <p className={STEP_QUESTION}>Step {step + 1} summary</p>
-                              <p className="text-body text-ink-muted">
-                                {moduleWeekday === null ? (
-                                  <>
-                                    Most time: {bestModuleDay.label}, with{' '}
-                                    <span className="font-semibold text-primary">
-                                      {runwayFor(bestModuleDay.value)}{' '}
-                                      {runwayFor(bestModuleDay.value) === 1 ? 'day' : 'days'}
-                                    </span>{' '}
-                                    to finish each module before the catch-up.
-                                  </>
-                                ) : runwayFor(moduleWeekday) === 1 ? (
-                                  <>
-                                    Each module is available on a{' '}
-                                    <span className="font-semibold text-primary">
-                                      {dayLabel(moduleWeekday)}
-                                    </span>
-                                    , giving them only{' '}
-                                    <span className="font-semibold text-primary">1 day</span> to finish it before
-                                    you meet, which is very tight.
-                                  </>
-                                ) : (
-                                  <>
-                                    Each module is available on a{' '}
-                                    <span className="font-semibold text-primary">
-                                      {dayLabel(moduleWeekday)}
-                                    </span>
-                                    , giving them{' '}
-                                    <span className="font-semibold text-primary">
-                                      {runwayFor(moduleWeekday)}{' '}
-                                      {runwayFor(moduleWeekday) === 1 ? 'day' : 'days'}
-                                    </span>{' '}
-                                    to finish it before you meet.
-                                  </>
-                                )}
-                              </p>
-                            </div>
 
                           </div>
                         )}
@@ -2187,10 +2133,17 @@ export function PlanSessionsModal({
                              heading's own sentence. */
                           <div className="mt-4">
                             <div className={SUMMARY_CARD}>
-                              <p className={STEP_QUESTION}>Plan summary</p>
+                              {/* The step 1 summary's Sparkles icon, at the
+                                  title's scale (24px, 2px painted), 12px from the
+                                  longer title (direct instruction, 2026-11-17;
+                                  8px read as too tight). */}
+                              <p className={cn(STEP_QUESTION, 'flex items-center gap-3')}>
+                                <Sparkles aria-hidden="true" className="size-6 shrink-0 text-primary" strokeWidth={2} />
+                                Your session plan summary:
+                              </p>
                               <p className="text-body text-ink-muted">
                                 A new module is available each{' '}
-                                <span className="font-semibold text-primary">{dayLabel(moduleWeekday)}</span>, and
+                                <span className="font-semibold text-primary">{dayLabel(moduleUnlockWeekday)}</span>, and
                                 you meet every{' '}
                                 <span className="font-semibold text-primary">{dayLabel(catchupWeekday)}</span>,{' '}
                                 <span className="font-semibold text-primary">
@@ -2298,9 +2251,7 @@ export function PlanSessionsModal({
                                 ? false
                                 : stepKey === 'catchup-meeting'
                                   ? catchupWeekday === null || timeInvalid
-                                  : stepKey === 'module-unlock-day'
-                                    ? moduleWeekday === null
-                                    : zoomLinkInvalid
+                                  : zoomLinkInvalid
                             }
                             className="min-w-[128px]"
                           >

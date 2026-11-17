@@ -69,12 +69,11 @@ export function WizardStepHeading({
 }) {
   return (
     <div className="flex flex-col gap-4 py-2">
-      {/* `ink-faint`, not `ink-muted` (Round 38, direct instruction: "steps to
-          light grey"). This reverses Round 28's move in the other direction —
-          the counter is position metadata, not content, and at the same
-          `#333333` as the subtitle it competed with copy the coach actually
-          has to read. 5.28:1 on white, clear of AA. */}
-      <p className="text-caption-medium text-ink-faint">
+      {/* The whole "Step N of M" in `ink` at medium weight (direct
+          instruction, 2026-11-17: "make it entirely black and medium to keep
+          it consistent"), all four wizards. Replaces the black "Step N" + grey
+          "of M" split tried the same day, and Round 38's all-`ink-faint`. */}
+      <p className="text-caption-medium text-ink">
         Step {step + 1} of {stepCount}
       </p>
       <div className="flex flex-col gap-1">
@@ -85,7 +84,10 @@ export function WizardStepHeading({
         >
           {heading}
         </h3>
-        {subtitle && <p className="text-body text-ink-muted">{subtitle}</p>}
+        {/* `text-pretty`: no orphans (CLAUDE.md copy rule; reported 2026-11-17
+            on the plan wizard, "available." alone on line 2). `pretty` rather
+            than `balance` because some subtitles run to three lines. */}
+        {subtitle && <p className="text-pretty text-body text-ink-muted">{subtitle}</p>}
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import {
   COACH_TIMEZONE,
   SPACES_SESSIONS,
   displaySessionNumber,
+  moduleUnlockDate,
   timeInZone,
   zoneAbbreviation,
   type SessionPlanRow,
@@ -159,7 +160,11 @@ export function SessionPlannerTable({
   const [editingWeeks, setEditingWeeks] = useState<number[]>([])
 
   return (
-    <div className="overflow-hidden rounded-sm border border-parchment">
+    /* `shadow-card` (direct instruction, 2026-11-17), the app's card shadow,
+       as the wizard's client-status table already wears. `overflow-hidden`
+       clips descendants, never this element's own shadow; both callers'
+       scrollers leave it room. */
+    <div className="overflow-hidden rounded-sm border border-parchment shadow-card">
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="bg-purple-50">
@@ -263,22 +268,11 @@ export function SessionPlannerTable({
                 {editing && (
                   <tr className="border-t border-hairline">
                     <td colSpan={5} className="bg-pearl px-4 py-4">
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="flex flex-col gap-1.5">
-                          <label
-                            htmlFor={`${idPrefix}-module-${s.number}`}
-                            className="text-fine font-semibold text-ink"
-                          >
-                            Module {week} available on
-                          </label>
-                          <SessionDateCalendar
-                            id={`${idPrefix}-module-${s.number}`}
-                            value={row.moduleTargetDate}
-                            onChange={(iso) => patchRow(s.number, { moduleTargetDate: iso })}
-                            weekday={null}
-                            minDate={minDate}
-                          />
-                        </div>
+                      {/* Two fields, not three: the module date is no longer
+                          the coach's to pick (direct instruction, 2026-11-17).
+                          It moves with the session date below and shows in the
+                          row's own "Module available" cell directly above. */}
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                           <label
                             htmlFor={`${idPrefix}-date-${s.number}`}
@@ -289,7 +283,9 @@ export function SessionPlannerTable({
                           <SessionDateCalendar
                             id={`${idPrefix}-date-${s.number}`}
                             value={row.date}
-                            onChange={(iso) => patchRow(s.number, { date: iso })}
+                            onChange={(iso) =>
+                              patchRow(s.number, { date: iso, moduleTargetDate: moduleUnlockDate(iso) })
+                            }
                             weekday={null}
                             minDate={minDate}
                           />

@@ -10879,3 +10879,36 @@ Figma: user's frame `4942:25528` (deleted after build; read before deletion) and
 ### §115.5 Chevrons (`CarouselNav`, shared with the session plan)
 - Centred, no dots (`showDots={false}`), next = solid primary (`nextVariant="primary"`); previous secondary. Deactive = system `state: 'deactive'` + `aria-disabled` (focus never drops). Hover from the system; press `active:scale-[0.97]`.
 - Presses target "next note after the last target" — a relative `scrollBy` mid-animation was swallowed by snapping.
+
+---
+
+## §116 — Session plan wizard step 1: automatic module unlock, timeline + summary box (2026-11-17, Round 89)
+
+**Rule.** A module unlocks `MODULE_UNLOCK_LEAD_DAYS` (3) days before its session, always
+(`moduleUnlockDate()`, `data/spaces.ts`). No surface lets a coach pick it; the review drawer and
+the Edit pop-up set it whenever a session date changes.
+
+**Layout (`PlanSessionsModal`, `stepKey === 'catchup-meeting'`).**
+
+| Part | Value |
+|---|---|
+| Columns | `min-[800px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]` (60/40), `gap-6` (24px); stacked below 800 |
+| Block | `flex-1 justify-center pb-5` under the 32px heading gap — measured 75 / 75 above / below at 1512×982 |
+| Questions | `NumberedTimeline`, 40px discs, dotted rule, `stepGapClassName="pb-12"` (48px), `contentClassName="gap-2"` (label 8px above card) |
+| Disc | `bg-primary` once its question opens; `bg-ink-faint` (`#6d6d6d`, white number 5.28:1) while locked |
+| Card | `rounded-sm` (8px), `border-parchment`, `p-4`; current = `purple-200` + `2px 4px 16px rgba(85,85,85,.08)`; answered = `purple-50`, no shadow; locked = `pearl`, label + controls `ink-faint` |
+| Unlock order | day → date → time (`timeLocked = !firstSessionDate`); no default date |
+| Day tiles (purple tone) | label `text-caption-medium sm:text-body-md`, gap `gap-1 sm:gap-3` — measured tiles 33 / 48 / 50px at 375 / 804 / 1512, longest label 35px |
+| Summary box | `rounded-sm p-6`, no border, no shadow; `bg-pearl` → `bg-yellow-50` once a day is picked, `transition-colors duration-500 ease-out` (reduced motion: none) |
+| Box text | `text-sub-greeting font-normal text-ink-muted text-balance`, centred; picked values `font-medium text-primary` |
+| Complete state | Sparkles 40px, `strokeWidth` 1.8 (3px painted), `primary`; 16px → "To summarise:" (`text-sub-greeting-semibold`); 32px → text |
+
+**Review step / Edit pop-up.** Summary title: Sparkles 24px (`strokeWidth` 2), `gap-3` (12px),
+"Your session plan summary:". `SessionPlannerTable` wrapper `shadow-card`; both scrollers keep
+24px side room (`-mx-6 px-6 pb-5`) so it is not clipped. Modify drawer: 2 fields (session date,
+time), `sm:grid-cols-2`.
+
+**Shared.** `WizardStepHeading`: "Step N of M" `text-caption-medium text-ink` (all four wizards);
+subtitle `text-pretty`. `NumberedTimeline`: optional `steps[i].markerClassName`, merged over the
+shared one. `SessionDateCalendar`: empty + enabled reads "Select a date".
+

@@ -153,8 +153,8 @@ export interface UpcomingSession {
  *  Domain-model correction (Round 14.3): the consumer completes the module
  *  BEFORE the coach catches up on it, never the reverse, so
  *  `moduleTargetDate` always falls strictly BEFORE this row's own `date` —
- *  true by construction, since `generatePlanRows()` is the only writer of
- *  fresh dates (Round 14.4 removed per-row date editing from the wizard).
+ *  true by construction, since every writer derives it through
+ *  `moduleUnlockDate()` (`MODULE_UNLOCK_LEAD_DAYS` before the session).
  *  The actual unlock trigger is completing the
  *  *previous* session (see `moduleUnlockState`); this field is just the
  *  target the coach communicates to the consumer. */
@@ -221,12 +221,29 @@ export function emptySessionPlan(): SessionPlan {
  *  fixed-weekly-cadence + day-of-week redesign, Round 14.3) — per the real
  *  SPACES delivery protocol, coaches meet consumers every week, so cadence is
  *  no longer a question at all (`WEEKLY_CADENCE_DAYS`, fixed). The coach
- *  instead picks two things: which day of the week each module becomes
- *  available, and which day + time they'll catch up once it's done. Every
- *  other session date and each gated module's target date cascades from
- *  those two weekday choices, so a coach is never handed 13 blank fields to
- *  fill by hand. */
+ *  picks the catch-up day, the first session date and the time; every other
+ *  session date cascades from those, and each module's unlock date is fixed
+ *  by `MODULE_UNLOCK_LEAD_DAYS`, so a coach is never handed 13 blank fields
+ *  to fill by hand. */
 export const WEEKLY_CADENCE_DAYS = 7
+
+/** How many days before its catch-up session each module unlocks (direct
+ *  instruction, 2026-11-17: *"coach and clients will no longer be deciding on
+ *  when the module should unlock"*, *"by default set at 3 days prior to when
+ *  the session date is set"*). The same for every client. The wizard's step 1
+ *  subtitle states it ("3 days before you meet"), reading this constant; no
+ *  surface shows a per-client "days to finish" figure. A Thursday session
+ *  unlocks its module on Monday. */
+export const MODULE_UNLOCK_LEAD_DAYS = 3
+
+/** The date a session's module unlocks — always `MODULE_UNLOCK_LEAD_DAYS`
+ *  before the session. The ONE place this rule is computed: the wizard's plan
+ *  generator, its "when modules unlock" panel and the review/edit table's
+ *  reschedule all read it, so a moved session can never leave its module on
+ *  the old date. */
+export function moduleUnlockDate(sessionDate: string): string {
+  return addDays(sessionDate, -MODULE_UNLOCK_LEAD_DAYS)
+}
 
 /** `value` matches JS `Date#getDay()` (1 = Monday … 5 = Friday); listed
  *  Monday-first for a natural reading order in the calendar-style day
@@ -241,26 +258,14 @@ export const DAY_OF_WEEK_OPTIONS = [
   { label: 'Friday', short: 'Fri', value: 5 },
 ]
 
-/** All seven days, for the **module unlock day** only (Round 38, direct
- *  instruction: "dyads might want to learn on Sat or Sun"). The catch-up stays
- *  on `DAY_OF_WEEK_OPTIONS` because that one is a coach's working meeting,
- *  whereas the module simply appears in the client's portal — nobody has to be
- *  at work for that, and a carer's free time is often the weekend. */
+/** All seven days, for **naming a module unlock day**. The catch-up is
+ *  Mon-Fri, but its module unlocks `MODULE_UNLOCK_LEAD_DAYS` earlier, so a
+ *  Tuesday session's module lands on a Saturday. */
 export const DAY_OF_WEEK_OPTIONS_ALL = [
   ...DAY_OF_WEEK_OPTIONS,
   { label: 'Saturday', short: 'Sat', value: 6 },
   { label: 'Sunday', short: 'Sun', value: 0 },
 ]
-
-/** A module unlock day's name. Every surface naming one reads this — none of
- *  them writes the words, exactly as `transferReasonLabel()` works, so the
- *  planning wizard's own picker and the transferred-client summary beside it
- *  cannot drift apart. Returns `undefined` for an unset day so a caller can
- *  render its own "not recorded" wording rather than a stray dash. */
-export function moduleUnlockDayLabel(value: number | null | undefined): string | undefined {
-  if (value === null || value === undefined) return undefined
-  return DAY_OF_WEEK_OPTIONS_ALL.find((o) => o.value === value)?.label
-}
 
 export function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`)
@@ -280,31 +285,18 @@ export function nextWeekday(fromIso: string, weekday: number, strictlyAfter = fa
   return addDays(fromIso, diff)
 }
 
-/** Meeting-first plan generation (Round 38 — reverses the Round 14.3-15
- *  question order at the data level too). The weekly catch-up meeting is the
- *  plan's anchor: `firstCatchupDate` is the coach's explicitly chosen first
- *  session (any future occurrence of the meeting weekday, no longer silently
- *  the nearest one), and every later session lands weekly after it. Each
- *  module's target date is then derived BACKWARDS from the session that
- *  reviews it: `session date - runway`, where runway is the number of days
- *  between the chosen module weekday and the meeting weekday, wrapping the
- *  week — so a Friday module ahead of a Thursday catch-up correctly yields 6
- *  days, not an invalid same-week ordering. Same-day is excluded in the UI
- *  (the client must finish the module before the session); the `|| 7` guard
- *  below is defensive only. Week 1's module can land before the plan is even
- *  created when the first session is only days away — it clamps to
- *  `session0Date` (arrives immediately) rather than shifting the whole plan,
- *  so the meeting dates a coach agreed with their client are never silently
- *  moved. */
+/** Meeting-first plan generation (Round 38). The weekly catch-up meeting is
+ *  the plan's anchor: `firstCatchupDate` is the coach's explicitly chosen first
+ *  session, and every later session lands weekly after it. Each module's unlock
+ *  date is derived from the session that reviews it via `moduleUnlockDate()`
+ *  (2026-11-17: the coach no longer picks a module day). The wizard's earliest
+ *  first session is a week out, so module 1 can never unlock before today. */
 export function generatePlanRows(
   session0Date: string,
   firstCatchupDate: string,
-  moduleWeekday: number,
   catchupTime: string,
   catchupEndTime?: string,
 ): SessionPlanRow[] {
-  const catchupWeekday = new Date(`${firstCatchupDate}T00:00:00`).getDay()
-  const runway = (catchupWeekday - moduleWeekday + 7) % 7 || 7
   return SPACES_SESSIONS.map((s, i) => {
     // Session 0 (Planning, s.number === 1) is today's live planning session
     // — it carries no module target of its own, and its date is fixed
@@ -314,9 +306,13 @@ export function generatePlanRows(
     }
     const cycleIndex = i - 1 // 0-based: displayed Session 1 is index 0
     const date = addDays(firstCatchupDate, cycleIndex * WEEKLY_CADENCE_DAYS)
-    let moduleTargetDate = addDays(date, -runway)
-    if (moduleTargetDate < session0Date) moduleTargetDate = session0Date
-    return { session: s.number, date, time: catchupTime, endTime: catchupEndTime, moduleTargetDate }
+    return {
+      session: s.number,
+      date,
+      time: catchupTime,
+      endTime: catchupEndTime,
+      moduleTargetDate: moduleUnlockDate(date),
+    }
   })
 }
 
@@ -1165,26 +1161,6 @@ export interface ConsumerTransfer {
   /** Catch-up sessions held under the previous coach, frozen (see above). */
   sessionsWithPreviousCoach: number
   /**
-   * The module unlock weekday the **previous** coach and this consumer had
-   * agreed, as a `DAY_OF_WEEK_OPTIONS_ALL` value (0-6, `Date#getDay()`).
-   *
-   * Stored as a number so no surface writes a weekday name — read it through
-   * `moduleUnlockDayLabel()`, the same rule `transferReasonLabel()` follows.
-   *
-   * Why it has to be frozen here rather than read off the old plan: a
-   * hand-over does not carry the previous coach's `SessionPlan` forward, and
-   * the incoming coach builds a fresh one, so by the time anyone wants to know
-   * what the client was used to, the only record of it would be gone. It is
-   * the one preference from the old arrangement the new coach genuinely needs
-   * — the client and carer have organised their week around it for months, and
-   * the planning wizard asks the new coach to choose this exact value with
-   * nothing to anchor it.
-   *
-   * Optional: a consumer transferred before any plan existed has no agreed day
-   * to carry, and that is a real state rather than missing data.
-   */
-  previousModuleUnlockDay?: number
-  /**
    * The date the **new** coach built their own session plan for the sessions
    * that remain.
    *
@@ -1516,11 +1492,6 @@ export const consumerDyads: ConsumerDyad[] = [
       reason: 'coach-leave',
       note: 'Fatima begins extended leave on 20 July. Grace asked to keep their fortnightly rhythm rather than pause until Fatima is back.',
       sessionsWithPreviousCoach: 2,
-      /* Wednesday. Coherent with the sessions above rather than picked at
-         random: all three were held on a Monday, so a Wednesday unlock gave
-         the household five days to get through the module before the
-         catch-up. A number, never the word — see the field's own note. */
-      previousModuleUnlockDay: 3,
     },
     annotationSummaries: [],
     patientLog: healthLog(52, 300, 4, [

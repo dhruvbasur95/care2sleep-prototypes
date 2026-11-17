@@ -189,7 +189,9 @@ export function SessionDateCalendar({
           'disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint',
         )}
       >
-        <span>{value ? formatDate(value) : 'Select a day first'}</span>
+        {/* Two empty states: locked until a weekday is chosen, then simply
+            unanswered (the plan wizard no longer pre-fills a date). */}
+        <span>{value ? formatDate(value) : disabled ? 'Select a day first' : 'Select a date'}</span>
         <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
       </button>
 

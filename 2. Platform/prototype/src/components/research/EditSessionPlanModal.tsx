@@ -16,6 +16,7 @@ import {
 import { formatDate, formatTime, TODAY } from '@/data/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Sparkles } from 'lucide-react'
 
 /**
  * The earliest date either plan screen will let a coach pick.
@@ -307,7 +308,11 @@ export function EditSessionPlanModal({
                 Review the plan and modify any week that has not happened yet.
               </p>
 
-              <div className="mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
+              {/* `-mx-6 px-6 pb-5`: room for the table's `shadow-card`
+                  (2px 4px 16px reaches 18px right, 14px left, 20px below),
+                  which this scroller would otherwise clip — the wizard's own
+                  scroller carries the same padding for the same reason. */}
+              <div className="-mx-6 mt-6 min-h-0 flex-1 overflow-y-auto px-6 pb-5">
                 {/* Round 39, direct instruction: this screen is now exactly the
                     wizard's review step — the same dashed summary card, the same
                     "Session planner table" label, and the same
@@ -332,7 +337,12 @@ export function EditSessionPlanModal({
                     undated, and an invented date here would contradict the table
                     directly below it. */}
                 <div className={SUMMARY_CARD}>
-                  <p className="text-caption-medium text-ink">Plan summary</p>
+                  {/* Matches the wizard's review step (direct instruction,
+                      2026-11-17): Sparkles at 24px, 12px from the title. */}
+                  <p className="flex items-center gap-3 text-caption-medium text-ink">
+                    <Sparkles aria-hidden="true" className="size-6 shrink-0 text-primary" strokeWidth={2} />
+                    Your session plan summary:
+                  </p>
                   <p className="text-body text-ink-muted">
                     {remaining === 0 ? (
                       <>All {SPACES_CATCHUP_COUNT} catch-up sessions have been held. There is nothing left to reschedule.</>

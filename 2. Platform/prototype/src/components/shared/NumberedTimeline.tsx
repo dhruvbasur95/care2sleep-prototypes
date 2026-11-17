@@ -33,7 +33,10 @@ export function NumberedTimeline({
   stepGapClassName = 'pb-16',
   className,
 }: {
-  steps: readonly { key: string; content: ReactNode }[]
+  /** `markerClassName` per step is merged over the shared one (additive,
+   *  2026-11-17): the plan wizard's discs go light grey while a question is
+   *  locked. Omitted, every disc is the shared colour, as before. */
+  steps: readonly { key: string; content: ReactNode; markerClassName?: string }[]
   markerClassName: string
   ruleClassName: string
   /** Added to each step's content column (`flex flex-col gap-2`). */
@@ -52,6 +55,7 @@ export function NumberedTimeline({
               className={cn(
                 'flex size-10 shrink-0 items-center justify-center rounded-full text-body-md',
                 markerClassName,
+                step.markerClassName,
               )}
             >
               {i + 1}

@@ -1851,7 +1851,7 @@ const STEPS = [
     key: 'plan' as const,
     title: 'Step 2: Create the session plan together',
     instruction:
-      'During the onboarding session, you will decide when the modules become available to your client and when you will both meet for your weekly sessions.',
+      'During the onboarding session, you will agree with your client when you will both meet for your weekly sessions.',
   },
 ]
 
@@ -2279,9 +2279,8 @@ export function SessionPlanEmptyBanner({
                   people and the two decisions they make together, which is what
                   the plan actually is, and puts the consequence last. */}
               <p className="text-body text-ink-muted">
-                You and your client agree this together: when each module becomes available to
-                them, and when the two of you meet to talk it through. Nothing opens up for them
-                until it is set.
+                You and your client agree this together: when the two of you meet each week to
+                talk through their module. Nothing opens up for them until it is set.
               </p>
             </section>
 
@@ -2289,12 +2288,10 @@ export function SessionPlanEmptyBanner({
               <h3 className="text-body-md text-ink">What to expect</h3>
               <ul className="flex list-disc flex-col gap-3 pl-5 text-body text-ink-muted">
                 <li>Three questions, together with your client. It takes a few minutes.</li>
-                {/* Catch-up first, then modules — that is `PlanSessionsModal`'s own
-                    step order ("Catch-up meeting" then "Module unlock day").
-                    The line had it the other way round, so a coach reading this
-                    and then opening the wizard met the questions in the
-                    opposite order to the one they had just been promised. */}
-                <li>You pick a day to catch up and a day for modules, and we build the dates.</li>
+                {/* No module day (2026-11-17): the wizard derives it from the
+                    catch-up, so promising "a day for modules" would send the
+                    coach looking for a question that no longer exists. */}
+                <li>You pick a day and time to catch up, and we build the dates.</li>
                 {/* The wizard's real last step is Review, where every date is
                     editable before anything is saved — so "review, personalise
                     and confirm" is what happens, and "you can change it later"
