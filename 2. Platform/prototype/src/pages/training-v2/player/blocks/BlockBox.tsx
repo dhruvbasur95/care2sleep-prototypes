@@ -53,7 +53,7 @@ export function BlockBox({
       data-slide-tail={tail || undefined}
       className={cn(
         'p-10',
-        DEBUG_BLOCK_OUTLINES && 'outline outline-1 outline-dashed outline-primary/40',
+        DEBUG_BLOCK_OUTLINES && 'outline outline-2 -outline-offset-2 outline-dashed outline-primary',
         className,
       )}
     >
@@ -92,7 +92,19 @@ export function BlockBox({
  * `COMPOUND_BLOCK_TAGS` is one: it is a rule about which tags behave this way,
  * and it should be readable in one place.
  */
-export const NO_VERTICAL_PADDING_BLOCK_TAGS = new Set(['video', 'sub-title', 'body'])
+// `image` rides with `video` (2026-11-20): the builder tool draws it as the
+// same full-width 16px-radius box as the video placeholder beside it.
+// `style-1` and `text-3` (Text block _Style 1 / _Style 2) joined 2026-11-23
+// (direct instruction: "no top bottom padding for text block styles both 1
+// and 2") — their 40+40+40 seam to the block above read as dead space.
+export const NO_VERTICAL_PADDING_BLOCK_TAGS = new Set([
+  'video',
+  'image',
+  'sub-title',
+  'body',
+  'style-1',
+  'text-3',
+])
 
 /**
  * Tags whose box keeps its top padding but drops its **bottom** padding.

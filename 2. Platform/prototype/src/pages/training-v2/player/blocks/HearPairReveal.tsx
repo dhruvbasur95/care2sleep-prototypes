@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { motion, useReducedMotion } from 'framer-motion'
 import type { HearPair } from '@/data/moduleContent'
 import { useRevealVerb } from './useRevealVerb'
+import { FormattedText } from './InlineText'
 import { CONVERSATION_GROUND } from './conversationGround'
 import { AVATAR_OVERHANG, AVATAR_W, BUBBLES, pickBubbles } from './QuoteBubble'
 import {
@@ -403,7 +404,12 @@ export function HearPairReveal({
               `font-bold` survives on the closed state: it is a control label
               rather than copy, and weight was not part of the instruction. */}
           {revealed ? (
-            <span className="relative text-body text-ink">{pair.youCanSay}</span>
+            // Left-aligned once revealed (direct instruction, 2026-11-23: "can
+            // the content inside this box on reveal be left aligned"); the
+            // closed "… to see" label stays centred.
+            <span className="relative text-left text-body text-ink">
+              <FormattedText text={pair.youCanSay} />
+            </span>
           ) : (
             <span className="relative text-body font-bold text-ink">{verb} to see</span>
           )}

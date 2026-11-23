@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import {
   Activity,
+  Armchair,
+  Bed,
   Blocks,
   BookOpen,
   Clock,
@@ -9,6 +11,7 @@ import {
   FlaskConical,
   Gauge,
   Hourglass,
+  Moon,
   SunMoon,
   Thermometer,
   TrendingUp,
@@ -182,6 +185,9 @@ const REVISION_ICONS: Record<RevisionIcon, LucideIcon> = {
   thermometer: Thermometer,
   utensils: Utensils,
   hourglass: Hourglass,
+  bed: Bed,
+  moon: Moon,
+  armchair: Armchair,
 }
 
 function FlipCard({

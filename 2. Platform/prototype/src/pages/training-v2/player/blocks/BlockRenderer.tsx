@@ -1,6 +1,13 @@
 import {
+  Bed,
   Blocks,
   BookOpen,
+  Brain,
+  HeartHandshake,
+  ImageIcon,
+  Link,
+  Moon,
+  Tv,
   ChevronRight,
   ClipboardList,
   CookingPot,
@@ -31,6 +38,8 @@ import type {
   TransitionIcon,
 } from '@/data/moduleContent'
 import { VideoPlaceholder } from '../VideoPlaceholder'
+import { MODULE_PLAYER_ID } from '../../pathway'
+import { moduleArt } from '@/components/ModuleCard'
 import { YouTubeEmbed } from '../YouTubeEmbed'
 import { QuoteBubble, pickBubbles } from './QuoteBubble'
 import { WaveDivider } from '@/components/delivery/WaveDivider'
@@ -42,6 +51,7 @@ import { RevisionFlipCards } from './RevisionFlipCards'
 import { HearPairRevealList } from './HearPairReveal'
 import { YourTurnMcq } from './YourTurnMcq'
 import { CaseScenarioBlock } from './CaseScenarioBlock'
+import { FormattedText, InlineText } from './InlineText'
 
 /** The Know How block's own heading id. A `case-scenario` block always follows
  *  one on the same slide and is labelled by it — the frames draw no title of
@@ -118,13 +128,27 @@ const TOPIC_ICONS: Record<TopicIcon, LucideIcon> = {
   dumbbell: Dumbbell,
   'sliders-horizontal': SlidersHorizontal,
   route: Route,
+  link: Link,
+  bed: Bed,
+  brain: Brain,
+  tv: Tv,
+  moon: Moon,
+  'heart-handshake': HeartHandshake,
 }
+
+/** The `<Image block>` placeholder's wash — the same lookup `VideoPlaceholder`
+ *  makes, so the two placeholders read as one family on a slide carrying both. */
+const IMAGE_PLACEHOLDER_WASH =
+  PATHWAY_MODULES_V2.find((m) => m.id === MODULE_PLAYER_ID)?.cover.colors ??
+  (['#1c2b4a', '#5b7fa6', '#f0d9a8'] as const)
 
 const TRANSITION_ICONS: Record<TransitionIcon, LucideIcon> = {
   blocks: Blocks,
   search: Search,
   scale: Scale,
   'sun-moon': SunMoon,
+  bed: Bed,
+  moon: Moon,
 }
 
 /**
@@ -199,12 +223,18 @@ function ChunkedText({ text, className }: { text: string; className?: string }) 
           return (
             <ul key={i} className="flex list-disc flex-col gap-2 pl-6">
               {lines.map((line) => (
-                <li key={line}>{line.slice(2)}</li>
+                <li key={line}>
+                  <InlineText text={line.slice(2)} />
+                </li>
               ))}
             </ul>
           )
         }
-        return <p key={i}>{chunk}</p>
+        return (
+          <p key={i}>
+            <InlineText text={chunk} />
+          </p>
+        )
       })}
     </div>
   )
@@ -544,11 +574,9 @@ export function BlockView({
                      the original shared photo otherwise. The fallback is what
                      keeps every other module rendering exactly as before.
 
-                     The artwork carries its own wave-shaped transparent bottom,
-                     taken from THIS asset's alpha channel rather than redrawn,
-                     so the wave edge and the purple behind it still come from
-                     one source (§78.1). A replacement that is not masked the
-                     same way will sit as a hard rectangle over the gradient. */
+                     Per-chapter covers are full-bleed RGB at 2562 × 720 with
+                     no wave. Only the shared fallback still carries its old
+                     wave-shaped alpha. */
                   src={`${import.meta.env.BASE_URL}illustrations/module/${block.heroArt ?? 'chapter-intro-hero'}.webp`}
                   alt=""
                   aria-hidden="true"
@@ -898,9 +926,69 @@ export function BlockView({
             tabIndex={isFirst ? -1 : undefined}
             className="text-sub-greeting leading-[1.4] text-ink outline-none"
           >
-            {block.subtitle}
+            <InlineText text={block.subtitle} />
           </Heading>
-          <ChunkedText text={block.body} className="mt-2 text-body text-ink-muted" />
+          {/* Module 7 authors some Style 2 blocks with the Body left empty; the
+              sub-heading then stands alone rather than over an empty gap. */}
+          {block.body.trim() && (
+            <ChunkedText text={block.body} className="mt-2 text-body text-ink-muted" />
+          )}
+        </div>
+      )
+
+    case 'style-1':
+      // `<Text block _Style 1>` — the builder tool's `text-style-1`: Heading
+      // copy at `display-md` 32/500 in `ink`, then Sub-heading copy at
+      // `sub-greeting` 18/500 in `ink-muted`, 8px apart. Colour is positional,
+      // as on every text block. An empty sub-heading is not drawn.
+      return (
+        <div>
+          <Heading
+            data-slide-heading={isFirst || undefined}
+            tabIndex={isFirst ? -1 : undefined}
+            className="font-display text-display-md text-ink text-balance outline-none"
+          >
+            <InlineText text={block.heading} />
+          </Heading>
+          {block.subheading?.trim() && (
+            <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
+              <InlineText text={block.subheading} />
+            </p>
+          )}
+        </div>
+      )
+
+    case 'image':
+      // `<Image block>` — the builder tool's `image`: one image, the full width
+      // of the slide column, 16px radius, its own aspect. Until the artwork
+      // exists it is a placeholder in the video placeholder's own idiom (the
+      // gradient wash, a centred glyph, a label chip), at 16:9 because a
+      // placeholder has no aspect of its own to keep.
+      return block.image ? (
+        <img
+          src={`${import.meta.env.BASE_URL}illustrations/module/${block.image}.webp`}
+          alt=""
+          className="block h-auto w-full rounded-[16px]"
+        />
+      ) : (
+        <div
+          role="img"
+          aria-label="Image placeholder"
+          className="relative overflow-hidden rounded-[16px]"
+          style={{ aspectRatio: '16 / 9' }}
+        >
+          <div aria-hidden="true" className="absolute inset-0" style={moduleArt(IMAGE_PLACEHOLDER_WASH)} />
+          <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+            <span className="flex size-16 items-center justify-center rounded-full bg-white/90 text-ink">
+              <ImageIcon className="size-6" strokeWidth={1.75} />
+            </span>
+          </div>
+          <span
+            aria-hidden="true"
+            className="absolute bottom-2 left-3 rounded-full bg-black/40 px-2 py-0.5 text-fine text-white"
+          >
+            Image placeholder
+          </span>
         </div>
       )
 
@@ -959,7 +1047,8 @@ export function BlockView({
               tabIndex={-1}
               className="font-display text-display-md text-ink text-balance outline-none"
             >
-              {block.copy}
+              {/* Paragraph breaks from the .docx (Module 7 slide 18 has two). */}
+              <FormattedText text={block.copy} />
             </Heading>
             {/* Optional bullets (feedback, 2026-10-19), in the sub-heading
                 font. No bullets → nothing renders and the slide is the

@@ -25,6 +25,11 @@ import { cn } from '@/lib/utils'
 /** The row's own inset, frame `665:942`. The wash is measured from the rail's
  *  right edge, which is this plus the rail's width. */
 const ROW_PADDING_PX = 24
+
+/** TEMP 2026-11-23 (image review): modules whose every slide counts as already
+ *  read, so the outline rail can jump to any of them without completing the
+ *  ones before. Review aid only — empty this set before shipping. */
+const REVIEW_ALL_SLIDES_READ = new Set<string>(['retraining-brain-sleep'])
 /** Frame `2065:1877`, as ratios of the rail's right edge — see the note at the
  *  call site for why they are ratios and not the frame's own percentages. */
 const WASH_SOLID_RATIO = 256 / 354
@@ -350,7 +355,11 @@ export function ModulePlayerPage() {
           moduleNumber={PATHWAY_MODULES_V2.findIndex((m) => m.id === module!.id) + 1}
           moduleTitle={module.title}
           stepIndex={stepIndex}
-          furthestIndex={Math.max(stepIndex, moduleId ? getModuleStepIndex(moduleId) : 0)}
+          furthestIndex={
+            moduleId && REVIEW_ALL_SLIDES_READ.has(moduleId)
+              ? steps.length - 1
+              : Math.max(stepIndex, moduleId ? getModuleStepIndex(moduleId) : 0)
+          }
           onJump={goToStep}
           open={outlineOpen}
           onToggleOpen={() => setOutlineOpen((v) => !v)}

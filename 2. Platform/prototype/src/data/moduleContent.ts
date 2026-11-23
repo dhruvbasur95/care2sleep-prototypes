@@ -39,6 +39,7 @@
  */
 
 import type { SipteaInitial } from './siptea'
+import { MODULE_7 } from './module7Content'
 
 /** One attributed quote — the `Quotes_` atom (`2584:1049`). */
 export interface Quote {
@@ -118,7 +119,7 @@ export type InteractivePattern = 'revision' | 'you-might-also-hear' | 'your-turn
  * the union small and meaning-bearing; do not add a glyph without a slide that
  * needs it.
  */
-export type TransitionIcon = 'blocks' | 'search' | 'scale' | 'sun-moon'
+export type TransitionIcon = 'blocks' | 'search' | 'scale' | 'sun-moon' | 'bed' | 'moon'
 
 /** Know What revision — glossary term/definition pairs, click to reveal. */
 /**
@@ -149,6 +150,10 @@ export type RevisionIcon =
   | 'thermometer'
   | 'utensils'
   | 'hourglass'
+  // Module 7 Chapter 2's four stimulus control strategies (`clock` reused).
+  | 'bed'
+  | 'moon'
+  | 'armchair'
 
 export interface RevisionTerm {
   term: string
@@ -198,7 +203,9 @@ export interface HearPair {
  */
 /** One line of a case's conversation, attributed. */
 export interface ConversationTurn {
-  who: 'coach' | 'carer'
+  /** `ple` — the person with lived experience — added with Module 7, whose
+   *  first block_2 case is a coach talking to them rather than the carer. */
+  who: 'coach' | 'carer' | 'ple'
   text: string
 }
 
@@ -292,8 +299,28 @@ export type Block =
    *  (Label + Title + Sub-title); the block reference resolves the latter by
    *  reusing the former's component, so they share one tag here. */
   | { tag: 'text-2'; label: string; title: string; subtitle: string }
-  /** `<Text block_3>` — Sub-title + Body, repeatable on one slide. */
+  /** `<Text block_3>` / `<Text block _Style 2>` — Sub-heading + Body,
+   *  repeatable on one slide. Module 7 authors some with the Body left empty
+   *  (`''`); the renderer then draws the sub-heading alone. */
   | { tag: 'text-3'; subtitle: string; body: string }
+  /**
+   * `<Text block _Style 1>` — Heading copy + Sub-heading copy, 8px apart
+   * (builder tool `text-style-1`; Figma `4271:733`). First authored in
+   * Module 7. The Sub-heading is optional in practice: Module 7 leaves it
+   * empty three times, and an empty line is not drawn.
+   */
+  | { tag: 'style-1'; heading: string; subheading?: string }
+  /**
+   * `<Image block>` — one image, full slide width, 16px radius (builder tool
+   * `image`; Figma `4553:741`). First authored in Module 7.
+   *
+   * The source's Image description and Reference link are a brief for whoever
+   * makes the artwork, exactly as a `<Video block>`'s table is for the film
+   * crew, so neither is carried here: they stay in module.md. `image` is the
+   * asset STEM once artwork exists (`illustrations/module/<stem>.webp`);
+   * absent, the block renders its placeholder — every Module 7 image today.
+   */
+  | { tag: 'image'; image?: string }
   /**
    * `<Accordion with image block>` — Figma `2697:25053`. A **run** of
    * `<Text block_3>` items (the same Sub-title + Body shape, hence the same
@@ -478,6 +505,13 @@ export type TopicIcon =
   | 'dumbbell'
   | 'sliders-horizontal'
   | 'route'
+  // Module 7's key topics.
+  | 'link'
+  | 'bed'
+  | 'brain'
+  | 'tv'
+  | 'moon'
+  | 'heart-handshake'
 
 export interface KeyTopic {
   text: string
@@ -1990,6 +2024,10 @@ export const MODULE_CONTENT: Record<string, ModuleContent> = {
     chapters: [M6_CHAPTER_1, M6_CHAPTER_2, M6_CHAPTER_3],
     outroSlide: M6_OUTRO_SLIDE,
   },
+  // Module 7 lives in its own file so each module's verifiers
+  // (`06. verify-slides.py`, `09. verify-transcription.py`) read one module
+  // only — both scan the whole .ts they are given.
+  'retraining-brain-sleep': MODULE_7,
 }
 
 /**

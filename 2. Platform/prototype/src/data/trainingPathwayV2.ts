@@ -93,7 +93,10 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
     // a reviewer meets it first, while the Sleep-group entry is the curriculum's
     // own slot for that topic and has no content yet. The suffix says which is
     // which. Drop it when the content moves to its proper slot.
-    title: 'The Building Blocks of Good Sleep (sample module)',
+    //
+    // 2026-11-20 (direct instruction): the suffix names the module number —
+    // "(Module 6)" — now that card 2 hosts Module 7 the same way.
+    title: 'The Building Blocks of Good Sleep (Module 6)',
     description:
       'Understand the key foundations of good, consistent sleep, what sleep drive is, and simple ways to strengthen your body\u2019s natural drive for sleep.',
     // `not-started`, not `completed`: the card is the way into content a
@@ -109,21 +112,26 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
     estimatedMinutes: 35,
   },
   {
+    // Hosts the real Module 7 content for review, exactly as card 1 hosts
+    // Module 6 (direct instruction, 2026-11-20: "add the new module 7 after
+    // The Building Blocks of Good Sleep … the next one will be module 7"; card 2
+    // replaced, unlocked). `DEMO_PLAYER_REDIRECTS` in `pathway.ts` points it at
+    // `retraining-brain-sleep`. The id stays: it is code, keyed on by curriculum
+    // order and the research seed. "Your coaching toolkit" is off the list
+    // until Module 7 moves to its proper slot.
     id: 'population-understanding',
-    title: 'Your coaching toolkit',
+    // Title from `Module 7.md`'s Module name row; description is its Core
+    // message, verbatim.
+    title: 'Retraining Your Brain Where to Sleep (Module 7)',
     description:
-      "The core coaching skills, tools and resources you'll draw on throughout every session.",
+      'Explore how sleep associations develop through classical conditioning and how stimulus control strategies can strengthen the bed-sleep connection and support calm responses to nighttime awakenings.',
     status: 'not-started',
     progress: 0,
     cover: {
-      colors: ['#e8dcc8', '#c98a5e', '#8fa89a'],
-      // Module cover, generated with Nano Banana Pro in the series'
-      // established watercolour-and-ink style and recurring cast. 1600x893,
-      // the exact size of `building-blocks-cover.webp`, which is the
-      // reference this set was matched to. `colors` stays as the wash
-      // behind it — `moduleArt()` layers the image OVER the gradient, so it
-      // is still what paints while the image loads.
-      image: `${import.meta.env.BASE_URL}illustrations/modules/population-understanding-cover.webp`,
+      // The curriculum's own cover for this topic (the Sleep-group
+      // `retraining-brain-sleep` card's), reused rather than generated.
+      colors: ['#dce8ec', '#5a8ca3', '#a7c4b8'],
+      image: `${import.meta.env.BASE_URL}illustrations/modules/retraining-brain-sleep-cover.webp`,
     },
     estimatedMinutes: 35,
   },

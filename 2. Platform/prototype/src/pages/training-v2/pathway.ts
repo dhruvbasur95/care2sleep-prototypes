@@ -34,6 +34,11 @@ export type PathwayState = 'completed' | 'current' | 'upcoming'
 export function moduleState(index: number): PathwayState {
   if (firstIncompleteIndex === -1 || index < firstIncompleteIndex) return 'completed'
   if (index === firstIncompleteIndex) return 'current'
+  // The review-hosting sample cards are always open (direct instruction,
+  // 2026-11-20: Module 7 on card 2, "unlocked"). Without this card 2 could
+  // never open: card 1's static `status` never reaches `completed`, however
+  // far a reviewer plays it. Every other module keeps the forced-linear lock.
+  if (PATHWAY_MODULES[index]?.id in DEMO_PLAYER_REDIRECTS) return 'current'
   return 'upcoming'
 }
 
@@ -88,6 +93,9 @@ export const MODULE_PLAYER_ID = 'building-blocks-good-sleep'
  */
 const DEMO_PLAYER_REDIRECTS: Record<string, string> = {
   'portal-orientation': MODULE_PLAYER_ID,
+  // Module 7 (`3. Coaching modules/05. Modules/Module 7/Module 7.md`) on card 2, the
+  // same way — direct instruction, 2026-11-20.
+  'population-understanding': 'retraining-brain-sleep',
 }
 
 /** Resolves a home-timeline module id to the id its real content/progress

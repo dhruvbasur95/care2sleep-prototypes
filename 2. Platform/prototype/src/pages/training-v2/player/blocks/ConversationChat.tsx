@@ -7,6 +7,21 @@ import { CONVERSATION_GROUND } from './conversationGround'
 const ART = `${import.meta.env.BASE_URL}illustrations/conversations/`
 
 /**
+ * Who each side is, named under the avatar and announced to a screen reader.
+ *
+ * `ple` arrived with Module 7, whose first block_2 case is a coach talking to
+ * the person with lived experience. It sits on the client side with the
+ * client avatar — there is no PLE portrait — so the caption is the only thing
+ * telling it apart from a care partner, which is why it must not say "Care
+ * partner".
+ */
+const SPEAKER_LABEL: Record<ConversationTurn['who'], string> = {
+  coach: 'Coach',
+  carer: 'Care partner',
+  ple: 'Person with lived experience',
+}
+
+/**
  * The tallest the chat gets before it scrolls.
  *
  * Direct instruction, 2026-09-28: the container height is set and the chat
@@ -160,9 +175,7 @@ export function ConversationChat({ turns }: { turns: ConversationTurn[] }) {
                             avatar, neither of which a screen reader gets in
                             order. Announced once per run, on its first line. */}
                         {i === 0 && (
-                          <span className="sr-only">
-                            {isCoach ? 'Coach: ' : 'Care partner: '}
-                          </span>
+                          <span className="sr-only">{`${SPEAKER_LABEL[run.who]}: `}</span>
                         )}
                         {line}
                       </p>
@@ -195,7 +208,7 @@ export function ConversationChat({ turns }: { turns: ConversationTurn[] }) {
                       12/600, both too small here and the wrong weight beside a
                       600 bubble. */}
                   <span aria-hidden="true" className="text-caption text-ink-muted">
-                    {isCoach ? 'Coach' : 'Care partner'}
+                    {SPEAKER_LABEL[run.who]}
                   </span>
                 </span>
               </li>

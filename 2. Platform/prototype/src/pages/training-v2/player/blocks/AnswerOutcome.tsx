@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import { InlineText } from './InlineText'
 
 /**
  * What a `Your turn` question says back once it has been answered — the yellow
@@ -104,7 +105,9 @@ export function AnswerOutcome({
           `border-[3.5px]` being reduced to 1px is now moot: there is no stroke
           to weight. The fill is untouched, `#e4d6ff` = `purple-200`. */}
       <div className="flex min-h-[112px] w-full flex-col justify-center gap-6 rounded-[24px_8px_24px_8px] bg-purple-200 p-6 lg:p-10">
-        <p className="text-sub-greeting leading-[1.4] text-primary">{message}</p>
+        <p className="text-sub-greeting leading-[1.4] text-primary">
+          <InlineText text={message} />
+        </p>
         {below}
       </div>
       {/* The same pillow the quote rows use, at the frame's own size and its

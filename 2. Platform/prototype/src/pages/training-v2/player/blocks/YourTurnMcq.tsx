@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Circle, CircleCheck, CircleX } from 'lucide-
 import { cn } from '@/lib/utils'
 import type { YourTurnQuestion } from '@/data/moduleContent'
 import { AnswerOutcome } from './AnswerOutcome'
+import { FormattedText } from './InlineText'
 import { buttonVariants } from '@/components/ui/button'
 
 /**
@@ -91,8 +92,21 @@ function parseOptions(raw: string[]): ParsedOption[] {
  * cell has a letter at the start of each segment anyway, so the second split
  * finds nothing new. **Never "fix" the separator in the source**:
  * `05. Modules/*.md` is read-only.
+ *
+ * ⚠️ **A third form arrived with Module 7: bare letters** — `"B"`, or
+ * `"A, B, D"` for a select-multiple. That is what the builder tool's own
+ * Correct answer field asks for ("Grading reads the letter"). Neither split
+ * above finds anything in it, and a bare letter matches no `OPTION_LETTER`, so
+ * every such cell graded every answer wrong. A cell made of letters alone is
+ * therefore split on its commas first; `BARE_LETTER` then reads each one.
  */
+const BARE_LETTER_LIST = /^\s*[A-Za-z](\s*,\s*[A-Za-z])*\s*\.?\s*$/
+const BARE_LETTER = /^\s*([A-Za-z])\s*\.?\s*$/
+
 function answerSegments(correctAnswer: string): string[] {
+  if (BARE_LETTER_LIST.test(correctAnswer)) {
+    return correctAnswer.split(',').map((part) => part.trim()).filter(Boolean)
+  }
   return correctAnswer
     .split('+')
     .flatMap((part) => part.split(/(?=\b[A-Za-z]\s*[.)]\s)/))
@@ -108,7 +122,7 @@ function correctIndices(correctAnswer: string, options: ParsedOption[]): number[
     const trimmed = segment.trim()
     if (!trimmed) continue
 
-    const letter = trimmed.match(OPTION_LETTER)?.[1].toUpperCase()
+    const letter = (trimmed.match(OPTION_LETTER) ?? trimmed.match(BARE_LETTER))?.[1].toUpperCase()
     const byLetter = letter ? options.findIndex((o) => o.letter === letter) : -1
     if (byLetter !== -1) {
       found.add(byLetter)
@@ -356,7 +370,7 @@ export function YourTurnMcq({
               twice. */}
           <div aria-hidden="true" className="flex flex-col gap-2 text-ink">
             <p ref={stemRef} tabIndex={-1} className="text-display-sm outline-none">
-              {question.question}
+              <FormattedText text={question.question} />
             </p>
             <p className="text-sub-greeting leading-[1.4]">
               {multiple ? 'Choose one or more options' : 'Choose one option'}
