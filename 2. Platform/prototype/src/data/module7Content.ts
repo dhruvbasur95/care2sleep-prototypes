@@ -10,8 +10,8 @@
  * the file it is given, so each module needs a file of its own to be checked
  * against its own source:
  *
- *   python3 "06. verify-slides.py" "05. Modules/Module 7/Module 7.md" "../2. Platform/prototype/src/data/module7Content.ts"
- *   python3 "09. verify-transcription.py" "05. Modules/Module 7/Module 7.md" "../2. Platform/prototype/src/data/module7Content.ts"
+ *   python3 "06. verify-slides.py" "05. Modules/Module 7/Coach Module - Template-based [Final].md" "../2. Platform/prototype/src/data/module7Content.ts"
+ *   python3 "09. verify-transcription.py" "05. Modules/Module 7/Coach Module - Template-based [Final].md" "../2. Platform/prototype/src/data/module7Content.ts"
  *
  * Every block maps to an entry in the Module builder tool
  * (`3. Coaching modules/04. Module builder tool/`). Videos and images are
@@ -955,9 +955,9 @@ const M7_CHAPTER_3: ChapterContent = {
           subtitle:
             'In this Know How section, let’s watch the sleep coach in a real conversation with their dyad, and notice which skills they use, as the coach helps the dyad explore night-time awakenings in more detail.',
         },
-        // Placeholder until the scenario video is shot. Its dialogue script
+        // Chapter 3's case scenario video (2026-11-24). Its dialogue script
         // stays in module.md — a `<Video block>` is only its YouTube id.
-        { tag: 'video', variant: 'scenario' },
+        { tag: 'video', variant: 'scenario', youtubeId: 'ziCd8w_Xu2U' },
       ],
     },
     {
@@ -998,5 +998,5 @@ export const CONTENT_FLAGS: string[] = [
   'The Click to reveal blocks (slides 6 and 15) name the speaker in their Topic / concept column ("Person with lived experience might say…", "Care partner might say…", "Dyad might say…"). The block does not render that column, so who is speaking is not shown.',
   'Both case scenario questions end with "Select one." inside the question copy, which the block also says on its own.',
   'Slide 17\'s transition copy is three sentences across two paragraphs (from the .docx) and leaves its optional bullet points empty, so it renders as a two-paragraph heading.',
-  'Every <Video block> and <Image block> is a placeholder: no video links are authored and no artwork exists yet.',
+  'Every <Video block> except Chapter 3\'s case scenario is a placeholder: no other video links are authored yet.',
 ]
