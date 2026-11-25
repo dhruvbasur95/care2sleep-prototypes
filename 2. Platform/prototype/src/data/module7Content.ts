@@ -545,7 +545,8 @@ const M7_CHAPTER_2: ChapterContent = {
           heading:
             'Watch this video as it discusses four different ways to help our brains recognise it’s time for sleep:',
         },
-        { tag: 'video', variant: 'knowledge' },
+        // Chapter 2's knowledge video (2026-11-25).
+        { tag: 'video', variant: 'knowledge', youtubeId: 'ZeBAwDTy4GU' },
         {
           tag: 'interactive',
           pattern: 'revision',
@@ -998,5 +999,4 @@ export const CONTENT_FLAGS: string[] = [
   'The Click to reveal blocks (slides 6 and 15) name the speaker in their Topic / concept column ("Person with lived experience might say…", "Care partner might say…", "Dyad might say…"). The block does not render that column, so who is speaking is not shown.',
   'Both case scenario questions end with "Select one." inside the question copy, which the block also says on its own.',
   'Slide 17\'s transition copy is three sentences across two paragraphs (from the .docx) and leaves its optional bullet points empty, so it renders as a two-paragraph heading.',
-  'Every <Video block> except Chapter 3\'s case scenario is a placeholder: no other video links are authored yet.',
 ]
