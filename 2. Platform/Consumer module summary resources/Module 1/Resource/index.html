@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building Blocks of Good Sleep</title>
+<style>
+/* ==========================================================================
+   MODULE 1 RESOURCE — full document, built from the approved sample pages
+   (Module 1/Sample pages/index.html) and the corrected source text.
+   Design direction: ../../Design direction/design direction.md
+
+   GRID (pt)  A4 595.28 x 841.89 · margins 54 · text area from 72pt, 487.28 x 702
+              12 cols, 12 gutter (col 29.607) · baseline 6 · body 13/18
+   Page numbers and contents numbers are generated from page order (script at end).
+   ========================================================================== */
+
+@font-face { font-family: "Atkinson"; src: url(assets/atkinson.woff2) format("woff2"); font-weight: 200 800; }
+@font-face { font-family: "Inter"; src: url(assets/inter.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Inter"; src: url(assets/inter-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; }
+
+:root {
+  --purple-50: #f3efff; --purple-200: #e4d6ff; --purple-300: #c2a3ff; --purple-400: #a070ff;
+  --purple-500: #3a00ad; --purple-900: #200061;
+  --yellow-50: #fff8e5; --yellow-100: #fff0cc; --yellow-200: #ffe299; --yellow-400: #ffcc4d;
+  --canvas: #ffffff; --ink: #1a1a1a; --ink-muted: #333333; --hairline: #e0e0e0; --ink-faint: #6d6d6d;
+  --highlight: #ffdd75; --radius: 8pt;
+  --m: 54pt; --top: 72pt; --area-h: 702pt; --col: 29.607pt; --gut: 12pt;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* viewer (not part of the document) */
+html, body { background: #d9d6d2; }
+body { font-family: "Inter", system-ui, sans-serif; color: var(--ink); padding: 40px 16px 96px; }
+.sheet-wrap { width: 595.28pt; margin: 0 auto 40px; }
+
+/* the page */
+.page { position: relative; width: 595.28pt; height: 841.89pt; overflow: hidden; background: var(--canvas);
+  box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.14); }
+.area { position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); align-content: start; }
+.area > * { grid-column: 1 / 13; }
+
+/* running head + page-number tab */
+.running { position: absolute; left: var(--m); right: var(--m); top: 24pt; height: 12pt;
+  font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-faint); }
+.running::after { content: ""; position: absolute; left: 0; right: 42pt; top: 18pt; height: .75pt; background: var(--hairline); }
+.running .pno { position: absolute; right: 0; top: -24pt; width: 30pt; height: 46pt; padding-bottom: 9pt;
+  display: flex; align-items: flex-end; justify-content: center; background: var(--purple-500); color: #fff;
+  border-radius: 0 0 15pt 15pt; font: 600 11pt/12pt Inter, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* running foot: mirrors the head. Grey hairline, then "Care2Sleep" left and "Module 1" right under it;
+   the text sits 24pt from the page bottom, as the head's sits 24pt from the top */
+.foot { position: absolute; left: var(--m); right: var(--m); bottom: 24pt; padding-top: 6pt; border-top: .75pt solid var(--hairline);
+  display: flex; justify-content: space-between;
+  font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-faint); }
+
+/* type scale */
+.display { font: 700 48pt/54pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h1 { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h2 { font: 700 22pt/30pt Atkinson, sans-serif; color: var(--purple-500); text-wrap: balance; margin-bottom: 6pt; }
+.h2 + .lead { margin-top: -6pt; }
+.lead { font: 400 15pt/24pt Inter, sans-serif; color: var(--purple-900); text-wrap: pretty; margin-bottom: 12pt; }
+p, li { font: 400 13pt/18pt Inter, sans-serif; color: var(--ink); text-wrap: pretty; hyphens: manual; orphans: 2; widows: 2; }
+p + p { margin-top: 12pt; }
+.eyebrow { font: 700 12pt/18pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: .02em; }
+mark { background: var(--highlight); color: inherit; font-weight: inherit; padding: .06em .22em; margin: 0 -.06em;
+  border-radius: .17em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+.s6 { margin-top: 6pt; } .s12 { margin-top: 12pt; } .s18 { margin-top: 18pt; } .s24 { margin-top: 24pt; }
+.s36 { margin-top: 36pt; } .s48 { margin-top: 48pt; } .s72 { margin-top: 72pt; }
+
+/* lists */
+ul.dots { list-style: none; }
+ul.dots li { position: relative; padding-left: 18pt; }
+ul.dots li + li { margin-top: 6pt; }
+ul.dots li::before { content: ""; position: absolute; left: 2pt; top: 6pt; width: 6pt; height: 6pt; border-radius: 50%; background: var(--purple-500); }
+ul.dots.roomy li + li { margin-top: 12pt; }
+.dots.two-col { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24pt; row-gap: 12pt; align-items: start; }
+.dots.two-col li + li { margin-top: 0; }
+.list-lead { font: 700 13pt/18pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 6pt; }
+
+/* panels */
+.panel { padding: 18pt 24pt; border-radius: var(--radius); }
+.panel p { font: 600 14pt/24pt Atkinson, sans-serif; }
+.panel .list-lead { font: 700 13pt/18pt Atkinson, sans-serif; }
+.panel.deep { background: var(--purple-500); }
+.panel.deep p { color: #fff; }
+.panel.deep mark { color: var(--purple-900); }
+.panel.pale { background: var(--yellow-100); }
+.panel.pale p, .panel.pale li { color: var(--purple-900); }
+.panel.lilac { background: var(--purple-50); }
+.panel-row { display: grid; grid-template-columns: 24pt 1fr; column-gap: 12pt; align-items: start; }
+.panel p + p { margin-top: 6pt; }
+.panel .dots { margin-top: 6pt; }
+
+.ico { width: 24pt; height: 24pt; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* figures */
+figure { margin: 0; }
+figure img { display: block; width: 100%; height: auto; }
+figure.fig-panel { background: var(--purple-50); border-radius: var(--radius); padding: 18pt; display: flex; justify-content: center; }
+figure.fig-panel img { width: auto; height: 100%; object-fit: contain; }
+figure.trio { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 12pt; }
+
+/* NREM stages: zig-zag pictures joined by a dotted curve with arrows */
+.stage-flow { position: relative; height: 492pt; }
+.stage-flow .flow-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.stage-flow .flow-line path.dots { fill: none; stroke: var(--purple-400); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 0 7; }
+.stage-flow .flow-line marker path { fill: var(--purple-400); stroke: none; }
+.stage-flow ol { list-style: none; display: grid; grid-template-rows: repeat(3, 144pt); row-gap: 30pt; }
+.stage-flow li { display: grid; column-gap: 24pt; align-items: center; }
+.stage-flow li.pic-left { grid-template-columns: 132pt 1fr; }
+.stage-flow li.pic-right { grid-template-columns: 1fr 132pt; }
+.stage-flow li.pic-right img { order: 2; }
+.stage-flow .stage-title { font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 6pt; }
+.stage-flow img { width: 132pt; height: 132pt; object-fit: contain; position: relative; }
+
+/* the three ingredients: titled rows, each with its own icon */
+.ingr { display: grid; grid-template-columns: 24pt 1fr; column-gap: 18pt; padding: 18pt 0 17.25pt; border-bottom: .75pt solid var(--purple-200); }
+.ingr:first-of-type { border-top: .75pt solid var(--purple-200); }
+.ingr:not(:has(+ .ingr)) { border-bottom: 0; }  /* last row: no bottom stroke */
+.ingr .ico { color: var(--purple-500); }
+.ingr .ttl { font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.ingr p { margin-top: 0; }
+
+/* grid overlay (press G) */
+.grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
+body.show-grid .grid-overlay { display: block; }
+.grid-overlay .cols { position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); }
+.grid-overlay .cols i { background: rgba(255,80,120,.09); border-left: .5pt solid rgba(255,80,120,.35); border-right: .5pt solid rgba(255,80,120,.35); }
+.grid-overlay .base { position: absolute; left: 0; right: 0; top: var(--top); height: var(--area-h);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 17.5pt, rgba(0,150,255,.45) 17.5pt, rgba(0,150,255,.45) 18pt),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 5.6pt, rgba(0,150,255,.14) 5.6pt, rgba(0,150,255,.14) 6pt); }
+
+/* COVER */
+.cover .logo { position: absolute; left: var(--m); top: var(--m); width: 120pt; height: auto; }
+/* COVER (ref-12): one frame. The painting's white paper IS the page: it fills the page bottom edge to
+   edge, no wave, no border, and the logos, "Module N" and title are laid over its open white top. */
+.cover.divider { --tint: var(--canvas); }
+.cover .title { margin-top: 18pt; font-size: 54pt; line-height: 60pt; }
+.cover .head { top: 150pt; z-index: 2; }   /* left-aligned, laid over the painting's open white paper */
+.cover .logo { z-index: 2; }
+
+/* CONTENTS */
+.toc-title { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); padding-bottom: 18pt; border-bottom: 1.5pt solid var(--purple-500); }
+.toc-row { align-items: start;  /* no min-height: every row ends 12pt below its title, label or not */ display: grid; grid-template-columns: 36pt 1fr; column-gap: 12pt; padding: 24pt 0 23.25pt; border-bottom: .75pt solid var(--purple-200); color: inherit; text-decoration: none; }
+.toc-row:last-child { border-bottom: 0; }  /* the last row of a ruled list never has a bottom stroke */
+.toc-row .t { grid-column: 2; font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.toc-row .t small { display: block; font: 600 11pt/18pt Inter, sans-serif; color: var(--purple-900); opacity: .75; letter-spacing: .02em; }
+.toc-row .n { grid-row: 1; grid-column: 1; font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); font-variant-numeric: tabular-nums; }
+
+/* OPENING */
+.learn-panel { position: relative; padding: 30pt 30pt 36pt; }
+.learn-panel .h2 { color: #fff; }
+.learn-panel ul.dots li { color: #fff; font: 500 13pt/24pt Inter, sans-serif; }
+.learn-panel ul.dots li::before { background: var(--yellow-400); top: 9pt; }
+.learn-panel ul.dots li + li { margin-top: 12pt; }
+.peek { position: absolute; width: 108pt; }
+
+/* CHAPTER OPENER: tint page, title just above the painting's wave edge */
+.divider { --tint: var(--purple-50); background: var(--tint); }
+.divider.warm { --tint: var(--yellow-50); }
+.divider .head { position: absolute; left: var(--m); width: 487.28pt; }   /* bottom set per page: painting height + 64pt */
+.divider .chapno { font: 700 18pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.divider .h1 { margin-top: 18pt; font-size: 60pt; line-height: 66pt; }
+.divider .scene { position: absolute; left: 0; right: 0; bottom: 0; }
+.divider .scene .art { display: block; width: 100%; height: auto; }
+.divider .scene .wave { position: absolute; z-index: 1; top: -1pt; left: 0; width: 100%; height: 20pt; }
+.divider .scene .wave path { fill: var(--tint); }
+
+/* REFLECTION: pillow + bubble, full-width write-in lines */
+.reflect { display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); }
+.bubble { position: relative; grid-column: 4 / 13; background: var(--purple-50); padding: 18pt 24pt 18pt 66pt; border-radius: var(--radius); }
+.bubble.tail::before { content: ""; position: absolute; left: -14pt; bottom: 18pt; width: 30pt; height: 24pt; background: var(--purple-50);
+  clip-path: polygon(100% 0, 0 70%, 100% 100%); }
+.bubble.wide { grid-column: 1 / 13; }
+.bubble .ico { position: absolute; left: 24pt; top: 18pt; color: var(--purple-500); }
+.bubble p { font: 700 15pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.reflect .who { grid-column: 1 / 4; align-self: end; width: 100%; }
+.lines { grid-column: 1 / 13; margin-top: 12pt; }
+.lines i { display: block; height: 30pt; border-bottom: 1pt solid var(--purple-300); }
+
+/* BACK PAGE: Care2Sleep logo centred; partners bottom left, QR bottom right */
+.page.back { background: var(--yellow-50); }
+.back .logo-c { position: absolute; left: 50%; top: calc(50% - 96pt); width: 240pt; transform: translate(-50%, -50%); }  /* centred, lifted 96pt */
+.back .bottom { position: absolute; left: var(--m); right: var(--m); bottom: var(--m); display: flex; justify-content: space-between; align-items: stretch; gap: 24pt; }
+.back .left { display: flex; flex-direction: column; justify-content: space-between; }  /* Contact us on the QR's top line, partners on its bottom line */
+.back .contact { font: 400 13pt/18pt Inter, sans-serif; color: var(--ink); margin-top: 0 !important; }  /* directly under its label */
+.back .partners-label { font: 700 12pt/18pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 12pt; }
+.back .contact-label { margin-bottom: 0; }
+.back .partners { display: flex; align-items: center; gap: 24pt; }
+.back .partners img { display: block; height: auto; }
+.back .qr { width: 96pt; }
+.back .qr img { display: block; width: 96pt; height: 96pt; }
+.back .qr p { margin-top: 6pt; font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-muted); text-wrap: balance; text-align: center; }  /* centred under the code: user's exception to left-align */
+
+.nobr { white-space: nowrap; }
+.page.overflow { outline: 4px solid red; }
+
+/* ---------- PRINT / PDF: one A4 sheet per .page, nothing from the screen viewer ---------- */
+@page { size: 595.28pt 841.89pt; margin: 0; }
+@media print {
+  html, body { background: none !important; padding: 0 !important; margin: 0 !important; zoom: 1 !important; }
+  .sheet-wrap { width: auto; margin: 0; }
+  .page { box-shadow: none; outline: none !important; break-after: page; page-break-after: always; }
+  .sheet-wrap:last-of-type .page { break-after: auto; page-break-after: auto; }
+  .grid-overlay { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- lucide icons (from the app's own lucide-react package). Each used once, except the question icon, which marks every question. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-question" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-cycle" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-energy" viewBox="0 0 24 24"><path d="m11 7-3 5h4l-3 5"/><path d="M14.856 6H16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.935"/><path d="M22 14v-4"/><path d="M5.14 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2.936"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+  <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-trending" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
+</svg>
+
+<!-- 1 · COVER -->
+<div class="sheet-wrap"><section class="page cover divider">
+  <img class="logo" src="assets/care2sleep-logo.svg" alt="Care2Sleep">
+  <div class="head"><div class="chapno">Module 1</div><h1 class="display title">Building Blocks of Good Sleep</h1></div>
+  <div class="scene">
+    <img class="art" src="../../Resource shell/module-1-cover.jpg" alt="In the evening, an older woman in a yellow cardigan sits on the edge of her bed smiling while her care partner, sitting beside her, plumps a smiling yellow pillow. A crescent moon and stars shine through a tall window."></div>
+</section></div>
+
+<!-- 2 · CONTENTS (running foot, no running head) -->
+<div class="sheet-wrap"><section class="page" data-foot>
+  <div class="area">
+    <h2 class="toc-title">Contents</h2>
+    <a class="toc-row s12" href="#p-learn"><div class="t">What You Will Learn</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch1"><div class="t"><small>Chapter 1</small>Understanding Sleep</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch2"><div class="t"><small>Chapter 2</small>Waking Up at the Same Time</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch3"><div class="t"><small>Chapter 3</small>Resting Without Losing Sleep Hunger</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch4"><div class="t"><small>Chapter 4</small>Waiting Until You’re Sleepy</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-close"><div class="t">Bringing it all together</div><div class="n"></div></a>
+  </div>
+</section></div>
+
+<!-- 3 · MODULE OPENING -->
+<div class="sheet-wrap"><section class="page" id="p-learn" data-head="What You Will Learn" data-first-numbered>
+  <div class="area">
+    <h1 class="h1">Building Blocks of Good Sleep</h1>
+    <div class="panel deep learn-panel s72">
+      <h2 class="h2">What You Will Learn</h2>
+      <ul class="dots">
+        <li>How sleep actually works, and why it matters so much for your health and how you feel.</li>
+        <li>The three things good sleep rests on.</li>
+        <li>What sleep drive is, and simple ways to build it.</li>
+      </ul>
+      <img class="peek" src="assets/pillow-awake-on-dark.svg" alt="" aria-hidden="true" style="right: 24pt; top: -64pt;">
+    </div>
+  </div>
+</section></div>
+
+<!-- 4 · CHAPTER 1 OPENER -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch1">
+  <div class="head"><div class="chapno">Chapter 1</div><h2 class="h1">Understanding Sleep</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/gen-ch1-b-trim.jpg" alt="An older woman settling to sleep in bed at night while her care partner, sitting on the edge of the bed, gently draws the blanket up."></div>
+</section></div>
+
+<!-- 5 · CH1 Understanding Sleep -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <h3 class="h2">Understanding Sleep</h3>
+    <p class="lead">Sleep, we all need it, but why does it sometimes feel effortless and other nights completely impossible?</p>
+    <p>Sleep isn’t just something that happens passively. Years of research has shown us that sleep is an active, dynamic process that your body and brain work hard to regulate every day.</p>
+    <p>Over the night our sleep is characterised by <span class="nobr">90-minute</span> cycles. These cycles repeat approximately <span class="nobr">4-6</span> times on average.</p>
+    <p>During these cycles we transition through different sleep stages, including non-rapid eye movement (NREM) and rapid eye movement (REM) sleep. These stages have important functions, such as contributing to memory consolidation and skill learning, as well as “housekeeping” functions that support physical repair, boost immune function, help clear waste products, and support cognitive performance. We also have brief arousals (or awakenings) throughout the night, which normally go unnoticed and are a normal part of sleep.</p>
+    <figure class="s24 fig-panel" style="height: 270pt;">
+      <img src="assets/sleep-cycle-alpha.png" alt="A circle of three arrows showing one sleep cycle of roughly 90 minutes: light sleep, then deep sleep, then REM (rapid eye movement) sleep, and back to light sleep.">
+    </figure>
+  </div>
+</section></div>
+
+<!-- 6 · CH1 NREM -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <p>Having said that, being awake for long periods (30 mins or more) or struggling with energy and sleepiness during the day, may be a sign that your sleep could use some support.</p>
+    <h3 class="h2 s36">Non-Rapid Eye Movement Sleep</h3>
+    <p>You spend the majority of your night in non-rapid eye movement sleep. During NREM sleep our brain waves progressively slow and our bodies relax. NREM sleep involves three stages:</p>
+    <div class="stage-flow s24">
+      <svg class="flow-line" viewBox="0 0 487.28 492" aria-hidden="true"><defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0.5 L10 5 L0 9.5 Z"/></marker></defs><path class="dots" d="M 66.0 142.0 C 66.0 167.0, 146.2 159.0, 243.6 159.0 S 421.3 153.0, 421.3 167.0" marker-end="url(#flow-arrow)"/><path class="dots" d="M 421.3 316.0 C 421.3 341.0, 341.1 333.0, 243.6 333.0 S 66.0 327.0, 66.0 341.0" marker-end="url(#flow-arrow)"/></svg>
+      <ol>
+        <li class="pic-left"><img src="assets/stage-1.png" alt="Stage 1: a man asleep in bed, with a small inset of a foot and hand twitching."><div><h4 class="stage-title">Stage 1</h4><p>This is the transition from wakefulness to sleep. It’s a brief, light stage where you can be easily awakened. You might also experience sudden muscle movements, “jerks”, or the feeling of falling. These are known as hypnagogic jerks and are completely normal.</p></div></li>
+        <li class="pic-right"><img src="assets/stage-2.png" alt="Stage 2: the man in deeper sleep, with icons for body temperature, heart rate and breathing."><div><h4 class="stage-title">Stage 2</h4><p>In this stage, we are starting to slow down: our body temperature drops, heart rate slows, and our breathing rate becomes deeper. This stage makes up the largest portion of sleep.</p></div></li>
+        <li class="pic-left"><img src="assets/stage-3.png" alt="Stage 3: the man in deep sleep, lit by a warm glow in a dark blue room."><div><h4 class="stage-title">Stage 3</h4><p>Also known as slow wave sleep, Stage 3 is the deepest, most restorative stage of sleep and supports physical repair and immune functioning.</p></div></li>
+      </ol>
+    </div>
+  </div>
+</section></div>
+
+<!-- 7 · CH1 REM + key points -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <figure><img src="assets/rem-white.jpg" alt="An older woman asleep in bed, dreaming. A thought bubble above her shows a vivid dream of a figure walking along a path toward an open door, with a bird flying overhead."></figure>
+    <h3 class="h2 s18">Rapid Eye Movement Sleep</h3>
+    <p>This is the last stage of sleep and is sometimes called <mark>“paradoxical sleep”.</mark> This is because our brain activity looks very similar to being awake, but our muscles (except for eyes and breathing muscles) are immobilised. This is to prevent us from acting out our dreams, as this is the stage of sleep we are most likely to experience vivid, narrative dreaming in. Our eyes are also performing quick, jerky movements behind our closed eyelids, giving REM sleep its name!</p>
+    <div class="panel deep s24"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-cycle"/></svg>
+      <p>You transition through different sleep stages throughout the night over <span class="nobr">90-minute</span> cycles. Awakenings are a normal part of the cycle and usually go unnoticed.</p></div></div>
+    <div class="panel pale s6"><div class="panel-row"><svg class="ico" style="color: var(--purple-500)" aria-hidden="true"><use href="#i-energy"/></svg>
+      <p>Sleep is essential for restoring energy, supporting memory and learning, regulating mood, and maintaining overall physical health.</p></div></div>
+  </div>
+</section></div>
+
+<!-- 8 · CH1 Common sleep changes -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <p>Sleep also changes across the lifespan. As we age, the amount of sleep we get may slightly decrease, deep sleep tends to decline, and night-time awakenings can become more frequent. Despite these changes, the need for sleep remains, and maintaining healthy sleep habits is essential at every age.</p>
+    <p>Understanding how sleep works is the first step toward improving the quality and consistency of your rest.</p>
+    <h3 class="h2 s36">Common Sleep Changes</h3>
+    <p class="lead">Changes in sleep are very common in people living with dementia and care partners.</p>
+    <div class="panel lilac s12">
+      <p class="list-lead">People living with dementia may:</p>
+      <ul class="dots two-col">
+        <li>Nap more during the day</li>
+        <li>Wake up many times at night</li>
+        <li>Experience lighter, less restful sleep</li>
+        <li>Experience vivid or distressing dreams</li>
+      </ul>
+    </div>
+    <p class="s24">We know that some of the things that impact sleep in people living with dementia are brain changes that directly affect the parts of the brain that regulate sleep. Others may be related to unmet needs or problems, such as pain, health conditions, needing to go to the toilet, and/or depression and anxiety. Some people may even have sleep disorders, such as sleep apnoea and restless legs syndrome.</p>
+    <p>In care partners, some of the things that impact sleep can be linked to their caregiving role.</p>
+  </div>
+</section></div>
+
+<!-- 9 · CH1 care partners + reflection 1 -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <div class="panel lilac">
+      <p class="list-lead">These may include:</p>
+      <ul class="dots">
+        <li>Providing night-time care</li>
+        <li>Listening or watching out for care needs</li>
+        <li>Worrying about the person they are caring about</li>
+      </ul>
+    </div>
+    <p class="s24">Care partners may experience stress, anxiety, or guilt, and may have their own physical or mental health concerns, all of which can make it harder to sleep well. Irregular routines or limited opportunities for rest can further affect sleep quality.</p>
+    <p>It is also important to recognise that care partners may experience sleep difficulties that are not directly related to their caregiving role. Like anyone else, carer partners can have their own sleep challenges due to factors such as personal health, stress, lifestyle, or pre-existing sleep patterns.</p>
+    <div class="reflect s48">
+      <img class="who" src="assets/pillow-awake.svg" alt="" aria-hidden="true">
+      <div class="bubble tail"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>What kinds of things impact on your sleep or the sleep of the person you are caring for?</p></div>
+      <div class="lines" data-field="ch1-impacts-on-sleep" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 10 · CH1 Types of sleep issues -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <h3 class="h2">Types of Sleep Issues</h3>
+    <p class="lead">There are different types of sleep issues.</p>
+    <p>One type is sleep deprivation which is when external things get in the way of you sleeping. For example, needing to go to the toilet, pain, snoring, pets, noise, night-time care, or too much light where you sleep.</p>
+    <p>Another type of sleep problem is insomnia. This is when you have the chance to sleep but have problems in getting to sleep, staying asleep, or getting up too early in the morning, or a combination of all three.</p>
+    <p>Insomnia is often related to unhelpful sleep habits and worries, such as worrying about not getting enough sleep, or worrying about whether you can fall asleep.</p>
+    <div class="panel deep s24"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-bulb"/></svg>
+      <div><p><mark>Sleep deprivation</mark> is when something external stops you from getting enough sleep.</p>
+      <p><mark>Insomnia</mark> is when you have the opportunity to sleep but have difficulty doing so.</p></div></div></div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>Thinking about your own experience at the moment, do you think you are experiencing sleep deprivation or insomnia, or a mix of both?</p></div>
+      <div class="lines" data-field="ch1-deprivation-or-insomnia" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 11 · CH1 Sleep medications -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <h3 class="h2">Sleep Medications</h3>
+    <p class="lead">Sleep medications may sometimes be prescribed by a doctor or purchased over the counter at a pharmacy. They can be helpful for short-term insomnia, or in situations where other treatments have not worked.</p>
+    <p>However, sleep medications generally do not address the underlying factors contributing to sleep difficulties, such as changes in sleep routines, body clock regulation, health conditions, stress, or dementia-related changes. They may also come with side effects, such as next-day drowsiness, falls, confusion, or memory problems, particularly in older adults and people living with dementia.</p>
+    <p>While they often work quickly, they can become less effective over time, which is why many sleep medications are recommended for short-term use and should be reviewed regularly if used for longer periods.</p>
+    <p>If you or the person you care for are currently taking sleep medications or are thinking about using them, it is important to discuss this with your doctor or healthcare professional to ensure it is safe and appropriate for your situation. Do not stop taking sleep medications suddenly without medical advice, as some medications need to be reduced gradually under the guidance of a prescriber.</p>
+    <p>The evidence-based sleep recommendations outlined in these modules can be effective for improving sleep and may be used alongside current medications. These approaches focus on addressing the factors that maintain sleep difficulties and supporting long-term improvements in sleep.</p>
+  </div>
+</section></div>
+
+<!-- 12 · CH1 Foundations -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <h3 class="h2">The Foundations of Good Sleep</h3>
+    <p class="lead">Good sleep depends on a few key ingredients that work together to help you fall asleep and stay asleep. These include building your sleep drive, keeping your body clock in sync, and calming your mind and body before bed.</p>
+    <div class="ingr s12"><svg class="ico" aria-hidden="true"><use href="#i-utensils"/></svg>
+      <div><h4 class="ttl">Sleep Drive.</h4><p>This is like your hunger for sleep. From the moment you wake, this drive (or hunger) gradually builds, getting stronger the longer you stay awake. The more it builds, the easier it is to fall asleep. Ideally, we want to be very “hungry” for sleep when we get into bed each night!</p></div></div>
+    <div class="ingr"><svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg>
+      <div><h4 class="ttl">Body Clock or circadian rhythm.</h4><p>This is the part of our brain that sends our body signals when it is time to be awake and when it is time to be asleep. Our body clock is mainly regulated by light and keeps us in tune with the outside world.</p></div></div>
+    <div class="ingr"><svg class="ico" aria-hidden="true"><use href="#i-leaf"/></svg>
+      <div><h4 class="ttl">Calm Mind and Body.</h4><p>A busy mind or tense body can make it hard to fall asleep. Relaxing your body and quieting your thoughts before bed makes sleep easier to come.</p></div></div>
+    <div class="panel pale s24">  <!-- no icon: the three rows above already carry one each -->
+      <p>These three ingredients work together so that sleep is best when we:</p>
+      <ul class="dots"><li>Are hungry for sleep</li><li>Sleep at a time consistent with our body clock</li><li>Have a calm mind and body</li></ul></div>
+  </div>
+</section></div>
+
+<!-- 13 · CH1 Foundations (cont.) + Sleep drive -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <p>Throughout the rest of this program, every strategy is designed to strengthen one or more of these three ingredients. Some strategies help build sleep drive, others strengthen the body clock, while others calm the mind and body. Together, they create the best conditions for healthy sleep.</p>
+    <p>However, as we highlighted in the pre-module section, we know that sleep challenges and the circumstances surrounding them are unique to each person. As you progress through these modules, some strategies may feel general in nature or not immediately suitable for you or the person you are supporting. We encourage you to discuss how these strategies may be adapted, prioritised, and applied in a way that best fits your individual circumstances, needs, and preferences with your sleep coach. The goal is to find strategies and routines that are realistic and sustainable, rather than aiming for perfection!</p>
+    <h3 class="h2 s36">Sleep Drive and Our Hunger for Sleep</h3>
+    <p class="lead">As you read in the previous section, Sleep Drive is one of the key ingredients for good sleep.</p>
+    <p>Sleep drive, also known as homeostatic sleep pressure, is the body’s natural, increasing need for sleep that builds up the longer you remain awake. It works a bit like hunger: the longer you go without food the hungrier you are, and when you eat you feel satiated. For sleep drive, from the moment you wake up your need for sleep slowly increases throughout the day, peaking at night, before decreasing as you sleep.</p>
+    <figure class="trio s18">
+      <img src="assets/sleep-drive-1.png" alt="Morning: an older woman stretches and yawns with a cup of tea. Beside her, a dial reading from 'Not hungry for sleep' to 'Very hungry for sleep' points to not hungry.">
+      <img src="assets/sleep-drive-2.png" alt="Midday: the sun is high and the dial has moved part of the way toward 'Very hungry for sleep'.">
+      <img src="assets/sleep-drive-3.png" alt="Evening: the sun is setting and the dial points to 'Very hungry for sleep'.">
+    </figure>
+    <div class="panel deep s18"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-gauge"/></svg>
+      <p>Sleep drive is the body’s natural, increasing need for sleep that builds up the longer you are awake.</p></div></div>
+  </div>
+</section></div>
+
+<!-- 14 · CH1 Strengthening your sleep drive -->
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: Understanding Sleep">
+  <div class="area">
+    <h3 class="h2">Strengthening Your Sleep Drive</h3>
+    <p class="lead">Building a strong sleep drive involves protecting your hunger for sleep.</p>
+    <p>Many factors can affect sleep for people living with dementia and the people who support them at home. These factors can sometimes make it harder to build enough sleep pressure for a good night’s sleep. Strengthening sleep drive is one strategy that may help support a more regular sleep pattern.</p>
+    <div class="panel lilac s18">
+      <ul class="dots"><li>Keep a regular wake-up time</li><li>Avoid or limit daytime naps</li><li>Avoid going to bed too early</li></ul>
+    </div>
+  </div>
+</section></div>
+
+<!-- CHAPTER 2 -->
+<div class="sheet-wrap"><section class="page divider warm" id="p-ch2">
+  <div class="head"><div class="chapno">Chapter 2</div><h2 class="h1">Waking Up at the Same Time</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/gen-ch2-trim.jpg" alt="Morning: an older woman sits on the edge of her bed stretching her arms, while her care partner opens the curtain to let the light in. An alarm clock sits on the bedside table."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 2: Waking Up at the Same Time">
+  <div class="area">
+    <h3 class="h2">Keep a regular wake-up time</h3>
+    <p class="lead">Waking at around the same time each day is the first way to build sleep drive. Here is why it works, and what you can do.</p>
+    <ul class="dots roomy s12">
+      <li>Waking up at the same time each day helps your body build sleep pressure at a predictable rate, making it easier to feel sleepy at night.</li>
+      <li>For people living with dementia, a regular wake time can also provide structure and routine, which may support more consistent sleep-wake patterns.</li>
+      <li>Aim to wake within a consistent window (for example, within 30 minutes of your usual wake time) in order to create regularity to support sleep without needing to follow an exact schedule.</li>
+      <li>The best wake-up time will depend on the person’s sleep needs, daily activities, health, and individual circumstances. Work with your coach to determine the routine that will work best for you, rather than aiming for perfection.</li>
+    </ul>
+  </div>
+</section></div>
+
+<!-- CHAPTER 3 -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch3">
+  <div class="head"><div class="chapno">Chapter 3</div><h2 class="h1">Resting Without Losing Sleep Hunger</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/gen-ch3-trim.jpg" alt="An older woman rests with her eyes closed in an armchair, a blanket over her knees, while her care partner sits beside her holding a cup of tea."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: Resting Without Losing Sleep Hunger">
+  <div class="area">
+    <h3 class="h2">Avoid or limit daytime naps.</h3>
+    <p class="lead">Daytime rest is sometimes necessary. The aim is to protect night-time sleep while still getting the rest you need. Here is why it works, and what you can do.</p>
+    <ul class="dots roomy s12">
+      <li>Napping reduces your “sleep hunger,” which can make it harder to fall asleep at bedtime.</li>
+      <li>However, we know that sometimes daytime rest can be important, especially if someone is experiencing poor-quality sleep, increased fatigue, or reduced energy due to dementia and/or caregiving responsibilities.</li>
+      <li>In these situations, shorter naps or “micro-breaks” may help reduce excessive sleepiness while still protecting night-time sleep.</li>
+      <li>If naps are unavoidable, consider taking shorter naps earlier in the day (<span class="nobr">20-30</span> minutes or less) which won’t chip away at sleep drive. Longer naps or stretches of sleep, particularly in the late afternoon or evening, can make it hard to get to sleep or stay asleep at night.</li>
+      <li>The aim is to find a balance that supports daytime well-being while maintaining enough sleep drive for night-time sleep.</li>
+    </ul>
+  </div>
+</section></div>
+
+<!-- CHAPTER 4 -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch4">
+  <div class="head"><div class="chapno">Chapter 4</div><h2 class="h1">Waiting Until You’re Sleepy</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/gen-ch4-trim.jpg" alt="Evening: an older woman and her care partner sit together on a sofa by the light of a lamp, looking through a photo album."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 4: Waiting Until You’re Sleepy">
+  <div class="area">
+    <h3 class="h2">Avoid going to bed too early.</h3>
+    <p class="lead">Going to bed early can feel like giving yourself the best chance of sleep. It often does the opposite. Here is why, and what you can do.</p>
+    <ul class="dots roomy s12">
+      <li>Going to bed before you feel sleepy can weaken sleep drive. This means there may not be enough sleep drive to get you to sleep or to keep you asleep over the night!</li>
+      <li>It may also lead to more time lying awake in bed. Spending long periods awake in bed can also create frustration and make the bed feel associated with wakefulness rather than sleep.</li>
+      <li>Reducing your “sleep hunger” during the day, such as by napping, going to bed too early, or sleeping in, can lower the amount of sleep drive you have at bedtime. Ideally, we want our sleep hunger to be at its highest when we get into bed, so that falling and staying asleep is easier.</li>
+    </ul>
+    <div class="panel pale s36"><div class="panel-row"><svg class="ico" style="color: var(--purple-500)" aria-hidden="true"><use href="#i-trending"/></svg>
+      <p>Building a strong sleep drive during the day will help your body be ready for sleep when you get into bed.</p></div></div>
+  </div>
+</section></div>
+
+<!-- BRINGING IT ALL TOGETHER -->
+<div class="sheet-wrap"><section class="page" id="p-close" data-head="Bringing it all together">
+  <div class="area">
+    <h2 class="h1">Bringing it all together</h2>
+    <div class="panel lilac s24">
+      <p class="list-lead">In this module we discussed the following key strategies:</p>
+      <ul class="dots"><li>Keeping a consistent wake-up time.</li><li>Avoiding or limiting daytime naps.</li><li>Avoiding going to bed too early.</li></ul>
+    </div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>What are some strategies that you can think of that you could immediately put into place?</p></div>
+      <div class="lines" data-field="close-1-strategies" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>Can you think of any barriers that might come about in making these changes? What do you think could be helpful if you come across some of these barriers?</p></div>
+      <div class="lines" data-field="close-2-barriers" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Bringing it all together">
+  <div class="area">
+    <div class="reflect">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>Do you have any questions about the things you have learnt?</p></div>
+      <div class="lines" data-field="close-3-questions-learnt" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>What do you think is important for your coach to know about your situation?</p></div>
+      <div class="lines" data-field="close-4-coach-to-know" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>Do you have any questions for your coach?</p></div>
+      <div class="lines" data-field="close-5-questions-coach" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- BACK PAGE -->
+<div class="sheet-wrap"><section class="page back">  <!-- no running head, foot or number -->
+  <img class="logo-c" src="assets/care2sleep-logo.svg" alt="Care2Sleep">
+  <div class="bottom">
+    <div class="left">
+      <div>
+        <p class="partners-label contact-label">Contact us:</p>
+        <p class="contact">research.team@care2sleep.example.au</p>  <!-- PLACEHOLDER email: the user will supply the real one -->
+      </div>
+      <div>
+      <p class="partners-label">Project Partners:</p>
+      <div class="partners">
+        <img src="../../Resource shell/monash-university-black.svg" alt="Monash University" style="width: 84pt;">
+        <img src="../../Resource shell/dementia-australia-logo.svg" alt="Dementia Australia" style="width: 98pt;">
+      </div>
+      </div>
+    </div>
+    <div class="qr">
+      <img class="qr-code" src="../../Resource shell/qr-project-website.svg" alt="QR code linking to the project website">  <!-- PLACEHOLDER: encodes https://example.com/care2sleep -->
+      <p>Scan to visit the project website</p>
+    </div>
+  </div>
+</section></div>
+
+<script>
+  const PAGE_W = 595.28;
+  const pages = [...document.querySelectorAll('.page')];
+  // page 1 is "What You Will Learn": cover and contents are front matter, unnumbered
+  const first = pages.indexOf(document.querySelector('[data-first-numbered]'));
+  const pageNo = pg => pages.indexOf(pg) - first + 1;
+  pages.forEach((pg, i) => {
+    // running head + page-number tab on text pages
+    if (pg.dataset.head) {
+      const r = document.createElement('div'); r.className = 'running';
+      r.innerHTML = `<span></span><span class="pno">${pageNo(pg)}</span>`;
+      r.firstChild.textContent = pg.dataset.head;
+      pg.prepend(r);
+    }
+    // running foot on every text page, plus the contents
+    if (pg.dataset.head || pg.hasAttribute('data-foot')) {
+      const f = document.createElement('div'); f.className = 'foot';
+      f.innerHTML = '<span>Care2Sleep</span><span>Module 1</span>';
+      pg.append(f);
+    }
+    // grid overlay (G)
+    const g = document.createElement('div'); g.className = 'grid-overlay';
+    g.innerHTML = '<div class="cols">' + '<i></i>'.repeat(12) + '</div><div class="base"></div>';
+    pg.append(g);
+  });
+  // contents numbers come from the real page order
+  document.querySelectorAll('.toc-row').forEach(a => {
+    const t = document.querySelector(a.getAttribute('href'));
+    a.querySelector('.n').textContent = pageNo(t);
+  });
+  // chapter opener wave: 3.5 even crests, 18pt crest to trough (the cover has none)
+  const wave = (P, A) => { let d = 'M0,-1';
+    for (let x = 0; x <= PAGE_W + 2; x += 2) d += ` L${x.toFixed(1)},${(A / 2 * (1 - Math.cos(2 * Math.PI * x / P))).toFixed(2)}`;
+    return d + ` L${(PAGE_W + 4).toFixed(1)},-1 Z`; };
+  document.querySelectorAll('.divider:not(.cover) .wave path').forEach(p => p.setAttribute('d', wave(170, 18)));
+  // dotted flow: one dot exactly on each end
+  document.querySelectorAll('.flow-line path.dots').forEach(pth => {
+    const len = pth.getTotalLength(), n = Math.max(1, Math.round(len / 7));
+    pth.style.strokeDasharray = `0 ${len / n}`;
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'g' || e.key === 'G') document.body.classList.toggle('show-grid'); });
+  // opener title sits 64pt above the painting's wave; overflow check on text pages
+  const settle = () => {
+    document.querySelectorAll('.divider:not(.cover)').forEach(pg => {
+      const art = pg.querySelector('.art'), head = pg.querySelector('.head');
+      const pt = pg.getBoundingClientRect().width / PAGE_W;
+      head.style.bottom = (art.getBoundingClientRect().height / pt + 64) + 'pt';
+    });
+    document.querySelectorAll('.page .area').forEach(a => {
+      const last = a.lastElementChild; if (!last) return;
+      const over = last.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom;
+      const pg = a.closest('.page'); pg.dataset.over = Math.round(over);
+      pg.classList.toggle('overflow', over > 1);
+    });
+  };
+  Promise.all([document.fonts.ready, ...[...document.images].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; }))]).then(settle);
+</script>
+</body>
+</html>

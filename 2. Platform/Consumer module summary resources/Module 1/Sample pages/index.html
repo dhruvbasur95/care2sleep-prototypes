@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 1 resource sample pages (temp)</title>
+<style>
+/* ==========================================================================
+   SAMPLE PAGES — TEMP. Module 1 consumer resource, layout study only.
+   Text is the CURRENT source (wording fixes still pending from the user).
+
+   GRID (all in pt — print units)
+     Page        A4 595.28 x 841.89
+     Margins     54 left / 54 right / 54 top; text area 487.28 x 720
+     Columns     12, gutter 12  ->  column 29.607
+                 cols 1-3  = 112.82  (the hang: markers, icons, mascot)
+                 cols 4-12 = 362.46  (the reading column, ~58 characters)
+     Baseline    6pt. Body leading 18 (3 units). Every line height, margin,
+                 padding and image height is a whole multiple of 6.
+   ========================================================================== */
+
+@font-face { font-family: "Atkinson"; src: url(assets/atkinson.woff2) format("woff2"); font-weight: 200 800; }
+@font-face { font-family: "Inter"; src: url(assets/inter.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Inter"; src: url(assets/inter-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; }
+
+:root {
+  /* Care2Sleep brand — app tokens (consumer-primary / purple + yellow ramps) */
+  --purple-50: #f3efff;
+  --purple-200: #e4d6ff;
+  --purple-300: #c2a3ff;
+  --purple-400: #a070ff;
+  --purple-500: #3a00ad;
+  --purple-900: #200061;
+  --yellow-50: #fff8e5;
+  --yellow-100: #fff0cc;
+  --yellow-200: #ffe299;
+  --yellow-400: #ffcc4d;
+  --canvas: #ffffff;      /* print: paper white. Images sit on white with no visible edge */
+  --ink: #1a1a1a;
+  --ink-muted: #333333;
+  --hairline: #e0e0e0;
+  --ink-faint: #6d6d6d;   /* running head: 5.17:1 on white, measured */
+  --highlight: #ffdd75;   /* sampled from the coach Module 7 knowledge video (shots 260, 490) */
+  --radius: 8pt;          /* one clean radius for every panel */
+
+  /* grid */
+  --b: 6pt;               /* baseline unit */
+  --m: 54pt;              /* side margin */
+  --top: 72pt;            /* top of the text area: 30pt clear of the running-head rule */
+  --area-h: 702pt;        /* 39 body lines of 18pt; bottom edge stays at 774pt */
+  --col: 29.607pt;
+  --gut: 12pt;
+  --hang: 124.82pt;       /* cols 1-3 + one gutter: where the reading column starts */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---------- viewer chrome (not part of the document) ---------- */
+html, body { background: #d9d6d2; }
+body { font-family: "Inter", system-ui, sans-serif; color: var(--ink); padding: 40px 16px 96px; }
+.viewer-bar {
+  position: sticky; top: 0; z-index: 10; display: flex; gap: 16px; align-items: center; justify-content: center;
+  margin: -32px -16px 32px; padding: 12px 16px; background: rgba(40, 32, 60, .92); color: #fff; font: 500 14px/1.3 Inter, sans-serif;
+}
+.viewer-bar button {
+  font: 600 14px Inter, sans-serif; color: var(--purple-500); background: #fff; border: 0; border-radius: 999px; padding: 9px 18px; cursor: pointer;
+}
+.viewer-bar .tag { opacity: .8; }
+.sheet-wrap { width: 595.28pt; margin: 0 auto 40px; }
+.sheet-label { font: 600 13px/1.4 Inter, sans-serif; color: #3d3550; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 12px; }
+.sheet-label span:last-child { font-weight: 400; color: #5d556b; text-align: right; }
+
+/* ---------- the page ---------- */
+.page {
+  position: relative; width: 595.28pt; height: 841.89pt; overflow: hidden;
+  background: var(--canvas); box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.14);
+}
+.area {
+  position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut);
+  align-content: start; grid-auto-rows: auto;
+}
+.area > * { grid-column: 1 / 13; }
+.full { grid-column: 1 / 13 !important; }
+.hang { grid-column: 1 / 4 !important; }
+
+/* running head + folio sit in the margins */
+.running {
+  position: absolute; left: var(--m); right: var(--m); top: 24pt; height: 12pt;
+  display: flex; justify-content: space-between; gap: 6pt; font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-faint);
+}
+.running .pno {   /* page number: a solid brand tab hanging from the page's top edge, number in white */
+  position: absolute; right: 0; top: -24pt; width: 30pt; height: 46pt; padding-bottom: 9pt;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: var(--purple-500); color: #fff; border-radius: 0 0 15pt 15pt;  /* full half-round end: radius = half the 30pt width */
+  font: 600 11pt/12pt Inter, sans-serif; font-variant-numeric: tabular-nums;
+}
+.running::after { content: ""; position: absolute; left: 0; right: 42pt; top: 18pt; height: .75pt; background: var(--hairline); }  /* stops 12pt short of the page-number tab */
+.folio {
+  position: absolute; bottom: 24pt; width: 24pt; height: 24pt; border-radius: 50%;
+  background: var(--purple-500); color: #fff; font: 600 10pt/24pt Inter, sans-serif; text-align: center;
+}
+.folio.r { right: var(--m); }
+.folio.l { left: var(--m); }
+
+/* ---------- type scale (size / leading, both on the 6pt baseline) ---------- */
+.display   { font: 700 48pt/54pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h1        { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h2        { font: 700 22pt/30pt Atkinson, sans-serif; color: var(--purple-500); text-wrap: balance; margin-bottom: 6pt; }
+.h2 + .lead { margin-top: -6pt; }  /* the subtitle belongs to its title: no gap beyond the two line boxes */
+.lead      { font: 400 15pt/24pt Inter, sans-serif; color: var(--purple-900); text-wrap: pretty; margin-bottom: 12pt; }
+p, li      { font: 400 13pt/18pt Inter, sans-serif; color: var(--ink); text-wrap: pretty; hyphens: manual; orphans: 2; widows: 2; }
+p + p      { margin-top: 12pt; }
+.eyebrow   { font: 700 12pt/18pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: .02em; }
+strong     { font-weight: 700; }
+
+/* source bold = highlight (ref-01). Only where the source itself bolds. */
+mark {  /* the Module 7 knowledge-video highlighter: soft yellow, rounded, words unchanged */
+  background: var(--highlight); color: inherit; font-weight: inherit;
+  padding: .06em .22em; margin: 0 -.06em; border-radius: .17em;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+
+/* space scale: 6 12 18 24 36 48 72 */
+.s6 { margin-top: 6pt; } .s12 { margin-top: 12pt; } .s18 { margin-top: 18pt; } .s24 { margin-top: 24pt; }
+.s36 { margin-top: 36pt; } .s48 { margin-top: 48pt; } .s72 { margin-top: 72pt; }
+
+/* lists — purple disc bullets hung in the gutter */
+ul.dots { list-style: none; }
+ul.dots li { position: relative; padding-left: 18pt; }
+ul.dots li + li { margin-top: 6pt; }
+ul.dots li::before {
+  content: ""; position: absolute; left: 2pt; top: 6pt; width: 6pt; height: 6pt; border-radius: 50%; background: var(--purple-500);
+}
+.dots.two-col {  /* short items: two columns, read across row by row so each pair lines up */
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 24pt; row-gap: 12pt; align-items: start;
+}
+.dots.two-col li + li { margin-top: 0; }
+.list-lead { font-weight: 600; color: var(--purple-900); margin-bottom: 6pt; }
+
+/* organic panels (ref-05): solid colour, soft uneven corners */
+.panel {
+  padding: 18pt 24pt; border-radius: var(--radius);
+}
+.panel p { font: 600 14pt/24pt Atkinson, sans-serif; }
+.panel.deep { background: var(--purple-500); }
+.panel.deep p { color: #fff; }
+.panel.pale { background: var(--yellow-100); }
+.panel.pale p { color: var(--purple-900); }
+.panel.lilac { background: var(--purple-50); }
+.panel-row { display: grid; grid-template-columns: 24pt 1fr; column-gap: 12pt; align-items: start; }
+.panel-row svg { margin-top: 0; }
+
+/* icons: lucide, 24pt, one stroke weight */
+.ico { width: 24pt; height: 24pt; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* figures sized to whole columns and whole baselines */
+figure { margin: 0; }
+figure img { display: block; width: 100%; height: auto; }  /* never cropped: the frame takes the image's own proportions */  /* always fills its frame edge to edge: never letterboxed, never showing a background */
+
+/* an image on a deliberate brand panel (not a dull ground): lilac, clean radius */
+figure.fig-panel { background: var(--purple-50); border-radius: var(--radius); padding: 18pt; display: flex; justify-content: center; }
+figure.fig-panel img { width: auto; height: 100%; object-fit: contain; }
+
+/* stages as a flow: pictures zig-zag down the page, joined by a curvy dotted line
+   through the gaps between rows (direct instruction: "a flowy dotted line connecting stages") */
+.stage-flow { position: relative; height: 492pt; }
+.stage-flow .flow-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.stage-flow .flow-line path.dots { fill: none; stroke: var(--purple-400); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 0 7; }
+.stage-flow .flow-line marker path { fill: var(--purple-400); stroke: none; }  /* a process gets arrows: same colour as the dots, sitting on the last dot */
+.stage-flow ol { list-style: none; display: grid; grid-template-rows: repeat(3, 144pt); row-gap: 30pt; }
+.stage-flow li { display: grid; column-gap: 24pt; align-items: center; }
+.stage-flow li.pic-left { grid-template-columns: 132pt 1fr; }
+.stage-flow li.pic-right { grid-template-columns: 1fr 132pt; }
+.stage-flow li.pic-right img { order: 2; }
+.stage-flow .stage-title { font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 6pt; }
+.stage-flow img { width: 132pt; height: 132pt; object-fit: contain; position: relative; }
+
+/* ---------- grid overlay ---------- */
+.grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
+body.show-grid .grid-overlay { display: block; }
+.grid-overlay .cols {
+  position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut);
+}
+.grid-overlay .cols i { background: rgba(255, 80, 120, .09); border-left: .5pt solid rgba(255,80,120,.35); border-right: .5pt solid rgba(255,80,120,.35); }
+.grid-overlay .base {
+  position: absolute; left: 0; right: 0; top: var(--top); height: var(--area-h);
+  background-image:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 17.5pt, rgba(0, 150, 255, .45) 17.5pt, rgba(0,150,255,.45) 18pt),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 5.6pt, rgba(0, 150, 255, .14) 5.6pt, rgba(0,150,255,.14) 6pt);
+}
+
+/* ==================== page-specific ==================== */
+
+/* COVER */
+.cover .logo { position: absolute; left: var(--m); top: var(--m); width: 162pt; height: auto; }
+.cover .marker { position: absolute; left: var(--m); top: 234pt; }
+.cover .title { position: absolute; left: var(--m); top: 270pt; width: 404pt; font-size: 54pt; line-height: 60pt; }
+.cover .blob {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 420pt; background: var(--yellow-200);
+}
+.cover .pillow { position: absolute; left: var(--m); bottom: 84pt; width: 288pt; }
+.cover .monash { position: absolute; left: var(--m); bottom: 36pt; width: 96pt; }
+
+/* CONTENTS (ref-10) */
+.toc-title { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); padding-bottom: 18pt; border-bottom: 1.5pt solid var(--purple-500); }
+.toc-row { min-height: 66pt; align-items: end; display: grid; grid-template-columns: 36pt 1fr; column-gap: 12pt; padding: 12pt 0 11.25pt; border-bottom: .75pt solid var(--purple-200); }
+.toc-row .t { font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.toc-row .t small { display: block; font: 600 11pt/18pt Inter, sans-serif; color: var(--purple-900); opacity: .75; letter-spacing: .02em; }
+.toc-row .n { grid-row: 1; grid-column: 1; font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); font-variant-numeric: tabular-nums; }
+.toc-row .t { grid-column: 2; }
+.toc-row ul { list-style: none; margin-top: 6pt; columns: 2; column-gap: 24pt; }
+.toc-row ul li { font: 400 11pt/18pt Inter, sans-serif; color: var(--ink-muted); break-inside: avoid; }
+
+/* OPENING */
+.goal-row { display: grid; grid-template-columns: 36pt 1fr; column-gap: 12pt; padding: 12pt 0 11.25pt; border-bottom: .75pt solid var(--purple-200); }
+.goal-row:first-of-type { border-top: .75pt solid var(--purple-200); }
+.goal-row .num { font: 700 30pt/30pt Atkinson, sans-serif; color: var(--purple-500); }
+.goal-row p { align-self: center; }
+.learn-panel { position: relative; padding: 30pt 30pt 36pt; }
+.learn-panel .h2 { color: #fff; }
+.learn-panel ul.dots li { color: #fff; font: 500 13pt/24pt Inter, sans-serif; }
+.learn-panel ul.dots li::before { background: var(--yellow-400); top: 9pt; }
+.learn-panel ul.dots li + li { margin-top: 12pt; }
+.peek { position: absolute; width: 108pt; }
+
+/* CHAPTER DIVIDER (ref-09 + ref-08 + ref-03) */
+.divider { background: var(--purple-50); }  /* chapter openers: light purple or light yellow */
+.divider .chapno {
+  position: absolute; left: var(--m); top: 128pt; display: flex; align-items: center; gap: 12pt;
+  font: 700 18pt/24pt Atkinson, sans-serif; color: var(--purple-500);
+}
+.divider .chapno i { display: block; width: 72pt; height: 2pt; background: var(--purple-500); }
+.divider .h1 { position: absolute; left: var(--m); top: 170pt; width: 404pt; font-size: 60pt; line-height: 66pt; color: var(--purple-500); }
+.divider .tone {
+  position: absolute; left: 330pt; top: 150pt; width: 240pt; height: 240pt; background: var(--yellow-200); opacity: .9;
+  border-radius: 46% 54% 42% 58% / 52% 44% 56% 48%;
+}
+.divider .scene { position: absolute; left: 0; right: 0; bottom: 0; }  /* the painting runs edge to edge and down to the page bottom, uncropped */
+.divider .scene .art { display: block; width: 100%; height: auto; }
+/* the picture's top edge is a soft repeating wave: the page tint drawn over it (ref: editorial wave band) */
+.divider .scene .wave { position: absolute; z-index: 1; top: -1pt; left: 0; width: 100%; height: 20.0pt; }
+.divider .scene .wave path { fill: var(--purple-50); }
+.divider .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 120pt; background: var(--yellow-200); }
+.divider .inside { position: absolute; left: var(--m); bottom: 54pt; width: 220pt; font: 500 12pt/18pt Inter, sans-serif; color: var(--purple-900); }
+
+/* chapter text pages */
+/* steps / stages: vertical line UI (from the app's NumberedTimeline:
+   numbered disc, dotted rule down to the next disc, content beside it) */
+ol.steps { list-style: none; counter-reset: step; }
+ol.steps li { position: relative; counter-increment: step; padding-left: 42pt; padding-bottom: 18pt; min-height: 48pt; }
+ol.steps li:last-child { padding-bottom: 0; }
+ol.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: -3pt; width: 24pt; height: 24pt; border-radius: 50%;
+  background: var(--purple-500); color: #fff; font: 700 12pt/24pt Atkinson, sans-serif; text-align: center;
+}
+ol.steps li:not(:last-child)::after {
+  content: ""; position: absolute; left: 11.25pt; top: 27pt; bottom: 3pt; width: 1.5pt;
+  background: repeating-linear-gradient(to bottom, var(--purple-300) 0 3pt, transparent 3pt 7pt);
+}
+ol.steps .stg { font: 700 13pt/18pt Atkinson, sans-serif; color: var(--purple-500); }
+/* pictured steps: the stage's own illustration is the node; the line joins the pictures */
+ol.steps.pictured li { padding-left: 156pt; min-height: 120pt; padding-bottom: 24pt; display: flex; flex-direction: column; justify-content: center; }
+ol.steps.pictured li:last-child { padding-bottom: 0; }
+ol.steps.pictured li::before { display: none; }
+ol.steps.pictured li:not(:last-child)::after { left: 65.25pt; top: 126pt; bottom: 0; }
+ol.steps.pictured .node { position: absolute; left: 0; top: 0; width: 132pt; height: 120pt; object-fit: contain; }
+
+/* reflection prompt (ref-07: mascot + speech bubble) */
+.reflect { display: grid; grid-template-columns: var(--col) var(--col) var(--col) repeat(9, var(--col)); column-gap: var(--gut); }
+.bubble {
+  position: relative; grid-column: 4 / 13; background: var(--purple-50); padding: 18pt 24pt 18pt 66pt;
+  border-radius: var(--radius);
+}
+.bubble::before {  /* tail toward the mascot */
+  content: ""; position: absolute; left: -14pt; bottom: 18pt; width: 30pt; height: 24pt; background: var(--purple-50);
+  clip-path: polygon(100% 0, 0 70%, 100% 100%);
+}
+.bubble .ico { position: absolute; left: 24pt; top: 18pt; color: var(--purple-500); }
+.bubble p { font: 700 15pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.reflect .who { grid-column: 1 / 4; align-self: end; }
+.lines { grid-column: 1 / 13; margin-top: 12pt; }  /* write-in space is always the full text width */
+.lines i { display: block; height: 30pt; border-bottom: 1pt solid var(--purple-300); }
+.write-hint { display: flex; align-items: center; gap: 6pt; margin-top: 12pt; font: 500 10pt/12pt Inter, sans-serif; color: var(--purple-900); opacity: .8; }
+.write-hint .ico { width: 12pt; height: 12pt; }
+
+/* overflow flag (viewer only) */
+.page.overflow { outline: 4px solid red; }
+</style>
+</head>
+<body>
+
+
+<!-- lucide icons (from the app's own lucide-react package) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-question" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-cycle" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-energy" viewBox="0 0 24 24"><path d="m11 7-3 5h4l-3 5"/><path d="M14.856 6H16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.935"/><path d="M22 14v-4"/><path d="M5.14 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2.936"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="m15 5 4 4"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></symbol>
+</svg>
+
+<!-- ============================ 1. COVER ============================ -->
+<div class="sheet-wrap">
+  <section class="page cover">
+    <img class="logo" src="assets/care2sleep-logo.svg" alt="Care2Sleep">
+    <div class="marker eyebrow">Module 1</div>
+    <h1 class="display title">Building Blocks of Good Sleep</h1>
+    <div class="blob" aria-hidden="true"></div>
+    <img class="pillow" src="assets/pillow-mascot.svg" alt="" aria-hidden="true">
+    <img class="monash" src="assets/monash-university.svg" alt="Monash University">
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 2. CONTENTS ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Contents</span><span class="pno">2</span></div>
+    <div class="area">
+      <h2 class="toc-title full">Contents</h2>
+      <div class="toc-row full s12"><div class="t">Goals</div><div class="n">3</div></div>
+      <div class="toc-row full">
+        <div class="t"><small>Chapter 1</small>Understanding Sleep</div><div class="n">4</div>
+      </div>
+      <div class="toc-row full"><div class="t"><small>Chapter 2</small>Waking Up at the Same Time</div><div class="n">14</div></div>
+      <div class="toc-row full"><div class="t"><small>Chapter 3</small>Resting Without Losing Sleep Hunger</div><div class="n">16</div></div>
+      <div class="toc-row full"><div class="t"><small>Chapter 4</small>Waiting Until You’re Sleepy</div><div class="n">18</div></div>
+      <div class="toc-row full"><div class="t">Bringing it all together</div><div class="n">20</div></div>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 3. OPENING ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Goals</span><span class="pno">3</span></div>
+    <div class="area">
+      <h1 class="h1 full">Building Blocks of Good Sleep</h1>
+
+      <h2 class="h2 s36">Goals</h2>
+      <div class="goal-row"><div class="num">1</div><p>Provide basic psychoeducation of sleep, esp. as it relates to dementia and caring</p></div>
+      <div class="goal-row"><div class="num">2</div><p>Introduce foundations of healthy sleep: Sleep Drive, Body Clock, Calm Mind</p></div>
+      <div class="goal-row"><div class="num">3</div><p>Understand and strengthen sleep drive, with strategies</p></div>
+
+      <div class="panel deep learn-panel full s72">
+        <h2 class="h2">What you will learn</h2>
+        <ul class="dots">
+          <li>Understand the basics of how sleep works and why it is essential for health and wellbeing.</li>
+          <li>Recognise the key foundations that support good, consistent sleep.</li>
+          <li>Explain what sleep drive is and identify simple ways to strengthen your body’s natural drive for sleep.</li>
+        </ul>
+        <img class="peek" src="assets/pillow-awake-on-dark.svg" alt="" aria-hidden="true" style="right: 24pt; top: -64pt;">
+      </div>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 4. CHAPTER 1 DIVIDER ============================ -->
+<div class="sheet-wrap">
+  <section class="page divider">
+    <div class="chapno">Chapter 1</div>
+    <h2 class="h1">Understanding Sleep</h2>
+    <div class="scene">
+      <svg class="wave" viewBox="0 -1 595.28 20.0" preserveAspectRatio="none" aria-hidden="true"><path d="M0,-1 L0.0,0.00 L2.0,0.02 L4.0,0.10 L6.0,0.22 L8.0,0.39 L10.0,0.61 L12.0,0.87 L14.0,1.18 L16.0,1.53 L18.0,1.92 L20.0,2.35 L22.0,2.81 L24.0,3.31 L26.0,3.84 L28.0,4.40 L30.0,4.98 L32.0,5.59 L34.0,6.21 L36.0,6.85 L38.0,7.50 L40.0,8.16 L42.0,8.83 L44.0,9.49 L46.0,10.15 L48.0,10.81 L50.0,11.46 L52.0,12.09 L54.0,12.70 L56.0,13.30 L58.0,13.87 L60.0,14.42 L62.0,14.93 L64.0,15.42 L66.0,15.86 L68.0,16.27 L70.0,16.65 L72.0,16.98 L74.0,17.26 L76.0,17.50 L78.0,17.70 L80.0,17.84 L82.0,17.94 L84.0,17.99 L86.0,17.99 L88.0,17.95 L90.0,17.85 L92.0,17.70 L94.0,17.51 L96.0,17.27 L98.0,16.99 L100.0,16.66 L102.0,16.29 L104.0,15.88 L106.0,15.43 L108.0,14.95 L110.0,14.44 L112.0,13.89 L114.0,13.32 L116.0,12.73 L118.0,12.11 L120.0,11.48 L122.0,10.84 L124.0,10.18 L126.0,9.52 L128.0,8.85 L130.0,8.19 L132.0,7.53 L134.0,6.88 L136.0,6.24 L138.0,5.61 L140.0,5.01 L142.0,4.42 L144.0,3.86 L146.0,3.33 L148.0,2.83 L150.0,2.36 L152.0,1.93 L154.0,1.54 L156.0,1.19 L158.0,0.88 L160.0,0.62 L162.0,0.40 L164.0,0.23 L166.0,0.10 L168.0,0.03 L170.0,0.00 L172.0,0.02 L174.0,0.09 L176.0,0.21 L178.0,0.38 L180.0,0.60 L182.0,0.86 L184.0,1.16 L186.0,1.51 L188.0,1.90 L190.0,2.33 L192.0,2.79 L194.0,3.29 L196.0,3.82 L198.0,4.38 L200.0,4.96 L202.0,5.57 L204.0,6.19 L206.0,6.83 L208.0,7.48 L210.0,8.14 L212.0,8.80 L214.0,9.47 L216.0,10.13 L218.0,10.78 L220.0,11.43 L222.0,12.06 L224.0,12.68 L226.0,13.28 L228.0,13.85 L230.0,14.39 L232.0,14.91 L234.0,15.40 L236.0,15.85 L238.0,16.26 L240.0,16.63 L242.0,16.96 L244.0,17.25 L246.0,17.49 L248.0,17.69 L250.0,17.84 L252.0,17.94 L254.0,17.99 L256.0,18.00 L258.0,17.95 L260.0,17.85 L262.0,17.71 L264.0,17.52 L266.0,17.28 L268.0,17.00 L270.0,16.67 L272.0,16.31 L274.0,15.90 L276.0,15.45 L278.0,14.97 L280.0,14.46 L282.0,13.92 L284.0,13.35 L286.0,12.75 L288.0,12.14 L290.0,11.51 L292.0,10.86 L294.0,10.21 L296.0,9.54 L298.0,8.88 L300.0,8.22 L302.0,7.56 L304.0,6.90 L306.0,6.26 L308.0,5.64 L310.0,5.03 L312.0,4.45 L314.0,3.89 L316.0,3.35 L318.0,2.85 L320.0,2.38 L322.0,1.95 L324.0,1.56 L326.0,1.20 L328.0,0.89 L330.0,0.63 L332.0,0.41 L334.0,0.23 L336.0,0.11 L338.0,0.03 L340.0,0.00 L342.0,0.02 L344.0,0.09 L346.0,0.21 L348.0,0.37 L350.0,0.59 L352.0,0.85 L354.0,1.15 L356.0,1.50 L358.0,1.88 L360.0,2.31 L362.0,2.77 L364.0,3.27 L366.0,3.80 L368.0,4.35 L370.0,4.94 L372.0,5.54 L374.0,6.16 L376.0,6.80 L378.0,7.45 L380.0,8.11 L382.0,8.77 L384.0,9.44 L386.0,10.10 L388.0,10.76 L390.0,11.40 L392.0,12.04 L394.0,12.65 L396.0,13.25 L398.0,13.83 L400.0,14.37 L402.0,14.89 L404.0,15.38 L406.0,15.83 L408.0,16.24 L410.0,16.62 L412.0,16.95 L414.0,17.24 L416.0,17.49 L418.0,17.68 L420.0,17.83 L422.0,17.94 L424.0,17.99 L426.0,18.00 L428.0,17.95 L430.0,17.86 L432.0,17.72 L434.0,17.53 L436.0,17.29 L438.0,17.01 L440.0,16.69 L442.0,16.32 L444.0,15.92 L446.0,15.47 L448.0,14.99 L450.0,14.48 L452.0,13.94 L454.0,13.37 L456.0,12.78 L458.0,12.16 L460.0,11.53 L462.0,10.89 L464.0,10.23 L466.0,9.57 L468.0,8.91 L470.0,8.24 L472.0,7.58 L474.0,6.93 L476.0,6.29 L478.0,5.66 L480.0,5.06 L482.0,4.47 L484.0,3.91 L486.0,3.37 L488.0,2.87 L490.0,2.40 L492.0,1.97 L494.0,1.57 L496.0,1.22 L498.0,0.90 L500.0,0.64 L502.0,0.41 L504.0,0.24 L506.0,0.11 L508.0,0.03 L510.0,0.00 L512.0,0.02 L514.0,0.09 L516.0,0.20 L518.0,0.37 L520.0,0.58 L522.0,0.84 L524.0,1.14 L526.0,1.48 L528.0,1.87 L530.0,2.29 L532.0,2.75 L534.0,3.25 L536.0,3.78 L538.0,4.33 L540.0,4.91 L542.0,5.52 L544.0,6.14 L546.0,6.78 L548.0,7.43 L550.0,8.08 L552.0,8.75 L554.0,9.41 L556.0,10.07 L558.0,10.73 L560.0,11.38 L562.0,12.01 L564.0,12.63 L566.0,13.23 L568.0,13.80 L570.0,14.35 L572.0,14.87 L574.0,15.36 L576.0,15.81 L578.0,16.23 L580.0,16.60 L582.0,16.94 L584.0,17.23 L586.0,17.48 L588.0,17.68 L590.0,17.83 L592.0,17.93 L594.0,17.99 L596.0,18.00 L599.3,-1 Z"/></svg>
+      <img class="art" src="assets/gen-ch1-b-trim.png" alt="An older woman settling to sleep in bed at night while her care partner, sitting on the edge of the bed, gently draws the blanket up.">
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 5. CH1 · Understanding Sleep ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Chapter 1: Understanding Sleep</span><span class="pno">5</span></div>
+    <div class="area">
+      <h3 class="h2">Understanding Sleep</h3>
+      <p class="lead">Sleep, we all need it, but why does it sometimes feel effortless and other nights completely impossible?</p>
+      <p>Sleep isn’t just something that happens passively. Years of research has shown us that sleep is an active, dynamic process that your body and brain work hard to regulate every day.</p>
+      <p>Over the night our sleep is characterised by 90-minute cycles. These cycles repeat approximately 4-6x times on average.</p>
+      <p>During these cycles we transition through different sleep stages, including non-rapid eye movement (NREM) and rapid eye movement (REM) sleep. These stages have important functions, such as contributing to memory consolidation and skill learning, as well as “housekeeping” functions that support physical repair, boost immune function, help clear waste products, and support cognitive performance. We also have brief arousals (or awakenings) throughout the night, which normally go unnoticed and are a normal part of sleep.</p>
+      <figure class="s24 fig-panel" style="height: 270pt;">
+        <img src="assets/sleep-cycle-alpha.png" alt="A circle of three arrows showing one sleep cycle of roughly 90 minutes: light sleep, then deep sleep, then REM (rapid eye movement) sleep, and back to light sleep.">
+      </figure>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 6. CH1 · NREM ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Chapter 1: Understanding Sleep</span><span class="pno">6</span></div>
+    <div class="area">
+      <p>Having said that, being awake for long periods (30 mins or more) or struggling with energy and sleepiness during the day, may be a sign that your sleep could use some support.</p>
+
+      <h3 class="h2 s36">Non-Rapid Eye Movement Sleep</h3>
+      <p>You spend the majority of your night in non-rapid eye movement sleep. During NREM sleep our brain waves progressively slow and our bodies relax. NREM sleep involves three stages:</p>
+      <div class="stage-flow s24">
+        <svg class="flow-line" viewBox="0 0 487.28 492" aria-hidden="true"><defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0.5 L10 5 L0 9.5 Z"/></marker></defs><path class="dots" d="M 66.0 142.0 C 66.0 167.0, 146.2 159.0, 243.6 159.0 S 421.3 153.0, 421.3 167.0" marker-end="url(#flow-arrow)"/><path class="dots" d="M 421.3 316.0 C 421.3 341.0, 341.1 333.0, 243.6 333.0 S 66.0 327.0, 66.0 341.0" marker-end="url(#flow-arrow)"/></svg>
+        <ol>
+          <li class="pic-left"><img src="assets/stage-1.png" alt="Stage 1: a man asleep in bed, with a small inset of a foot and hand twitching."><div><h4 class="stage-title">Stage 1</h4><p>This is the transition from wakefulness to sleep. It’s a brief, light stage where you can be easily awakened. You might also experience sudden muscle movements, “jerks”, or the feeling of falling. These are known as hypnagogic jerks and are completely normal.</p></div></li>
+          <li class="pic-right"><img src="assets/stage-2.png" alt="Stage 2: the man in deeper sleep, with icons for body temperature, heart rate and breathing."><div><h4 class="stage-title">Stage 2</h4><p>In this stage, we are starting to slow down: our body temperature drops, heart rate slows, and our breathing rate becomes deeper. This stage makes up the largest portion of sleep.</p></div></li>
+          <li class="pic-left"><img src="assets/stage-3.png" alt="Stage 3: the man in deep sleep, lit by a warm glow in a dark blue room."><div><h4 class="stage-title">Stage 3</h4><p>Also known as slow wake sleep, Stage 3 is the deepest, most restorative stage of sleep and supports physical repair and immune functioning.</p></div></li>
+        </ol>
+      </div>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 7. CH1 · REM + key points ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Chapter 1: Understanding Sleep</span><span class="pno">7</span></div>
+    <div class="area">
+      <figure>
+        <img src="assets/rem-white.png" alt="An older woman asleep in bed, dreaming. A thought bubble above her shows a vivid dream of a figure walking along a path toward an open door, with a bird flying overhead.">
+      </figure>
+      <h3 class="h2 s18">Rapid Eye Movement Sleep</h3>
+      <p>This is the last stage of sleep and is sometimes called <mark>“paradoxical sleep”.</mark> This is because our brain activity looks very similar to being awake, but our muscles (except for eyes and breathing muscles) are immobilised. This is to prevent us from acting out our dreams, as this is the stage of sleep we are most likely to experience vivid, narrative dreaming in. Our eyes are also performing quick, jerky movements behind our closed eyelids, giving REM sleep its name!</p>
+
+      <div class="panel deep s24">
+        <div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-cycle"/></svg>
+        <p>You transition through different sleep stages throughout the night over 90-minute cycles. Awakenings are a normal part of the cycle and usually go unnoticed.</p></div>
+      </div>
+      <div class="panel pale s6">
+        <div class="panel-row"><svg class="ico" style="color: var(--purple-500)" aria-hidden="true"><use href="#i-energy"/></svg>
+        <p>Sleep is essential for restoring energy, supporting memory and learning, regulating mood, and maintaining overall physical health.</p></div>
+      </div>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 8. CH1 · Common sleep changes ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Chapter 1: Understanding Sleep</span><span class="pno">8</span></div>
+    <div class="area">
+      <p>Sleep also changes across the lifespan. As we age, the amount of sleep we get may slightly decrease, deep sleep tends to decline, and night-time awakenings can become more frequent. Despite these changes, the need for sleep remains, and maintaining healthy sleep habits is essential at every age.</p>
+      <p>Understanding how sleep works is the first step toward improving the quality and consistency of your rest.</p>
+
+      <h3 class="h2 s36">Common Sleep Changes</h3>
+      <p class="lead">Changes in sleep are very common in people living with dementia and care partners.</p>
+      <div class="panel lilac s12">
+        <p class="list-lead" style="font: 700 13pt/18pt Atkinson, sans-serif; color: var(--purple-500);">People living with dementia may:</p>
+        <ul class="dots two-col">
+          <li>Nap more during the day</li>
+          <li>Wake up many times at night</li>
+          <li>Experience lighter, less restful sleep</li>
+          <li>Experience vivid or distressing dreams</li>
+        </ul>
+      </div>
+      <p class="s24">We know that some of the things that impact sleep in people living with dementia are brain changes that directly affect the parts of the brain that regulate sleep. Others may be related to unmet needs or problems, such as pain, health conditions, needing to go to the toilet, and/or depression and anxiety. Some people may even have sleep disorders, such as sleep apnea and restless legs syndrome.</p>
+      <p>In care partners, some of the things that impact sleep can be linked to their caregiving role.</p>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<!-- ============================ 9. CH1 · care partners + reflection ============================ -->
+<div class="sheet-wrap">
+  <section class="page">
+    <div class="running"><span>Chapter 1: Understanding Sleep</span><span class="pno">9</span></div>
+    <div class="area">
+      <div class="panel lilac">
+        <p class="list-lead" style="font: 700 13pt/18pt Atkinson, sans-serif; color: var(--purple-500);">These may include:</p>
+        <ul class="dots">
+          <li>Providing nighttime care</li>
+          <li>Listening or watching out for care needs</li>
+          <li>Worrying about the person they are caring about</li>
+        </ul>
+      </div>
+      <p class="s24">Care partners may experience stress, anxiety, or guilt, and may have their own physical or mental health concerns, all of which can make it harder to sleep well. Irregular routines or limited opportunities for rest can further affect sleep quality.</p>
+      <p>It is also important to recognise that care partners may experience sleep difficulties that are not directly related to their caregiving role. Like anyone else, carer partners can have their own sleep challenges due to factors such as personal health, stress, lifestyle, or pre-existing sleep patterns.</p>
+
+      <div class="reflect full s48">
+        <img class="who" src="assets/pillow-awake.svg" alt="" aria-hidden="true" style="width: 100%;">
+        <div class="bubble">
+          <svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+          <p>What kinds of things impact on your sleep or the sleep of the person you are caring for?</p>
+        </div>
+        <div class="lines" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <div class="grid-overlay"><div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="base"></div></div>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.flow-line path.dots').forEach(pth => {
+    const len = pth.getTotalLength(), n = Math.max(1, Math.round(len / 7));
+    pth.style.strokeDasharray = `0 ${len / n}`;
+  });
+  // press G to show or hide the grid (no on-screen labels, by request)
+  document.addEventListener('keydown', e => { if (e.key === 'g' || e.key === 'G') document.body.classList.toggle('show-grid'); });
+  // viewer-only check: flag any page whose text area overflows its 720pt height
+  document.fonts.ready.then(() => {
+    document.querySelectorAll('.page .area').forEach(a => {
+      const last = a.lastElementChild; if (!last) return;
+      const over = last.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom;
+      a.closest('.page').dataset.over = Math.round(over);
+      if (over > 1) a.closest('.page').classList.add('overflow');
+    });
+  });
+</script>
+</body>
+</html>
