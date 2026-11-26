@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retraining Your Brain Where to Sleep</title>
+<style>
+/* ==========================================================================
+   MODULE 2 RESOURCE — built on the finished Module 1 resource
+   (Module 1/Resource/index.html) and the Module 2 source text.
+   Design direction: ../../Design direction/design direction.md
+
+   GRID (pt)  A4 595.28 x 841.89 · margins 54 · text area from 72pt, 487.28 x 702
+              12 cols, 12 gutter (col 29.607) · baseline 6 · body 13/18
+   Page numbers and contents numbers are generated from page order (script at end).
+   ========================================================================== */
+
+@font-face { font-family: "Atkinson"; src: url(assets/atkinson.woff2) format("woff2"); font-weight: 200 800; }
+@font-face { font-family: "Inter"; src: url(assets/inter.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Inter"; src: url(assets/inter-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; }
+
+:root {
+  --purple-50: #f3efff; --purple-200: #e4d6ff; --purple-300: #c2a3ff; --purple-400: #a070ff;
+  --purple-500: #3a00ad; --purple-900: #200061;
+  --yellow-50: #fff8e5; --yellow-100: #fff0cc; --yellow-200: #ffe299; --yellow-400: #ffcc4d;
+  --canvas: #ffffff; --ink: #1a1a1a; --ink-muted: #333333; --hairline: #e0e0e0; --ink-faint: #6d6d6d;
+  --highlight: #ffdd75; --radius: 8pt;
+  --m: 54pt; --top: 72pt; --area-h: 702pt; --col: 29.607pt; --gut: 12pt;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* viewer (not part of the document) */
+html, body { background: #d9d6d2; }
+body { font-family: "Inter", system-ui, sans-serif; color: var(--ink); padding: 40px 16px 96px; }
+.sheet-wrap { width: 595.28pt; margin: 0 auto 40px; }
+
+/* the page */
+.page { position: relative; width: 595.28pt; height: 841.89pt; overflow: hidden; background: var(--canvas);
+  box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.14); }
+.area { position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); align-content: start; }
+.area > * { grid-column: 1 / 13; }
+
+/* running head + page-number tab */
+.running { position: absolute; left: var(--m); right: var(--m); top: 24pt; height: 12pt;
+  font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-faint); }
+.running::after { content: ""; position: absolute; left: 0; right: 42pt; top: 18pt; height: .75pt; background: var(--hairline); }
+.running .pno { position: absolute; right: 0; top: -24pt; width: 30pt; height: 46pt; padding-bottom: 9pt;
+  display: flex; align-items: flex-end; justify-content: center; background: var(--purple-500); color: #fff;
+  border-radius: 0 0 15pt 15pt; font: 600 11pt/12pt Inter, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* running foot: mirrors the head. Grey hairline, then "Care2Sleep" left and "Module 1" right under it;
+   the text sits 24pt from the page bottom, as the head's sits 24pt from the top */
+.foot { position: absolute; left: var(--m); right: var(--m); bottom: 24pt; padding-top: 6pt; border-top: .75pt solid var(--hairline);
+  display: flex; justify-content: space-between;
+  font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-faint); }
+
+/* type scale */
+.display { font: 700 48pt/54pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h1 { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: -.01em; text-wrap: balance; }
+.h2 { font: 700 22pt/30pt Atkinson, sans-serif; color: var(--purple-500); text-wrap: balance; margin-bottom: 6pt; }
+.h2 + .lead { margin-top: -6pt; }
+.lead { font: 400 15pt/24pt Inter, sans-serif; color: var(--purple-900); text-wrap: pretty; margin-bottom: 12pt; }
+p, li { font: 400 13pt/18pt Inter, sans-serif; color: var(--ink); text-wrap: pretty; hyphens: manual; orphans: 2; widows: 2; }
+p + p { margin-top: 12pt; }
+.eyebrow { font: 700 12pt/18pt Atkinson, sans-serif; color: var(--purple-500); letter-spacing: .02em; }
+mark { background: var(--highlight); color: inherit; font-weight: inherit; padding: .06em .22em; margin: 0 -.06em;
+  border-radius: .17em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+.s6 { margin-top: 6pt; } .s12 { margin-top: 12pt; } .s18 { margin-top: 18pt; } .s24 { margin-top: 24pt; }
+.s36 { margin-top: 36pt; } .s48 { margin-top: 48pt; } .s72 { margin-top: 72pt; }
+
+/* lists */
+ul.dots { list-style: none; }
+ul.dots li { position: relative; padding-left: 18pt; }
+ul.dots li + li { margin-top: 6pt; }
+ul.dots li::before { content: ""; position: absolute; left: 2pt; top: 6pt; width: 6pt; height: 6pt; border-radius: 50%; background: var(--purple-500); }
+ul.dots.roomy li + li { margin-top: 12pt; }
+.dots.two-col { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24pt; row-gap: 12pt; align-items: start; }
+.dots.two-col li + li { margin-top: 0; }
+.list-lead { font: 700 13pt/18pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 6pt; }
+
+/* panels */
+.panel { padding: 18pt 24pt; border-radius: var(--radius); }
+.panel p { font: 600 14pt/24pt Atkinson, sans-serif; }
+.panel .list-lead { font: 700 13pt/18pt Atkinson, sans-serif; }
+.panel.deep { background: var(--purple-500); }
+.panel.deep p { color: #fff; }
+.panel.deep mark { color: var(--purple-900); }
+.panel.pale { background: var(--yellow-100); }
+.panel.pale p, .panel.pale li { color: var(--purple-900); }
+.panel.lilac { background: var(--purple-50); }
+.panel-row { display: grid; grid-template-columns: 24pt 1fr; column-gap: 12pt; align-items: start; }
+.panel p + p { margin-top: 6pt; }
+.panel .dots { margin-top: 6pt; }
+
+.ico { width: 24pt; height: 24pt; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* figures */
+figure { margin: 0; }
+figure img { display: block; width: 100%; height: auto; }
+figure.fig-panel { background: var(--purple-50); border-radius: var(--radius); padding: 18pt; display: flex; justify-content: center; }
+figure.fig-panel img { width: auto; height: 100%; object-fit: contain; }
+figure.trio { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 12pt; }
+
+/* NREM stages: zig-zag pictures joined by a dotted curve with arrows */
+.stage-flow { position: relative; height: 492pt; }
+.stage-flow .flow-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.stage-flow .flow-line path.dots { fill: none; stroke: var(--purple-400); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 0 7; }
+.stage-flow .flow-line marker path { fill: var(--purple-400); stroke: none; }
+.stage-flow ol { list-style: none; display: grid; grid-template-rows: repeat(3, 144pt); row-gap: 30pt; }
+.stage-flow li { display: grid; column-gap: 24pt; align-items: center; }
+.stage-flow li.pic-left { grid-template-columns: 132pt 1fr; }
+.stage-flow li.pic-right { grid-template-columns: 1fr 132pt; }
+.stage-flow li.pic-right img { order: 2; }
+.stage-flow .stage-title { font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 6pt; }
+.stage-flow img { width: 132pt; height: 132pt; object-fit: contain; position: relative; }
+
+/* the three ingredients: titled rows, each with its own icon */
+.ingr { display: grid; grid-template-columns: 24pt 1fr; column-gap: 18pt; padding: 18pt 0 17.25pt; border-bottom: .75pt solid var(--purple-200); }
+.ingr:first-of-type { border-top: .75pt solid var(--purple-200); }
+.ingr:not(:has(+ .ingr)) { border-bottom: 0; }  /* last row: no bottom stroke */
+.ingr .ico { color: var(--purple-500); }
+.ingr .ttl { font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.ingr p { margin-top: 0; }
+
+/* grid overlay (press G) */
+.grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
+body.show-grid .grid-overlay { display: block; }
+.grid-overlay .cols { position: absolute; left: var(--m); top: var(--top); width: 487.28pt; height: var(--area-h);
+  display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); }
+.grid-overlay .cols i { background: rgba(255,80,120,.09); border-left: .5pt solid rgba(255,80,120,.35); border-right: .5pt solid rgba(255,80,120,.35); }
+.grid-overlay .base { position: absolute; left: 0; right: 0; top: var(--top); height: var(--area-h);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 17.5pt, rgba(0,150,255,.45) 17.5pt, rgba(0,150,255,.45) 18pt),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 5.6pt, rgba(0,150,255,.14) 5.6pt, rgba(0,150,255,.14) 6pt); }
+
+/* COVER */
+.cover .logo { position: absolute; left: var(--m); top: var(--m); width: 120pt; height: auto; }
+/* COVER (ref-12): one frame. The painting's white paper IS the page: it fills the page bottom edge to
+   edge, no wave, no border, and the logos, "Module N" and title are laid over its open white top. */
+.cover.divider { --tint: var(--canvas); }
+.cover .title { margin-top: 18pt; font-size: 54pt; line-height: 60pt; }
+.cover .head { top: 150pt; z-index: 2; }   /* left-aligned, laid over the painting's open white paper */
+.cover .logo { z-index: 2; }
+
+/* CONTENTS */
+.toc-title { font: 700 36pt/42pt Atkinson, sans-serif; color: var(--purple-500); padding-bottom: 18pt; border-bottom: 1.5pt solid var(--purple-500); }
+.toc-row { align-items: start;  /* no min-height: every row ends 12pt below its title, label or not */ display: grid; grid-template-columns: 36pt 1fr; column-gap: 12pt; padding: 24pt 0 23.25pt; border-bottom: .75pt solid var(--purple-200); color: inherit; text-decoration: none; }
+.toc-row:last-child { border-bottom: 0; }  /* the last row of a ruled list never has a bottom stroke */
+.toc-row .t { grid-column: 2; font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.toc-row .t small { display: block; font: 600 11pt/18pt Inter, sans-serif; color: var(--purple-900); opacity: .75; letter-spacing: .02em; }
+.toc-row .n { grid-row: 1; grid-column: 1; font: 600 16pt/24pt Atkinson, sans-serif; color: var(--purple-500); font-variant-numeric: tabular-nums; }
+
+/* OPENING */
+.learn-panel { position: relative; padding: 30pt 30pt 36pt; }
+.learn-panel .h2 { color: #fff; }
+.learn-panel ul.dots li { color: #fff; font: 500 13pt/24pt Inter, sans-serif; }
+.learn-panel ul.dots li::before { background: var(--yellow-400); top: 9pt; }
+.learn-panel ul.dots li + li { margin-top: 12pt; }
+.peek { position: absolute; width: 108pt; }
+
+/* CHAPTER OPENER: tint page, title just above the painting's wave edge */
+.divider { --tint: var(--purple-50); background: var(--tint); }
+.divider.warm { --tint: var(--yellow-50); }
+.divider .head { position: absolute; left: var(--m); width: 487.28pt; }   /* bottom set per page: painting height + 64pt */
+.divider .chapno { font: 700 18pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.divider .h1 { margin-top: 18pt; font-size: 60pt; line-height: 66pt; }
+.divider .scene { position: absolute; left: 0; right: 0; bottom: 0; }
+.divider .scene .art { display: block; width: 100%; height: auto; }
+.divider .scene .wave { position: absolute; z-index: 1; top: -1pt; left: 0; width: 100%; height: 20pt; }
+.divider .scene .wave path { fill: var(--tint); }
+
+/* REFLECTION: pillow + bubble, full-width write-in lines */
+.reflect { display: grid; grid-template-columns: repeat(12, var(--col)); column-gap: var(--gut); }
+.bubble { position: relative; grid-column: 4 / 13; background: var(--purple-50); padding: 18pt 24pt 18pt 66pt; border-radius: var(--radius); }
+.bubble.tail::before { content: ""; position: absolute; left: -14pt; bottom: 18pt; width: 30pt; height: 24pt; background: var(--purple-50);
+  clip-path: polygon(100% 0, 0 70%, 100% 100%); }
+.bubble.wide { grid-column: 1 / 13; }
+.bubble .ico { position: absolute; left: 24pt; top: 18pt; color: var(--purple-500); }
+.bubble p { font: 700 15pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.reflect .who { grid-column: 1 / 4; align-self: end; width: 100%; }
+.lines { grid-column: 1 / 13; margin-top: 12pt; }
+.lines i { display: block; height: 30pt; border-bottom: 1pt solid var(--purple-300); }
+
+/* BACK PAGE: Care2Sleep logo centred; partners bottom left, QR bottom right */
+.page.back { background: var(--yellow-50); }
+.back .logo-c { position: absolute; left: 50%; top: calc(50% - 96pt); width: 240pt; transform: translate(-50%, -50%); }  /* centred, lifted 96pt */
+.back .bottom { position: absolute; left: var(--m); right: var(--m); bottom: var(--m); display: flex; justify-content: space-between; align-items: stretch; gap: 24pt; }
+.back .left { display: flex; flex-direction: column; justify-content: space-between; }  /* Contact us on the QR's top line, partners on its bottom line */
+.back .contact { font: 400 13pt/18pt Inter, sans-serif; color: var(--ink); margin-top: 0 !important; }  /* directly under its label */
+.back .partners-label { font: 700 12pt/18pt Atkinson, sans-serif; color: var(--purple-500); margin-bottom: 12pt; }
+.back .contact-label { margin-bottom: 0; }
+.back .partners { display: flex; align-items: center; gap: 24pt; }
+.back .partners img { display: block; height: auto; }
+.back .qr { width: 96pt; }
+.back .qr img { display: block; width: 96pt; height: 96pt; }
+.back .qr p { margin-top: 6pt; font: 500 10pt/12pt Inter, sans-serif; color: var(--ink-muted); text-wrap: balance; text-align: center; }  /* centred under the code: user's exception to left-align */
+
+.nobr { white-space: nowrap; }
+.page.overflow { outline: 4px solid red; }
+
+/* ---------- PRINT / PDF: one A4 sheet per .page, nothing from the screen viewer ---------- */
+@page { size: 595.28pt 841.89pt; margin: 0; }
+@media print {
+  html, body { background: none !important; padding: 0 !important; margin: 0 !important; zoom: 1 !important; }
+  .sheet-wrap { width: auto; margin: 0; }
+  .page { box-shadow: none; outline: none !important; break-after: page; page-break-after: always; }
+  .sheet-wrap:last-of-type .page { break-after: auto; page-break-after: auto; }
+  .grid-overlay { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ---------- MODULE 2 additions (same grid, same scale) ---------- */
+
+/* formula line: the source's "Bed + sleep = strong sleep connection" lines, words unchanged */
+.formula { padding: 12pt 24pt; border-radius: var(--radius); font: 700 15pt/24pt Atkinson, sans-serif; color: var(--purple-500); }
+.formula.lilac { background: var(--purple-50); }
+.formula.pale { background: var(--yellow-100); color: var(--purple-900); }
+
+/* the "BED = … VS. BED = …" key point: the two sides as white cards facing each other across a "VS." disc,
+   inside the usual pale-yellow key-point box. Words and order exactly as the source */
+.vs { display: grid; grid-template-columns: 1fr 36pt 1fr; column-gap: 12pt; align-items: stretch; padding: 18pt; }
+.vs > p + p { margin-top: 0; }
+.vs .side { background: #fff; border-radius: var(--radius); padding: 18pt 18pt 18pt; }
+.vs .side .bed { display: block; font: 700 12pt/18pt Atkinson, sans-serif; letter-spacing: .04em; color: var(--purple-500); }
+.vs .side .what { display: block; margin-top: 6pt; font: 700 16pt/24pt Atkinson, sans-serif; color: var(--purple-900); text-wrap: balance; }
+.panel.vs .vs-word { align-self: center; width: 36pt; height: 36pt; border-radius: 50%; background: var(--purple-500); color: #fff;
+  display: flex; align-items: center; justify-content: center; font: 700 11pt/12pt Atkinson, sans-serif; letter-spacing: .02em; }
+
+/* bed habits: each list item beside its own picture, hairlines between rows only */
+.habits { list-style: none; }
+.habits li { display: grid; grid-template-columns: 108pt 1fr; column-gap: 24pt; align-items: center;
+  padding: 12pt 0 11.25pt; border-bottom: .75pt solid var(--purple-200); }
+.habits li:first-child { padding-top: 0; }
+.habits li:last-child { border-bottom: 0; padding-bottom: 0; }
+.habits img { display: block; width: 108pt; height: auto; border-radius: 4pt; }
+.habits p { font: 500 14pt/24pt Inter, sans-serif; color: var(--ink); }
+
+/* strategy heading: the strategy's picture beside its title */
+.strategy { display: grid; grid-template-columns: 84pt 1fr; column-gap: 24pt; align-items: center; margin-bottom: 18pt; }
+.strategy img { display: block; width: 84pt; height: auto; }
+.strategy .h2 { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<!-- lucide icons (from the app's own lucide-react package). Each used once, except the question icon, which marks every question. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-question" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-moon-star" viewBox="0 0 24 24"><path d="M18 5h4"/><path d="M20 3v4"/><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+  <symbol id="i-sofa" viewBox="0 0 24 24"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M4 18v2"/><path d="M20 18v2"/><path d="M12 4v9"/></symbol>
+  <symbol id="i-hand-heart" viewBox="0 0 24 24"><path d="M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m14.45 13.39 5.05-4.694C20.196 8 21 6.85 21 5.75a2.75 2.75 0 0 0-4.797-1.837.276.276 0 0 1-.406 0A2.75 2.75 0 0 0 11 5.75c0 1.2.802 2.248 1.5 2.946L16 11.95"/><path d="m2 15 6 6"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a1 1 0 0 0-2.75-2.91"/></symbol>
+</svg>
+
+<!-- COVER -->
+<div class="sheet-wrap"><section class="page cover divider">
+  <img class="logo" src="assets/care2sleep-logo.svg" alt="Care2Sleep">
+  <div class="head"><div class="chapno">Module 2</div><h1 class="display title">Retraining Your Brain Where to Sleep</h1></div>
+  <div class="scene">
+    <img class="art" src="assets/cover.jpg" alt="A soft purple and golden brain resting on golden ground, with a small cosy bed tucked inside it under a crescent moon and stars. Golden stepping stones lead up to it, and a smiling pillow leans against it."></div>
+</section></div>
+
+<!-- CONTENTS (running foot, no running head) -->
+<div class="sheet-wrap"><section class="page" data-foot>
+  <div class="area">
+    <h2 class="toc-title">Contents</h2>
+    <a class="toc-row s12" href="#p-learn"><div class="t">What You Will Learn</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-recap"><div class="t">Looking back at last week</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch1"><div class="t"><small>Chapter 1</small>What Has Your Bed Come to Mean?</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch2"><div class="t"><small>Chapter 2</small>Let the Bed Be for Sleep</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-ch3"><div class="t"><small>Chapter 3</small>When Sleep Won’t Come</div><div class="n"></div></a>
+    <a class="toc-row" href="#p-close"><div class="t">Bringing it all together</div><div class="n"></div></a>
+  </div>
+</section></div>
+
+<!-- MODULE OPENING -->
+<div class="sheet-wrap"><section class="page" id="p-learn" data-head="What You Will Learn" data-first-numbered>
+  <div class="area">
+    <h1 class="h1">Retraining Your Brain Where to Sleep</h1>
+    <div class="panel deep learn-panel s72">
+      <h2 class="h2">What You Will Learn</h2>
+      <ul class="dots">
+        <li>How your brain learns to connect your bed with sleep.</li>
+        <li>What weakens the bed–sleep connection.</li>
+        <li>Simple ways to make your bed a signal for sleep again.</li>
+      </ul>
+      <img class="peek" src="assets/pillow-awake-on-dark.svg" alt="" aria-hidden="true" style="right: 24pt; top: -64pt;">
+    </div>
+  </div>
+</section></div>
+
+<!-- LOOKING BACK AT LAST WEEK -->
+<div class="sheet-wrap"><section class="page" id="p-recap" data-head="Looking back at last week">
+  <div class="area">
+    <h2 class="h1">Looking back at last week</h2>
+    <h3 class="h2 s24">Previous Module Recap: The Building Blocks of Good Sleep</h3>
+    <p>Your last module laid the foundations for good, restful sleep. We learnt that sleep is an active process that occurs in roughly <mark><span class="nobr">90-minute</span> cycles</mark> and involves <mark>different stages (NREM and REM),</mark> each supporting functions such as memory, learning, physical repair, and overall health. We also learnt that <mark>brief awakenings during the night are normal</mark> and usually not something to be worried about.</p>
+    <p>The last module also discussed common changes in sleep that occur with age and dementia. <mark>People living with dementia and care partners may experience more disrupted sleep due to brain changes, caregiving demands, health issues, stress, or environmental factors.</mark></p>
+    <p>However, it’s important to recognise that <mark>sleep problems can take different forms.</mark> Sleep deprivation occurs when external factors interrupt sleep, while insomnia occurs when there is an opportunity to sleep but difficulty falling or staying asleep.</p>
+    <p>Good sleep relies on <mark>three key ingredients:</mark> a strong sleep drive, a well-aligned body clock, and a calm mind and body before bed.</p>
+    <p>We also introduced our first group of strategies focused on building sleep drive to help sleep come more easily. These strategies include <mark>keeping a consistent wake time, limiting naps, and avoiding going to bed too early.</mark></p>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Looking back at last week">
+  <div class="area">
+    <div class="reflect">
+      <img class="who" src="assets/pillow-awake.svg" alt="" aria-hidden="true">
+      <div class="bubble tail"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>What strategies worked well for you last week?</p></div>
+      <div class="lines" data-field="recap-1-worked-well" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="reflect s36">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>What challenges came up for you last week (big or small!)?</p></div>
+      <div class="lines" data-field="recap-2-challenges" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- CHAPTER 1 -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch1">
+  <div class="head"><div class="chapno">Chapter 1</div><h2 class="h1">What Has Your Bed Come to Mean?</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/ch1-opener.jpg" alt="At night, an older man lies awake in bed, calm and thoughtful, beside a moonlit window and a glowing bedside lamp."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: What Has Your Bed Come to Mean?">
+  <div class="area">
+    <h3 class="h2">The Bed-Sleep Connection: How Sleep Associations Are Formed</h3>
+    <p>Our brains learn through <mark>associations</mark>. Over time, they link certain places, behaviours, and feelings together. For example, you might feel hungry when you smell food cooking, or feel relaxed when you sit in your favourite chair.</p>
+    <figure class="s18"><img src="assets/associations-house.jpg" alt="A simple house holding three rooms: a kitchen leads to a pot of food cooking, a dining table leads to a plate of food, and an armchair leads to a person relaxing in it."></figure>
+    <p class="s18">But how does this relate to sleep? Well, ideally the bed and bedroom should be associated with sleep and relaxation. When this connection is strong, getting into bed naturally signals to your brain that it is time to sleep and you can fall asleep, and stay asleep, more easily.</p>
+    <p>However, when sleep problems persist, the brain can accidentally learn different associations. If someone spends long periods awake in bed worrying, thinking, or feeling frustrated about sleep, the brain may begin to link the bed with wakefulness rather than sleep.</p>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: What Has Your Bed Come to Mean?">
+  <div class="area">
+    <figure><img style="width: auto; height: 234pt;" src="assets/bed-to-sleep.jpg" alt="An empty bed, an arrow, then a woman sleeping peacefully, both inside the outline of a brain."></figure>
+    <h3 class="h2 s18">Learning Through Association</h3>
+    <p>This type of learning is known as <mark>classical conditioning</mark>. It simply means that the brain learns by pairing things together over time. When sleep is going well, the association is clear:</p>
+    <p class="formula lilac s12">Bed + sleep = strong sleep connection</p>
+    <p class="s18">But when sleep difficulties arise, a different pattern can develop:</p>
+    <p class="formula pale s12">Bed + being awake, worrying, or tossing and turning = weaker sleep connection</p>
+    <p class="s18">Over time, the brain can begin to treat the bed as a place for being awake rather than sleeping.</p>
+    <div class="panel deep s24"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-brain"/></svg>
+      <p>Your brain can learn that the bed means sleep, or it can learn that the bed means being awake.</p></div></div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: What Has Your Bed Come to Mean?">
+  <div class="area">
+    <h3 class="h2">Breaking Bad Bed Habits</h3>
+    <p>Certain sleep-related habits can unintentionally work to weaken the connection between the bed and sleep.</p>
+    <p class="list-lead s18">These include:</p>
+    <ul class="habits s6">
+      <li><img src="assets/habit-1.jpg" alt="An older woman lying awake in bed, eyes open."><p>Lying awake in bed for long periods</p></li>
+      <li><img src="assets/habit-2.jpg" alt="An older woman sitting up in bed looking at her phone."><p>Watching TV or using phones in bed</p></li>
+      <li><img src="assets/habit-3.jpg" alt="An older woman sitting in bed with a laptop and papers spread over the blanket."><p>Doing paperwork or worrying in bed</p></li>
+      <li><img src="assets/habit-5.jpg" alt="An older woman sitting up in bed in daylight, not yet sleepy."><p>Going to bed long before feeling sleepy</p></li>
+      <li><img src="assets/habit-6.jpg" alt="An older woman sitting on her bed holding a cup and saucer."><p>Spending lots of time awake in the bedroom</p></li>
+    </ul>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 1: What Has Your Bed Come to Mean?">
+  <div class="area">
+    <p>When these patterns happen regularly, the brain may begin to learn: “This is the place where I lie awake.”</p>
+    <p>It is also common to start trying harder to make sleep happen. However, sleep is one of the few things that can become more difficult when we put pressure on ourselves to achieve it. The more we think, “I need to fall asleep now” or “I won’t cope tomorrow if I don’t sleep,” the more our brain can become alert and switched on.</p>
+    <div class="reflect s48">
+      <img class="who" src="assets/pillow-awake.svg" alt="" aria-hidden="true">
+      <div class="bubble tail"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>Which of these might be happening in your night-time routine?</p></div>
+      <div class="lines" data-field="ch1-night-time-routine" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- CHAPTER 2 -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch2">
+  <div class="head"><div class="chapno">Chapter 2</div><h2 class="h1">Let the Bed Be for Sleep</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/ch2-opener.jpg" alt="In the evening, an older man yawns as his care partner gently takes his arm and walks him to a bed with the covers turned down, beside a glowing lamp."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 2: Let the Bed Be for Sleep">
+  <div class="area">
+    <h3 class="h2">Recognising It’s Time for Sleep</h3>
+    <p>As you have just learnt, our brains can learn to associate the bed with being awake, when really we want it to associate the bed with sleep!</p>
+    <div class="panel pale vs s18">
+      <p class="side"><span class="bed">BED =</span> <span class="what">AWAKE, WORRY, FRUSTRATION</span></p>
+      <p class="vs-word">VS.</p>
+      <p class="side"><span class="bed">BED =</span> <span class="what">SLEEP, RELAXATION</span></p>
+    </div>
+    <p class="s18">Strengthening the connection between bed and sleep can help improve sleep quality over time. It can be helpful to take some of the pressure off sleep. This does not mean giving up on sleep or accepting poor sleep forever. Instead, it means shifting the focus from “making sleep happen” to creating the right conditions for sleep to return. This will reduce alertness and rebuild the connection between the bed, bedroom, and rest.</p>
+    <p>Here are some ways to help your brain recognise it’s time for sleep:</p>
+    <div class="strategy s36"><img src="assets/strategy-bed-for-sleep.png" alt="A neatly made bed."><h3 class="h2">Strategy 1: Keep the bed mainly for sleep and intimacy</h3></div>
+    <p>When we do anything else in bed, our brains associate the bed with being awake rather than sleeping, which can make it really hard to sleep when you’re in bed at night.</p>
+    <p>For some people living with dementia, the bed may also be used for comfort, rest, or safety during the day. The goal is not to remove all daytime rest, but to create as clear a connection as possible between the bed and sleep when this is practical.</p>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 2: Let the Bed Be for Sleep">
+  <div class="area">
+    <div class="strategy"><img src="assets/strategy-bed-when-sleepy.png" alt="A sleepy yawning face dreaming of a bed."><h3 class="h2">Strategy 2: Get into bed when you feel sleepy</h3></div>
+    <p>If you get into bed when you’re not sleepy, there’s a good chance you’ll be lying there awake and thinking, which builds that brain association between the bed and being awake. Only go to bed when you’re actually in the mood for sleep!</p>
+    <p>Instead, try to notice your own signs of sleepiness and aim to go to bed when you feel ready for sleep.</p>
+    <p>For people living with dementia, signs of sleepiness may look different from person to person. Some people may become quieter, less engaged, yawn, rub their eyes, or show reduced energy. Learning to recognise these cues can help identify the right time for sleep.</p>
+    <div class="reflect s48">
+      <img class="who" src="assets/pillow-awake.svg" alt="" aria-hidden="true">
+      <div class="bubble tail"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>What are your signs that you are sleepy?</p></div>
+      <div class="lines" data-field="ch2-signs-sleepy" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- CHAPTER 3 -->
+<div class="sheet-wrap"><section class="page divider" id="p-ch3">
+  <div class="head"><div class="chapno">Chapter 3</div><h2 class="h1">When Sleep Won’t Come</h2></div>
+  <div class="scene"><svg class="wave" viewBox="0 -1 595.28 20" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+    <img class="art" src="assets/ch3-opener.jpg" alt="In the middle of the night, an older man sits in an armchair under a soft lamp, a blanket over his knees, folding a towel, while his care partner sits beside him holding a warm drink."></div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <div class="strategy"><img src="assets/strategy-break-from-bed.png" alt="A comfortable armchair."><h3 class="h2">Strategy 3: Take a safe break from the bed when sleep does not come</h3></div>
+    <p>If you are finding it hard to fall asleep, or you wake during the night and cannot return to sleep, it can help to get up and do something calming in another room (or another area of the home) before returning to bed when you feel sleepy again.</p>
+    <p>If you feel like you’ve been awake for a while (e.g., around <span class="nobr">15–20</span> minutes), getting out of bed can help prevent the bed from becoming associated with frustration, worry, or being awake. It will also reduce the likelihood that you will use the bed to think, plan, or engage in other activities (e.g., scrolling through your phone, watching TV).</p>
+    <p>When you leave the bed you could do something relaxing or even a little boring. This might be reading, folding the laundry, or colouring in. It is important to do these activities in dim light, as brighter light can signal to your brain that it is time to be awake, making it harder to feel sleepy again and return to bed.</p>
+    <figure class="s18"><img src="assets/calming-activities.jpg" alt="Three calming activities: an open book, a stack of folded laundry, and a colouring book with pencils."></figure>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <p>For people living with dementia, activities should be familiar, achievable, and matched to the person’s abilities. The goal is not to “keep them awake,” but to provide comfort, reduce distress, and support a return to sleep when they become sleepy again. Activities might include looking through familiar photos, listening to a favourite playlist, or handling meaningful objects.</p>
+    <p>When you feel sleepy again, return to bed and try to sleep. You may need to repeat this process more than once during the night, and that’s okay.</p>
+    <p>Factors such as mobility, falls risk, confusion during the night, and the availability of support may need to be considered. Safety and comfort always come first.</p>
+    <p>If leaving the bedroom is not feasible, for yourself or the person you care for, consider a quiet, low-stimulation activity while remaining calm and avoiding frustration (e.g., reading). Alternatively, consider moving to another space in the room (e.g., an armchair in the corner), in order to keep the bed for sleep.</p>
+    <div class="reflect s36">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg>
+        <p>List what activities you could do instead of lying in bed feeling worried or frustrated:</p></div>
+      <div class="lines" data-field="ch3-activities-instead" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <div class="strategy"><img src="assets/strategy-clock-watching.png" alt="A clock crossed out."><h3 class="h2">Strategy 4: Reduce clock-watching when seeing the time adds pressure</h3></div>
+    <p>Clock watching at night can increase frustration and worry about not sleeping. Even the simple act of checking the time can make your brain more alert and make it harder to return to sleep.</p>
+    <p>If possible, remove clocks from the room, turn clocks away from view, or cover them so you’re not tempted to check the time.</p>
+    <p>For people living with dementia, checking the time repeatedly may add to confusion or distress, particularly during periods of waking at night when it can be harder to judge whether it is time to be awake or asleep. For some, however, having a visible clock may provide reassurance or orientation. In these situations, consider whether the clock is helpful or whether it contributes to worry or wakefulness.</p>
+    <p>Try to tune into signs of sleepiness from your body, rather than focusing on how long you’ve been awake or how long until you need to wake up. The aim is to reduce pressure around sleep and create a calmer environment where sleep can return naturally.</p>
+    <div class="panel deep s24"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-sprout"/></svg>
+      <p>Small changes in bedtime habits can retrain your brain to see the bed as a cue for sleep.</p></div></div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <h3 class="h2">Busting the Myth of Awakenings</h3>
+    <p>There’s a misconception that waking up in the middle of the night isn’t normal. There is a lot of pressure or expectation that people should sleep all the way through at night. But actually, as we learnt in the last module, awakenings are a natural part of our sleep cycle. Everyone wakes up several times at night, we just might not remember them!</p>
+    <div class="panel pale s18"><div class="panel-row"><svg class="ico" style="color: var(--purple-500)" aria-hidden="true"><use href="#i-moon-star"/></svg>
+      <p>Waking up during the night is normal and part of the natural sleep cycle.</p></div></div>
+    <p class="s18">When you wake in the middle of the night you’ll also be building up your sleep hunger by being awake, which means that the next time you get to bed, you’ll fall asleep quicker and sleep deeper. Remember, being awake is not the problem, frustrated wakefulness is!</p>
+    <p>If you’re having trouble falling back to sleep even after leaving the bed, try focusing on <mark>resting rather than sleeping,</mark> which can take a bit of the pressure away.</p>
+    <div class="panel deep s18"><div class="panel-row"><svg class="ico" style="color: var(--yellow-400)" aria-hidden="true"><use href="#i-sofa"/></svg>
+      <p>If it’s hard to sleep, you can focus on resting rather than sleeping.</p></div></div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <h3 class="h2">Supporting Night-Time Wakefulness in Dementia</h3>
+    <p>For many people living with dementia, the night-time and early morning hours can be a time for calm, quiet and relaxation. If the person you are caring for wakes up at night, you might want to help support them with relaxing activities until they begin to feel sleepy again. Think about ways you can set up a comfortable, low-stimulation environment during the night, including soft lighting, keeping noise to a minimum, and offering activities that are calming and familiar.</p>
+    <p>The middle of the night may also be a time of distress. In these moments, it can be more helpful to focus on being present rather than trying to reason or correct. It can be helpful to remember that their experience feels real and meaningful to them, even if it does not match what others can see or understand. For example, someone living with dementia may feel extreme fear about something which you might think is irrational. Instead of saying, “don’t be silly, that’s never going to happen”, you can aim to empathise with their feelings and provide reassurance, such as “I can see you’re feeling very upset and frightened, it must have felt really scary. I am here with you”.</p>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Chapter 3: When Sleep Won’t Come">
+  <div class="area">
+    <p>Nightmares or frightening dreams can also contribute to night-time distress. The feelings created by the dream may continue after waking, even if the details are unclear or do not seem realistic to others. Responding to the emotion, such as fear or confusion, rather than focusing on whether the dream was real can help the person feel safe and supported.</p>
+    <p>Responding with empathy does not mean agreeing with the concern or reinforcing a misunderstanding. It means recognising the person’s feelings and helping them feel understood. It can also help to consider what the person may be trying to communicate through their waking or distress. They may be feeling uncomfortable, lonely, confused, needing reassurance, or responding to something in their environment.</p>
+    <div class="panel pale s24"><div class="panel-row"><svg class="ico" style="color: var(--purple-500)" aria-hidden="true"><use href="#i-hand-heart"/></svg>
+      <div><p>If the person you care for wakes at night, calm reassurance and a quiet environment can help them settle again.</p>
+      <p>Responding with empathy rather than logic can help reduce distress in people living with dementia.</p></div></div></div>
+  </div>
+</section></div>
+
+<!-- BRINGING IT ALL TOGETHER -->
+<div class="sheet-wrap"><section class="page" id="p-close" data-head="Bringing it all together">
+  <div class="area">
+    <h2 class="h1">Bringing it all together</h2>
+    <div class="panel lilac s24">
+      <p class="list-lead">In this module we discussed the following key strategies:</p>
+      <ul class="dots">
+        <li>Keep the bed mainly for sleep and intimacy, moving other activities somewhere else when that is practical.</li>
+        <li>Get into bed when you feel sleepy.</li>
+        <li>Take a safe break from the bed when sleep does not come or does not return: go somewhere calm and familiar, and come back to bed when you feel sleepy again.</li>
+        <li>Reduce clock-watching when seeing the time adds pressure.</li>
+        <li>If you’re having trouble falling back to sleep even after leaving the bed, try focusing on resting rather than sleeping.</li>
+      </ul>
+    </div>
+    <div class="reflect s24">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>Do you have any questions about the things you have learnt?</p></div>
+      <div class="lines" data-field="close-1-questions-learnt" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+<div class="sheet-wrap"><section class="page" data-head="Bringing it all together">
+  <div class="area">
+    <div class="reflect">
+      <div class="bubble wide"><svg class="ico" aria-hidden="true"><use href="#i-question"/></svg><p>Do you have any questions for your coach?</p></div>
+      <div class="lines" data-field="close-2-questions-coach" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- BACK PAGE -->
+<div class="sheet-wrap"><section class="page back">  <!-- no running head, foot or number -->
+  <img class="logo-c" src="assets/care2sleep-logo.svg" alt="Care2Sleep">
+  <div class="bottom">
+    <div class="left">
+      <div>
+        <p class="partners-label contact-label">Contact us:</p>
+        <p class="contact">research.team@care2sleep.example.au</p>  <!-- PLACEHOLDER email: the user will supply the real one -->
+      </div>
+      <div>
+      <p class="partners-label">Project Partners:</p>
+      <div class="partners">
+        <img src="../../Resource shell/monash-university-black.svg" alt="Monash University" style="width: 84pt;">
+        <img src="../../Resource shell/dementia-australia-logo.svg" alt="Dementia Australia" style="width: 98pt;">
+      </div>
+      </div>
+    </div>
+    <div class="qr">
+      <img class="qr-code" src="../../Resource shell/qr-project-website.svg" alt="QR code linking to the project website">  <!-- PLACEHOLDER: encodes https://example.com/care2sleep -->
+      <p>Scan to visit the project website</p>
+    </div>
+  </div>
+</section></div>
+
+<script>
+  const PAGE_W = 595.28;
+  const pages = [...document.querySelectorAll('.page')];
+  // page 1 is "What You Will Learn": cover and contents are front matter, unnumbered
+  const first = pages.indexOf(document.querySelector('[data-first-numbered]'));
+  const pageNo = pg => pages.indexOf(pg) - first + 1;
+  pages.forEach((pg, i) => {
+    // running head + page-number tab on text pages
+    if (pg.dataset.head) {
+      const r = document.createElement('div'); r.className = 'running';
+      r.innerHTML = `<span></span><span class="pno">${pageNo(pg)}</span>`;
+      r.firstChild.textContent = pg.dataset.head;
+      pg.prepend(r);
+    }
+    // running foot on every text page, plus the contents
+    if (pg.dataset.head || pg.hasAttribute('data-foot')) {
+      const f = document.createElement('div'); f.className = 'foot';
+      f.innerHTML = '<span>Care2Sleep</span><span>Module 2</span>';
+      pg.append(f);
+    }
+    // grid overlay (G)
+    const g = document.createElement('div'); g.className = 'grid-overlay';
+    g.innerHTML = '<div class="cols">' + '<i></i>'.repeat(12) + '</div><div class="base"></div>';
+    pg.append(g);
+  });
+  // contents numbers come from the real page order
+  document.querySelectorAll('.toc-row').forEach(a => {
+    const t = document.querySelector(a.getAttribute('href'));
+    a.querySelector('.n').textContent = pageNo(t);
+  });
+  // chapter opener wave: 3.5 even crests, 18pt crest to trough (the cover has none)
+  const wave = (P, A) => { let d = 'M0,-1';
+    for (let x = 0; x <= PAGE_W + 2; x += 2) d += ` L${x.toFixed(1)},${(A / 2 * (1 - Math.cos(2 * Math.PI * x / P))).toFixed(2)}`;
+    return d + ` L${(PAGE_W + 4).toFixed(1)},-1 Z`; };
+  document.querySelectorAll('.divider:not(.cover) .wave path').forEach(p => p.setAttribute('d', wave(170, 18)));
+  // dotted flow: one dot exactly on each end
+  document.querySelectorAll('.flow-line path.dots').forEach(pth => {
+    const len = pth.getTotalLength(), n = Math.max(1, Math.round(len / 7));
+    pth.style.strokeDasharray = `0 ${len / n}`;
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'g' || e.key === 'G') document.body.classList.toggle('show-grid'); });
+  // opener title sits 64pt above the painting's wave; overflow check on text pages
+  const settle = () => {
+    document.querySelectorAll('.divider:not(.cover)').forEach(pg => {
+      const art = pg.querySelector('.art'), head = pg.querySelector('.head');
+      const pt = pg.getBoundingClientRect().width / PAGE_W;
+      head.style.bottom = (art.getBoundingClientRect().height / pt + 64) + 'pt';
+    });
+    document.querySelectorAll('.page .area').forEach(a => {
+      const last = a.lastElementChild; if (!last) return;
+      const over = last.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom;
+      const pg = a.closest('.page'); pg.dataset.over = Math.round(over);
+      pg.classList.toggle('overflow', over > 1);
+    });
+  };
+  Promise.all([document.fonts.ready, ...[...document.images].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; }))]).then(settle);
+</script>
+</body>
+</html>

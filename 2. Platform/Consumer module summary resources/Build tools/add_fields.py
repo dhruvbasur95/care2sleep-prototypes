@@ -38,7 +38,11 @@ w._root_object[NameObject('/AcroForm')] = DictionaryObject({
     NameObject('/DR'): DictionaryObject({NameObject('/Font'): DictionaryObject({NameObject('/Helv'): font})}),
     NameObject('/NeedAppearances'): BooleanObject(True)})
 w._root_object[NameObject('/ViewerPreferences')] = DictionaryObject({NameObject('/DisplayDocTitle'): BooleanObject(True)})
-w.add_metadata({'/Title': 'Building Blocks of Good Sleep', '/Subject': 'Care2Sleep Module 1 resource',
+# title from the page's own <title> (Chrome carries it into the PDF); module from the output path ("Module N/Resource/…")
+import os, re
+title = (r.metadata.title if r.metadata and r.metadata.title else os.path.splitext(os.path.basename(dst))[0])
+mod = re.search(r'Module \d+', os.path.abspath(dst)); mod = mod.group(0) if mod else 'Module'
+w.add_metadata({'/Title': title, '/Subject': f'Care2Sleep {mod} resource',
                 '/Author': 'Care2Sleep, Monash University', '/Creator': 'Care2Sleep consumer module resources'})
 # bookmarks: the contents page's sections, not Chrome's heading dump
 if outline_json:
