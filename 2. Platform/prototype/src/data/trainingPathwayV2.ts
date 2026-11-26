@@ -136,21 +136,24 @@ export const PATHWAY_MODULES_V2: TrainingModuleV2[] = [
     estimatedMinutes: 35,
   },
   {
+    // Hosts the real Module 8 content for review, exactly as cards 1 and 2 host
+    // Modules 6 and 7 (direct instruction, 2026-11-27: "add it to the modules
+    // and show it after module 7"). `DEMO_PLAYER_REDIRECTS` in `pathway.ts`
+    // points it at `resetting-body-clock`. The id stays; "SIPTEA framework" is
+    // off the list until Module 8 moves to its proper slot.
     id: 'program-structure-onboarding',
-    title: 'SIPTEA framework',
+    // Title from `Module 8.md`'s Module name row; description is its Core
+    // message, verbatim.
+    title: 'Resetting Your Body Clock (Module 8)',
     description:
-      'Introduction to the SIPTEA coaching framework and how to apply it throughout the program.',
+      'A consistent body clock, supported by regular light exposure, physical activity and daily routines, helps regulate sleep and wakefulness and improve sleep quality, particularly for people living with dementia.',
     status: 'not-started',
     progress: 0,
     cover: {
-      colors: ['#2e2a4d', '#8b7fc7', '#c9b8e8'],
-      // Module cover, generated with Nano Banana Pro in the series'
-      // established watercolour-and-ink style and recurring cast. 1600x893,
-      // the exact size of `building-blocks-cover.webp`, which is the
-      // reference this set was matched to. `colors` stays as the wash
-      // behind it — `moduleArt()` layers the image OVER the gradient, so it
-      // is still what paints while the image loads.
-      image: `${import.meta.env.BASE_URL}illustrations/modules/program-structure-onboarding-cover.webp`,
+      // The curriculum's own cover for this topic (the Sleep-group
+      // `resetting-body-clock` card's), reused rather than generated.
+      colors: ['#232838', '#4a6fa1', '#7fd1c9'],
+      image: `${import.meta.env.BASE_URL}illustrations/modules/resetting-body-clock-cover.webp`,
     },
     estimatedMinutes: 35,
   },

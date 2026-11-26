@@ -86,7 +86,7 @@ export function ModuleFeedbackSlide({
               >
                 How was this module?
               </h1>
-              <p className="text-body text-ink-muted text-balance">
+              <p className="text-body text-ink-muted text-pretty">
                 Your rating and comments help us improve future modules. Both are optional.
               </p>
             </div>

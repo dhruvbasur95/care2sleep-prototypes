@@ -96,6 +96,9 @@ const DEMO_PLAYER_REDIRECTS: Record<string, string> = {
   // Module 7 (`3. Coaching modules/05. Modules/Module 7/Module 7.md`) on card 2, the
   // same way — direct instruction, 2026-11-20.
   'population-understanding': 'retraining-brain-sleep',
+  // Module 8 (`05. Modules/Module 8/Module 8.md`) on card 3, right after
+  // Module 7 — direct instruction, 2026-11-27.
+  'program-structure-onboarding': 'resetting-body-clock',
 }
 
 /** Resolves a home-timeline module id to the id its real content/progress

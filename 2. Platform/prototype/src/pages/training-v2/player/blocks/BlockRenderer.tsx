@@ -1,8 +1,11 @@
 import {
+  AlarmClockOff,
   Bed,
   Blocks,
   BookOpen,
   Brain,
+  CalendarClock,
+  Clock,
   HeartHandshake,
   ImageIcon,
   Link,
@@ -24,7 +27,9 @@ import {
   Scale,
   Search,
   Sparkles,
+  Sun,
   SunMoon,
+  Sunrise,
   type LucideIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -52,6 +57,7 @@ import { HearPairRevealList } from './HearPairReveal'
 import { YourTurnMcq } from './YourTurnMcq'
 import { CaseScenarioBlock } from './CaseScenarioBlock'
 import { FormattedText, InlineText } from './InlineText'
+import { ChunkedText } from './ChunkedText'
 
 /** The Know How block's own heading id. A `case-scenario` block always follows
  *  one on the same slide and is labelled by it — the frames draw no title of
@@ -134,6 +140,13 @@ const TOPIC_ICONS: Record<TopicIcon, LucideIcon> = {
   tv: Tv,
   moon: Moon,
   'heart-handshake': HeartHandshake,
+  // Module 8's key topics.
+  clock: Clock,
+  'alarm-clock-off': AlarmClockOff,
+  sun: Sun,
+  sunrise: Sunrise,
+  footprints: Footprints,
+  'calendar-clock': CalendarClock,
 }
 
 /** The `<Image block>` placeholder's wash — the same lookup `VideoPlaceholder`
@@ -149,6 +162,9 @@ const TRANSITION_ICONS: Record<TransitionIcon, LucideIcon> = {
   'sun-moon': SunMoon,
   bed: Bed,
   moon: Moon,
+  // Module 8: into light (Ch1 -> Ch2), into movement (Ch2 -> Ch3).
+  sun: Sun,
+  footprints: Footprints,
 }
 
 /**
@@ -206,40 +222,6 @@ export function SectionEyebrow({ icon: Icon, label }: { icon: LucideIcon; label:
 /** A control the frame draws but which has no handler wired renders focusable
  *  and `aria-disabled` with an `sr-only` cue — never silently dead, never
  *  dropped (standing rule). */
-/**
- * One long-form copy field rendered as chunks (2026-11-03, direct instruction:
- * "break into two paragraphs" / "break into chunks and add bullets"). The field
- * stays a single string so the block's shape is unchanged: a blank line starts
- * a new paragraph, and a chunk whose lines all begin `- ` is a bullet list.
- * A string with neither renders as one paragraph, exactly as before.
- */
-function ChunkedText({ text, className }: { text: string; className?: string }) {
-  const chunks = text.split(/\n\s*\n/).map((chunk) => chunk.trim()).filter(Boolean)
-  return (
-    <div className={cn('flex flex-col gap-4', className)}>
-      {chunks.map((chunk, i) => {
-        const lines = chunk.split('\n').map((line) => line.trim())
-        if (lines.every((line) => line.startsWith('- '))) {
-          return (
-            <ul key={i} className="flex list-disc flex-col gap-2 pl-6">
-              {lines.map((line) => (
-                <li key={line}>
-                  <InlineText text={line.slice(2)} />
-                </li>
-              ))}
-            </ul>
-          )
-        }
-        return (
-          <p key={i}>
-            <InlineText text={chunk} />
-          </p>
-        )
-      })}
-    </div>
-  )
-}
-
 function OutroButton({
   onClick,
   className,
@@ -375,7 +357,7 @@ export function BlockView({
                 >
                   {block.title}
                 </Heading>
-                <p className="text-sub-greeting leading-[1.4] text-white text-balance">
+                <p className="text-sub-greeting leading-[1.4] text-white text-pretty">
                   {block.expectationSetting}
                 </p>
               </div>
@@ -601,7 +583,7 @@ export function BlockView({
                   >
                     {block.chapterTitle}
                   </Heading>
-                  <p className="text-body text-ink-muted text-balance">{block.whatYouWillLearn}</p>
+                  <p className="text-body text-ink-muted text-pretty">{block.whatYouWillLearn}</p>
                 </div>
               </div>
             </div>
@@ -816,7 +798,7 @@ export function BlockView({
           >
             {block.title}
           </Heading>
-          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
+          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-pretty">
             {block.subtitle}
           </p>
         </div>
@@ -843,7 +825,7 @@ export function BlockView({
           >
             {block.title}
           </Heading>
-          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
+          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-pretty">
             {block.subtitle}
           </p>
         </div>
@@ -869,7 +851,7 @@ export function BlockView({
           >
             {block.title}
           </Heading>
-          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
+          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-pretty">
             {block.subtitle}
           </p>
         </div>
@@ -908,7 +890,7 @@ export function BlockView({
           >
             {block.title}
           </Heading>
-          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
+          <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-pretty">
             {block.subtitle}
           </p>
           {/* 24px below the sub title (direct instruction). The body joins the
@@ -950,10 +932,13 @@ export function BlockView({
           >
             <InlineText text={block.heading} />
           </Heading>
+          {/* Through `ChunkedText` so a multi-paragraph sub-heading (Module 8's
+              "Timing Matters") keeps its breaks; one line renders as before. */}
           {block.subheading?.trim() && (
-            <p className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-balance">
-              <InlineText text={block.subheading} />
-            </p>
+            <ChunkedText
+              text={block.subheading}
+              className="mt-2 text-sub-greeting leading-[1.4] text-ink-muted text-pretty"
+            />
           )}
         </div>
       )

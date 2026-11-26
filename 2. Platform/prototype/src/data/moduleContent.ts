@@ -40,6 +40,7 @@
 
 import type { SipteaInitial } from './siptea'
 import { MODULE_7 } from './module7Content'
+import { MODULE_8 } from './module8Content'
 
 /** One attributed quote — the `Quotes_` atom (`2584:1049`). */
 export interface Quote {
@@ -119,7 +120,7 @@ export type InteractivePattern = 'revision' | 'you-might-also-hear' | 'your-turn
  * the union small and meaning-bearing; do not add a glyph without a slide that
  * needs it.
  */
-export type TransitionIcon = 'blocks' | 'search' | 'scale' | 'sun-moon' | 'bed' | 'moon'
+export type TransitionIcon = 'blocks' | 'search' | 'scale' | 'sun-moon' | 'bed' | 'moon' | 'sun' | 'footprints'
 
 /** Know What revision — glossary term/definition pairs, click to reveal. */
 /**
@@ -512,6 +513,13 @@ export type TopicIcon =
   | 'tv'
   | 'moon'
   | 'heart-handshake'
+  // Module 8's key topics.
+  | 'clock'
+  | 'alarm-clock-off'
+  | 'sun'
+  | 'sunrise'
+  | 'footprints'
+  | 'calendar-clock'
 
 export interface KeyTopic {
   text: string
@@ -2028,6 +2036,7 @@ export const MODULE_CONTENT: Record<string, ModuleContent> = {
   // (`06. verify-slides.py`, `09. verify-transcription.py`) read one module
   // only — both scan the whole .ts they are given.
   'retraining-brain-sleep': MODULE_7,
+  'resetting-body-clock': MODULE_8,
 }
 
 /**

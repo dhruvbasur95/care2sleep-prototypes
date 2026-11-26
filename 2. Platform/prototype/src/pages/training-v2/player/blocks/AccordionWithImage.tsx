@@ -4,6 +4,7 @@ import { Image as ImageIcon } from 'lucide-react'
 import type { AccordionImageItem } from '@/data/moduleContent'
 import { cn } from '@/lib/utils'
 import { BlockBox } from './BlockBox'
+import { ChunkedText } from './ChunkedText'
 
 /**
  * `<Accordion with image block>` — Figma `2697:25053`, *"Accordion with image
@@ -233,12 +234,12 @@ export function AccordionWithImage({ items }: { items: AccordionImageItem[] }) {
                     )}
                     style={{ paddingLeft: DRAWER_INDENT_PX }}
                   >
-                    <p
-                      className="min-w-0 basis-0 text-body text-ink-muted"
-                      style={{ flexGrow: BODY_GROW }}
-                    >
-                      {item.body}
-                    </p>
+                    {/* `ChunkedText`, not a bare <p>: Module 8's bodies carry
+                        paragraph breaks from the .docx. A body without one
+                        renders as a single paragraph, as Module 6's do. */}
+                    <div className="min-w-0 basis-0" style={{ flexGrow: BODY_GROW }}>
+                      <ChunkedText text={item.body} className="text-body text-ink-muted" />
+                    </div>
 
                     {/* Below 1060 the row is `flex-col`, where the grow weights
                         have no proportion to divide — the image simply takes
